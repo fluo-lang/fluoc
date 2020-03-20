@@ -1,0 +1,12 @@
+name: Fluo
+version: "0.0.1"
+about: A compiled programming language
+args:
+    - entry:
+        help: Fluo file with entry point
+        required: true
+        index: 1
+    - debug:
+        short: d
+        multiple: false
+        help: Turns on debug mode (useful for development)

@@ -1,0 +1,22 @@
+import random
+
+func entry() {
+    let number: int = random.int(100);
+    let guess: int;
+    let not_win: bool = true;
+
+    while not_win {
+        guess = readln("Enter a number: ") as int;
+        
+        println(
+            match guess {
+                > number => "{_} is too big";
+                < number => "{_} is too small";
+                == number => {
+                    not_win = false;
+                    "You win! the number was {_}"
+                };
+            }
+        );
+    }
+}

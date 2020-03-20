@@ -1,0 +1,12 @@
+import random;
+
+func entry() {
+    let random_int = random.int(10);
+
+    println(match random_int {
+        1 => "one";
+        5 => "five";
+        7 => "seven";
+        _ => "other: {_}";
+    });
+}

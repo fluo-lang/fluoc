@@ -1,0 +1,15 @@
+
+func fizzbuzz(amount: int) -> int {
+    for value in 0..amount {
+        println(match value {
+            %% 3 => "Fizz";
+            %% 5 => "Buzz";
+            %% 3 & 5 => "Fizzbuzz";
+            _ => _;
+        });
+    }
+}
+
+func entry() {
+    fizzbuzz(100);
+}

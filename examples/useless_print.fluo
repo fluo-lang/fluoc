@@ -1,0 +1,20 @@
+
+func useless_print(value) { 
+    println(match value {
+        is int => "Int: {_}";
+        is str => "Str: \"{_}\"";
+        is bool => match _ {
+            true => ":) Bool: True";
+            false => ":( Bool: False";
+        };
+        _ => "Other type {_.type} with value: {_}";
+    });
+}
+
+func entry() {
+    x = 10;
+    y = "hello";
+
+    useless_print(x);
+    useless_print(y);
+}

@@ -1,0 +1,18 @@
+
+func fizzbuzz(amount: int) -> int {
+    for value in 0..amount {
+        if (value %% 5 && value %% 3) {
+            println("Fizzbuzz");
+        } else if (value %% 5) {
+            println("Buzz");
+        } else if (value %% 3) {
+            println("Fizz");
+        } else {
+            println(value);
+        }
+    }
+}
+
+func entry() {
+    fizzbuzz(100);
+}
