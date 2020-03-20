@@ -25,14 +25,14 @@ enum Token {
     QUESTION
 }
 
-pub struct Lexer {
-    pub filename: &'static str,
+pub struct Lexer<'a> {
+    pub filename: &'a str,
     pub file_contents: fs::File,
     pub position: i64
 }
 
-impl Lexer {
-    pub fn new(filename: &'static str) -> Result<Lexer, io::Error> {
+impl Lexer<'_> {
+    pub fn new(filename: &str) -> Result<Lexer, io::Error> {
         let file_contents = helpers::read_file(&filename);
 
         match file_contents {
@@ -46,7 +46,7 @@ impl Lexer {
     }
 }
 
-impl fmt::Debug for Lexer {
+impl fmt::Debug for Lexer<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Lexer")
          .field("Filename", &self.filename)

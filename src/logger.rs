@@ -12,14 +12,14 @@ struct Error {
     position: Pos
 }
 
-pub struct Logger {
+pub struct Logger<'a> {
     errors: Vec<Error>,
-    filename: &'static str,
+    filename: &'a str,
     file_contents: fs::File,
 }
 
-impl Logger {
-    pub fn new(filename: &'static str, file_contents: fs::File) -> Logger {
+impl Logger<'_> {
+    pub fn new(filename: &str, file_contents: fs::File) -> Logger {
         Logger { filename, errors: Vec::new(), file_contents }
     }
     pub fn error(&mut self, message: String, error: ErrorType, position: Pos) {
@@ -27,7 +27,6 @@ impl Logger {
             Error { message, error, position }
         );
     }
-    //pub fn 
 }
 
 
