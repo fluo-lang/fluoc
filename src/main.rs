@@ -2,6 +2,7 @@ pub mod helpers;
 pub mod lexer;
 pub mod logger;
 pub mod module;
+pub mod parser;
 
 use termion::{color, style};
 use std::process;
@@ -25,8 +26,8 @@ fn main() {
         let mut module = module.unwrap();
         println!("{:?}", module.lexer);
         loop {
-            println!("{:?}", &module.lexer.peek());
-            println!("{:?}", &module.lexer.peek());
+            //println!("{:?}", &module.lexer.peek());
+            //println!("{:?}", &module.lexer.peek());
             let token = module.lexer.advance();
             println!("{:?}", token);
         

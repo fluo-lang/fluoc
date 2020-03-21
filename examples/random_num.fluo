@@ -1,7 +1,11 @@
 import random;
 
+func random_num() -> int {
+    random.int(10)
+}
+
 func entry() {
-    let random_int = random.int(10);
+    let random_num = random_num();
 
     println(match random_int {
         1 => "one";

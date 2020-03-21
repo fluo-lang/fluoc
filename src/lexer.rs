@@ -386,4 +386,22 @@ mod lexer_tests {
         assert_eq!(get_tok_length(&TokenType::STRING(String::from("\"10203\""))), 7);
         assert_eq!(get_tok_length(&TokenType::STRING(String::from("\"\""))), 2);
     }
+
+    #[test]
+    fn lex_test() -> io::Result<()> {
+        let mut l = Lexer::new("./examples/simple_tests.fluo")?;
+        assert_eq!(*l.advance(), Token { token: TokenType::FUNC, pos: helpers::Pos { s: 0, e: 4 } });
+        assert_eq!(*l.advance(), Token { token: TokenType::IDENTIFIER(String::from("entry")), pos: helpers::Pos { s: 5, e: 10 } });
+        assert_eq!(*l.advance(), Token { token: TokenType::RP, pos: helpers::Pos { s: 10, e: 11 } });
+        assert_eq!(*l.advance(), Token { token: TokenType::LP, pos: helpers::Pos { s: 11, e: 12 } });
+        assert_eq!(*l.advance(), Token { token: TokenType::RCP, pos: helpers::Pos { s: 13, e: 14 } });
+        assert_eq!(*l.advance(), Token { token: TokenType::LET, pos: helpers::Pos { s: 19, e: 22 } });
+        assert_eq!(*l.advance(), Token { token: TokenType::IDENTIFIER(String::from("x")), pos: helpers::Pos { s: 23, e: 24 } });
+        assert_eq!(*l.advance(), Token { token: TokenType::COLON, pos: helpers::Pos { s: 24, e: 25 } });
+        assert_eq!(*l.advance(), Token { token: TokenType::IDENTIFIER(String::from("int")), pos: helpers::Pos { s: 26, e: 29 } });
+        assert_eq!(*l.advance(), Token { token: TokenType::SEMI, pos: helpers::Pos { s: 29, e: 30 } });
+        assert_eq!(*l.advance(), Token { token: TokenType::LCP, pos: helpers::Pos { s: 31, e: 32 } });
+        assert_eq!(*l.advance(), Token { token: TokenType::EOF, pos: helpers::Pos { s: 34, e: 34 } });
+        Ok(())
+    }
 }

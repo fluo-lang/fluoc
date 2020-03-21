@@ -1,5 +1,5 @@
 
-func fizzbuzz(amount: int) -> int {
+func fizzbuzz(amount: int) {
     for value in 0..amount {
         if (value %% 5 && value %% 3) {
             println("Fizzbuzz");
