@@ -8,6 +8,6 @@ pub fn read_file<'a>(filename: &'a str) -> io::Result<String> {
 
 #[derive(Debug, Clone)]
 pub struct Pos {
-    s: i64,
-    e: i64
+    pub s: i64,
+    pub e: i64
 }

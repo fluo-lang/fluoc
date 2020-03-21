@@ -24,6 +24,15 @@ fn main() {
     } else {
         let mut module = module.unwrap();
         println!("{:?}", module.lexer);
-        println!("{:?}", module.lexer.get_next_tok());
+        loop {
+            let token = module.lexer.get_next_tok();
+            println!("{:?}", token.unwrap());
+
+            if let Some(token) = token {
+                if let lexer::TokenType::EOF = token.token {
+                    break
+                }
+            }
+        }
     }
 }

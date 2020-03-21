@@ -1,4 +1,4 @@
-<h1 align = 'center'>The Igloo Programming Language</h1>
+<h1 align = 'center'>Fluo</h1>
 
 <!--<p align = 'center'>
   <img src = '/images/igloo_logo.png'>

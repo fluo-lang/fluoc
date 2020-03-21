@@ -6,7 +6,6 @@ const EOF_CHAR: char = '\0';
 #[derive(Clone, Debug)]
 pub enum TokenType {
     STRING(String),
-    INLINE(String),
     FUNC,
     IMPORT,
     RETURN,
@@ -18,15 +17,22 @@ pub enum TokenType {
     MUL,
     ADD,
     SUB,
-    COMMA,
+    DMOD,
+
+    ARROW,
+
     LP,
     RP,
     LCP,
     RCP,
+
     QUESTION,
     DOT,
     EQUALS,
+    COLON,
+    
     SEMI,
+    COMMA,
     EOF,
     UNKNOWN,
     LINECOMMENT(i64),
@@ -36,14 +42,13 @@ pub enum TokenType {
 
 #[derive(Debug, Clone)]
 pub struct Token {
-    token: TokenType,
-    pos: helpers::Pos
+    pub token: TokenType,
+    pub pos: helpers::Pos
 }
 
-fn get_tok_length(tok: TokenType) -> i64 {
+fn get_tok_length(tok: &TokenType) -> i64 {
     match tok {
         | TokenType::STRING(val)
-        | TokenType::INLINE(val)
         | TokenType::IDENTIFIER(val)
         | TokenType::NUMBER(val)
         => val.chars().count() as i64,
@@ -51,7 +56,7 @@ fn get_tok_length(tok: TokenType) -> i64 {
         | TokenType::LINECOMMENT(val)
         | TokenType::BLOCKCOMMENT(val)
         | TokenType::WHITESPACE(val)
-        => val,
+        => *val,
         
         TokenType::LET  => 3,
         TokenType::FUNC => 4,
@@ -59,6 +64,9 @@ fn get_tok_length(tok: TokenType) -> i64 {
         | TokenType::IMPORT 
         | TokenType::RETURN 
         => 6,
+
+        | TokenType::ARROW 
+        | TokenType::DMOD => 2,
 
         | TokenType::UNKNOWN 
         | TokenType::DIV
@@ -75,6 +83,7 @@ fn get_tok_length(tok: TokenType) -> i64 {
         | TokenType::DOT
         | TokenType::EQUALS
         | TokenType::SEMI
+        | TokenType::COLON
         => 1,
         
         TokenType::EOF => 0
@@ -158,11 +167,10 @@ impl Lexer<'_> {
         c
     }
 
-    pub fn get_next_tok<'a>(&'a mut self) {
-        
+    fn get_next_tok_type<'a>(&'a mut self) -> TokenType {
         let first_char = self.bump();
 
-        let token_kind = match first_char {
+        let mut token_kind = match first_char {
             '/' => match self.first() {
                 '/' => self.line_comment(),
                 // TODO: Implement block comments
@@ -178,21 +186,53 @@ impl Lexer<'_> {
             '*' => TokenType::MUL,
             '-' => TokenType::SUB,
             '+' => TokenType::ADD,
-            '%' => TokenType::MOD,
+            '%' => match self.first() { 
+                '%' => {
+                    self.bump();
+                    TokenType::DMOD
+                }
+                _ => TokenType::MOD
+            }
             '(' => TokenType::RP,
             ')' => TokenType::LP,
             '{' => TokenType::RCP,
             '}' => TokenType::LCP,
             '.' => TokenType::DOT,
             ';' => TokenType::SEMI,
-            '=' => TokenType::EQUALS,
+            '=' => match self.first() {
+                '>' => {
+                    self.bump();
+                    TokenType::ARROW
+                }
+                _ => TokenType::EQUALS,
+            }
             '?' => TokenType::QUESTION,
             ',' => TokenType::COMMA,
+            ':' => TokenType::COLON,
+
+            EOF_CHAR => TokenType::EOF,
             
             _ => TokenType::UNKNOWN
         };
 
-        println!("{:?}", token_kind);
+        if let TokenType::WHITESPACE(_) = token_kind {
+            token_kind = self.get_next_tok_type()
+        }
+        token_kind
+    }
+
+    pub fn get_next_tok<'a>(&'a mut self) -> Option<&Token> {
+        let token_kind = self.get_next_tok_type();
+        
+        self.current_token = Some(Token {
+            pos: helpers::Pos {
+                s: self.position-get_tok_length(&token_kind),
+                e: self.position
+            },
+            token: token_kind
+        });
+
+        self.current_token.as_ref()
         //let pos = helpers::Pos {}
 
         /*self.current_token = Some(
@@ -258,7 +298,7 @@ impl Lexer<'_> {
 
     pub fn advance<'a>(&'a mut self) {
         if let Some(tok) = &self.current_token {
-            self.position += get_tok_length(tok.clone().token);
+            self.position += get_tok_length(&tok.clone().token);
         }
     }
 }
@@ -269,37 +309,49 @@ mod lexer_tests {
 
     #[test]
     fn token_len_bin_op() {
-        assert_eq!(get_tok_length(TokenType::ADD), 1);
-        assert_eq!(get_tok_length(TokenType::DIV), 1);
-        assert_eq!(get_tok_length(TokenType::SUB), 1);
-        assert_eq!(get_tok_length(TokenType::MUL), 1);
-        assert_eq!(get_tok_length(TokenType::DIV), 1);
+        assert_eq!(get_tok_length(&TokenType::ADD), 1);
+        assert_eq!(get_tok_length(&TokenType::DIV), 1);
+        assert_eq!(get_tok_length(&TokenType::SUB), 1);
+        assert_eq!(get_tok_length(&TokenType::MUL), 1);
+        assert_eq!(get_tok_length(&TokenType::DIV), 1);
     }
 
     #[test]
     fn token_len_keywords() {
-        assert_eq!(get_tok_length(TokenType::FUNC), 4);
-        assert_eq!(get_tok_length(TokenType::IMPORT), 6);
-        assert_eq!(get_tok_length(TokenType::RETURN), 6);
-        assert_eq!(get_tok_length(TokenType::LET), 3);
+        assert_eq!(get_tok_length(&TokenType::FUNC), 4);
+        assert_eq!(get_tok_length(&TokenType::IMPORT), 6);
+        assert_eq!(get_tok_length(&TokenType::RETURN), 6);
+        assert_eq!(get_tok_length(&TokenType::LET), 3);
     }
 
     #[test]
     fn token_len_literal() {
-        assert_eq!(get_tok_length(TokenType::QUESTION), 1);
-        assert_eq!(get_tok_length(TokenType::SEMI), 1);
-        assert_eq!(get_tok_length(TokenType::RP), 1);
-        assert_eq!(get_tok_length(TokenType::LP), 1);
-        assert_eq!(get_tok_length(TokenType::RCP), 1);
-        assert_eq!(get_tok_length(TokenType::LCP), 1);
-        assert_eq!(get_tok_length(TokenType::DOT), 1);
-        assert_eq!(get_tok_length(TokenType::EQUALS), 1);
-        assert_eq!(get_tok_length(TokenType::COMMA), 1);
-        assert_eq!(get_tok_length(TokenType::UNKNOWN), 1);
+        assert_eq!(get_tok_length(&TokenType::QUESTION), 1);
+        assert_eq!(get_tok_length(&TokenType::SEMI), 1);
+        assert_eq!(get_tok_length(&TokenType::RP), 1);
+        assert_eq!(get_tok_length(&TokenType::LP), 1);
+        assert_eq!(get_tok_length(&TokenType::RCP), 1);
+        assert_eq!(get_tok_length(&TokenType::LCP), 1);
+        assert_eq!(get_tok_length(&TokenType::DOT), 1);
+        assert_eq!(get_tok_length(&TokenType::EQUALS), 1);
+        assert_eq!(get_tok_length(&TokenType::COMMA), 1);
+        assert_eq!(get_tok_length(&TokenType::UNKNOWN), 1);
     }
 
     #[test]
     fn token_len_eof() {
-        assert_eq!(get_tok_length(TokenType::EOF), 0);
+        assert_eq!(get_tok_length(&TokenType::EOF), 0);
+    }
+
+    #[test]
+    fn token_len_values() {
+        assert_eq!(get_tok_length(&TokenType::NUMBER(String::from("10203"))), 5);
+        assert_eq!(get_tok_length(&TokenType::NUMBER(String::from("1"))), 1);
+
+        assert_eq!(get_tok_length(&TokenType::IDENTIFIER(String::from("hi_a2h8r"))), 8);
+        assert_eq!(get_tok_length(&TokenType::IDENTIFIER(String::from("_"))), 1);
+
+        assert_eq!(get_tok_length(&TokenType::STRING(String::from("\"10203\""))), 7);
+        assert_eq!(get_tok_length(&TokenType::STRING(String::from("\"\""))), 2);
     }
 }
