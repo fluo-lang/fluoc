@@ -3,7 +3,7 @@ use std::io;
 
 const EOF_CHAR: char = '\0';
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum TokenType {
     STRING(String),
     FUNC,
@@ -44,6 +44,14 @@ pub enum TokenType {
 pub struct Token {
     pub token: TokenType,
     pub pos: helpers::Pos
+}
+
+impl PartialEq<Token> for Token {
+    fn eq(&self, other: &Token) -> bool {
+        self.pos.e == other.pos.e 
+        && self.pos.s == other.pos.s
+        && self.token == other.token
+    }
 }
 
 fn get_tok_length(tok: &TokenType) -> i64 {
@@ -120,7 +128,9 @@ pub struct Lexer<'a> {
     pub file_contents: String,
     previous: char,
     pub position: i64,
-    pub current_token: Option<Token>
+    temp_pos: i64,
+    next_token: Token,
+    pub current_token: Token
 }
 
 fn is_id_continue(c: char) -> bool {
@@ -133,11 +143,31 @@ fn is_id_continue(c: char) -> bool {
 impl Lexer<'_> {
     pub fn new(filename: &str) -> io::Result<Lexer> {
         let file_contents = helpers::read_file(&filename)?;
-        Ok(Lexer { filename, file_contents: file_contents, previous: EOF_CHAR, position: 0, current_token: None })
+        Ok(Lexer { 
+            filename, 
+            file_contents, 
+            previous: EOF_CHAR, 
+            position: 0, 
+            temp_pos: 0,
+            current_token: Token { 
+                token: TokenType::EOF, 
+                pos: helpers::Pos {
+                    s: 0, 
+                    e: 0
+                } 
+            },
+            next_token: Token { 
+                token: TokenType::EOF, 
+                pos: helpers::Pos {
+                    s: 0, 
+                    e: 0
+                } 
+            }
+        })
     }
 
     fn nth_char(&mut self, n: i64) -> char {
-        self.file_contents.chars().nth((n+self.position) as usize).unwrap_or(EOF_CHAR)
+        self.file_contents.chars().nth((n+self.position+self.temp_pos) as usize).unwrap_or(EOF_CHAR)
     }
 
     fn first(&mut self) -> char {
@@ -162,9 +192,14 @@ impl Lexer<'_> {
 
     fn bump(&mut self) -> char {
         self.previous = self.first();
-        let c = self.file_contents.chars().nth((self.position) as usize).unwrap_or(EOF_CHAR);
-        self.position += 1;
+        let c = self.file_contents.chars().nth((self.position+self.temp_pos) as usize).unwrap_or(EOF_CHAR);
+        self.temp_pos += 1;
         c
+    }
+
+    fn eat(&mut self) {
+        self.position += self.temp_pos;
+        self.temp_pos = 0;
     }
 
     fn get_next_tok_type<'a>(&'a mut self) -> TokenType {
@@ -214,33 +249,46 @@ impl Lexer<'_> {
             
             _ => TokenType::UNKNOWN
         };
-
+        
         if let TokenType::WHITESPACE(_) = token_kind {
             token_kind = self.get_next_tok_type()
         }
         token_kind
     }
 
-    pub fn get_next_tok<'a>(&'a mut self) -> Option<&Token> {
+    pub fn advance<'a>(&'a mut self) -> &Token {
         let token_kind = self.get_next_tok_type();
+        self.eat();
         
-        self.current_token = Some(Token {
+        self.current_token = Token {
             pos: helpers::Pos {
                 s: self.position-get_tok_length(&token_kind),
                 e: self.position
             },
             token: token_kind
-        });
+        };
 
-        self.current_token.as_ref()
-        //let pos = helpers::Pos {}
+        &self.current_token
+    }
 
-        /*self.current_token = Some(
-            Token {
-                token,
-                pos
-            }
-        );*/
+    pub fn peek<'a>(&'a mut self) -> &Token {
+        if self.current_token != self.next_token {
+            return &self.next_token;
+        }
+
+        let token_kind = self.get_next_tok_type();
+        
+        self.next_token = Token {
+            pos: helpers::Pos {
+                s: self.position-get_tok_length(&token_kind)+self.temp_pos,
+                e: self.position+self.temp_pos
+            },
+            token: token_kind
+        };
+
+        self.temp_pos = 0;
+
+        &self.next_token
     }
 
     fn number(&mut self) -> TokenType {
@@ -284,22 +332,6 @@ impl Lexer<'_> {
         }
 
         (eaten, content)
-    }
-
-    pub fn peek<'a>(&'a mut self) -> Token {
-        match &self.current_token {
-            Some(tok) => tok.clone(),
-            None => {
-                self.get_next_tok();
-                self.current_token.clone().unwrap()
-            }
-        }
-    }
-
-    pub fn advance<'a>(&'a mut self) {
-        if let Some(tok) = &self.current_token {
-            self.position += get_tok_length(&tok.clone().token);
-        }
     }
 }
 

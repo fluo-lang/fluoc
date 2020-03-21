@@ -25,13 +25,13 @@ fn main() {
         let mut module = module.unwrap();
         println!("{:?}", module.lexer);
         loop {
-            let token = module.lexer.get_next_tok();
-            println!("{:?}", token.unwrap());
-
-            if let Some(token) = token {
-                if let lexer::TokenType::EOF = token.token {
-                    break
-                }
+            println!("{:?}", &module.lexer.peek());
+            println!("{:?}", &module.lexer.peek());
+            let token = module.lexer.advance();
+            println!("{:?}", token);
+        
+            if let lexer::TokenType::EOF = token.token {
+                break
             }
         }
     }
