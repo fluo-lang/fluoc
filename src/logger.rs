@@ -14,11 +14,11 @@ struct Error {
 pub struct Logger<'a> {
     errors: Vec<Error>,
     filename: &'a str,
-    file_contents: &'a str,
+    file_contents: String,
 }
 
 impl Logger<'_> {
-    pub fn new<'a>(filename: &'a str, file_contents: &'a str) -> Logger<'a> {
+    pub fn new<'a>(filename: &'a str, file_contents: String) -> Logger<'a> {
         Logger { filename, errors: Vec::new(), file_contents }
     }
     pub fn error(&mut self, message: String, error: ErrorType, position: Pos) {

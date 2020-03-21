@@ -22,6 +22,8 @@ fn main() {
         println!("{}{}Fatal Error{}: {}: `{}`", color::Fg(color::Rgb(255, 117, 117)), style::Bold, style::Reset, e, filename);
         process::exit(1);
     } else {
-        println!("{:?}", module.unwrap().lexer);
+        let mut module = module.unwrap();
+        println!("{:?}", module.lexer);
+        println!("{:?}", module.lexer.get_next_tok());
     }
 }

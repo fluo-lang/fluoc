@@ -1,19 +1,18 @@
 use crate::helpers;
 use std::io;
-use std::str::Chars;
 
 const EOF_CHAR: char = '\0';
 
-#[derive(Copy, Clone, Debug)]
-pub enum TokenType<'a> {
-    STRING(&'a str),
-    INLINE(&'a str),
+#[derive(Clone, Debug)]
+pub enum TokenType {
+    STRING(String),
+    INLINE(String),
     FUNC,
     IMPORT,
     RETURN,
     LET,
-    IDENTIFIER(&'a str),
-    NUMBER(&'a str),
+    IDENTIFIER(String),
+    NUMBER(String),
     DIV,
     MOD,
     MUL,
@@ -35,9 +34,9 @@ pub enum TokenType<'a> {
     WHITESPACE(i64)
 }
 
-#[derive(Debug)]
-pub struct Token<'a> {
-    token: TokenType<'a>,
+#[derive(Debug, Clone)]
+pub struct Token {
+    token: TokenType,
     pos: helpers::Pos
 }
 
@@ -106,25 +105,30 @@ pub fn is_whitespace(c: char) -> bool {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Lexer<'a> {
     pub filename: &'a str,
-    pub file_contents: &'a str,
-    input_chars: Chars<'a>,
+    pub file_contents: String,
     previous: char,
     pub position: i64,
-    pub current_token: Option<Token<'a>>
+    pub current_token: Option<Token>
+}
+
+fn is_id_continue(c: char) -> bool {
+    ('a' <= c && c <= 'z')
+        || ('A' <= c && c <= 'Z')
+        || ('0' <= c && c <= '9')
+        || c == '_'
 }
 
 impl Lexer<'_> {
-    pub fn new<'a>(filename: &'a str) -> io::Result<Lexer<'a>> {
+    pub fn new(filename: &str) -> io::Result<Lexer> {
         let file_contents = helpers::read_file(&filename)?;
-
-        Ok(Lexer { filename, file_contents: file_contents, input_chars: file_contents.chars(), previous: EOF_CHAR, position: 0, current_token: None })
+        Ok(Lexer { filename, file_contents: file_contents, previous: EOF_CHAR, position: 0, current_token: None })
     }
 
     fn nth_char(&mut self, n: i64) -> char {
-        self.input_chars.nth(n as usize).unwrap_or(EOF_CHAR)
+        self.file_contents.chars().nth((n+self.position) as usize).unwrap_or(EOF_CHAR)
     }
 
     fn first(&mut self) -> char {
@@ -140,17 +144,21 @@ impl Lexer<'_> {
     }
 
     fn is_eof(&self) -> bool {
-        self.input_chars.as_str().is_empty()
+        if let None = self.file_contents.chars().nth(self.position as usize) {
+            true
+        } else {
+            false
+        }
     }
 
     fn bump(&mut self) -> char {
         self.previous = self.first();
-        let c = self.input_chars.next().unwrap_or(EOF_CHAR);
+        let c = self.file_contents.chars().nth((self.position) as usize).unwrap_or(EOF_CHAR);
         self.position += 1;
         c
     }
 
-    fn get_next_tok<'a>(&'a mut self) {
+    pub fn get_next_tok<'a>(&'a mut self) {
         
         let first_char = self.bump();
 
@@ -197,7 +205,7 @@ impl Lexer<'_> {
 
     fn number(&mut self) -> TokenType {
         let num = self.eat_while(|c| '0' <= c && c <= '9');
-        TokenType::NUMBER(&num.1[..])
+        TokenType::NUMBER(num.1)
     }
 
     fn is_id_start(&mut self, c: char) -> bool {
@@ -205,17 +213,14 @@ impl Lexer<'_> {
             || ('A' <= c && c <= 'Z')
             || c == '_'
     }
-
-    fn is_id_continue(&mut self, c: char) -> bool {
-        ('a' <= c && c <= 'z')
-            || ('A' <= c && c <= 'Z')
-            || ('0' <= c && c <= '9')
-            || c == '_'
-    }
     
     fn identifier(&mut self) -> TokenType {
-        let id = self.eat_while(|c| self.is_id_continue(c));
-        TokenType::IDENTIFIER(&id.1[..])
+        let id = self.eat_while(|c| is_id_continue(c));
+        match id.1.as_str() {
+            "func" => TokenType::FUNC,
+            "let" => TokenType::LET,
+            _ => TokenType::IDENTIFIER(id.1)
+        }
     }
 
     fn line_comment(&mut self) -> TokenType {
@@ -241,19 +246,19 @@ impl Lexer<'_> {
         (eaten, content)
     }
 
-    pub fn peek<'a>(&'a mut self) -> Token<'a> {
-        match self.current_token {
-            Some(tok) => tok,
+    pub fn peek<'a>(&'a mut self) -> Token {
+        match &self.current_token {
+            Some(tok) => tok.clone(),
             None => {
                 self.get_next_tok();
-                self.current_token.unwrap()
+                self.current_token.clone().unwrap()
             }
         }
     }
 
     pub fn advance<'a>(&'a mut self) {
-        if let Some(tok) = self.current_token {
-            self.position += get_tok_length(tok.token);
+        if let Some(tok) = &self.current_token {
+            self.position += get_tok_length(tok.clone().token);
         }
     }
 }

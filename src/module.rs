@@ -10,7 +10,7 @@ pub struct Module<'a> {
 impl Module<'_> {
     pub fn new(filename: &str) -> io::Result<Module> {
         let l = lexer::Lexer::new(filename)?;
-        let log = logger::Logger::new(filename, l.file_contents);
+        let log = logger::Logger::new(filename, l.clone().file_contents);
         Ok(Module { lexer: l, logger: log})
     }
 }
