@@ -1,4 +1,3 @@
-use std::fs;
 use crate::helpers::Pos;
 
 pub enum ErrorType {
@@ -15,11 +14,11 @@ struct Error {
 pub struct Logger<'a> {
     errors: Vec<Error>,
     filename: &'a str,
-    file_contents: fs::File,
+    file_contents: &'a str,
 }
 
 impl Logger<'_> {
-    pub fn new(filename: &str, file_contents: fs::File) -> Logger {
+    pub fn new<'a>(filename: &'a str, file_contents: &'a str) -> Logger<'a> {
         Logger { filename, errors: Vec::new(), file_contents }
     }
     pub fn error(&mut self, message: String, error: ErrorType, position: Pos) {
