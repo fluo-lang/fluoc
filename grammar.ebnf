@@ -1,0 +1,31 @@
+Block := (
+          | VariableAssignment
+          | VariableAssignmentDeclaration
+          | VariableDeclaration
+          | FunctionDefine
+          | Epsilon
+         )+;
+
+VariableAssignment := "let", NameID, "=", Expression, ";";
+VariableAssignmentDeclaration := "let", NameID, ":", TypeID, "=", Expression, ";";
+VariableDeclaration := "let", NameID, ":", TypeID ";";
+FunctionDefine := "func", ID, "(", FunctionArgs, ")", "{", Block, "}";
+
+FunctionArgs := {Posarg, ","} ; (* {OptionalPosArg ","} {Kwarg ","} last comma is optional *)
+
+(* OptionalPosArg := ID, "?";
+
+Kwarg := ID, "=", Expression; *)
+
+Posarg := NameID, ":", TypeID;
+
+Tuple := "(", {Expression, ","}, ")"
+      | "(", ",", ")"
+      | "(", ")";
+
+Expression := Term, {( "+" | "-" ), Term};
+Term := Factor, {( "*" | "/" | "%" ), Factor};
+Factor := Item | "-", Factor;
+Item := Integer | Float | Tuple | ID | "(", Expression, ")";
+
+

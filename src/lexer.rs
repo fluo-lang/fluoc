@@ -174,14 +174,6 @@ impl Lexer<'_> {
         self.nth_char(0)
     }
 
-    fn second(&mut self) -> char {
-        self.nth_char(1)
-    }
-
-    fn prev(&mut self) -> char {
-        self.previous
-    }
-
     fn is_eof(&self) -> bool {
         if let None = self.file_contents.chars().nth(self.position as usize) {
             true
