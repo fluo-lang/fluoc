@@ -10,13 +10,13 @@
 <br>
 
 ```rust
-func fizzbuzz(amount: int) -> null {
+func fizzbuzz(amount: int) {
     println -> match for 0..amount {
         %% 3 => "Fizz";
         %% 5 => "Buzz";
         %% 3 & 5 => "Fizzbuzz";
         _ => _;
-    }
+    };
 }
 
 func entry() {
