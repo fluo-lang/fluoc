@@ -1,5 +1,6 @@
 use crate::helpers;
 use std::io;
+use std::fmt;
 
 const EOF_CHAR: char = '\0';
 
@@ -34,7 +35,7 @@ pub enum TokenType {
     SEMI,
     COMMA,
     EOF,
-    UNKNOWN,
+    UNKNOWN(String),
     LINECOMMENT(i64),
     BLOCKCOMMENT(i64),
     WHITESPACE(i64)
@@ -44,6 +45,50 @@ pub enum TokenType {
 pub struct Token {
     pub token: TokenType,
     pub pos: helpers::Pos
+}
+
+impl fmt::Display for Token {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let result = match &self.token {
+            TokenType::STRING(val) => format!("string `{}`", val.clone()),
+            TokenType::IDENTIFIER(val) => format!("identifier `{}`", val.clone()),
+            TokenType::NUMBER(val) => format!("number `{}`", val.clone()),
+
+            TokenType::FUNC => String::from("keyword `func`"),
+            TokenType::IMPORT => String::from("keyword `import`"),
+            TokenType::RETURN => String::from("keyword `return`"),
+            TokenType::LET => String::from("keyword `let`"),
+            
+            TokenType::DIV => String::from("operator `/`"),
+            TokenType::MOD => String::from("operator `%`"),
+            TokenType::MUL => String::from("operator `*`"),
+            TokenType::ADD => String::from("operator `+`"),
+            TokenType::SUB => String::from("operator `-`"),
+            TokenType::DMOD => String::from("operator `%%`"),
+
+            TokenType::ARROW => String::from("token `=>`"),
+
+            TokenType::LP => String::from("token `(`"),
+            TokenType::RP => String::from("token `)`"),
+            TokenType::LCP => String::from("token `{`"),
+            TokenType::RCP => String::from("token `}`"),
+
+            TokenType::QUESTION => String::from("token `?`"),
+            TokenType::DOT => String::from("token `.`"),
+            TokenType::EQUALS => String::from("token `=`"),
+            TokenType::COLON => String::from("token `:`"),
+            
+            TokenType::SEMI => String::from("terminator`;`"),
+            TokenType::COMMA => String::from("token `,`"),
+            TokenType::EOF => String::from("end of file"),
+            TokenType::UNKNOWN(val) => String::from(format!("unknown token `{}`", val)),
+
+            TokenType::LINECOMMENT(_) => String::from("Line Comment"),
+            TokenType::BLOCKCOMMENT(_) => String::from("Block Comment"),
+            TokenType::WHITESPACE(_) => String::from("Whitespace"),
+        };
+        write!(f, "{}", result)
+    }
 }
 
 impl PartialEq<Token> for Token {
@@ -59,6 +104,7 @@ fn get_tok_length(tok: &TokenType) -> i64 {
         | TokenType::STRING(val)
         | TokenType::IDENTIFIER(val)
         | TokenType::NUMBER(val)
+        | TokenType::UNKNOWN(val)
         => val.chars().count() as i64,
 
         | TokenType::LINECOMMENT(val)
@@ -74,9 +120,9 @@ fn get_tok_length(tok: &TokenType) -> i64 {
         => 6,
 
         | TokenType::ARROW 
-        | TokenType::DMOD => 2,
+        | TokenType::DMOD
+        => 2,
 
-        | TokenType::UNKNOWN 
         | TokenType::DIV
         | TokenType::MOD
         | TokenType::MUL
@@ -151,17 +197,11 @@ impl Lexer<'_> {
             temp_pos: 0,
             current_token: Token { 
                 token: TokenType::EOF, 
-                pos: helpers::Pos {
-                    s: 0, 
-                    e: 0
-                } 
+                pos: helpers::Pos::new(0, 0)
             },
             next_token: Token { 
                 token: TokenType::EOF, 
-                pos: helpers::Pos {
-                    s: 0, 
-                    e: 0
-                } 
+                pos: helpers::Pos::new(0, 0)
             }
         })
     }
@@ -239,13 +279,22 @@ impl Lexer<'_> {
 
             EOF_CHAR => TokenType::EOF,
             
-            _ => TokenType::UNKNOWN
+            unknown => TokenType::UNKNOWN(unknown.to_string())
         };
         
-        if let TokenType::WHITESPACE(_) = token_kind {
+        if let TokenType::WHITESPACE(_) | TokenType::LINECOMMENT(_) | TokenType::BLOCKCOMMENT(_) = token_kind {
             token_kind = self.get_next_tok_type()
         }
         token_kind
+    }
+
+    pub fn set_pos(&mut self, pos: (i64, i64)) {
+        self.position = pos.0;
+        self.temp_pos = pos.1;
+    }
+
+    pub fn get_pos(&mut self) -> (i64, i64) {
+        (self.position, self.temp_pos)
     }
 
     pub fn advance<'a>(&'a mut self) -> &Token {
@@ -253,10 +302,10 @@ impl Lexer<'_> {
         self.eat();
         
         self.current_token = Token {
-            pos: helpers::Pos {
-                s: self.position-get_tok_length(&token_kind),
-                e: self.position
-            },
+            pos: helpers::Pos::new(
+                self.position-get_tok_length(&token_kind), 
+                self.position
+            ),
             token: token_kind
         };
 
@@ -271,10 +320,10 @@ impl Lexer<'_> {
         let token_kind = self.get_next_tok_type();
         
         self.next_token = Token {
-            pos: helpers::Pos {
-                s: self.position-get_tok_length(&token_kind)+self.temp_pos,
-                e: self.position+self.temp_pos
-            },
+            pos: helpers::Pos::new(
+                self.position-get_tok_length(&token_kind)+self.temp_pos, 
+                self.position+self.temp_pos
+            ),
             token: token_kind
         };
 

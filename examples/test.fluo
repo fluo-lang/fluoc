@@ -1,0 +1,3 @@
+funcd entry() {
+    let x: int;
+}

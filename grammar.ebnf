@@ -27,5 +27,3 @@ Expression := Term, {( "+" | "-" ), Term};
 Term := Factor, {( "*" | "/" | "%" ), Factor};
 Factor := Item | "-", Factor;
 Item := Integer | Float | Tuple | ID | "(", Expression, ")";
-
-

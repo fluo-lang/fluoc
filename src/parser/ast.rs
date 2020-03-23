@@ -1,3 +1,4 @@
+use crate::helpers;
 
 pub trait Node { }
 pub trait Expr { }
@@ -16,55 +17,66 @@ macro_rules! impl_expr {
 
 // EXPRESSIONS ---------------------------------------
 pub struct Integer {
-    value: String
+    value: String,
+    pos: helpers::Pos
 }
 
 pub struct RefID {
-    value: String
+    value: String,
+    pos: helpers::Pos
 }
 
 pub struct Reference {
-    value: RefID
+    value: RefID,
+    pos: helpers::Pos
 }
 
 // NODES ---------------------------------------
 pub struct NameID {
-    value: String
+    value: String,
+    pos: helpers::Pos
 }
 
 pub struct VariableAssign {
     name: NameID,
-    expr: Box<dyn Expr>
+    expr: Box<dyn Expr>,
+    pos: helpers::Pos
 }
 
 pub struct VariableAssignDeclaration {
     t: Type,
     name: NameID,
-    expr: Box<dyn Expr>
+    expr: Box<dyn Expr>,
+    pos: helpers::Pos
 }
 
 pub struct Type {
-    value: String
+    value: String,
+    pos: helpers::Pos
 }
 
 pub struct VariableDeclaration {
     t: Type,
-    name: NameID
+    name: NameID,
+    pos: helpers::Pos
 }
 
 pub struct Arguments {
     positional: Vec<(String, Type)>,
+    pos: helpers::Pos
     // TODO: Add more types or arguments
 }
 
 pub struct Block {
-    statements: Vec<Box<dyn Node>>
+    nodes: Vec<Box<dyn Node>>,
+    pos: helpers::Pos
 }
 
 pub struct FunctionDefine {
     return_type: Type,
     arguments: Arguments,
-    block: Block
+    block: Block,
+    pos: helpers::Pos
 }
 
 impl_expr!(

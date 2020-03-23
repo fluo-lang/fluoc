@@ -24,16 +24,6 @@ fn main() {
         process::exit(1);
     } else {
         let mut module = module.unwrap();
-        println!("{:?}", module.parser.lexer);
-        loop {
-            //println!("{:?}", &module.lexer.peek());
-            //println!("{:?}", &module.lexer.peek());
-            let token = module.parser.lexer.advance();
-            println!("{:?}", token);
-        
-            if let lexer::TokenType::EOF = token.token {
-                break
-            }
-        }
+        module.parser.parse();
     }
 }

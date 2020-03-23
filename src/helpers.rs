@@ -11,3 +11,9 @@ pub struct Pos {
     pub s: i64,
     pub e: i64
 }
+
+impl Pos {
+    pub fn new(s: i64, e: i64) -> Pos {
+        Pos { s, e }
+    }
+}
