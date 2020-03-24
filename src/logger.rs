@@ -13,6 +13,7 @@ pub struct Error {
     error: ErrorType,
     position: Pos,
     token: Option<Token>,
+    mode: String
 }
 
 pub struct Logger<'a> {
@@ -33,12 +34,13 @@ impl Logger<'_> {
 }
 
 impl Error {
-    pub fn new(message: String, error: ErrorType, position: Pos, token: Option<Token>) -> Error {
+    pub fn new(message: String, error: ErrorType, position: Pos, token: Option<Token>, mode: String) -> Error {
         Error {
             message,
             error,
             position,
-            token
+            token,
+            mode
         }
     }
 }

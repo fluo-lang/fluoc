@@ -50,11 +50,6 @@ pub struct VariableAssignDeclaration {
     pos: helpers::Pos
 }
 
-pub struct Type {
-    value: String,
-    pos: helpers::Pos
-}
-
 pub struct VariableDeclaration {
     t: Type,
     name: NameID,
@@ -76,6 +71,17 @@ pub struct FunctionDefine {
     return_type: Type,
     arguments: Arguments,
     block: Block,
+    name: NameID,
+    pos: helpers::Pos
+}
+
+pub enum TypeType {
+    Type(String),
+    Tuple(Vec<TypeType>)
+}
+
+pub struct Type {
+    value: TypeType,
     pos: helpers::Pos
 }
 
