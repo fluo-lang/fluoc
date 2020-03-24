@@ -7,7 +7,7 @@ const EOF_CHAR: char = '\0';
 #[derive(Clone, Debug, PartialEq)]
 pub enum TokenType {
     STRING(String),
-    FUNC,
+    DEF,
     IMPORT,
     RETURN,
     LET,
@@ -54,7 +54,7 @@ impl fmt::Display for Token {
             TokenType::IDENTIFIER(val) => format!("identifier `{}`", val.clone()),
             TokenType::NUMBER(val) => format!("number `{}`", val.clone()),
 
-            TokenType::FUNC => String::from("keyword `func`"),
+            TokenType::DEF => String::from("keyword `func`"),
             TokenType::IMPORT => String::from("keyword `import`"),
             TokenType::RETURN => String::from("keyword `return`"),
             TokenType::LET => String::from("keyword `let`"),
@@ -112,8 +112,9 @@ fn get_tok_length(tok: &TokenType) -> i64 {
         | TokenType::WHITESPACE(val)
         => *val,
         
-        TokenType::LET  => 3,
-        TokenType::FUNC => 4,
+        | TokenType::LET
+        | TokenType::DEF 
+        => 3,
 
         | TokenType::IMPORT 
         | TokenType::RETURN 
@@ -238,11 +239,11 @@ impl Lexer<'_> {
         let first_char = self.bump();
 
         let mut token_kind = match first_char {
-            '/' => match self.first() {
-                '/' => self.line_comment(),
+            '-' => match self.first() {
+                '-' => self.line_comment(),
                 // TODO: Implement block comments
                 // '*' => self.block_comment(),
-                _ => TokenType::DIV
+                _ => TokenType::SUB
             },
             c if is_whitespace(c) => self.whitespace(),
 
@@ -251,8 +252,8 @@ impl Lexer<'_> {
             '0'..='9' => self.number(),
 
             '*' => TokenType::MUL,
-            '-' => TokenType::SUB,
             '+' => TokenType::ADD,
+            '/' => TokenType::DIV,
             '%' => match self.first() { 
                 '%' => {
                     self.bump();
@@ -346,7 +347,7 @@ impl Lexer<'_> {
     fn identifier(&mut self) -> TokenType {
         let id = self.eat_while(|c| is_id_continue(c));
         match id.1.as_str() {
-            "func" => TokenType::FUNC,
+            "def" => TokenType::DEF,
             "let" => TokenType::LET,
             _ => TokenType::IDENTIFIER(id.1)
         }
@@ -391,7 +392,7 @@ mod lexer_tests {
 
     #[test]
     fn token_len_keywords() {
-        assert_eq!(get_tok_length(&TokenType::FUNC), 4);
+        assert_eq!(get_tok_length(&TokenType::DEF), 3);
         assert_eq!(get_tok_length(&TokenType::IMPORT), 6);
         assert_eq!(get_tok_length(&TokenType::RETURN), 6);
         assert_eq!(get_tok_length(&TokenType::LET), 3);
@@ -408,7 +409,6 @@ mod lexer_tests {
         assert_eq!(get_tok_length(&TokenType::DOT), 1);
         assert_eq!(get_tok_length(&TokenType::EQUALS), 1);
         assert_eq!(get_tok_length(&TokenType::COMMA), 1);
-        assert_eq!(get_tok_length(&TokenType::UNKNOWN), 1);
     }
 
     #[test]
@@ -426,23 +426,26 @@ mod lexer_tests {
 
         assert_eq!(get_tok_length(&TokenType::STRING(String::from("\"10203\""))), 7);
         assert_eq!(get_tok_length(&TokenType::STRING(String::from("\"\""))), 2);
+
+        assert_eq!(get_tok_length(&TokenType::UNKNOWN(String::from("!@#$%^"))), 6);
+        assert_eq!(get_tok_length(&TokenType::UNKNOWN(String::from("`~"))), 2);
     }
 
     #[test]
     fn lex_test() -> io::Result<()> {
         let mut l = Lexer::new("./examples/simple_tests.fluo")?;
-        assert_eq!(*l.advance(), Token { token: TokenType::FUNC, pos: helpers::Pos { s: 0, e: 4 } });
-        assert_eq!(*l.advance(), Token { token: TokenType::IDENTIFIER(String::from("entry")), pos: helpers::Pos { s: 5, e: 10 } });
-        assert_eq!(*l.advance(), Token { token: TokenType::RP, pos: helpers::Pos { s: 10, e: 11 } });
-        assert_eq!(*l.advance(), Token { token: TokenType::LP, pos: helpers::Pos { s: 11, e: 12 } });
-        assert_eq!(*l.advance(), Token { token: TokenType::RCP, pos: helpers::Pos { s: 13, e: 14 } });
-        assert_eq!(*l.advance(), Token { token: TokenType::LET, pos: helpers::Pos { s: 19, e: 22 } });
-        assert_eq!(*l.advance(), Token { token: TokenType::IDENTIFIER(String::from("x")), pos: helpers::Pos { s: 23, e: 24 } });
-        assert_eq!(*l.advance(), Token { token: TokenType::COLON, pos: helpers::Pos { s: 24, e: 25 } });
-        assert_eq!(*l.advance(), Token { token: TokenType::IDENTIFIER(String::from("int")), pos: helpers::Pos { s: 26, e: 29 } });
-        assert_eq!(*l.advance(), Token { token: TokenType::SEMI, pos: helpers::Pos { s: 29, e: 30 } });
-        assert_eq!(*l.advance(), Token { token: TokenType::LCP, pos: helpers::Pos { s: 31, e: 32 } });
-        assert_eq!(*l.advance(), Token { token: TokenType::EOF, pos: helpers::Pos { s: 34, e: 34 } });
+        assert_eq!(*l.advance(), Token { token: TokenType::DEF, pos: helpers::Pos { s: 0, e: 3 } });
+        assert_eq!(*l.advance(), Token { token: TokenType::IDENTIFIER(String::from("entry")), pos: helpers::Pos { s: 4, e: 9 } });
+        assert_eq!(*l.advance(), Token { token: TokenType::RP, pos: helpers::Pos { s: 9, e: 10 } });
+        assert_eq!(*l.advance(), Token { token: TokenType::LP, pos: helpers::Pos { s: 10, e: 11 } });
+        assert_eq!(*l.advance(), Token { token: TokenType::RCP, pos: helpers::Pos { s: 12, e: 13 } });
+        assert_eq!(*l.advance(), Token { token: TokenType::LET, pos: helpers::Pos { s: 18, e: 21 } });
+        assert_eq!(*l.advance(), Token { token: TokenType::IDENTIFIER(String::from("x")), pos: helpers::Pos { s: 22, e: 23 } });
+        assert_eq!(*l.advance(), Token { token: TokenType::COLON, pos: helpers::Pos { s: 23, e: 24 } });
+        assert_eq!(*l.advance(), Token { token: TokenType::IDENTIFIER(String::from("int")), pos: helpers::Pos { s: 25, e: 28 } });
+        assert_eq!(*l.advance(), Token { token: TokenType::SEMI, pos: helpers::Pos { s: 28, e: 29 } });
+        assert_eq!(*l.advance(), Token { token: TokenType::LCP, pos: helpers::Pos { s: 30, e: 31 } });
+        assert_eq!(*l.advance(), Token { token: TokenType::EOF, pos: helpers::Pos { s: 33, e: 33 } });
         Ok(())
     }
 }

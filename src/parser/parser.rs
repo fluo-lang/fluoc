@@ -1,6 +1,7 @@
 use crate::parser::ast;
 use crate::lexer;
 use crate::logger::{Error, ErrorType, Logger};
+use crate::parser::ast::Node;
 
 pub struct Parser<'a> {
     pub lexer: lexer::Lexer<'a>,
@@ -19,12 +20,18 @@ impl Parser<'_> {
         ];
 
         loop {
-            let mut errors: Vec<Error> = Vec::new();
+            let mut errors: Vec<Vec<Error>> = Vec::new();
             let mut fail = true;
+            let mut ast: Option<Box<dyn Node>> = None;
             for i in 0..statements.len() {
                 let statement_ast = statements[i]();
                 match statement_ast {
-                    Ok(ast) => { let ast = ast; fail = false; },
+                    Ok(ast_production) => { 
+                        ast = Some(Box::new(ast_production)); 
+                        fail = false; 
+                        errors.clear();
+                        break
+                    },
                     Err(e) => errors.push(e)
                 }
             }
@@ -40,21 +47,23 @@ impl Parser<'_> {
         }
     }
 
-    fn function_define(&mut self) -> Result<(), Error> {
+    fn function_define(&mut self) -> Result<(), Vec<Error> > {
         let position = self.lexer.get_pos();
         
         let t = self.lexer.peek().clone();
-        if t.token != lexer::TokenType::FUNC {
+        if t.token != lexer::TokenType::DEF {
             self.lexer.set_pos(position);
             return Err(
-                Error::new(
-                    String::from(
-                        "Expected `func` keyword"
-                    ),
-                    ErrorType::Syntax, 
-                    t.pos.clone(),
-                    Some(t)
-                )
+                vec![
+                    Error::new(
+                        String::from(
+                            "Expected `def` keyword"
+                        ),
+                        ErrorType::Syntax, 
+                        t.pos.clone(),
+                        Some(t)
+                    )
+                ]
             );
         }
         

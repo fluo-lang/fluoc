@@ -1,4 +1,4 @@
-import random
+import random;
 
 func entry() {
     let number: int = random.int(100);
@@ -17,6 +17,6 @@ func entry() {
                     "You win! the number was {_}"
                 };
             }
-        );
+        )?;
     }
 }

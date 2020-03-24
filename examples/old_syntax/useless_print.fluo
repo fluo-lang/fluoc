@@ -1,19 +1,19 @@
 
-func useless_print(value) { 
+func useless_print(value<T>) { 
     println(match value {
-        is int => "Int: {_}";
-        is str => "Str: \"{_}\"";
+        is int => f"Int: {_}";
+        is str => f"Str: \"{_}\"";
         is bool => match _ {
             true => ":) Bool: True";
             false => ":( Bool: False";
         };
-        _ => "Other type {_.type} with value: {_}";
+        _ => f"Other type {_.type} with value: {_}";
     });
 }
 
 func entry() {
-    x = 10;
-    y = "hello";
+    let x: int = 10;
+    let y: str = "hello";
 
     useless_print(x);
     useless_print(y);

@@ -1,0 +1,27 @@
+import io;
+
+func method1() {
+    let filename = "dab.txt";
+    let file: io::file = io::file::new(filename); // file is of type Danger<io::file, io::error>
+    match file {
+        Safe(contents) => {
+            println(f"File Contents: \n{contents}");
+        },
+        Err(e) => {
+            println(f"Error reading {filename}: {e}");
+        }
+    }
+}
+
+func method1() {
+    let filename = "dab.txt";
+    let file: io::file = io::file::new(filename); // file is of type Danger<io::file, io::error>
+    match file {
+        Safe(contents) => {
+            println(f"File Contents: \n{contents}");
+        },
+        Err(e) => {
+            println(f"Error reading {filename}: {e}");
+        }
+    }
+}

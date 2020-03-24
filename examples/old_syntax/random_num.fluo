@@ -12,5 +12,5 @@ func entry() {
         5 => "five";
         7 => "seven";
         _ => "other: {_}";
-    });
+    })?;
 }
