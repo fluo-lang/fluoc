@@ -1,35 +1,43 @@
 use crate::parser::ast;
 use crate::lexer;
-use crate::logger::{Error, ErrorType, Logger};
+use crate::logger::{Error, ErrorType, Logger, ErrorDisplayType};
 use crate::parser::ast::Node;
 use crate::helpers;
+use std::process;
 
+/// Recursive descent parser
 pub struct Parser<'a> {
+    /// Lexer object
     pub lexer: lexer::Lexer<'a>,
+    /// Logger object
     logger: Logger<'a>,
+    // Abstract syntax tree
     ast: Option<ast::Block>
 }
 
-fn variant_eq<T>(a: &T, b: &T) -> bool {
-    std::mem::discriminant(a) == std::mem::discriminant(b)
-}
-
 impl Parser<'_> {
+    /// Returns a parser object
+    /// 
+    /// # Arguments
+    /// 
+    /// * `l`: lexer to use
+    /// * `log`: logger to use
     pub fn new<'a> (l: lexer::Lexer<'a>, log: Logger<'a>) -> Parser<'a> {
         Parser { lexer: l, ast: None, logger: log }
     }
 
+    /// Parse from lexer
+    /// 
+    /// Returns nothing
     pub fn parse(&mut self) {
-        let mut statements = [
-            || self.function_define(),
-        ];
+        let statements = [ Parser::function_define ];
 
         loop {
             let mut errors: Vec<Vec<Error>> = Vec::new();
             let mut fail = true;
             let mut ast: Option<Box<dyn Node>> = None;
             for i in 0..statements.len() {
-                let statement_ast = statements[i]();
+                let statement_ast = statements[i](self);
                 match statement_ast {
                     Ok(ast_production) => { 
                         ast = Some(Box::new(ast_production)); 
@@ -47,11 +55,14 @@ impl Parser<'_> {
             } else if errors.len() != 0 && fail {
                 // We've found an error, raise the error
                 println!("{:?}", errors[0]);
+            } else {
+                println!("Something went really wrong");
+                process::exit(1);
             }
-            break
         }
     }
 
+    /// Template for syntax error
     fn syntax_error(t: lexer::Token, message: &str) -> Vec<Error> {
         vec![
             Error::new(
@@ -61,13 +72,12 @@ impl Parser<'_> {
                 ErrorType::Syntax, 
                 t.pos.clone(),
                 Some(t),
-                String::from(
-                    "single"
-                )
+                ErrorDisplayType::Simple
             )
         ]
     }
 
+    /// Validate next token
     fn next(&mut self, token_type: lexer::TokenType, error_message: &str, position: (i64, i64)) -> Result<(), Vec<Error>> {
         let t = self.lexer.advance().clone();
         
@@ -79,12 +89,13 @@ impl Parser<'_> {
         }
     }
 
+    /// Parse basic block
     fn block(&mut self) -> Result<ast::Block, Vec<Error>> {
         let position = self.lexer.get_pos();
 
-        let mut statements = [ Parser::function_define ];
+        let statements = [ Parser::function_define ];
         
-        self.next(lexer::TokenType::RCP, "Expected `{`", position)?;
+        self.next(lexer::TokenType::LCP, "Expected `{`", position)?;
         let mut ast_list: Vec<Box<dyn Node>> = Vec::new();
         loop {
             let mut errors: Vec<Vec<Error>> = Vec::new();
@@ -129,6 +140,7 @@ impl Parser<'_> {
         })
     }
 
+    /// Parse function definition
     fn function_define(&mut self) -> Result<ast::FunctionDefine, Vec<Error>> {
         let position = self.lexer.get_pos();
         
@@ -174,6 +186,7 @@ impl Parser<'_> {
         });
     }
 
+    /// Parse name identifier (i.e. function name)
     fn name_id(&mut self) -> Result<ast::NameID, Vec<Error>> {
         let position = self.lexer.get_pos();
         let id = self.lexer.advance().clone();
@@ -190,9 +203,10 @@ impl Parser<'_> {
         }
     }
 
+    /// Parse type expression
     fn type_expr(&mut self) -> Result<ast::Type, Vec<Error>> {
         let position = self.lexer.get_pos();
-        let id = self.lexer.advance().clone();;
+        let id = self.lexer.advance().clone();
         if let lexer::TokenType::IDENTIFIER(value) = &id.token {
             return Ok(
                 ast::Type {

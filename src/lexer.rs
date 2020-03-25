@@ -263,8 +263,8 @@ impl Lexer<'_> {
             }
             '(' => TokenType::RP,
             ')' => TokenType::LP,
-            '{' => TokenType::RCP,
-            '}' => TokenType::LCP,
+            '{' => TokenType::LCP,
+            '}' => TokenType::RCP,
             '.' => TokenType::DOT,
             ';' => TokenType::SEMI,
             '=' => match self.first() {
