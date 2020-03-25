@@ -17,62 +17,62 @@ macro_rules! impl_expr {
 
 // EXPRESSIONS ---------------------------------------
 pub struct Integer {
-    value: String,
-    pos: helpers::Pos
+    pub value: String,
+    pub pos: helpers::Pos
 }
 
 pub struct RefID {
-    value: String,
-    pos: helpers::Pos
+    pub value: String,
+    pub pos: helpers::Pos
 }
 
 pub struct Reference {
-    value: RefID,
-    pos: helpers::Pos
+    pub value: RefID,
+    pub pos: helpers::Pos
 }
 
 // NODES ---------------------------------------
 pub struct NameID {
-    value: String,
-    pos: helpers::Pos
+    pub value: String,
+    pub pos: helpers::Pos
 }
 
 pub struct VariableAssign {
-    name: NameID,
-    expr: Box<dyn Expr>,
-    pos: helpers::Pos
+    pub name: NameID,
+    pub expr: Box<dyn Expr>,
+    pub pos: helpers::Pos
 }
 
 pub struct VariableAssignDeclaration {
-    t: Type,
-    name: NameID,
-    expr: Box<dyn Expr>,
-    pos: helpers::Pos
+    pub t: Type,
+    pub name: NameID,
+    pub expr: Box<dyn Expr>,
+    pub pos: helpers::Pos
 }
 
 pub struct VariableDeclaration {
-    t: Type,
-    name: NameID,
-    pos: helpers::Pos
+    pub t: Type,
+    pub name: NameID,
+    pub pos: helpers::Pos
 }
 
 pub struct Arguments {
-    positional: Vec<(String, Type)>,
-    pos: helpers::Pos
+    pub positional: Vec<(String, Type)>,
+    pub pos: helpers::Pos
     // TODO: Add more types or arguments
 }
 
 pub struct Block {
-    nodes: Vec<Box<dyn Node>>,
-    pos: helpers::Pos
+    pub nodes: Vec<Box<dyn Node>>,
+    pub pos: helpers::Pos
 }
 
 pub struct FunctionDefine {
-    return_type: Type,
-    arguments: Arguments,
-    block: Block,
-    name: NameID,
-    pos: helpers::Pos
+    pub return_type: Type,
+    pub arguments: Arguments,
+    pub block: Block,
+    pub name: NameID,
+    pub pos: helpers::Pos
 }
 
 pub enum TypeType {
@@ -81,8 +81,8 @@ pub enum TypeType {
 }
 
 pub struct Type {
-    value: TypeType,
-    pos: helpers::Pos
+    pub value: TypeType,
+    pub pos: helpers::Pos
 }
 
 impl_expr!(

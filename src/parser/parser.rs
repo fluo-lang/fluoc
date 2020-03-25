@@ -81,9 +81,8 @@ impl Parser<'_> {
 
     fn block(&mut self) -> Result<ast::Block, Vec<Error>> {
         let position = self.lexer.get_pos();
-        let mut statements = [
-            || self.function_define()
-        ];
+
+        let mut statements = [ Parser::function_define ];
         
         self.next(lexer::TokenType::RCP, "Expected `{`", position)?;
         let mut ast_list: Vec<Box<dyn Node>> = Vec::new();
@@ -92,7 +91,7 @@ impl Parser<'_> {
             let mut fail = true;
             let mut ast: Option<Box<dyn Node>> = None;
             for i in 0..statements.len() {
-                let statement_ast = statements[i]();
+                let statement_ast = statements[i](self);
                 match statement_ast {
                     Ok(ast_production) => { 
                         ast = Some(Box::new(ast_production)); 
@@ -177,7 +176,7 @@ impl Parser<'_> {
 
     fn name_id(&mut self) -> Result<ast::NameID, Vec<Error>> {
         let position = self.lexer.get_pos();
-        let id = self.lexer.advance();
+        let id = self.lexer.advance().clone();
         if let lexer::TokenType::IDENTIFIER(value) = &id.token {
             Ok(
                 ast::NameID {
@@ -193,7 +192,7 @@ impl Parser<'_> {
 
     fn type_expr(&mut self) -> Result<ast::Type, Vec<Error>> {
         let position = self.lexer.get_pos();
-        let id = self.lexer.advance();
+        let id = self.lexer.advance().clone();;
         if let lexer::TokenType::IDENTIFIER(value) = &id.token {
             return Ok(
                 ast::Type {
