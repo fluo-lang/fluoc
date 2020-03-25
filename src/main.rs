@@ -17,7 +17,6 @@ fn main() {
 
     let filename = matches.value_of("entry").unwrap();
     let module = module::Module::new(&filename);
-    //let filename = "./examples/simple_tests.fluo";
 
     if let Err(e) = module {
         println!("{}{}Fatal Error{}: {}: `{}`", color::Fg(color::Rgb(255, 117, 117)), style::Bold, style::Reset, e, filename);

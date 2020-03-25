@@ -35,6 +35,8 @@ pub struct Reference {
     pub pos: helpers::Pos
 }
 
+// NODES ---------------------------------------	
+
 /// Name ID node
 pub struct NameID {
     pub value: String,

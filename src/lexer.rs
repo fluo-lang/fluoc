@@ -2,9 +2,11 @@ use crate::helpers;
 use std::io;
 use std::fmt;
 
+/// EOF Character
 const EOF_CHAR: char = '\0';
 
 #[derive(Clone, Debug, PartialEq)]
+/// Type of tokens
 pub enum TokenType {
     STRING(String),
     DEF,
@@ -42,6 +44,7 @@ pub enum TokenType {
 }
 
 #[derive(Debug, Clone)]
+/// Token object
 pub struct Token {
     pub token: TokenType,
     pub pos: helpers::Pos
@@ -99,6 +102,7 @@ impl PartialEq<Token> for Token {
     }
 }
 
+/// Get length of token: useful for calculating positions of tokens
 fn get_tok_length(tok: &TokenType) -> i64 {
     match tok {
         | TokenType::STRING(val)
@@ -145,6 +149,7 @@ fn get_tok_length(tok: &TokenType) -> i64 {
     }
 }
 
+/// Check if character is a whitespace character
 pub fn is_whitespace(c: char) -> bool {
     match c {
         | '\u{0009}' // \t
@@ -170,6 +175,7 @@ pub fn is_whitespace(c: char) -> bool {
 }
 
 #[derive(Debug, Clone)]
+/// Lexer object
 pub struct Lexer<'a> {
     pub filename: &'a str,
     pub file_contents: String,
@@ -180,6 +186,7 @@ pub struct Lexer<'a> {
     pub current_token: Token
 }
 
+/// Check if ID is continue
 fn is_id_continue(c: char) -> bool {
     ('a' <= c && c <= 'z')
         || ('A' <= c && c <= 'Z')
@@ -188,6 +195,10 @@ fn is_id_continue(c: char) -> bool {
 }
 
 impl Lexer<'_> {
+    /// Return new lexer object.
+    /// 
+    /// Arguments
+    /// * `filename` - the filename of the file to read
     pub fn new(filename: &str) -> io::Result<Lexer> {
         let file_contents = helpers::read_file(&filename)?;
         Ok(Lexer { 
@@ -207,14 +218,17 @@ impl Lexer<'_> {
         })
     }
 
+    /// Get the nth char of input stream
     fn nth_char(&mut self, n: i64) -> char {
         self.file_contents.chars().nth((n+self.position+self.temp_pos) as usize).unwrap_or(EOF_CHAR)
     }
 
+    /// Get next chat in input stream
     fn first(&mut self) -> char {
         self.nth_char(0)
     }
 
+    /// Check if next value is EOF
     fn is_eof(&self) -> bool {
         if let None = self.file_contents.chars().nth(self.position as usize) {
             true
@@ -223,6 +237,7 @@ impl Lexer<'_> {
         }
     }
 
+    /// Move position forward
     fn bump(&mut self) -> char {
         self.previous = self.first();
         let c = self.file_contents.chars().nth((self.position+self.temp_pos) as usize).unwrap_or(EOF_CHAR);
@@ -230,11 +245,13 @@ impl Lexer<'_> {
         c
     }
 
+    /// Eat up character from temp pos
     fn eat(&mut self) {
         self.position += self.temp_pos;
         self.temp_pos = 0;
     }
 
+    /// Get next token in input stream's type
     fn get_next_tok_type<'a>(&'a mut self) -> TokenType {
         let first_char = self.bump();
 
@@ -289,15 +306,18 @@ impl Lexer<'_> {
         token_kind
     }
 
+    /// Set position of lexer: for use by the parser
     pub fn set_pos(&mut self, pos: (i64, i64)) {
         self.position = pos.0;
         self.temp_pos = pos.1;
     }
 
+    /// Set get of lexer: for use by the parser
     pub fn get_pos(&mut self) -> (i64, i64) {
         (self.position, self.temp_pos)
     }
 
+    /// Get next token in input stream, and advance
     pub fn advance<'a>(&'a mut self) -> &Token {
         let token_kind = self.get_next_tok_type();
         self.eat();
@@ -313,6 +333,7 @@ impl Lexer<'_> {
         &self.current_token
     }
 
+    /// Get next token in input stream, but don't advance
     pub fn peek<'a>(&'a mut self) -> &Token {
         if self.current_token != self.next_token {
             return &self.next_token;
@@ -333,17 +354,20 @@ impl Lexer<'_> {
         &self.next_token
     }
 
+    /// Tokenize integer
     fn number(&mut self) -> TokenType {
         let num = self.eat_while(|c| '0' <= c && c <= '9');
         TokenType::NUMBER(num.1)
     }
 
+    /// Get start of ID (excluding number)
     fn is_id_start(&mut self, c: char) -> bool {
         ('a' <= c && c <= 'z')
             || ('A' <= c && c <= 'Z')
             || c == '_'
     }
     
+    /// Tokenize identifier and keywords
     fn identifier(&mut self) -> TokenType {
         let id = self.eat_while(|c| is_id_continue(c));
         match id.1.as_str() {
@@ -353,15 +377,18 @@ impl Lexer<'_> {
         }
     }
 
+    /// Tokenize line comment
     fn line_comment(&mut self) -> TokenType {
         self.bump();
         TokenType::LINECOMMENT(self.eat_while(|c| c != '\n').0 + 1)
     }
 
+    /// Tokenize whitespace
     fn whitespace(&mut self) -> TokenType {
         TokenType::WHITESPACE(self.eat_while(is_whitespace).0 + 1)
     }
 
+    /// Eat while condition is true utility
     fn eat_while<F>(&mut self, mut predicate: F) -> (i64, String)
     where
         F: FnMut(char) -> bool,
@@ -438,13 +465,13 @@ mod lexer_tests {
         assert_eq!(*l.advance(), Token { token: TokenType::IDENTIFIER(String::from("entry")), pos: helpers::Pos { s: 4, e: 9 } });
         assert_eq!(*l.advance(), Token { token: TokenType::RP, pos: helpers::Pos { s: 9, e: 10 } });
         assert_eq!(*l.advance(), Token { token: TokenType::LP, pos: helpers::Pos { s: 10, e: 11 } });
-        assert_eq!(*l.advance(), Token { token: TokenType::RCP, pos: helpers::Pos { s: 12, e: 13 } });
+        assert_eq!(*l.advance(), Token { token: TokenType::LCP, pos: helpers::Pos { s: 12, e: 13 } });
         assert_eq!(*l.advance(), Token { token: TokenType::LET, pos: helpers::Pos { s: 18, e: 21 } });
         assert_eq!(*l.advance(), Token { token: TokenType::IDENTIFIER(String::from("x")), pos: helpers::Pos { s: 22, e: 23 } });
         assert_eq!(*l.advance(), Token { token: TokenType::COLON, pos: helpers::Pos { s: 23, e: 24 } });
         assert_eq!(*l.advance(), Token { token: TokenType::IDENTIFIER(String::from("int")), pos: helpers::Pos { s: 25, e: 28 } });
         assert_eq!(*l.advance(), Token { token: TokenType::SEMI, pos: helpers::Pos { s: 28, e: 29 } });
-        assert_eq!(*l.advance(), Token { token: TokenType::LCP, pos: helpers::Pos { s: 30, e: 31 } });
+        assert_eq!(*l.advance(), Token { token: TokenType::RCP, pos: helpers::Pos { s: 30, e: 31 } });
         assert_eq!(*l.advance(), Token { token: TokenType::EOF, pos: helpers::Pos { s: 33, e: 33 } });
         Ok(())
     }

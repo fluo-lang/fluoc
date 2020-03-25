@@ -16,7 +16,7 @@ pub struct Parser<'a> {
 }
 
 impl Parser<'_> {
-    /// Returns a parser object
+    /// Return a new parser object.
     /// 
     /// # Arguments
     /// 

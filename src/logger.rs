@@ -41,7 +41,7 @@ pub struct Logger<'a> {
 }
 
 impl Logger<'_> {
-    /// Returns a logger object
+    /// Return a new logger object.
     /// 
     /// # Arguments
     /// 
