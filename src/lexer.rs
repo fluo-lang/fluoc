@@ -81,7 +81,7 @@ impl fmt::Display for Token {
             TokenType::EQUALS => String::from("token `=`"),
             TokenType::COLON => String::from("token `:`"),
             
-            TokenType::SEMI => String::from("terminator`;`"),
+            TokenType::SEMI => String::from("terminator `;`"),
             TokenType::COMMA => String::from("token `,`"),
             TokenType::EOF => String::from("end of file"),
             TokenType::UNKNOWN(val) => String::from(format!("unknown token `{}`", val)),
@@ -335,10 +335,6 @@ impl Lexer<'_> {
 
     /// Get next token in input stream, but don't advance
     pub fn peek<'a>(&'a mut self) -> &Token {
-        if self.current_token != self.next_token {
-            return &self.next_token;
-        }
-
         let token_kind = self.get_next_tok_type();
         
         self.next_token = Token {
@@ -461,18 +457,20 @@ mod lexer_tests {
     #[test]
     fn lex_test() -> io::Result<()> {
         let mut l = Lexer::new("./examples/simple_tests.fluo")?;
-        assert_eq!(*l.advance(), Token { token: TokenType::DEF, pos: helpers::Pos { s: 0, e: 3 } });
-        assert_eq!(*l.advance(), Token { token: TokenType::IDENTIFIER(String::from("entry")), pos: helpers::Pos { s: 4, e: 9 } });
-        assert_eq!(*l.advance(), Token { token: TokenType::RP, pos: helpers::Pos { s: 9, e: 10 } });
-        assert_eq!(*l.advance(), Token { token: TokenType::LP, pos: helpers::Pos { s: 10, e: 11 } });
-        assert_eq!(*l.advance(), Token { token: TokenType::LCP, pos: helpers::Pos { s: 12, e: 13 } });
-        assert_eq!(*l.advance(), Token { token: TokenType::LET, pos: helpers::Pos { s: 18, e: 21 } });
-        assert_eq!(*l.advance(), Token { token: TokenType::IDENTIFIER(String::from("x")), pos: helpers::Pos { s: 22, e: 23 } });
-        assert_eq!(*l.advance(), Token { token: TokenType::COLON, pos: helpers::Pos { s: 23, e: 24 } });
-        assert_eq!(*l.advance(), Token { token: TokenType::IDENTIFIER(String::from("int")), pos: helpers::Pos { s: 25, e: 28 } });
-        assert_eq!(*l.advance(), Token { token: TokenType::SEMI, pos: helpers::Pos { s: 28, e: 29 } });
-        assert_eq!(*l.advance(), Token { token: TokenType::RCP, pos: helpers::Pos { s: 30, e: 31 } });
-        assert_eq!(*l.advance(), Token { token: TokenType::EOF, pos: helpers::Pos { s: 33, e: 33 } });
+        assert_eq!(*l.advance(), Token { token: TokenType::DEF, pos: helpers::Pos { s: 0, e: 3 } } ) ;
+        assert_eq!(*l.advance(), Token { token: TokenType::IDENTIFIER(String::from("entry")), pos: helpers::Pos { s: 4, e: 9 } } ) ;
+        assert_eq!(*l.advance(), Token { token: TokenType::RP, pos: helpers::Pos { s: 9, e: 10 } } ) ;
+        assert_eq!(*l.advance(), Token { token: TokenType::LP, pos: helpers::Pos { s: 10, e: 11 } } ) ;
+        assert_eq!(*l.advance(), Token { token: TokenType::LCP, pos: helpers::Pos { s: 12, e: 13 } } ) ;
+        assert_eq!(*l.advance(), Token { token: TokenType::LET, pos: helpers::Pos { s: 18, e: 21 } } ) ;
+        assert_eq!(*l.advance(), Token { token: TokenType::IDENTIFIER(String::from("x")), pos: helpers::Pos { s: 22, e: 23 } } ) ;
+        assert_eq!(*l.advance(), Token { token: TokenType::COLON, pos: helpers::Pos { s: 23, e: 24 } } ) ;
+        assert_eq!(*l.advance(), Token { token: TokenType::IDENTIFIER(String::from("int")), pos: helpers::Pos { s: 25, e: 28 } } ) ;
+        assert_eq!(*l.advance(), Token { token: TokenType::EQUALS, pos: helpers::Pos { s: 29, e: 30 } } ) ;
+        assert_eq!(*l.advance(), Token { token: TokenType::NUMBER(String::from("10")), pos: helpers::Pos { s: 31, e: 33 } } ) ;
+        assert_eq!(*l.advance(), Token { token: TokenType::SEMI, pos: helpers::Pos { s: 33, e: 34 } } ) ;
+        assert_eq!(*l.advance(), Token { token: TokenType::RCP, pos: helpers::Pos { s: 35, e: 36 } } ) ;
+        assert_eq!(*l.advance(), Token { token: TokenType::EOF, pos: helpers::Pos { s: 38, e: 38 } } ) ;
         Ok(())
     }
 }

@@ -61,7 +61,7 @@ impl Logger<'_> {
     /// Raises all the errors on the error vector.
     /// Note: doesn't exit out of the program.
     pub fn raise(&mut self) {
-
+        
     }
 
     /// Static method for error that parses the furthest.
