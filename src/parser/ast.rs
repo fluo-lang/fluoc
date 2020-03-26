@@ -142,6 +142,12 @@ pub struct FunctionDefine {
 }
 
 #[derive(Debug)]
+pub struct ExpressionStatement {
+    pub expression: Box<dyn Expr>,
+    pub pos: helpers::Pos
+}
+
+#[derive(Debug)]
 /// Type Types
 pub enum TypeType {
     Type(String),
@@ -155,6 +161,20 @@ pub struct Type {
     pub pos: helpers::Pos
 }
 
+impl_node!(
+    Integer, 
+    RefID, 
+    Reference, 
+    NameID, 
+    VariableAssign, 
+    VariableAssignDeclaration, 
+    Type, 
+    Arguments, 
+    Block, 
+    FunctionDefine,
+    ExpressionStatement
+);
+
 impl_expr!(
     Integer, 
     RefID, 
@@ -167,17 +187,4 @@ impl_expr!(
     Mul,
     Div,
     Mod
-);
-
-impl_node!(
-    Integer, 
-    RefID, 
-    Reference, 
-    NameID, 
-    VariableAssign, 
-    VariableAssignDeclaration, 
-    Type, 
-    Arguments, 
-    Block, 
-    FunctionDefine
 );

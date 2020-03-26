@@ -100,103 +100,114 @@ impl Logger<'_> {
         (lineno, relative_pos)
     }
 
-    fn get_code(&mut self, error: Vec<Error>) -> String {
-        if error.len() == 1 {
-            let position_range = (self.get_lineno(error[0].position.s), self.get_lineno(error[0].position.e));
-            let mut code_block = String::new();
+    fn single_error(&mut self, error: &Error) -> String {
+        let position_range = (self.get_lineno(error.position.s), self.get_lineno(error.position.e));
+        let mut code_block = String::new();
 
-            let mut lines: Vec<&str> = self.file_contents.lines().collect();
-            
-            let start_visible_line = 
-                if (position_range.0).0-1 == 0 { 
-                    (position_range.0).0-1
-                } else { 
-                    (position_range.0).0-2
-                };
-            
-            let end_visible_line =
-                if (position_range.1).0 == lines.len() { 
-                    (position_range.0).0
-                } else {
-                    (position_range.0).0+1
-                };
+        let mut lines: Vec<&str> = self.file_contents.lines().collect();
+        
+        let start_visible_line = 
+            if (position_range.0).0-1 == 0 { 
+                (position_range.0).0-1
+            } else { 
+                (position_range.0).0-2
+            };
+        
+        let end_visible_line =
+            if (position_range.1).0 == lines.len() { 
+                (position_range.0).0
+            } else {
+                (position_range.0).0+1
+            };
 
-            lines = lines[
-                start_visible_line
-                ..
-                end_visible_line
-            ].to_vec();
+        lines = lines[
+            start_visible_line
+            ..
+            end_visible_line
+        ].to_vec();
 
-            let length_largest_line_no = end_visible_line.to_string().len();
+        let length_largest_line_no = end_visible_line.to_string().len();
 
-            for (i, line) in lines.iter().enumerate() {
+        for (i, line) in lines.iter().enumerate() {
+            code_block.push_str(
+                &format!(
+                    "{}{}{}{} |{}{} {}\n", 
+                    self.indentation.repeat(2), 
+                    " ".repeat(
+                        length_largest_line_no-(
+                            (i+start_visible_line+1)
+                                .to_string()
+                                .len()
+                        )
+                    ), 
+                    color::BLUE,
+                    i+start_visible_line+1,
+                    self.indentation,
+                    color::RESET,
+                    line
+                )
+            );
+
+            if i+start_visible_line+1 == (position_range.0).0 {
                 code_block.push_str(
                     &format!(
-                        "{}{}{}{} |{}{} {}\n", 
-                        self.indentation.repeat(2), 
-                        " ".repeat(
-                            length_largest_line_no-(
-                                (i+start_visible_line+1)
-                                    .to_string()
-                                    .len()
-                            )
-                        ), 
+                        "{}{}{} |{}{}{}{}{}", self.indentation.repeat(2), 
                         color::BLUE,
-                        i+start_visible_line+1,
+                        " ".repeat(length_largest_line_no),
+                        " ".repeat((position_range.0).1-1),
                         self.indentation,
                         color::RESET,
-                        line
+                        match error.mode {
+                            ErrorDisplayType::Error => color::RED,
+                            ErrorDisplayType::Warning => color::YELLOW
+                        },
+                        "^".repeat(
+                            if (position_range.1).0 == i+start_visible_line+1 { 
+                                (position_range.1).1 - (position_range.0).1 
+                            } else { 
+                                line.len()-(position_range.0).1-2 
+                            }
+                        ),
                     )
                 );
 
-                if i+start_visible_line+1 == (position_range.0).0 {
-                    code_block.push_str(
-                        &format!(
-                            "{}{}{} |{}{}{}{}{}", self.indentation.repeat(2), 
-                            color::BLUE,
-                            " ".repeat(length_largest_line_no),
-                            " ".repeat((position_range.0).1-1),
-                            self.indentation,
-                            color::RESET,
-                            match error[0].mode {
-                                ErrorDisplayType::Error => color::RED,
-                                ErrorDisplayType::Warning => color::YELLOW
-                            },
-                            "^".repeat(if (position_range.1).0 == i+start_visible_line+1 { (position_range.1).1 - (position_range.0).1 } else { line.len()-(position_range.0).1-2 }),
-                        )
-                    );
-                    if let ErrorType::Syntax = error[0].error {
-                        code_block.push_str(
-                            &format!(" unexpected token{}\n", color::RESET)
-                        );
+                code_block.push_str(
+                    match error.error {
+                        ErrorType::Syntax => " unexpected token",
+                        _ => ""
                     }
-                }
+                );
+                code_block.push_str(&format!("{}\n", color::RESET));
             }
-            code_block.push_str("\n");
-            String::from(code_block)
+        }
+        code_block.push_str("\n");
+        code_block
+    }
+
+    fn get_code(&mut self, error: Vec<Error>) -> String {
+        if error.len() == 1 {
+            self.single_error(error.first().unwrap())
         } else {
             String::from("")
         }
     }
 
-    /// Raises all the errors on the error vector.
-    /// Note: doesn't exit out of the program.
-    pub fn raise(&mut self) {
-        eprintln!(
+    fn raise_type(&mut self, errors: Vec<Vec<Error>>, ) {
+        if errors.len() > 0 { eprintln!(
             "{}{}{}{} {} Found:{}\n", 
             color::RED, 
             color::UNDERLINE, 
             color::BOLD,
-            self.errors.len(), 
-            if self.errors.len() == 1 {
+            errors.len(), 
+            if errors.len() == 1 {
                 "Error"
             } else {
                 "Errors"
             },
             color::RESET
-        );
+        ); }
         
-        for error in self.errors.clone() {
+        for error in errors.clone() {
             if error.len() == 1 {
                 let first_error = error.first().unwrap();
                 match first_error.mode {
@@ -226,6 +237,18 @@ impl Logger<'_> {
                 // We have a more detailed error
             }
         }
+    }
+
+    /// Raises all the errors on the error vector.
+    /// Note: doesn't exit out of the program.
+    pub fn raise(&mut self) {
+        let errors: Vec<Vec<Error>> = self.errors
+                                    .iter()
+                                    .cloned()
+                                    .filter(|x| if let ErrorDisplayType::Error = x.first().unwrap().mode { true } else { false })
+                                    .collect();
+
+        self.raise_type(errors);
     }
 
     /// Static method for error that parses the furthest.

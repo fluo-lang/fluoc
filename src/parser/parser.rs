@@ -104,7 +104,7 @@ impl Parser<'_> {
     fn block(&mut self) -> Result<ast::Block, Vec<Error>> {
         let position = self.lexer.get_pos();
 
-        let statements: [fn (&mut Self) -> Result<Box<dyn Node>, Vec<Error>>; 3] = [ Parser::function_define, Parser::variable_assign_full, Parser::variable_assign ];
+        let statements: [fn (&mut Self) -> Result<Box<dyn Node>, Vec<Error>>; 2] = [ Parser::function_define, Parser::expression_statement ];
         
         self.next(lexer::TokenType::LCP, "expected `{`", position)?;
         let mut ast_list: Vec<Box<dyn Node>> = Vec::new();
@@ -194,8 +194,24 @@ impl Parser<'_> {
         }));
     }
 
+    fn expression_statement(&mut self) -> Result<Box<dyn ast::Node>, Vec<Error>> {
+        let position = self.lexer.get_pos();
+
+        let expr = self.expr()?;
+
+        self.next(lexer::TokenType::SEMI, "expected `;`", position)?;
+
+        Ok(Box::new(ast::ExpressionStatement {
+            expression: expr,
+            pos: helpers::Pos {
+                s: position.0,
+                e: self.lexer.position
+            }
+        }))
+    }
+
     /// Ful variable assign with type declaration and expression
-    fn variable_assign_full(&mut self) -> Result<Box<dyn Node>, Vec<Error>> {
+    fn variable_assign_full(&mut self) -> Result<Box<dyn ast::Expr>, Vec<Error>> {
         let position = self.lexer.get_pos();
         self.next(lexer::TokenType::LET, "expected `let` keyword", position)?;
 
@@ -209,8 +225,6 @@ impl Parser<'_> {
         
         let expr = self.expr()?;
 
-        self.next(lexer::TokenType::SEMI, "expected `;`", position)?;
-
         Ok(Box::new(ast::VariableAssignDeclaration {
             t: var_type,
             name: var_name,
@@ -223,7 +237,7 @@ impl Parser<'_> {
     }
 
     /// Variable assign with only expression
-    fn variable_assign(&mut self) -> Result<Box<dyn Node>, Vec<Error>> {
+    fn variable_assign(&mut self) -> Result<Box<dyn ast::Expr>, Vec<Error>> {
         let position = self.lexer.get_pos();
 
         let var_name = self.name_id()?;
@@ -231,8 +245,6 @@ impl Parser<'_> {
         self.next(lexer::TokenType::EQUALS, "expected `=`", position)?;
         
         let expr = self.expr()?;
-
-        self.next(lexer::TokenType::SEMI, "expected `;`", position)?;
 
         Ok(Box::new(ast::VariableAssign {
             name: var_name,
@@ -373,17 +385,18 @@ impl Parser<'_> {
     }
 
     fn item(&mut self) -> Result<Box<dyn ast::Expr>, Vec<Error>> {
-        let expr_types = [ Parser::integer ];  // make sure to order correctly
         let position = self.lexer.get_pos();
-        
-        for i in 0..expr_types.len() {
-            let expr = expr_types[i](self);
-            match expr {
-                Ok(ast) => {
-                    return Ok(Box::new(ast));
-                },
-                Err(_) => {}
-            }
+
+        if let Ok(ast) = self.integer() {
+            return Ok(ast);
+        }
+
+        if let Ok(ast) = self.variable_assign() {
+            return Ok(ast);
+        }
+
+        if let Ok(ast) = self.variable_assign_full() {
+            return Ok(ast);
         }
         
         if let lexer::TokenType::LP = self.lexer.advance().token {
@@ -400,16 +413,16 @@ impl Parser<'_> {
         Err(Parser::syntax_error(next_tok.clone(), "expected expression"))
     }
 
-    fn integer(&mut self) -> Result<ast::Integer, Vec<Error>> {
+    fn integer(&mut self) -> Result<Box<ast::Integer>, Vec<Error>> {
         let position = self.lexer.get_pos();
 
         let int = self.lexer.advance().clone();
         if let lexer::TokenType::NUMBER(value) = &int.token {
             Ok(
-                ast::Integer {
+                Box::new(ast::Integer {
                     value: value.to_string(),
                     pos: int.pos.clone()
-                }
+                })
             )
         } else {
             self.lexer.set_pos(position);
