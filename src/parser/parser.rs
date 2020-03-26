@@ -98,7 +98,7 @@ impl Parser<'_> {
     fn block(&mut self) -> Result<ast::Block, Vec<Error>> {
         let position = self.lexer.get_pos();
 
-        let statements: [fn (&mut Self) -> Result<Box<dyn Node>, Vec<Error>>; 2] = [ Parser::function_define, Parser::variable_assign_full ];
+        let statements: [fn (&mut Self) -> Result<Box<dyn Node>, Vec<Error>>; 3] = [ Parser::function_define, Parser::variable_assign_full, Parser::variable_assign ];
         
         self.next(lexer::TokenType::LCP, "Expected `{`", position)?;
         let mut ast_list: Vec<Box<dyn Node>> = Vec::new();
@@ -191,7 +191,7 @@ impl Parser<'_> {
     }
 
     /// Ful variable assign with type declaration and expression
-    fn variable_assign_full(&mut self ) -> Result<Box<dyn Node>, Vec<Error>> {
+    fn variable_assign_full(&mut self) -> Result<Box<dyn Node>, Vec<Error>> {
         let position = self.lexer.get_pos();
         self.next(lexer::TokenType::LET, "Expected `let` keyword", position)?;
 
@@ -209,6 +209,28 @@ impl Parser<'_> {
 
         Ok(Box::new(ast::VariableAssignDeclaration {
             t: var_type,
+            name: var_name,
+            expr: expr,
+            pos: helpers::Pos {
+                s: position.0,
+                e: self.lexer.position
+            }
+        }))
+    }
+
+    /// Variable assign with only expression
+    fn variable_assign(&mut self) -> Result<Box<dyn Node>, Vec<Error>> {
+        let position = self.lexer.get_pos();
+
+        let var_name = self.name_id()?;
+
+        self.next(lexer::TokenType::EQUALS, "Expected `=`", position)?;
+        
+        let expr = self.expr()?;
+
+        self.next(lexer::TokenType::SEMI, "Expected `;`", position)?;
+
+        Ok(Box::new(ast::VariableAssign {
             name: var_name,
             expr: expr,
             pos: helpers::Pos {
