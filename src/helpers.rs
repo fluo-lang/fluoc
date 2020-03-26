@@ -13,14 +13,14 @@ pub fn read_file<'a>(filename: &'a str) -> io::Result<String> {
 /// Note that there are no line numbers, a `\n` character counts as on character.
 pub struct Pos {
     /// Start position in characters
-    pub s: i64,
+    pub s: usize,
 
     /// End position in characters
-    pub e: i64
+    pub e: usize
 }
 
 impl Pos {
-    pub fn new(s: i64, e: i64) -> Pos {
+    pub fn new(s: usize, e: usize) -> Pos {
         Pos { s, e }
     }
 }

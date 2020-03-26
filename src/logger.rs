@@ -8,11 +8,22 @@ pub enum ErrorType {
     UnexpectedToken
 }
 
+impl ErrorType {
+    fn as_str(&self) -> String {
+        match *self {
+            ErrorType::Syntax => String::from("syntax_error"),
+            ErrorType::UnexpectedToken => String::from("unexpected_token"),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 /// Error display mode
 pub enum ErrorDisplayType {
-    /// "Simple" mode, only report in one location at given position
-    Simple
+    /// "Error" mode, make underline red and text red
+    Error,
+    /// "Warning" mode, make underline yellow and text yellow?
+    Warning
 }
 
 #[derive(Debug, Clone)]
@@ -27,7 +38,9 @@ pub struct Error {
     /// Token error occurred on (useful for syntax errors), optional
     token: Option<Token>,
     /// Error display mode
-    mode: ErrorDisplayType
+    mode: ErrorDisplayType,
+    /// Filename of error
+    filename: Option<String>
 }
 
 /// Logger object for one file
@@ -38,6 +51,22 @@ pub struct Logger<'a> {
     filename: &'a str,
     /// Contents of file
     file_contents: String,
+    /// Amount of indentation used for error
+    indentation: String
+}
+
+pub mod color {
+    pub const BLACK: &'static str = "\x1b[30m";
+    pub const BOLD: &'static str= "\x1b[1m";
+    pub const RED: &'static str = "\x1b[31m";
+    pub const GREEN: &'static str = "\x1b[32m";
+    pub const YELLOW: &'static str = "\x1b[33m";
+    pub const BLUE: &'static str = "\x1b[34m";
+    pub const MAGENTA: &'static str = "\x1b[35m";
+    pub const CYAN: &'static str = "\x1b[36m";
+    pub const WHITE: &'static str = "\x1b[37m";
+    pub const UNDERLINE: &'static str = "\x1b[4m";
+    pub const RESET: &'static str = "\x1b[0m";
 }
 
 impl Logger<'_> {
@@ -48,7 +77,7 @@ impl Logger<'_> {
     /// * `filename`: filename of the file to report
     /// * `file_contents`: contents of the file
     pub fn new<'a>(filename: &'a str, file_contents: String) -> Logger<'a> {
-        Logger { filename, errors: Vec::new(), file_contents }
+        Logger { filename, errors: Vec::new(), file_contents, indentation: String::from("  ") }
     }
 
     /// Pushes an error onto the error vector. 
@@ -58,10 +87,145 @@ impl Logger<'_> {
         );
     }
 
+    fn get_lineno(&mut self, pos: usize) -> (usize, usize) {
+        let mut lineno = 1;
+        let mut relative_pos = 1;
+        for c in (&self.file_contents[..pos]).chars() {
+            if c == '\n' {
+                lineno += 1;
+                relative_pos = 1;
+            }
+            relative_pos += 1;
+        }
+        (lineno, relative_pos)
+    }
+
+    fn get_code(&mut self, error: Vec<Error>) -> String {
+        if error.len() == 1 {
+            let position_range = (self.get_lineno(error[0].position.s), self.get_lineno(error[0].position.e));
+            let mut code_block = String::new();
+
+            let mut lines: Vec<&str> = self.file_contents.lines().collect();
+            
+            let start_visible_line = 
+                if (position_range.0).0-1 == 0 { 
+                    (position_range.0).0-1
+                } else { 
+                    (position_range.0).0-2
+                };
+            
+            let end_visible_line =
+                if (position_range.1).0 == lines.len() { 
+                    (position_range.0).0
+                } else {
+                    (position_range.0).0+1
+                };
+
+            lines = lines[
+                start_visible_line
+                ..
+                end_visible_line
+            ].to_vec();
+
+            let length_largest_line_no = end_visible_line.to_string().len();
+
+            for (i, line) in lines.iter().enumerate() {
+                code_block.push_str(
+                    &format!(
+                        "{}{}{}{} |{}{} {}\n", 
+                        self.indentation.repeat(2), 
+                        " ".repeat(
+                            length_largest_line_no-(
+                                (i+start_visible_line+1)
+                                    .to_string()
+                                    .len()
+                            )
+                        ), 
+                        color::BLUE,
+                        i+start_visible_line+1,
+                        self.indentation,
+                        color::RESET,
+                        line
+                    )
+                );
+
+                if i+start_visible_line+1 == (position_range.0).0 {
+                    code_block.push_str(
+                        &format!(
+                            "{}{}{} |{}{}{}{}{}", self.indentation.repeat(2), 
+                            color::BLUE,
+                            " ".repeat(length_largest_line_no),
+                            " ".repeat((position_range.0).1-1),
+                            self.indentation,
+                            color::RESET,
+                            match error[0].mode {
+                                ErrorDisplayType::Error => color::RED,
+                                ErrorDisplayType::Warning => color::YELLOW
+                            },
+                            "^".repeat(if (position_range.1).0 == i+start_visible_line+1 { (position_range.1).1 - (position_range.0).1 } else { line.len()-(position_range.0).1-2 }),
+                        )
+                    );
+                    if let ErrorType::Syntax = error[0].error {
+                        code_block.push_str(
+                            &format!(" unexpected token{}\n", color::RESET)
+                        );
+                    }
+                }
+            }
+            code_block.push_str("\n");
+            String::from(code_block)
+        } else {
+            String::from("")
+        }
+    }
+
     /// Raises all the errors on the error vector.
     /// Note: doesn't exit out of the program.
     pub fn raise(&mut self) {
+        eprintln!(
+            "{}{}{}{} {} Found:{}\n", 
+            color::RED, 
+            color::UNDERLINE, 
+            color::BOLD,
+            self.errors.len(), 
+            if self.errors.len() == 1 {
+                "Error"
+            } else {
+                "Errors"
+            },
+            color::RESET
+        );
         
+        for error in self.errors.clone() {
+            if error.len() == 1 {
+                let first_error = error.first().unwrap();
+                match first_error.mode {
+                    ErrorDisplayType::Error => {
+                        match first_error.error {
+                            ErrorType::Syntax => {
+                                eprintln!(
+                                    "{}{}{}{}{}: {}{}, found {} {}\n", 
+                                    self.indentation, 
+                                    color::BOLD, 
+                                    color::RED, 
+                                    first_error.error.as_str(), 
+                                    color::RESET, 
+                                    color::BOLD, 
+                                    first_error.message, 
+                                    first_error.token.as_ref().unwrap(),
+                                    color::RESET
+                                );
+                                eprintln!("{}", self.get_code(error));
+                            },
+                            _ => {}
+                        }
+                    },
+                    _ => {}
+                }
+            } else {
+                // We have a more detailed error
+            }
+        }
     }
 
     /// Static method for error that parses the furthest.
@@ -91,13 +255,14 @@ impl Error {
     /// * `position`: position of error
     /// * `token`: optional token associated with error
     /// * `mode`: mode of error report
-    pub fn new(message: String, error: ErrorType, position: Pos, token: Option<Token>, mode: ErrorDisplayType) -> Error {
+    pub fn new(message: String, error: ErrorType, position: Pos, token: Option<Token>, mode: ErrorDisplayType, filename: Option<String>) -> Error {
         Error {
             message,
             error,
             position,
             token,
-            mode
+            mode,
+            filename
         }
     }
 }

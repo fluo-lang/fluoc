@@ -4,7 +4,7 @@ pub mod logger;
 pub mod module;
 pub mod parser;
 
-use termion::{color, style};
+use logger::color;
 use std::process;
 
 #[macro_use]
@@ -19,7 +19,7 @@ fn main() {
     let module = module::Module::new(&filename);
 
     if let Err(e) = module {
-        println!("{}{}Fatal Error{}: {}: `{}`", color::Fg(color::Rgb(255, 117, 117)), style::Bold, style::Reset, e, filename);
+        println!("{}{}Fatal Error{}: {}: `{}`", color::RED, color::BOLD, color::RESET, e, filename);
         process::exit(1);
     } else {
         let mut module = module.unwrap();

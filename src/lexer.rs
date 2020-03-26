@@ -38,9 +38,9 @@ pub enum TokenType {
     COMMA,
     EOF,
     UNKNOWN(String),
-    LINECOMMENT(i64),
-    BLOCKCOMMENT(i64),
-    WHITESPACE(i64)
+    LINECOMMENT(usize),
+    BLOCKCOMMENT(usize),
+    WHITESPACE(usize)
 }
 
 #[derive(Debug, Clone)]
@@ -103,13 +103,13 @@ impl PartialEq<Token> for Token {
 }
 
 /// Get length of token: useful for calculating positions of tokens
-fn get_tok_length(tok: &TokenType) -> i64 {
+fn get_tok_length(tok: &TokenType) -> usize {
     match tok {
         | TokenType::STRING(val)
         | TokenType::IDENTIFIER(val)
         | TokenType::NUMBER(val)
         | TokenType::UNKNOWN(val)
-        => val.chars().count() as i64,
+        => val.chars().count(),
 
         | TokenType::LINECOMMENT(val)
         | TokenType::BLOCKCOMMENT(val)
@@ -180,8 +180,8 @@ pub struct Lexer<'a> {
     pub filename: &'a str,
     pub file_contents: String,
     previous: char,
-    pub position: i64,
-    temp_pos: i64,
+    pub position: usize,
+    temp_pos: usize,
     next_token: Token,
     pub current_token: Token
 }
@@ -219,8 +219,8 @@ impl Lexer<'_> {
     }
 
     /// Get the nth char of input stream
-    fn nth_char(&mut self, n: i64) -> char {
-        self.file_contents.chars().nth((n+self.position+self.temp_pos) as usize).unwrap_or(EOF_CHAR)
+    fn nth_char(&mut self, n: usize) -> char {
+        self.file_contents.chars().nth(n+self.position+self.temp_pos).unwrap_or(EOF_CHAR)
     }
 
     /// Get next chat in input stream
@@ -307,13 +307,13 @@ impl Lexer<'_> {
     }
 
     /// Set position of lexer: for use by the parser
-    pub fn set_pos(&mut self, pos: (i64, i64)) {
+    pub fn set_pos(&mut self, pos: (usize, usize)) {
         self.position = pos.0;
         self.temp_pos = pos.1;
     }
 
     /// Set get of lexer: for use by the parser
-    pub fn get_pos(&mut self) -> (i64, i64) {
+    pub fn get_pos(&mut self) -> (usize, usize) {
         (self.position, self.temp_pos)
     }
 
@@ -385,11 +385,11 @@ impl Lexer<'_> {
     }
 
     /// Eat while condition is true utility
-    fn eat_while<F>(&mut self, mut predicate: F) -> (i64, String)
+    fn eat_while<F>(&mut self, mut predicate: F) -> (usize, String)
     where
         F: FnMut(char) -> bool,
     {
-        let mut eaten: i64 = 0;
+        let mut eaten: usize = 0;
         let mut content = self.previous.to_string();
         while predicate(self.first()) && !self.is_eof() {
             eaten += 1;
