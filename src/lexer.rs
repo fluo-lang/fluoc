@@ -459,8 +459,8 @@ mod lexer_tests {
         let mut l = Lexer::new("./examples/simple_tests.fluo")?;
         assert_eq!(*l.advance(), Token { token: TokenType::DEF, pos: helpers::Pos { s: 0, e: 3 } } ) ;
         assert_eq!(*l.advance(), Token { token: TokenType::IDENTIFIER(String::from("entry")), pos: helpers::Pos { s: 4, e: 9 } } ) ;
-        assert_eq!(*l.advance(), Token { token: TokenType::RP, pos: helpers::Pos { s: 9, e: 10 } } ) ;
-        assert_eq!(*l.advance(), Token { token: TokenType::LP, pos: helpers::Pos { s: 10, e: 11 } } ) ;
+        assert_eq!(*l.advance(), Token { token: TokenType::LP, pos: helpers::Pos { s: 9, e: 10 } } ) ;
+        assert_eq!(*l.advance(), Token { token: TokenType::RP, pos: helpers::Pos { s: 10, e: 11 } } ) ;
         assert_eq!(*l.advance(), Token { token: TokenType::LCP, pos: helpers::Pos { s: 12, e: 13 } } ) ;
         assert_eq!(*l.advance(), Token { token: TokenType::LET, pos: helpers::Pos { s: 18, e: 21 } } ) ;
         assert_eq!(*l.advance(), Token { token: TokenType::IDENTIFIER(String::from("x")), pos: helpers::Pos { s: 22, e: 23 } } ) ;
