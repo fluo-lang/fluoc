@@ -64,7 +64,7 @@ impl Parser<'_> {
         }
 
         let block = ast::Block { nodes: ast_list, pos: helpers::Pos { s: position.0, e: self.lexer.position } };
-        println!("{:?}", block);
+        println!("{:#?}", block);
     }
 
     /// Template for syntax error
@@ -152,11 +152,11 @@ impl Parser<'_> {
 
         let id = self.name_id()?;
 
-        self.next(lexer::TokenType::RP, "Expected `(`", position)?;
+        self.next(lexer::TokenType::LP, "Expected `(`", position)?;
 
         // TODO: add function arguments
 
-        self.next(lexer::TokenType::LP, "Expected `)`", position)?;
+        self.next(lexer::TokenType::RP, "Expected `)`", position)?;
 
         let mut return_type = ast::Type {
             value: ast::TypeType::Tuple(Vec::new()),
@@ -190,6 +190,7 @@ impl Parser<'_> {
         }));
     }
 
+    /// Ful variable assign with type declaration and expression
     fn variable_assign_full(&mut self ) -> Result<Box<dyn Node>, Vec<Error>> {
         let position = self.lexer.get_pos();
         self.next(lexer::TokenType::LET, "Expected `let` keyword", position)?;
@@ -217,6 +218,7 @@ impl Parser<'_> {
         }))
     }
 
+    /// Top level expression
     fn expr(&mut self) -> Result<Box<dyn ast::Expr>, Vec<Error>> {
         let position = self.lexer.get_pos();
 
@@ -228,7 +230,7 @@ impl Parser<'_> {
                     self.lexer.advance();
                     let right = self.term()?;
 
-                    left = Box::new(ast::Mul {
+                    left = Box::new(ast::Add {
                         left,
                         right,
                         pos: helpers::Pos {
@@ -242,7 +244,7 @@ impl Parser<'_> {
                     self.lexer.advance();
                     let right = self.term()?;
                     
-                    left = Box::new(ast::Div {
+                    left = Box::new(ast::Sub {
                         left,
                         right,
                         pos: helpers::Pos {
@@ -357,10 +359,10 @@ impl Parser<'_> {
                 Err(_) => {}
             }
         }
-
-        if self.lexer.advance().token == lexer::TokenType::LP {
+        
+        if let lexer::TokenType::LP = self.lexer.advance().token {
             let expr = self.expr()?;
-            if self.lexer.peek().token == lexer::TokenType::RP { 
+            if let lexer::TokenType::RP = self.lexer.advance().token { 
                 return Ok(expr);
             }
             let next_tok = self.lexer.peek();

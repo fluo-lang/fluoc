@@ -278,8 +278,8 @@ impl Lexer<'_> {
                 }
                 _ => TokenType::MOD
             }
-            '(' => TokenType::RP,
-            ')' => TokenType::LP,
+            '(' => TokenType::LP,
+            ')' => TokenType::RP,
             '{' => TokenType::LCP,
             '}' => TokenType::RCP,
             '.' => TokenType::DOT,
