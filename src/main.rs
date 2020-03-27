@@ -1,28 +1,22 @@
 pub mod helpers;
 pub mod lexer;
 pub mod logger;
-pub mod module;
 pub mod parser;
-
-use logger::color;
-use std::process;
+pub mod codegen;
+pub mod master;
 
 #[macro_use]
 extern crate clap;
 use clap::App;
+use inkwell::context::Context;
 
 fn main() {
     let yaml = load_yaml!("cli.yml");
     let matches = App::from_yaml(yaml).get_matches();
 
     let filename = matches.value_of("entry").unwrap();
-    let module = module::Module::new(&filename);
+    let context = Context::create();
 
-    if let Err(e) = module {
-        println!("{}{}Fatal Error{}: {}: `{}`", color::RED, color::BOLD, color::RESET, e, filename);
-        process::exit(1);
-    } else {
-        let mut module = module.unwrap();
-        module.parser.parse();
-    }
+    let mut master = master::Master::new(&context);
+    master.add_file(&filename);
 }

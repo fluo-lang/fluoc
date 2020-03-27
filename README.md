@@ -10,16 +10,17 @@
 <br>
 
 ```rust
-func fizzbuzz(amount: int) {
-    println -> match for 0..amount {
-        %% 3 => "Fizz";
-        %% 5 => "Buzz";
-        %% 3 & 5 => "Fizzbuzz";
-        _ => _;
-    };
+def fizzbuzz(value: int) {
+    match loop 1..value {
+        %% 3        -> print("Fizz");
+        %% 5        -> print("Fizz");
+        %% 5 & %% 3 -> print("Fizzbuzz");
+        _           -> print(_);
+    }
 }
 
-func entry() {
+def entry() {
+    print("Hello, 世界!");
     fizzbuzz(100);
 }
 ```

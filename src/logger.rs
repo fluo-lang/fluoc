@@ -17,13 +17,15 @@ impl ErrorType {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 /// Error display mode
 pub enum ErrorDisplayType {
     /// "Error" mode, make underline red and text red
     Error,
-    /// "Warning" mode, make underline yellow and text yellow?
-    Warning
+    /// "Warning" mode, make underline yellow and text yellow
+    Warning,
+    /// "Info" mode, make underline Blue and text blue
+    Info
 }
 
 impl ErrorDisplayType {
@@ -31,6 +33,7 @@ impl ErrorDisplayType {
         match self {
             ErrorDisplayType::Error => "Errors",
             ErrorDisplayType::Warning => "Warnings",
+            _ => "Errors"
         }
     }
 
@@ -38,6 +41,23 @@ impl ErrorDisplayType {
         match self {
             ErrorDisplayType::Error => "Error",
             ErrorDisplayType::Warning => "Warning",
+            _ => "Error"
+        }
+    }
+
+    fn get_underline(&self) -> &str {
+        match self {
+            ErrorDisplayType::Error => "^",
+            ErrorDisplayType::Warning => "╌",
+            ErrorDisplayType::Info => "━"
+        }
+    }
+
+    fn get_color(&self) -> &str {
+        match self {
+            ErrorDisplayType::Error => color::RED,
+            ErrorDisplayType::Warning => color::YELLOW,
+            ErrorDisplayType::Info => color::BLUE
         }
     }
 }
@@ -116,7 +136,7 @@ impl Logger<'_> {
         (lineno, relative_pos)
     }
 
-    fn single_error(&mut self, error: &Error, colored: &'static str) -> String {
+    fn single_error(&mut self, error: &Error, message_type: ErrorDisplayType) -> String {
         let position_range = (self.get_lineno(error.position.s), self.get_lineno(error.position.e));
         let mut code_block = String::new();
 
@@ -144,7 +164,16 @@ impl Logger<'_> {
 
         let length_largest_line_no = end_visible_line.to_string().len();
         code_block.push_str(
-            &format!("{}{}{} --> {}{}:{}:{}\n", self.indentation.repeat(2), color::BLUE, color::BOLD, color::RESET, self.filename, (position_range.0).0, (position_range.0).1-1)
+            &format!(
+                "{}{}{} --> {}{}:{}:{}\n", 
+                self.indentation.repeat(2), 
+                color::BLUE, 
+                color::BOLD, 
+                color::RESET, 
+                self.filename, 
+                (position_range.0).0, 
+                (position_range.0).1-1
+            )
         );
 
         code_block.push_str(&format!(
@@ -191,8 +220,8 @@ impl Logger<'_> {
                         self.indentation,
                         color::RESET,
                         color::BOLD,
-                        colored,
-                        "^".repeat(
+                        message_type.get_color(),
+                        message_type.get_underline().repeat(
                             if (position_range.1).0 == i+start_visible_line+1 { 
                                 (position_range.1).1 - (position_range.0).1 
                             } else { 
@@ -211,28 +240,22 @@ impl Logger<'_> {
                 code_block.push_str(&format!("{}\n", color::RESET));
             }
         }
-        code_block.push_str("\n");
         code_block
     }
 
-    fn get_code(&mut self, error: Vec<Error>, colored: &'static str) -> String {
-        if error.len() == 1 {
-            self.single_error(error.first().unwrap(), colored)
+    fn get_code(&mut self, errors: Vec<Error>, message_type: ErrorDisplayType) -> String {
+        if errors.len() == 1 {
+            self.single_error(errors.first().unwrap(), message_type)
         } else {
             String::from("")
         }
     }
 
     fn raise_type(&mut self, errors: Vec<Vec<Error>>, message_type: ErrorDisplayType) {
-        let colored = match message_type {
-            ErrorDisplayType::Error => color::RED,
-            ErrorDisplayType::Warning => color::YELLOW
-        };
-
         if errors.len() > 0 { 
             eprintln!(
                 "{}{}{}{} {} Found:{}\n", 
-                colored, 
+                message_type.get_color(), 
                 color::UNDERLINE, 
                 color::BOLD,
                 errors.len(), 
@@ -246,29 +269,38 @@ impl Logger<'_> {
         }
         
         for error in errors.clone() {
-            if error.len() == 1 {
-                let first_error = error.first().unwrap();
-                match first_error.error {
-                    ErrorType::Syntax => {
-                        eprintln!(
-                            "{}{}{}{}{}: {}{}, found {} {}\n", 
-                            self.indentation, 
-                            color::BOLD, 
-                            colored, 
-                            first_error.error.as_str(), 
-                            color::RESET, 
-                            color::BOLD, 
-                            first_error.message, 
-                            first_error.token.as_ref().unwrap(),
-                            color::RESET
-                        );
-                        eprintln!("{}", self.get_code(error, colored));
-                    },
-                    _ => {}
+            let first_error = error.first().unwrap();
+            match first_error.error {
+                ErrorType::Syntax => {
+                    eprintln!(
+                        "{}{}{}{}{}: {}{}, found {} {}\n", 
+                        self.indentation, 
+                        color::BOLD, 
+                        message_type.get_color(), 
+                        first_error.error.as_str(), 
+                        color::RESET, 
+                        color::BOLD, 
+                        first_error.message, 
+                        first_error.token.as_ref().unwrap(),
+                        color::RESET
+                    );
+                    eprintln!("{}", self.get_code(error, message_type));
+                },
+                _ => {
+                    eprintln!(
+                        "{}{}{}{}{}: {}{}{}\n", 
+                        self.indentation, 
+                        color::BOLD, 
+                        message_type.get_color(), 
+                        first_error.error.as_str(), 
+                        color::RESET, 
+                        color::BOLD, 
+                        first_error.message,
+                        color::RESET
+                    );
+                    eprintln!("{}", self.get_code(error, message_type));
                 }
-            } else {
-                // We have a more detailed error
-            }
+            } 
         }
     }
 

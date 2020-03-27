@@ -11,13 +11,13 @@ pub struct Parser<'a> {
     /// Logger object
     logger: Logger<'a>,
     // Abstract syntax tree
-    ast: Option<ast::Block>
+    pub ast: Option<ast::Block>
 }
 
 impl Parser<'_> {
     /// Return a new parser object.
     /// 
-    /// # Arguments
+    /// Arguments
     /// 
     /// * `l`: lexer to use
     /// * `log`: logger to use
@@ -33,37 +33,41 @@ impl Parser<'_> {
         let statements: [fn (&mut Self) -> Result<Box<dyn Node>, Vec<Error>>; 1] = [ Parser::function_define ];
 
         let mut ast_list: Vec<Box<dyn Node>> = Vec::new();
-        loop {
-            let mut errors: Vec<Vec<Error>> = Vec::new();
-            let mut fail = true;
-            for i in 0..statements.len() {
-                let statement_ast = statements[i](self);
-                match statement_ast {
-                    Ok(ast_production) => { 
-                        fail = false; 
-                        errors.clear();
-                        ast_list.push(ast_production);
-                        break
-                    },
-                    Err(e) => errors.push(e)
-                }
-            }
+        if self.lexer.peek().token != lexer::TokenType::EOF {
+            loop {
             
-            if self.lexer.peek().token == lexer::TokenType::EOF && !fail {
-                // We've successfully parsed, break
-                break
-            } else if errors.len() != 0 && fail {
-                // We've found an error, raise the error
-                for error in errors {
-                    self.logger.error(error);
+
+                let mut errors: Vec<Vec<Error>> = Vec::new();
+                let mut fail = true;
+                for i in 0..statements.len() {
+                    let statement_ast = statements[i](self);
+                    match statement_ast {
+                        Ok(ast_production) => { 
+                            fail = false; 
+                            errors.clear();
+                            ast_list.push(ast_production);
+                            break
+                        },
+                        Err(e) => errors.push(e)
+                    }
                 }
-                self.logger.raise();
-                return ()
+                
+                if self.lexer.peek().token == lexer::TokenType::EOF && !fail {
+                    // We've successfully parsed, break
+                    break
+                } else if errors.len() != 0 && fail {
+                    // We've found an error, raise the error
+                    for error in errors {
+                        self.logger.error(error);
+                    }
+                    self.logger.raise();
+                    return ()
+                }
             }
         }
 
         let block = ast::Block { nodes: ast_list, pos: helpers::Pos { s: position.0, e: self.lexer.position } };
-        println!("{:#?}", block);
+        println!("{:?}", block);
 
         self.ast = Some(block);
     }

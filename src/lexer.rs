@@ -336,10 +336,10 @@ impl Lexer<'_> {
     /// Get next token in input stream, but don't advance
     pub fn peek<'a>(&'a mut self) -> &Token {
         let token_kind = self.get_next_tok_type();
-        
+
         self.next_token = Token {
             pos: helpers::Pos::new(
-                self.position-get_tok_length(&token_kind)+self.temp_pos, 
+                if get_tok_length(&token_kind)+self.temp_pos > self.position { 0 } else { self.position-get_tok_length(&token_kind)+self.temp_pos }, 
                 self.position+self.temp_pos
             ),
             token: token_kind
