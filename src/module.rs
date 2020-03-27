@@ -20,6 +20,6 @@ impl Module<'_> {
         let l = lexer::Lexer::new(filename)?;
         let log = logger::Logger::new(filename, l.clone().file_contents);
         let p = parser::Parser::new(l, log);
-        Ok(Module { parser: p})
+        Ok(Module { parser: p })
     }
 }

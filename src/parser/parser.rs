@@ -3,7 +3,6 @@ use crate::lexer;
 use crate::logger::{Error, ErrorType, Logger, ErrorDisplayType};
 use crate::parser::ast::Node;
 use crate::helpers;
-use std::process;
 
 /// Recursive descent parser
 pub struct Parser<'a> {
@@ -60,9 +59,6 @@ impl Parser<'_> {
                 }
                 self.logger.raise();
                 return ()
-            } else {
-                println!("Something went really wrong");
-                process::exit(1);
             }
         }
 
@@ -194,6 +190,7 @@ impl Parser<'_> {
         }));
     }
 
+    /// Expressions statement
     fn expression_statement(&mut self) -> Result<Box<dyn ast::Node>, Vec<Error>> {
         let position = self.lexer.get_pos();
 

@@ -26,6 +26,22 @@ pub enum ErrorDisplayType {
     Warning
 }
 
+impl ErrorDisplayType {
+    fn plural(&self) -> &str {
+        match self {
+            ErrorDisplayType::Error => "Errors",
+            ErrorDisplayType::Warning => "Warnings",
+        }
+    }
+
+    fn singular(&self) -> &str {
+        match self {
+            ErrorDisplayType::Error => "Error",
+            ErrorDisplayType::Warning => "Warning",
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 /// An full on error containing useful info. Note it does nto contain filename info.
 pub struct Error {
@@ -100,7 +116,7 @@ impl Logger<'_> {
         (lineno, relative_pos)
     }
 
-    fn single_error(&mut self, error: &Error) -> String {
+    fn single_error(&mut self, error: &Error, colored: &'static str) -> String {
         let position_range = (self.get_lineno(error.position.s), self.get_lineno(error.position.e));
         let mut code_block = String::new();
 
@@ -127,11 +143,27 @@ impl Logger<'_> {
         ].to_vec();
 
         let length_largest_line_no = end_visible_line.to_string().len();
+        code_block.push_str(
+            &format!("{}{}{} --> {}{}:{}:{}\n", self.indentation.repeat(2), color::BLUE, color::BOLD, color::RESET, self.filename, (position_range.0).0, (position_range.0).1-1)
+        );
+
+        code_block.push_str(&format!(
+            "{}{}{}{} |{}{}\n", 
+            color::BOLD,
+            self.indentation.repeat(2), 
+            " ".repeat(
+                length_largest_line_no
+            ), 
+            color::BLUE,
+            self.indentation,
+            color::RESET
+        ));
 
         for (i, line) in lines.iter().enumerate() {
             code_block.push_str(
                 &format!(
-                    "{}{}{}{} |{}{} {}\n", 
+                    "{}{}{}{}{} |{}{} {}\n", 
+                    color::BOLD,
                     self.indentation.repeat(2), 
                     " ".repeat(
                         length_largest_line_no-(
@@ -151,16 +183,15 @@ impl Logger<'_> {
             if i+start_visible_line+1 == (position_range.0).0 {
                 code_block.push_str(
                     &format!(
-                        "{}{}{} |{}{}{}{}{}", self.indentation.repeat(2), 
+                        "{}{}{}{} |{}{}{}{}{}{}", self.indentation.repeat(2), 
                         color::BLUE,
+                        color::BOLD,
                         " ".repeat(length_largest_line_no),
                         " ".repeat((position_range.0).1-1),
                         self.indentation,
                         color::RESET,
-                        match error.mode {
-                            ErrorDisplayType::Error => color::RED,
-                            ErrorDisplayType::Warning => color::YELLOW
-                        },
+                        color::BOLD,
+                        colored,
                         "^".repeat(
                             if (position_range.1).0 == i+start_visible_line+1 { 
                                 (position_range.1).1 - (position_range.0).1 
@@ -184,52 +215,54 @@ impl Logger<'_> {
         code_block
     }
 
-    fn get_code(&mut self, error: Vec<Error>) -> String {
+    fn get_code(&mut self, error: Vec<Error>, colored: &'static str) -> String {
         if error.len() == 1 {
-            self.single_error(error.first().unwrap())
+            self.single_error(error.first().unwrap(), colored)
         } else {
             String::from("")
         }
     }
 
-    fn raise_type(&mut self, errors: Vec<Vec<Error>>, ) {
-        if errors.len() > 0 { eprintln!(
-            "{}{}{}{} {} Found:{}\n", 
-            color::RED, 
-            color::UNDERLINE, 
-            color::BOLD,
-            errors.len(), 
-            if errors.len() == 1 {
-                "Error"
-            } else {
-                "Errors"
-            },
-            color::RESET
-        ); }
+    fn raise_type(&mut self, errors: Vec<Vec<Error>>, message_type: ErrorDisplayType) {
+        let colored = match message_type {
+            ErrorDisplayType::Error => color::RED,
+            ErrorDisplayType::Warning => color::YELLOW
+        };
+
+        if errors.len() > 0 { 
+            eprintln!(
+                "{}{}{}{} {} Found:{}\n", 
+                colored, 
+                color::UNDERLINE, 
+                color::BOLD,
+                errors.len(), 
+                if errors.len() == 1 {
+                    message_type.singular()
+                } else {
+                    message_type.plural()
+                },
+                color::RESET
+            ); 
+        }
         
         for error in errors.clone() {
             if error.len() == 1 {
                 let first_error = error.first().unwrap();
-                match first_error.mode {
-                    ErrorDisplayType::Error => {
-                        match first_error.error {
-                            ErrorType::Syntax => {
-                                eprintln!(
-                                    "{}{}{}{}{}: {}{}, found {} {}\n", 
-                                    self.indentation, 
-                                    color::BOLD, 
-                                    color::RED, 
-                                    first_error.error.as_str(), 
-                                    color::RESET, 
-                                    color::BOLD, 
-                                    first_error.message, 
-                                    first_error.token.as_ref().unwrap(),
-                                    color::RESET
-                                );
-                                eprintln!("{}", self.get_code(error));
-                            },
-                            _ => {}
-                        }
+                match first_error.error {
+                    ErrorType::Syntax => {
+                        eprintln!(
+                            "{}{}{}{}{}: {}{}, found {} {}\n", 
+                            self.indentation, 
+                            color::BOLD, 
+                            colored, 
+                            first_error.error.as_str(), 
+                            color::RESET, 
+                            color::BOLD, 
+                            first_error.message, 
+                            first_error.token.as_ref().unwrap(),
+                            color::RESET
+                        );
+                        eprintln!("{}", self.get_code(error, colored));
                     },
                     _ => {}
                 }
@@ -242,13 +275,21 @@ impl Logger<'_> {
     /// Raises all the errors on the error vector.
     /// Note: doesn't exit out of the program.
     pub fn raise(&mut self) {
-        let errors: Vec<Vec<Error>> = self.errors
-                                    .iter()
-                                    .cloned()
-                                    .filter(|x| if let ErrorDisplayType::Error = x.first().unwrap().mode { true } else { false })
-                                    .collect();
+        let warnings: Vec<Vec<Error>> = self.errors
+                                        .iter()
+                                        .cloned()
+                                        .filter(|x| if let ErrorDisplayType::Warning = x.first().unwrap().mode { true } else { false })
+                                        .collect();
 
-        self.raise_type(errors);
+        self.raise_type(warnings, ErrorDisplayType::Warning);
+
+        let errors: Vec<Vec<Error>> = self.errors
+                                      .iter()
+                                      .cloned()
+                                      .filter(|x| if let ErrorDisplayType::Error = x.first().unwrap().mode { true } else { false })
+                                      .collect();
+
+        self.raise_type(errors, ErrorDisplayType::Error);
     }
 
     /// Static method for error that parses the furthest.
