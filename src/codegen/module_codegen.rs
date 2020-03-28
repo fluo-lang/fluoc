@@ -21,7 +21,7 @@ impl CodeGenModule<'_> {
     /// * `filename` - the filename of the file to read
     pub fn new<'a>(filename: &'a str, module: module::Module<'a>) -> io::Result<CodeGenModule<'a>> {
         let l = lexer::Lexer::new(filename)?;
-        let log = logger::Logger::new(filename, l.clone().file_contents);
+        let log = logger::logger::Logger::new(filename, l.clone().file_contents);
         let p = parser::Parser::new(l, log);
         Ok(CodeGenModule { module, parser: p })
     }

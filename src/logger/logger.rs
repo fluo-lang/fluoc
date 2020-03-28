@@ -278,10 +278,10 @@ impl Logger<'_> {
 
                 code_block.push_str(
                     &format!(
-                        "{}{}{}{}", 
-                        color::RESET,
+                        "{}{}{}{}",
                         color::BOLD,
                         message_type.get_color(),
+                        " ".repeat((position_range.0).1-1),
                         message_type.get_underline().repeat(
                             if (position_range.1).0 == i+start_visible_line+1 { 
                                 (position_range.1).1 - (position_range.0).1 

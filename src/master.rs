@@ -1,7 +1,7 @@
 use inkwell::context::Context;
 use crate::codegen::module_codegen::CodeGenModule;
 use std::collections::HashMap;
-use crate::logger::color;
+use crate::logger::logger::color;
 use std::process;
 
 pub struct Master<'a> {

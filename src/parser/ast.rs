@@ -119,7 +119,7 @@ pub struct VariableAssignDeclaration {
 #[derive(Debug)]
 /// Arguments for function
 pub struct Arguments {
-    pub positional: Vec<(String, Type)>,
+    pub positional: Vec<(NameID, Type)>,
     pub pos: helpers::Pos
     // TODO: Add more types or arguments
 }

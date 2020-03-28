@@ -1,6 +1,6 @@
 use crate::parser::ast;
 use crate::lexer;
-use crate::logger::{Error, ErrorType, Logger, ErrorDisplayType, ErrorAnnotation};
+use crate::logger::logger::{Error, ErrorType, Logger, ErrorDisplayType, ErrorAnnotation};
 use crate::parser::ast::Node;
 use crate::helpers;
 
@@ -158,7 +158,7 @@ impl Parser<'_> {
 
         self.next(lexer::TokenType::LP, "expected `(`", position)?;
 
-        // TODO: add function arguments
+        let arguments = self.parse_arguments()?;
 
         self.next(lexer::TokenType::RP, "expected `)`", position)?;
 
@@ -171,6 +171,7 @@ impl Parser<'_> {
         };
 
         if self.lexer.peek().token == lexer::TokenType::ARROW {
+            self.lexer.advance();
             return_type = self.type_expr()?;
         }
 
@@ -178,13 +179,7 @@ impl Parser<'_> {
         
         return Ok(Box::new(ast::FunctionDefine {
             return_type,
-            arguments: ast::Arguments{
-                positional: Vec::new(),
-                pos: helpers::Pos {
-                    s: 0,
-                    e: 0
-                }
-            },
+            arguments: arguments,
             block,
             name: id,
             pos: helpers::Pos {
@@ -192,6 +187,40 @@ impl Parser<'_> {
                 e: self.lexer.position
             }
         }));
+    }
+
+    fn parse_arguments(&mut self) -> Result<ast::Arguments, Error> {
+        let position = self.lexer.get_pos();
+        let mut positional_args: Vec<(ast::NameID, ast::Type)> = Vec::new();
+
+        loop {
+            if self.lexer.peek().token == lexer::TokenType::RP {
+                // No error, we've reached the end
+                break
+            }
+
+            let id = self.name_id()?;
+
+            self.next(lexer::TokenType::COLON, "expected `:`", position)?;
+
+            let arg_type = self.type_expr()?;
+
+            positional_args.push((id, arg_type));
+            
+            if self.lexer.peek().token == lexer::TokenType::COMMA {
+                self.lexer.advance();
+            } else {
+                break
+            }
+        }
+
+        Ok(ast::Arguments { 
+            positional: positional_args,
+            pos: helpers::Pos {
+                s: position.0, 
+                e: self.lexer.position
+            }
+        })
     }
 
     /// Expressions statement
