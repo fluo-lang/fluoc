@@ -1,5 +1,6 @@
 use crate::helpers::Pos;
-use crate::lexer::Token;
+use crate::logger::buffer_writer::{Color, Style, Buffer, Font, color};
+use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 /// An error type, i.e `Syntax` error or `UnexpectedToken` error
@@ -53,11 +54,19 @@ impl ErrorDisplayType {
         }
     }
 
-    fn get_color(&self) -> &str {
+    fn get_color(&self) -> &'static str {
         match self {
             ErrorDisplayType::Error => color::RED,
             ErrorDisplayType::Warning => color::YELLOW,
             ErrorDisplayType::Info => color::BLUE
+        }
+    }
+
+    fn get_color_class(&self) -> Color {
+        match self {
+            ErrorDisplayType::Error => Color::RED,
+            ErrorDisplayType::Warning => Color::YELLOW,
+            ErrorDisplayType::Info => Color::BLUE
         }
     }
 }
@@ -70,22 +79,26 @@ pub struct ErrorAnnotation {
     /// Error position
     position: Pos,
     /// Error display mode
-    mode: ErrorDisplayType
+    mode: ErrorDisplayType,
+    /// Filename of annotation
+    filename: String
 }
 
-impl ErrorAnnotation {
+impl<'a> ErrorAnnotation {
     /// Returns an error annotation
     /// 
-    /// # Arguments
+    /// Arguments
     /// 
     /// * `message`: error message
     /// * `position`: position of error
     /// * `mode`: mode of error report
-    pub fn new(message: String, position: Pos, mode: ErrorDisplayType) -> ErrorAnnotation {
+    /// * `filename`: filename of annotation
+    pub fn new(message: String, position: Pos, mode: ErrorDisplayType, filename: String) -> ErrorAnnotation {
         ErrorAnnotation {
             message,
             position,
-            mode
+            mode,
+            filename
         }
     }
 }
@@ -102,7 +115,7 @@ pub struct Error {
     /// Error display mode
     mode: ErrorDisplayType,
     /// Filename of error
-    filename: Option<String>,
+    filename: String,
     /// Annotations
     annotations: Vec<ErrorAnnotation>
 }
@@ -117,7 +130,7 @@ impl Error {
     /// * `position`: position of error
     /// * `token`: optional token associated with error
     /// * `mode`: mode of error report
-    pub fn new(message: String, error: ErrorType, position: Pos, mode: ErrorDisplayType, filename: Option<String>, annotations: Vec<ErrorAnnotation>) -> Error {
+    pub fn new(message: String, error: ErrorType, position: Pos, mode: ErrorDisplayType, filename: String, annotations: Vec<ErrorAnnotation>) -> Error {
         Error {
             message,
             error,
@@ -129,43 +142,35 @@ impl Error {
     }
 }
 
+#[derive(Clone)]
 /// Logger object for one file
-pub struct Logger<'a> {
+pub struct Logger {
     /// Vector of errors
     errors: Vec<Error>,
-    /// Filename the logger serves
-    filename: &'a str,
-    /// Contents of file
-    file_contents: String,
+    /// Filename + file contents the logger serves
+    filename_contents: HashMap<String, String>,
     /// Amount of indentation used for error
     indentation: String,
-    /// Pipe character used
-    pipe_char: String,
+    /// Buffer object
+    buffer: Buffer
 }
 
-pub mod color {
-    pub const BLACK: &'static str = "\x1b[30m";
-    pub const BOLD: &'static str= "\x1b[1m";
-    pub const RED: &'static str = "\x1b[31m";
-    pub const GREEN: &'static str = "\x1b[32m";
-    pub const YELLOW: &'static str = "\x1b[33m";
-    pub const BLUE: &'static str = "\x1b[34m";
-    pub const MAGENTA: &'static str = "\x1b[35m";
-    pub const CYAN: &'static str = "\x1b[36m";
-    pub const WHITE: &'static str = "\x1b[37m";
-    pub const UNDERLINE: &'static str = "\x1b[4m";
-    pub const RESET: &'static str = "\x1b[0m";
-}
-
-impl Logger<'_> {
+impl Logger {
     /// Return a new logger object.
+   
+    pub fn new() -> Logger {
+        let buffer = Buffer::new();
+        Logger { errors: Vec::new(), filename_contents: HashMap::new(),  indentation: String::from("  "), buffer }
+    }
+
+    /// Adds a file to the logger hash map
     /// 
-    /// # Arguments
+    /// Arguments
     /// 
-    /// * `filename`: filename of the file to report
+    /// * `filename`: filename of the file
     /// * `file_contents`: contents of the file
-    pub fn new<'a>(filename: &'a str, file_contents: String) -> Logger<'a> {
-        Logger { filename, errors: Vec::new(), file_contents, indentation: String::from("  "), pipe_char: String::from("|") }
+    pub fn add_file(&mut self, filename: String, file_contents: String) {
+        self.filename_contents.insert(filename, file_contents);
     }
 
     /// Pushes an error onto the error vector. 
@@ -175,10 +180,10 @@ impl Logger<'_> {
         );
     }
 
-    fn get_lineno(&mut self, pos: usize) -> (usize, usize) {
+    fn get_lineno(&mut self, pos: usize, filename: &String) -> (usize, usize) {
         let mut lineno = 1;
         let mut relative_pos = 1;
-        for c in (&self.file_contents[..pos]).chars() {
+        for c in (&self.filename_contents[filename][..pos]).chars() {
             if c == '\n' {
                 lineno += 1;
                 relative_pos = 1;
@@ -188,40 +193,16 @@ impl Logger<'_> {
         (lineno, relative_pos)
     }
 
-    fn single_pipe(&self, length_largest_line_no: usize) -> String {
-        format!(
-            "{}{}{}{} {}{}{}", 
-            color::BOLD,
-            self.indentation.repeat(2), 
-            " ".repeat(
-                length_largest_line_no
-            ), 
-            color::BLUE,
-            self.pipe_char,
-            self.indentation,
-            color::RESET
-        )
+    fn add_pipe(&mut self, ln: usize, max_line_size: usize) -> (usize, usize) {
+        self.buffer.writel(ln, 0, &" ".repeat(max_line_size), Style::new(None, None));
+        self.buffer.writel(ln, max_line_size, "|", Style::new(Some(Color::BLUE), Some(Font::BOLD)))
     }
 
-    fn single_error(&mut self, error: &ErrorAnnotation, message_type: ErrorDisplayType) -> String {
+    /*fn single_error(&mut self, error: &ErrorAnnotation, message_type: ErrorDisplayType) -> String {
         let position_range = (self.get_lineno(error.position.s), self.get_lineno(error.position.e));
         let mut code_block = String::new();
 
         let mut lines: Vec<&str> = self.file_contents.lines().collect();
-        
-        let start_visible_line = 
-            if (position_range.0).0-1 == 0 { 
-                (position_range.0).0-1
-            } else { 
-                (position_range.0).0-2
-            };
-        
-        let end_visible_line =
-            if (position_range.1).0 == lines.len() { 
-                (position_range.0).0
-            } else {
-                (position_range.0).0+1
-            };
 
         lines = lines[
             start_visible_line
@@ -299,13 +280,43 @@ impl Logger<'_> {
             }
         }
         code_block
+    }*/
+
+    fn get_max_line_size(&mut self, errors: &Vec<ErrorAnnotation>, filename: &String) -> usize {
+        let mut max_line_size = 0;
+        for error in errors {
+            let temp = self.get_lineno(error.position.e, filename).0;
+            if temp > max_line_size {
+                max_line_size = temp;
+            }
+        }
+        max_line_size
     }
 
-    fn get_code(&mut self, errors: Vec<ErrorAnnotation>, message_type: ErrorDisplayType) -> String {
-        if errors.len() == 1 {
-            self.single_error(errors.first().unwrap(), message_type)
-        } else {
-            String::from("")
+    fn format_line(&mut self, errors: Vec<ErrorAnnotation>, writer_pos: &mut (usize, usize)) {
+
+    }
+
+    fn get_code(&mut self, errors: Vec<ErrorAnnotation>) {
+        let first = errors.first().unwrap();
+        let max_line_size: usize = self.get_max_line_size(&errors, &first.filename);
+        let mut last_printed_line: usize = 1;
+        let mut writer_pos: (usize, usize) = (1, 1);
+        
+        let mut position;
+        let error = errors.first().unwrap();
+        position = (self.get_lineno(error.position.s, &first.filename), self.get_lineno(error.position.e, &first.filename));
+        
+        writer_pos = self.buffer.writel(writer_pos.0-1, writer_pos.1-1, &" ".repeat(max_line_size-1), Style::new(None, None));
+        writer_pos = self.buffer.writel(writer_pos.0-1, writer_pos.1-1, "-->", Style::new(Some(Color::BLUE), Some(Font::BOLD)));
+        writer_pos = self.buffer.writeln(writer_pos.0-1, writer_pos.1-1, &format!("{}:{}:{}", self.filename_contents[&first.filename], (position.0).0, (position.0).1), Style::new(None, None));
+
+        writer_pos = self.add_pipe(writer_pos.0-1, max_line_size);
+        writer_pos.0 += 1;
+        
+        // annotations in the same lines together
+        for error in errors {
+            
         }
     }
 
@@ -340,7 +351,8 @@ impl Logger<'_> {
                 error.message,
                 color::RESET
             );
-            eprintln!("{}", self.get_code(error.annotations, message_type));
+            self.get_code(error.annotations);
+            self.buffer.render();
         }
     }
 

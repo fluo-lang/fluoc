@@ -5,38 +5,34 @@ use crate::parser::ast::Node;
 use crate::helpers;
 
 /// Recursive descent parser
-pub struct Parser<'a> {
+pub struct Parser {
     /// Lexer object
-    pub lexer: lexer::Lexer<'a>,
-    /// Logger object
-    logger: Logger<'a>,
+    pub lexer: lexer::Lexer,
     // Abstract syntax tree
-    pub ast: Option<ast::Block>
+    pub ast: Option<ast::Block>,
 }
 
-impl Parser<'_> {
+impl Parser {
     /// Return a new parser object.
     /// 
     /// Arguments
     /// 
     /// * `l`: lexer to use
     /// * `log`: logger to use
-    pub fn new<'a> (l: lexer::Lexer<'a>, log: Logger<'a>) -> Parser<'a> {
-        Parser { lexer: l, ast: None, logger: log }
+    pub fn new(l: lexer::Lexer) -> Parser {
+        Parser { lexer: l, ast: None }
     }
 
     /// Parse from lexer
     /// 
     /// Returns nothing
-    pub fn parse(&mut self) {
+    pub fn parse(&mut self) -> Result<(), Vec<Error>> {
         let position = self.lexer.get_pos();
         let statements: [fn (&mut Self) -> Result<Box<dyn Node>, Error>; 1] = [ Parser::function_define ];
 
         let mut ast_list: Vec<Box<dyn Node>> = Vec::new();
         if self.lexer.peek().token != lexer::TokenType::EOF {
             loop {
-            
-
                 let mut errors: Vec<Error> = Vec::new();
                 let mut fail = true;
                 for i in 0..statements.len() {
@@ -56,12 +52,8 @@ impl Parser<'_> {
                     // We've successfully parsed, break
                     break
                 } else if errors.len() != 0 && fail {
-                    // We've found an error, raise the error
-                    for error in errors {
-                        self.logger.error(error);
-                    }
-                    self.logger.raise();
-                    return ()
+                    // We've found an error, return the error
+                    return Err(errors);
                 }
             }
         }
@@ -70,10 +62,11 @@ impl Parser<'_> {
         println!("{:?}", block);
 
         self.ast = Some(block);
+        Ok(())
     }
 
     /// Template for syntax error
-    fn syntax_error(t: lexer::Token, message: &str) -> Error {
+    fn syntax_error(&self, t: lexer::Token, message: &str) -> Error {
         Error::new(
             String::from(
                 format!("{}, found {}", message, t)
@@ -81,9 +74,9 @@ impl Parser<'_> {
             ErrorType::Syntax, 
             t.pos,
             ErrorDisplayType::Error,
-            None,
+            self.lexer.filename.clone(),
             vec![
-                ErrorAnnotation::new(" unexpected token".to_string(), t.pos, ErrorDisplayType::Error)
+                ErrorAnnotation::new(" unexpected token".to_string(), t.pos, ErrorDisplayType::Error, self.lexer.filename.clone())
             ]
         )
     }
@@ -94,7 +87,7 @@ impl Parser<'_> {
         
         if &t.token != &token_type {
             self.lexer.set_pos(position);
-            Err(Parser::syntax_error(t, error_message))
+            Err(self.syntax_error(t, error_message))
         } else {
             Ok(())
         }
@@ -434,13 +427,13 @@ impl Parser<'_> {
             if let lexer::TokenType::RP = self.lexer.advance().token { 
                 return Ok(expr);
             }
-            let next_tok = self.lexer.peek();
-            return Err(Parser::syntax_error(next_tok.clone(), "expected `)`"));
+            let next_tok = self.lexer.peek().clone();
+            return Err(self.syntax_error(next_tok, "expected `)`"));
         }
 
         self.lexer.set_pos(position);
-        let next_tok = self.lexer.peek();
-        Err(Parser::syntax_error(next_tok.clone(), "expected expression"))
+        let next_tok = self.lexer.peek().clone();
+        Err(self.syntax_error(next_tok, "expected expression"))
     }
 
     fn integer(&mut self) -> Result<Box<ast::Integer>, Error> {
@@ -456,7 +449,7 @@ impl Parser<'_> {
             )
         } else {
             self.lexer.set_pos(position);
-            Err(Parser::syntax_error(int.clone(), "expected integer"))
+            Err(self.syntax_error(int.clone(), "expected integer"))
         }
     }
 
@@ -473,7 +466,7 @@ impl Parser<'_> {
             )
         } else {
             self.lexer.set_pos(position);
-            Err(Parser::syntax_error(id.clone(), "expected identifier"))
+            Err(self.syntax_error(id.clone(), "expected identifier"))
         }
     }
 
@@ -491,7 +484,7 @@ impl Parser<'_> {
         }
         
         self.lexer.set_pos(position);
-        Err(Parser::syntax_error(id.clone(), "expected identifier"))
+        Err(self.syntax_error(id.clone(), "expected identifier"))
     }
 
 }

@@ -176,8 +176,8 @@ pub fn is_whitespace(c: char) -> bool {
 
 #[derive(Debug, Clone)]
 /// Lexer object
-pub struct Lexer<'a> {
-    pub filename: &'a str,
+pub struct Lexer {
+    pub filename: String,
     pub file_contents: String,
     previous: char,
     pub position: usize,
@@ -194,12 +194,12 @@ fn is_id_continue(c: char) -> bool {
         || c == '_'
 }
 
-impl Lexer<'_> {
+impl Lexer {
     /// Return new lexer object.
     /// 
     /// Arguments
     /// * `filename` - the filename of the file to read
-    pub fn new(filename: &str) -> io::Result<Lexer> {
+    pub fn new(filename: String) -> io::Result<Lexer> {
         let file_contents = helpers::read_file(&filename)?;
         Ok(Lexer { 
             filename, 
@@ -456,7 +456,7 @@ mod lexer_tests {
 
     #[test]
     fn lex_test() -> io::Result<()> {
-        let mut l = Lexer::new("./examples/simple_tests.fluo")?;
+        let mut l = Lexer::new(String::from("./examples/simple_tests.fluo"))?;
         assert_eq!(*l.advance(), Token { token: TokenType::DEF, pos: helpers::Pos { s: 0, e: 3 } } ) ;
         assert_eq!(*l.advance(), Token { token: TokenType::IDENTIFIER(String::from("entry")), pos: helpers::Pos { s: 4, e: 9 } } ) ;
         assert_eq!(*l.advance(), Token { token: TokenType::LP, pos: helpers::Pos { s: 9, e: 10 } } ) ;

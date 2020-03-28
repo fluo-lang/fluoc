@@ -14,9 +14,9 @@ fn main() {
     let yaml = load_yaml!("cli.yml");
     let matches = App::from_yaml(yaml).get_matches();
 
-    let filename = matches.value_of("entry").unwrap();
+    let filename = matches.value_of("entry").unwrap().to_string();
     let context = Context::create();
 
     let mut master = master::Master::new(&context);
-    master.add_file(&filename);
+    master.add_file(filename);
 }
