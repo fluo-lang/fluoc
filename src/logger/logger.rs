@@ -193,11 +193,6 @@ impl Logger {
         (lineno, relative_pos)
     }
 
-    fn add_pipe(&mut self, ln: usize, max_line_size: usize) -> (usize, usize) {
-        self.buffer.writel(ln, 0, &" ".repeat(max_line_size+1), Style::new(None, None));
-        self.buffer.writel(ln, max_line_size, "|", Style::new(Some(Color::BLUE), Some(Font::BOLD)))
-    }
-
     fn get_max_line_size(&mut self, errors: &Vec<ErrorAnnotation>, filename: &String) -> usize {
         let mut max_line_size = 0;
         for error in errors {
@@ -207,6 +202,15 @@ impl Logger {
             }
         }
         max_line_size
+    }
+
+    fn add_pipe(&mut self, ln: usize, max_line_size: usize) -> (usize, usize) {
+        self.buffer.writel(ln, 0, &" ".repeat(max_line_size+1), Style::new(None, None));
+        self.buffer.writel(ln, max_line_size, "|", Style::new(Some(Color::BLUE), Some(Font::BOLD)))
+    }
+
+    fn insert_lineno(&mut self, ln: usize, max_line_size: usize, line_no: usize) {
+
     }
 
     fn format_line(&mut self, errors: Vec<ErrorAnnotation>, writer_pos: &mut (usize, usize)) {
@@ -224,8 +228,8 @@ impl Logger {
         position = (self.get_lineno(error.position.s, &first.filename), self.get_lineno(error.position.e, &first.filename));
         
         writer_pos = self.buffer.writel(writer_pos.0-1, writer_pos.1-1, &" ".repeat(max_line_size-1), Style::new(None, None));
-        writer_pos = self.buffer.writel(writer_pos.0-1, writer_pos.1-1, "-->", Style::new(Some(Color::BLUE), Some(Font::BOLD)));
-        writer_pos = self.buffer.writeln(writer_pos.0-1, writer_pos.1-1, &format!("{}:{}:{}", &first.filename, (position.0).0, (position.0).1), Style::new(None, None));
+        writer_pos = self.buffer.writel(writer_pos.0-1, writer_pos.1-1, "--> ", Style::new(Some(Color::BLUE), Some(Font::BOLD)));
+        writer_pos = self.buffer.writeln(writer_pos.0-1, writer_pos.1-1, &format!("{}:{}:{}", &first.filename, (position.0).0, (position.0).1-1), Style::new(None, None));
 
         writer_pos = self.add_pipe(writer_pos.0-1, max_line_size);
         writer_pos.0 += 1;
@@ -268,7 +272,7 @@ impl Logger {
                 color::RESET
             );
             self.get_code(error.annotations);
-            self.buffer.render();
+            eprintln!("{}", self.buffer.render());
         }
     }
 

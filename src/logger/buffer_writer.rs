@@ -1,5 +1,5 @@
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Color {
     BLACK,
     RED,
@@ -40,7 +40,7 @@ impl Color {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Font {
     RESET,
     BOLD
@@ -55,7 +55,7 @@ impl Font {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Style {
     color: Option<Color>,
     font: Option<Font>
@@ -88,10 +88,30 @@ impl Buffer {
         }
     }
 
-    pub fn render(&mut self) {
+    pub fn render(&mut self) -> String{
+        let mut output = String::new();
+        let mut current_style: Option<Style> = None;
+
         for (row, row_style) in self.contents.iter().zip(&self.styles) {
-            println!("{:?}", row);
+            for (ch, chs) in row.iter().zip(row_style) {
+                if Some(*chs) != current_style {
+                    output.push_str(color::RESET);
+                    current_style = Some(*chs);
+                }
+                
+                if let Some(color) = current_style.unwrap().color {
+                    output.push_str(color.to_string());
+                }
+                if let Some(color) = current_style.unwrap().font {
+                    output.push_str(color.to_string());
+                }
+                output.push_str(&ch.to_string());
+            }
+            output.push_str("\n");
         }
+
+        output.push_str(color::RESET);
+        output
     }
 
     pub fn writech(&mut self, line: usize, col: usize, chr: char, style: Style) -> (usize, usize) {
