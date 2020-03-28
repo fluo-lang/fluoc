@@ -194,93 +194,9 @@ impl Logger {
     }
 
     fn add_pipe(&mut self, ln: usize, max_line_size: usize) -> (usize, usize) {
-        self.buffer.writel(ln, 0, &" ".repeat(max_line_size), Style::new(None, None));
+        self.buffer.writel(ln, 0, &" ".repeat(max_line_size+1), Style::new(None, None));
         self.buffer.writel(ln, max_line_size, "|", Style::new(Some(Color::BLUE), Some(Font::BOLD)))
     }
-
-    /*fn single_error(&mut self, error: &ErrorAnnotation, message_type: ErrorDisplayType) -> String {
-        let position_range = (self.get_lineno(error.position.s), self.get_lineno(error.position.e));
-        let mut code_block = String::new();
-
-        let mut lines: Vec<&str> = self.file_contents.lines().collect();
-
-        lines = lines[
-            start_visible_line
-            ..
-            end_visible_line
-        ].to_vec();
-
-        let length_largest_line_no = end_visible_line.to_string().len();
-        code_block.push_str(
-            &format!(
-                "{}{}{} --> {}{}:{}:{}\n", 
-                self.indentation.repeat(2), 
-                color::BLUE, 
-                color::BOLD, 
-                color::RESET, 
-                self.filename, 
-                (position_range.0).0, 
-                (position_range.0).1-1
-            )
-        );
-
-        code_block.push_str(
-            &self.single_pipe(length_largest_line_no)
-        );
-
-        code_block.push_str(&"\n".to_string());
-
-        for (i, line) in lines.iter().enumerate() {
-            code_block.push_str(
-                &format!(
-                    "{}{}{}{}{} {}{}{}{}\n", 
-                    color::BOLD,
-                    self.indentation.repeat(2), 
-                    " ".repeat(
-                        length_largest_line_no-(
-                            (i+start_visible_line+1)
-                                .to_string()
-                                .len()
-                        )
-                    ), 
-                    color::BLUE,
-                    i+start_visible_line+1,
-                    self.pipe_char,
-                    self.indentation,
-                    color::RESET,
-                    line
-                )
-            );
-
-            if i+start_visible_line+1 == (position_range.0).0 {
-                code_block.push_str(
-                    &self.single_pipe(length_largest_line_no)
-                );
-
-                code_block.push_str(
-                    &format!(
-                        "{}{}{}{}",
-                        color::BOLD,
-                        message_type.get_color(),
-                        " ".repeat((position_range.0).1-1),
-                        message_type.get_underline().repeat(
-                            if (position_range.1).0 == i+start_visible_line+1 { 
-                                (position_range.1).1 - (position_range.0).1 
-                            } else { 
-                                line.len()-(position_range.0).1-2 
-                            }
-                        ),
-                    )
-                );
-
-                code_block.push_str(
-                    &error.message
-                );
-                code_block.push_str(&format!("{}\n", color::RESET));
-            }
-        }
-        code_block
-    }*/
 
     fn get_max_line_size(&mut self, errors: &Vec<ErrorAnnotation>, filename: &String) -> usize {
         let mut max_line_size = 0;
@@ -309,7 +225,7 @@ impl Logger {
         
         writer_pos = self.buffer.writel(writer_pos.0-1, writer_pos.1-1, &" ".repeat(max_line_size-1), Style::new(None, None));
         writer_pos = self.buffer.writel(writer_pos.0-1, writer_pos.1-1, "-->", Style::new(Some(Color::BLUE), Some(Font::BOLD)));
-        writer_pos = self.buffer.writeln(writer_pos.0-1, writer_pos.1-1, &format!("{}:{}:{}", self.filename_contents[&first.filename], (position.0).0, (position.0).1), Style::new(None, None));
+        writer_pos = self.buffer.writeln(writer_pos.0-1, writer_pos.1-1, &format!("{}:{}:{}", &first.filename, (position.0).0, (position.0).1), Style::new(None, None));
 
         writer_pos = self.add_pipe(writer_pos.0-1, max_line_size);
         writer_pos.0 += 1;
