@@ -196,7 +196,7 @@ impl Logger {
     fn get_max_line_size(&mut self, errors: &Vec<ErrorAnnotation>, filename: &String) -> usize {
         let mut max_line_size = 0;
         for error in errors {
-            let temp = self.get_lineno(error.position.e, filename).0;
+            let temp = self.get_lineno(error.position.e, filename).0.to_string().as_str().chars().count();
             if temp > max_line_size {
                 max_line_size = temp;
             }
@@ -205,8 +205,12 @@ impl Logger {
     }
 
     fn add_pipe(&mut self, ln: usize, max_line_size: usize) -> (usize, usize) {
+        // Add vertical pipe:
+        // 
+        //    |
+        //
         self.buffer.writel(ln, 0, &" ".repeat(max_line_size+1), Style::new(None, None));
-        self.buffer.writel(ln, max_line_size, "|", Style::new(Some(Color::BLUE), Some(Font::BOLD)))
+        self.buffer.writel(ln, max_line_size+self.indentation.len()*2, "|", Style::new(Some(Color::BLUE), Some(Font::BOLD)))
     }
 
     fn insert_lineno(&mut self, ln: usize, max_line_size: usize, line_no: usize) {
@@ -217,26 +221,45 @@ impl Logger {
 
     }
 
-    fn get_code(&mut self, errors: Vec<ErrorAnnotation>) {
-        let first = errors.first().unwrap();
-        let max_line_size: usize = self.get_max_line_size(&errors, &first.filename);
+    fn add_filename_pos(&mut self, filename: &String, position: &((usize, usize), (usize, usize)), max_line_size: usize, writer_pos: &mut (usize, usize)) -> (usize, usize) {
+        // Adds file annotation:
+        // 
+        //     --> example/tests.fluo:5:1
+        // ___2 |
+        //  |
+        // 4 space without lineno
+        *writer_pos = self.buffer.writel(writer_pos.0-1, writer_pos.1+max_line_size+self.indentation.len(), "--> ", Style::new(Some(Color::BLUE), Some(Font::BOLD)));
+        self.buffer.writeln(writer_pos.0-1, writer_pos.1-1, &format!("{}:{}:{}", &filename, (position.0).0, (position.0).1-1), Style::new(None, None))
+    }
+
+    fn is_multiline(&mut self, annotation: &ErrorAnnotation) -> bool {
+        self.get_lineno(annotation.position.s, &annotation.filename).0 != self.get_lineno(annotation.position.e, &annotation.filename).0
+    }
+
+    fn get_code(&mut self, annotations: Vec<ErrorAnnotation>) {
+        let first = annotations.first().unwrap();
+        let max_line_size: usize = self.get_max_line_size(&annotations, &first.filename);
+
         let mut last_printed_line: usize = 1;
         let mut writer_pos: (usize, usize) = (1, 1);
         
         let mut position;
-        let error = errors.first().unwrap();
-        position = (self.get_lineno(error.position.s, &first.filename), self.get_lineno(error.position.e, &first.filename));
-        
-        writer_pos = self.buffer.writel(writer_pos.0-1, writer_pos.1-1, &" ".repeat(max_line_size-1), Style::new(None, None));
-        writer_pos = self.buffer.writel(writer_pos.0-1, writer_pos.1-1, "--> ", Style::new(Some(Color::BLUE), Some(Font::BOLD)));
-        writer_pos = self.buffer.writeln(writer_pos.0-1, writer_pos.1-1, &format!("{}:{}:{}", &first.filename, (position.0).0, (position.0).1-1), Style::new(None, None));
+        let mut span_thickness = 0;
 
+        position = (self.get_lineno(first.position.s, &first.filename), self.get_lineno(first.position.e, &first.filename));
+
+        // Add filename + position annotation
+        writer_pos = self.add_filename_pos(&first.filename, &position, max_line_size, &mut writer_pos);
+
+        // Add pipe for padding
         writer_pos = self.add_pipe(writer_pos.0-1, max_line_size);
         writer_pos.0 += 1;
-        
-        // annotations in the same lines together
-        for error in errors {
-            
+
+        // Annotations in the same lines together
+        for annotation in &annotations {
+            if self.is_multiline(annotation) {
+                span_thickness += 1;
+            }
         }
     }
 

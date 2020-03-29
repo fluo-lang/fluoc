@@ -117,6 +117,17 @@ pub struct VariableAssignDeclaration {
 }
 
 #[derive(Debug)]
+/// Variable Declaration i.e.:
+/// ```
+/// let x: int;
+/// ```
+pub struct VariableDeclaration {
+    pub t: Type,
+    pub name: NameID,
+    pub pos: helpers::Pos
+}
+
+#[derive(Debug)]
 /// Arguments for function
 pub struct Arguments {
     pub positional: Vec<(NameID, Type)>,
@@ -172,7 +183,8 @@ impl_node!(
     Arguments, 
     Block, 
     FunctionDefine,
-    ExpressionStatement
+    ExpressionStatement,
+    VariableDeclaration
 );
 
 impl_expr!(

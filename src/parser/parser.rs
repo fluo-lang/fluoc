@@ -97,7 +97,7 @@ impl Parser {
     fn block(&mut self) -> Result<ast::Block, Error> {
         let position = self.lexer.get_pos();
 
-        let statements: [fn (&mut Self) -> Result<Box<dyn Node>, Error>; 2] = [ Parser::function_define, Parser::expression_statement ];
+        let statements: [fn (&mut Self) -> Result<Box<dyn Node>, Error>; 3] = [ Parser::function_define, Parser::variable_declaration, Parser::expression_statement ];
         
         self.next(lexer::TokenType::LCP, "expected `{`", position)?;
         let mut ast_list: Vec<Box<dyn Node>> = Vec::new();
@@ -252,6 +252,29 @@ impl Parser {
             t: var_type,
             name: var_name,
             expr: expr,
+            pos: helpers::Pos {
+                s: position.0,
+                e: self.lexer.position
+            }
+        }))
+    }
+
+    /// Variable Declaration
+    fn variable_declaration(&mut self) -> Result<Box<dyn ast::Node>, Error> {
+        let position = self.lexer.get_pos();
+        self.next(lexer::TokenType::LET, "expected `let` keyword", position)?;
+
+        let var_name = self.name_id()?;
+
+        self.next(lexer::TokenType::COLON, "expected `:`", position)?;
+        
+        let var_type = self.type_expr()?;
+
+        self.next(lexer::TokenType::SEMI, "expected `;`", position)?;
+
+        Ok(Box::new(ast::VariableDeclaration {
+            t: var_type,
+            name: var_name,
             pos: helpers::Pos {
                 s: position.0,
                 e: self.lexer.position
