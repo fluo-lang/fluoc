@@ -1,9 +1,12 @@
-def entry() {
+def entry() => int {
     let x: int = 10+10*(1929+10);
-    x = y = 10;
+    x = 10;
 }
-awdawfwfawfwafaf
-awdawfwfawfwafaf
-awdawfwfawfwafaf
-awdawfwfawfwafaf
-awdawfwfawfwafaf
+jjjjjjjjj1
+jjjjjjjjj1
+jjjjjjjjj1
+jjjjjjjjj1
+jjjjjjjjj1
+jjjjjjjjj1
+jjjjjjjjj1
+jjjjjjjjj1

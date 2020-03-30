@@ -1,7 +1,7 @@
 use crate::helpers::Pos;
 use crate::logger::buffer_writer::{Color, Style, Buffer, Font, color};
 use std::collections::{ HashMap, HashSet };
-use std::cmp::{max, min, Reverse};
+use std::cmp::{max, Reverse};
 
 #[derive(Debug, Clone)]
 /// An error type, i.e `Syntax` error or `UnexpectedToken` error
@@ -204,7 +204,7 @@ impl Logger {
         (lineno, relative_pos)
     }
 
-    fn get_max_line_size(&mut self, errors: &Vec<ErrorAnnotation>, filename: &String) -> usize {
+    fn get_max_line_size(&mut self, errors: &Vec<ErrorAnnotation>) -> usize {
         let mut max_line_size = 0;
         for error in errors {
             let temp = (error.position_rel.1).0.to_string().as_str().chars().count();
@@ -215,11 +215,32 @@ impl Logger {
         max_line_size
     }
 
-    fn add_pipe(&mut self, ln: usize, max_line_size: usize) -> (usize, usize) {
+    fn add_pipe(&mut self, ln: usize, max_line_size: usize, vertical_annotations: &HashMap<usize, ErrorAnnotation>, lineno: usize, end: bool) -> (usize, usize) {
         // Add vertical pipe:
         // 
         //    |
         //
+        let temp_pos = self.buffer.writel(ln, max_line_size+self.indentation.len()*2, "|", Style::new(Some(Color::BLUE), Some(Font::BOLD)));
+        
+        let mut vertical_annotations: Vec<(&usize, &ErrorAnnotation)> = vertical_annotations.into_iter().collect();
+        vertical_annotations.sort_by_key(|a| Reverse(a.0));
+        let mut span_no = 0;
+
+        for (ann_ln, annotation) in vertical_annotations {
+            if if end { ann_ln+1 } else { *ann_ln } > lineno {
+                self.buffer.writel(
+                    ln, 
+                    temp_pos.1+span_no, 
+                    "|",
+                    Style::new(Some(annotation.mode.get_color_class()), Some(Font::BOLD)
+                ));
+                span_no += 1;
+            }
+        }
+        temp_pos
+    }
+
+    fn add_pipe_pure(&mut self, ln: usize, max_line_size: usize) -> (usize, usize) {
         self.buffer.writel(ln, max_line_size+self.indentation.len()*2, "|", Style::new(Some(Color::BLUE), Some(Font::BOLD)))
     }
 
@@ -244,6 +265,100 @@ impl Logger {
 
     fn overlaps(a1: &ErrorAnnotation, a2: &ErrorAnnotation, padding: usize) -> bool {
         Logger::num_overlap(a1.position.s, a1.position.e + padding, a2.position.s, a2.position.e, false)
+    }
+
+    fn draw_last_multiline(
+        &mut self, 
+        writer_pos: &mut (usize, usize), 
+        annotation: &ErrorAnnotation, 
+        max_line_size: usize, 
+        line_offset: &mut usize, 
+        vertical_annotations: &HashMap<usize, ErrorAnnotation>, 
+        lineno: usize,
+        span_width: usize,
+        span_number: usize
+    ) {
+        // Last line of annotation
+        *writer_pos = self.buffer.writel(
+            writer_pos.0-1, 
+            max_line_size+self.indentation.len()+3+span_width-span_number, 
+            &format!("|{}", "_".repeat(span_width+span_number-1)), 
+            Style::new(
+                Some(annotation.mode.get_color_class()), 
+                Some(Font::BOLD)
+            )
+        );
+
+        *writer_pos = self.buffer.writel(
+            writer_pos.0-1, 
+            writer_pos.1-1, 
+            &annotation.mode.get_underline().repeat((annotation.position_rel.1).1+1), 
+            Style::new(
+                Some(annotation.mode.get_color_class()), 
+                Some(Font::BOLD)
+            )
+        );
+
+        *writer_pos = self.buffer.writel(
+            writer_pos.0-1, 
+            writer_pos.1, 
+            &annotation.message.as_ref().unwrap_or(&"".to_string()), 
+            Style::new(
+                Some(annotation.mode.get_color_class()), 
+                Some(Font::BOLD)
+            )
+        );
+
+        writer_pos.0 += 1;
+        self.add_pipe(writer_pos.0-1, max_line_size, vertical_annotations, lineno, false);
+        *line_offset += 1;
+    }
+
+    fn draw_line(&mut self, 
+        writer_pos: &mut (usize, usize), 
+        annotation: &&ErrorAnnotation, 
+        max_line_size: usize, 
+        span_thickness: usize, 
+        lineno: usize, 
+        prev_line: &mut usize, 
+        printed_lines: &mut HashMap<String, HashSet<usize>>,
+        first: bool,
+        line_offset: &mut usize,
+        vertical_annotations: &HashMap<usize, ErrorAnnotation>
+    ) {
+        // Add pipe on the left
+        *writer_pos = self.add_pipe(writer_pos.0-1, max_line_size, &vertical_annotations, lineno, true);
+
+        writer_pos.1 += 1; // add two proceeding spaces
+        
+        let line = self.get_line_string(lineno, annotation.filename.clone()); // get line of code
+
+        // Add line of code to buffer
+        *writer_pos = self.buffer.writel(writer_pos.0-1, writer_pos.1+span_thickness, &line, Style::new(None, None));
+        self.add_pipe(writer_pos.0-1, max_line_size, &vertical_annotations, lineno, false);
+        self.insert_lineno(writer_pos.0, max_line_size, lineno); // insert line number on the left of pipe
+
+        // Add dots if we are not displaying lines continually
+        if !first {
+            if lineno - *prev_line > 1 {
+                self.buffer.writel(writer_pos.0-2, max_line_size+self.indentation.len()-1, "...", Style::new(Some(Color::BLUE), None));
+                self.buffer.writech(writer_pos.0-2, max_line_size+self.indentation.len()+2, ' ', Style::new(Some(Color::BLUE), None));
+            }
+        }
+
+        *line_offset += 1;
+
+        // remember we did this, so we don't need to do it again
+        if printed_lines.contains_key(&annotation.filename) {
+            printed_lines.get_mut(&annotation.filename).unwrap().insert(lineno);
+        } else {
+            let mut lines: HashSet<usize> = HashSet::new();
+            lines.insert(lineno);
+            printed_lines.insert(annotation.filename.clone(), lines);
+        }
+
+        // Store previous line
+        *prev_line = lineno;
     }
 
     fn format_line(
@@ -277,11 +392,12 @@ impl Logger {
         annotations_by_line.push(temp.clone());
         temp.clear();
         
-        let mut curr_span = 0;
         let mut line_offset: usize = 0;
         let mut prev_line: usize = 0;
         let mut prev_line_2: usize = 0;
         let mut first = true;
+        let mut vertical_annotations: HashMap<usize, ErrorAnnotation> = HashMap::new(); // for last part of multi-line block annotation
+        let mut span_no = 0;
 
         for mut annotations in annotations_by_line {
             annotations.sort_by_key(|v| (Reverse(v.position.s), v.position.e));
@@ -345,59 +461,24 @@ impl Logger {
 
                     // draw line
                     if !(printed_lines.contains_key(&annotation.filename) && printed_lines.get(&annotation.filename).unwrap_or(&HashSet::new()).contains(&lineno)) {
-                        // Add pipe on the left
-                        *writer_pos = self.add_pipe(writer_pos.0-1, max_line_size);
-
-                        writer_pos.1 += 2; // add two proceeding spaces
-                        
-                        let line = self.get_line_string(lineno, annotation.filename.clone()); // get line of code
-
-                        // Add line of code to buffer
-                        *writer_pos = self.buffer.writel(writer_pos.0-1, writer_pos.1+span_thickness, &line, Style::new(None, None));
-                        self.add_pipe(writer_pos.0-1, max_line_size);
-                        self.insert_lineno(writer_pos.0, max_line_size, lineno); // insert line number on the left of pipe
-
-                        // Add dots if we are not displaying lines continually
-                        if !first {
-                            if lineno - prev_line > 1 {
-                                self.buffer.writel(writer_pos.0-2, max_line_size+self.indentation.len()-1, "...", Style::new(Some(Color::BLUE), None));
-                                self.buffer.writech(writer_pos.0-2, max_line_size+self.indentation.len()+2, ' ', Style::new(Some(Color::BLUE), None));
-                            }
-                        }
-
-                        line_offset += 1;
-
-                        // remember we did this, so we don't need to do it again
-                        if printed_lines.contains_key(&annotation.filename) {
-                            printed_lines.get_mut(&annotation.filename).unwrap().insert(lineno);
-                        } else {
-                            let mut lines: HashSet<usize> = HashSet::new();
-                            lines.insert(lineno);
-                            printed_lines.insert(annotation.filename.clone(), lines);
-                        }
-
-                        // Store previous line
-                        prev_line = lineno;
+                        self.draw_line(
+                            writer_pos, 
+                            annotation, 
+                            max_line_size, 
+                            span_thickness, 
+                            lineno, 
+                            &mut prev_line, 
+                            &mut printed_lines, 
+                            first, 
+                            &mut line_offset,
+                            &vertical_annotations
+                        );
                     }
 
-                    if lineno == (annotation.position_rel.0).0 {
-                        // Multi-line annotation
-                        if self.is_multiline(&annotation) {
-                            // Special case
-                            if span_thickness == 1 {
-                                
-                            } else {
-                                *writer_pos = self.buffer.writech(
-                                    writer_pos.0, 
-                                    writer_pos.1+max_line_size+self.indentation.len()+1, 
-                                    '|', 
-                                    Style::new(
-                                        Some(annotation.mode.get_color_class()), 
-                                        Some(Font::BOLD)
-                                    )
-                                );
-                            }
-                        } else {
+                    let contains_key = vertical_annotations.contains_key(&lineno);
+                    if lineno == (annotation.position_rel.0).0 || contains_key {
+                        if !self.is_multiline(&annotation) {
+                            // Single line annotation
                             //
                             //   --> examples/tests.fluo:5:1
                             //    |
@@ -407,11 +488,11 @@ impl Logger {
                             //                that     |     | other error 
                             //            overflows    | other error that goes over but its fine
 
-                            *writer_pos = self.add_pipe(writer_pos.0-1, max_line_size);
+                            *writer_pos = self.add_pipe(writer_pos.0-1, max_line_size, &vertical_annotations, lineno, false);
                             
                             *writer_pos = self.buffer.writel(
                                 if prev_line_2 == lineno { writer_pos.0-1 } else { writer_pos.0 }, 
-                                writer_pos.1+span_thickness+(annotation.position_rel.0).1, 
+                                writer_pos.1+span_thickness+(annotation.position_rel.0).1-1, 
                                 &annotation.mode.get_underline().repeat(
                                     (annotation.position_rel.1).1
                                     -
@@ -436,7 +517,7 @@ impl Logger {
                             } else {
                                 for _ in 0..vertical_pos+1 {
                                     writer_pos.1 = 0;
-                                    *writer_pos = self.add_pipe(writer_pos.0, max_line_size);
+                                    *writer_pos = self.add_pipe(writer_pos.0, max_line_size, &vertical_annotations, lineno, false);
                                     *writer_pos = self.buffer.writel(
                                         writer_pos.0-1, 
                                         writer_pos.1+span_thickness+(annotation.position_rel.0).1,
@@ -458,22 +539,77 @@ impl Logger {
                                     )
                                 );
                             }
+
+                            if Some(vertical_pos) == match annotation_pos.len() {
+                                0 => None,
+                                n => Some(&annotation_pos[n-1].0)
+                            } {
+                                line_offset += 
+                                if vertical_pos == &0 {
+                                    self.add_pipe(start_line+line_offset, max_line_size, &vertical_annotations, lineno, false);
+                                    self.add_pipe(start_line+line_offset+1, max_line_size, &vertical_annotations, lineno, false);
+                                    2usize
+                                } else { 
+                                    self.add_pipe(start_line+line_offset+vertical_pos+2, max_line_size, &vertical_annotations, lineno, false);
+                                    //self.add_pipe(start_line+line_offset+1, max_line_size);
+                                    *vertical_pos+3
+                                };
+                            }
                         }
-                        if Some(vertical_pos) == match annotation_pos.len() {
-                            0 => None,
-                            n => Some(&annotation_pos[n-1].0)
-                        } {
-                            line_offset += 
-                            if vertical_pos == &0 {
-                                self.add_pipe(start_line+line_offset, max_line_size);
-                                self.add_pipe(start_line+line_offset+1, max_line_size);
-                                2usize
-                            } else { 
-                                self.add_pipe(start_line+line_offset+vertical_pos+2, max_line_size);
-                                //self.add_pipe(start_line+line_offset+1, max_line_size);
-                                *vertical_pos+3
-                            };
+
+                        
+                        // Multi-line annotation
+                        if self.is_multiline(&annotation) || contains_key {
+                            if contains_key {
+                                // End of multiline
+                                self.draw_last_multiline(
+                                    writer_pos, 
+                                    vertical_annotations.get(&lineno).unwrap(), 
+                                    max_line_size, 
+                                    &mut line_offset, 
+                                    &vertical_annotations, 
+                                    lineno, 
+                                    span_thickness,
+                                    span_no
+                                );
+                                vertical_annotations.remove(&lineno);
+                            } else if lineno == (annotation.position_rel.0).0 {
+                                // Start of multiline
+                                writer_pos.0 = start_line+line_offset+1;
+                                for _ in 0 .. *vertical_pos {
+                                    *writer_pos = self.add_pipe(writer_pos.0-1, max_line_size, &vertical_annotations, lineno, false);
+
+                                    *writer_pos = self.buffer.writel(writer_pos.0-1, self.indentation.len()*2+3+span_thickness+(annotation.position_rel.0).1, "|", Style::new(Some(annotation.mode.get_color_class()), Some(Font::BOLD)));
+                                    writer_pos.0 += 1
+                                }
+                                
+                                self.buffer.writel(*vertical_pos+line_offset+start_line-1, self.indentation.len()*2+max_line_size+3+span_no, &"_".repeat(span_thickness-span_no+(annotation.position_rel.0).1-1), Style::new(Some(annotation.mode.get_color_class()), Some(Font::BOLD)));
+                                
+                                vertical_annotations.insert((annotation.position_rel.1).0, annotation.clone().clone());
+                                span_no += 1;
+                                if Some(vertical_pos) == match annotation_pos.len() {
+                                    0 => None,
+                                    n => Some(&annotation_pos[n-1].0)
+                                } {
+                                    self.add_pipe(start_line+line_offset+vertical_pos+1, max_line_size, &vertical_annotations, lineno, false);
+                                    line_offset += *vertical_pos;
+                                }
+                                break;
+                            } else {
+                                // In between multiline annotation
+                                *writer_pos = self.buffer.writech(
+                                    writer_pos.0-1, 
+                                    max_line_size+self.indentation.len()+4, 
+                                    '|', 
+                                    Style::new(
+                                        Some(annotation.mode.get_color_class()), 
+                                        Some(Font::BOLD)
+                                    )
+                                );
+                                writer_pos.0 += 1;
+                            };                            
                         }
+                        
                         prev_line_2 = lineno;
                     }
 
@@ -481,6 +617,33 @@ impl Logger {
                         first = false;
                     }
                 }
+            }
+        }
+        if !vertical_annotations.is_empty() {
+            // Fill in last multiline annotations
+            
+            let mut vertical_annotations_sorted: Vec<(usize, ErrorAnnotation)> = vertical_annotations.clone().into_iter().collect();
+            vertical_annotations_sorted.sort_by_key(|a| a.0);
+            span_no = 0;
+            for (lineno, annotation) in vertical_annotations_sorted {
+                writer_pos.0 = start_line+line_offset+1;
+                self.draw_line(
+                    writer_pos, 
+                    &&annotation, 
+                    max_line_size, 
+                    span_thickness, 
+                    lineno, 
+                    &mut prev_line, 
+                    &mut printed_lines, 
+                    first, 
+                    &mut line_offset,
+                    &vertical_annotations
+                );
+                writer_pos.0 = start_line+line_offset+1;
+                self.add_pipe(writer_pos.0-1, max_line_size, &vertical_annotations, lineno, false);
+                self.draw_last_multiline(writer_pos, &annotation, max_line_size, &mut line_offset, &vertical_annotations, lineno, span_thickness, span_no);
+                span_no += 1;
+                line_offset += 1;
             }
         }
     }
@@ -507,12 +670,11 @@ impl Logger {
 
     fn get_code(&mut self, mut annotations: Vec<ErrorAnnotation>, err_pos: Pos) {
         let first = annotations.first().unwrap();
-        let max_line_size: usize = self.get_max_line_size(&annotations, &first.filename);
+        let max_line_size: usize = self.get_max_line_size(&annotations);
 
-        let mut last_printed_line: usize = 1;
         let mut writer_pos: (usize, usize) = (1, 1);
         
-        let mut position;
+        let position;
         let mut span_thickness: usize = 0;
 
         position = (self.get_lineno(err_pos.s, &first.filename), self.get_lineno(err_pos.e, &first.filename));
@@ -521,7 +683,7 @@ impl Logger {
         writer_pos = self.add_filename_pos(&first.filename, &position, max_line_size, &mut writer_pos);
 
         // Add pipe for padding
-        writer_pos = self.add_pipe(writer_pos.0-1, max_line_size);
+        writer_pos = self.add_pipe_pure(writer_pos.0-1, max_line_size);
         writer_pos.0 += 1;
 
         for mut annotation in &mut annotations {
