@@ -1,6 +1,7 @@
 use crate::helpers::Pos;
 use crate::logger::buffer_writer::{Color, Style, Buffer, Font, color};
-use std::collections::HashMap;
+use std::collections::{ HashMap, HashSet };
+use std::cmp::{max, min, Reverse};
 
 #[derive(Debug, Clone)]
 /// An error type, i.e `Syntax` error or `UnexpectedToken` error
@@ -49,8 +50,8 @@ impl ErrorDisplayType {
     fn get_underline(&self) -> &str {
         match self {
             ErrorDisplayType::Error => "^",
-            ErrorDisplayType::Warning => "╌",
-            ErrorDisplayType::Info => "━"
+            ErrorDisplayType::Warning => "~",
+            ErrorDisplayType::Info => "-"
         }
     }
 
@@ -75,13 +76,15 @@ impl ErrorDisplayType {
 /// Underlines and such
 pub struct ErrorAnnotation {
     /// Error message
-    message: String,
+    message: Option<String>,
     /// Error position
     position: Pos,
     /// Error display mode
     mode: ErrorDisplayType,
     /// Filename of annotation
-    filename: String
+    filename: String,
+    /// Position
+    position_rel: ((usize, usize), (usize, usize))
 }
 
 impl<'a> ErrorAnnotation {
@@ -93,12 +96,20 @@ impl<'a> ErrorAnnotation {
     /// * `position`: position of error
     /// * `mode`: mode of error report
     /// * `filename`: filename of annotation
-    pub fn new(message: String, position: Pos, mode: ErrorDisplayType, filename: String) -> ErrorAnnotation {
+    pub fn new(message: Option<String>, position: Pos, mode: ErrorDisplayType, filename: String) -> ErrorAnnotation {
         ErrorAnnotation {
             message,
             position,
             mode,
-            filename
+            filename,
+            position_rel: ((0, 0), (0, 0))
+        }
+    }
+
+    pub fn has_label(&self) -> bool {
+        match self.message {
+            Some(_) => true,
+            None => false
         }
     }
 }
@@ -196,7 +207,7 @@ impl Logger {
     fn get_max_line_size(&mut self, errors: &Vec<ErrorAnnotation>, filename: &String) -> usize {
         let mut max_line_size = 0;
         for error in errors {
-            let temp = self.get_lineno(error.position.e, filename).0.to_string().as_str().chars().count();
+            let temp = (error.position_rel.1).0.to_string().as_str().chars().count();
             if temp > max_line_size {
                 max_line_size = temp;
             }
@@ -209,23 +220,277 @@ impl Logger {
         // 
         //    |
         //
-        self.buffer.writel(ln, 0, &" ".repeat(max_line_size+1), Style::new(None, None));
         self.buffer.writel(ln, max_line_size+self.indentation.len()*2, "|", Style::new(Some(Color::BLUE), Some(Font::BOLD)))
     }
 
     fn insert_lineno(&mut self, ln: usize, max_line_size: usize, line_no: usize) {
-
+        self.buffer.writel(ln-1, self.indentation.len()+(max_line_size-format!("{}", line_no).len())+1, &format!("{}", line_no), Style::new(Some(Color::BLUE), Some(Font::BOLD)));
     }
 
-    fn format_line(&mut self, errors: Vec<ErrorAnnotation>, writer_pos: &mut (usize, usize)) {
-
+    fn get_line_string(&mut self, ln: usize, filename: String) -> String {
+        self.filename_contents[&filename].lines().into_iter().nth(ln-1).unwrap().to_string()
     }
 
-    fn add_filename_pos(&mut self, filename: &String, position: &((usize, usize), (usize, usize)), max_line_size: usize, writer_pos: &mut (usize, usize)) -> (usize, usize) {
+    fn num_overlap(
+        a_start: usize,
+        a_end: usize,
+        b_start: usize,
+        b_end: usize,
+        inclusive: bool,
+    ) -> bool {
+        let extra = if inclusive { 1 } else { 0 };
+        (b_start..b_end + extra).contains(&a_start) || (a_start..a_end + extra).contains(&b_start)
+    }
+
+    fn overlaps(a1: &ErrorAnnotation, a2: &ErrorAnnotation, padding: usize) -> bool {
+        Logger::num_overlap(a1.position.s, a1.position.e + padding, a2.position.s, a2.position.e, false)
+    }
+
+    fn format_line(
+        &mut self, 
+        mut annotations: Vec<ErrorAnnotation>,
+        writer_pos: &mut (usize, usize), 
+        span_thickness: usize, 
+        max_line_size: usize
+    ) {
+        let mut printed_lines: HashMap<String, HashSet<usize>> = HashMap::new();
+        let start_line = writer_pos.0-1;
+        let mut annotations_by_line: Vec<Vec<ErrorAnnotation>> = Vec::new();
+        let mut temp: Vec<ErrorAnnotation> = Vec::new();
+        
+        let mut first = true;
+
+        annotations.sort_by_key(|x| (x.position_rel.0).0);
+
+        for annotation in annotations {
+            if !first {
+                if (temp[temp.len()-1].position_rel.0).0 != (annotation.position_rel.0).0 {
+                    annotations_by_line.push(temp.clone());
+                    temp.clear();
+                }
+            } else {
+                first = false;
+            }
+            temp.push(annotation.clone());
+        }
+
+        annotations_by_line.push(temp.clone());
+        temp.clear();
+        
+        let mut curr_span = 0;
+        let mut line_offset: usize = 0;
+        let mut prev_line: usize = 0;
+        let mut first = true;
+
+        for mut annotations in annotations_by_line {
+            annotations.sort_by_key(|v| (Reverse(v.position.s), v.position.e));
+
+            let mut annotation_pos = Vec::new();
+
+            // We want to sort annotations
+            let mut p = 0;
+            let mut line_len = 0;
+            
+            for (i, annotation) in annotations.iter().enumerate() {
+                for (j, next) in annotations.iter().enumerate() {
+                    if Logger::overlaps(next, annotation, 0)
+                        && annotation.has_label()
+                        && j > i
+                        && p == 0
+                    {
+                        if next.position.s == annotation.position.s
+                            && next.position.e == annotation.position.e
+                            && !next.has_label()
+                        {
+                            continue;
+                        }
+
+                        // This annotation needs a new line in the output.
+                        p += 1;
+                        break;
+                    }
+                }
+
+                annotation_pos.push((p, annotation));
+                for (j, next) in annotations.iter().enumerate() {
+                    if j > i {
+                        let l = next.message.as_ref().map_or(0, |label| label.len() + 2);
+                        if Logger::overlaps(next, annotation, l)
+                            && annotation.has_label()
+                            && next.has_label()
+                            || (self.is_multiline(annotation)
+                                && next.has_label())
+                            || (annotation.has_label()
+                                && self.is_multiline(next))
+                            || (self.is_multiline(annotation) && self.is_multiline(next))
+                            || (Logger::overlaps(next, annotation, l)
+                                && next.position.e <= annotation.position.e
+                                && next.has_label()
+                                && p == 0)
+                        {
+                            p += 1;
+                            break;
+                        }
+                    }
+                }
+                line_len = max(line_len, p);
+            }
+
+            for (vertical_pos, annotation) in &annotation_pos {
+                // Draw lines of code
+                for lineno in (annotation.position_rel.0).0 ..= (annotation.position_rel.1).0 {
+                    writer_pos.0 = start_line+line_offset+1;
+                    writer_pos.1 = 0;
+
+                    // draw line
+                    if !(printed_lines.contains_key(&annotation.filename) && printed_lines.get(&annotation.filename).unwrap_or(&HashSet::new()).contains(&lineno)) {
+                        // Add pipe on the left
+                        *writer_pos = self.add_pipe(writer_pos.0-1, max_line_size);
+
+                        writer_pos.1 += 2; // add two proceeding spaces
+                        
+                        let line = self.get_line_string(lineno, annotation.filename.clone()); // get line of code
+
+                        // Add line of code to buffer
+                        *writer_pos = self.buffer.writel(writer_pos.0-1, writer_pos.1+span_thickness, &line, Style::new(None, None));
+                        self.add_pipe(writer_pos.0-1, max_line_size);
+                        self.insert_lineno(writer_pos.0, max_line_size, lineno); // insert line number on the left of pipe
+
+                        // Add dots if we are not displaying lines continually
+                        if !first {
+                            if lineno - prev_line > 1 {
+                                self.buffer.writel(writer_pos.0-2, max_line_size+self.indentation.len()-1, "...", Style::new(Some(Color::BLUE), None));
+                                self.buffer.writech(writer_pos.0-2, max_line_size+self.indentation.len()+2, ' ', Style::new(Some(Color::BLUE), None));
+                            }
+                        }
+
+                        line_offset += 1;
+
+                        // remember we did this, so we don't need to do it again
+                        if printed_lines.contains_key(&annotation.filename) {
+                            printed_lines.get_mut(&annotation.filename).unwrap().insert(lineno);
+                        } else {
+                            let mut lines: HashSet<usize> = HashSet::new();
+                            lines.insert(lineno);
+                            printed_lines.insert(annotation.filename.clone(), lines);
+                        }
+
+                        // Store previous line
+                        prev_line = lineno;
+                    }
+
+                    if lineno == (annotation.position_rel.0).0 {
+                        // Multi-line annotation
+                        if self.is_multiline(&annotation) {
+                            // Special case
+                            if span_thickness == 1 {
+                                
+                            } else {
+                                *writer_pos = self.buffer.writech(
+                                    writer_pos.0, 
+                                    writer_pos.1+max_line_size+self.indentation.len()+1, 
+                                    '|', 
+                                    Style::new(
+                                        Some(annotation.mode.get_color_class()), 
+                                        Some(Font::BOLD)
+                                    )
+                                );
+                            }
+                        } else {
+                            //
+                            //   --> examples/tests.fluo:5:1
+                            //    |
+                            //    |   def entry() {
+                            //    |       let x: int = 10+10*(1929+10);
+                            //            ^^^ Error    ------------
+                            //                that     |     | other error 
+                            //            overflows    | other error that goes over but its fine
+
+                            *writer_pos = self.add_pipe(writer_pos.0, max_line_size);
+
+                            *writer_pos = self.buffer.writel(
+                                writer_pos.0-1, 
+                                writer_pos.1+span_thickness+(annotation.position_rel.0).1, 
+                                &annotation.mode.get_underline().repeat(
+                                    (annotation.position_rel.1).1
+                                    -
+                                    (annotation.position_rel.0).1
+                                ), 
+                                Style::new(
+                                    Some(annotation.mode.get_color_class()), 
+                                    Some(Font::BOLD)
+                                )
+                            );
+                            
+                            if vertical_pos == &0 {
+                                *writer_pos = self.buffer.writel(
+                                    writer_pos.0-1, 
+                                    writer_pos.1, 
+                                    &annotation.message.as_ref().unwrap_or(&"".to_string()), 
+                                    Style::new(
+                                        Some(annotation.mode.get_color_class()), 
+                                        Some(Font::BOLD)
+                                    )
+                                );
+                            } else {
+                                for _ in 0..vertical_pos+1 {
+                                    writer_pos.1 = 0;
+                                    *writer_pos = self.add_pipe(writer_pos.0, max_line_size);
+                                    *writer_pos = self.buffer.writel(
+                                        writer_pos.0-1, 
+                                        writer_pos.1+span_thickness+(annotation.position_rel.0).1,
+                                        "|", 
+                                        Style::new(
+                                            Some(annotation.mode.get_color_class()), 
+                                            None
+                                        )
+                                    );
+                                }
+
+                                *writer_pos = self.buffer.writel(
+                                    writer_pos.0-1, 
+                                    writer_pos.1,
+                                    &annotation.message.as_ref().unwrap_or(&"".to_string()), 
+                                    Style::new(
+                                        Some(annotation.mode.get_color_class()), 
+                                        Some(Font::BOLD)
+                                    )
+                                );
+                            }
+                        }
+                        if Some(vertical_pos) == match annotation_pos.len() {
+                            0 => None,
+                            n => Some(&annotation_pos[n-1].0)
+                        } {
+                            line_offset += 
+                            if vertical_pos == &0 {
+                                self.add_pipe(start_line+line_offset+1, max_line_size); 
+                                2usize
+                            } else { 
+                                self.add_pipe(start_line+line_offset+vertical_pos+3, max_line_size);
+                                *vertical_pos+5
+                            };
+                        }
+                    }
+
+                    if first {
+                        first = false;
+                    }
+                }
+            }
+        }
+    }
+
+    fn add_filename_pos(&mut self, 
+        filename: &String, 
+        position: &((usize, usize), (usize, usize)), 
+        max_line_size: usize, 
+        writer_pos: &mut (usize, usize)
+    ) -> (usize, usize) {
         // Adds file annotation:
         // 
         //     --> example/tests.fluo:5:1
-        // ___2 |
+        // ____ |
         //  |
         // 4 space without lineno
         *writer_pos = self.buffer.writel(writer_pos.0-1, writer_pos.1+max_line_size+self.indentation.len(), "--> ", Style::new(Some(Color::BLUE), Some(Font::BOLD)));
@@ -233,10 +498,10 @@ impl Logger {
     }
 
     fn is_multiline(&mut self, annotation: &ErrorAnnotation) -> bool {
-        self.get_lineno(annotation.position.s, &annotation.filename).0 != self.get_lineno(annotation.position.e, &annotation.filename).0
+        (annotation.position_rel.0).0 != (annotation.position_rel.1).0
     }
 
-    fn get_code(&mut self, annotations: Vec<ErrorAnnotation>) {
+    fn get_code(&mut self, mut annotations: Vec<ErrorAnnotation>, err_pos: Pos) {
         let first = annotations.first().unwrap();
         let max_line_size: usize = self.get_max_line_size(&annotations, &first.filename);
 
@@ -244,9 +509,9 @@ impl Logger {
         let mut writer_pos: (usize, usize) = (1, 1);
         
         let mut position;
-        let mut span_thickness = 0;
+        let mut span_thickness: usize = 0;
 
-        position = (self.get_lineno(first.position.s, &first.filename), self.get_lineno(first.position.e, &first.filename));
+        position = (self.get_lineno(err_pos.s, &first.filename), self.get_lineno(err_pos.e, &first.filename));
 
         // Add filename + position annotation
         writer_pos = self.add_filename_pos(&first.filename, &position, max_line_size, &mut writer_pos);
@@ -255,12 +520,14 @@ impl Logger {
         writer_pos = self.add_pipe(writer_pos.0-1, max_line_size);
         writer_pos.0 += 1;
 
-        // Annotations in the same lines together
-        for annotation in &annotations {
+        for mut annotation in &mut annotations {
+            annotation.position_rel = (self.get_lineno(annotation.position.s, &annotation.filename), self.get_lineno(annotation.position.e, &annotation.filename));
             if self.is_multiline(annotation) {
                 span_thickness += 1;
             }
         }
+
+        self.format_line(annotations, &mut writer_pos, span_thickness, max_line_size);
     }
 
     fn raise_type(&mut self, errors: Vec<Error>, message_type: ErrorDisplayType) {
@@ -294,8 +561,9 @@ impl Logger {
                 error.message,
                 color::RESET
             );
-            self.get_code(error.annotations);
+            self.get_code(error.annotations, error.position);
             eprintln!("{}", self.buffer.render());
+            self.buffer.reset();
         }
     }
 

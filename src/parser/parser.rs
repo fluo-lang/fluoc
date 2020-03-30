@@ -76,7 +76,10 @@ impl Parser {
             ErrorDisplayType::Error,
             self.lexer.filename.clone(),
             vec![
-                ErrorAnnotation::new(" unexpected token".to_string(), t.pos, ErrorDisplayType::Error, self.lexer.filename.clone())
+                ErrorAnnotation::new(Some("Some Info".to_string()), helpers::Pos { s: 26, e: 35 }, ErrorDisplayType::Info, self.lexer.filename.clone()),
+                ErrorAnnotation::new(Some("unexpected token".to_string()), t.pos, ErrorDisplayType::Error, self.lexer.filename.clone()),
+                ErrorAnnotation::new(Some("Some warning".to_string()), helpers::Pos { s: 10, e: 12 }, ErrorDisplayType::Warning, self.lexer.filename.clone()),
+                ErrorAnnotation::new(Some("An error".to_string()), helpers::Pos { s: 20, e: 25 }, ErrorDisplayType::Error, self.lexer.filename.clone()),
             ]
         )
     }
