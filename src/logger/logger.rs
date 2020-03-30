@@ -195,11 +195,11 @@ impl Logger {
         let mut lineno = 1;
         let mut relative_pos = 1;
         for c in (&self.filename_contents[filename][..pos]).chars() {
+            relative_pos += 1;
             if c == '\n' {
                 lineno += 1;
                 relative_pos = 1;
             }
-            relative_pos += 1;
         }
         (lineno, relative_pos)
     }
@@ -227,7 +227,7 @@ impl Logger {
         let mut span_no = 0;
 
         for (ann_ln, annotation) in vertical_annotations {
-            if if end { ann_ln+1 } else { *ann_ln } > lineno {
+            if if end { ann_ln+1 } else { *ann_ln } > lineno && lineno > (annotation.position_rel.0).0 {
                 self.buffer.writel(
                     ln, 
                     temp_pos.1+span_no, 
@@ -279,10 +279,11 @@ impl Logger {
         span_number: usize
     ) {
         // Last line of annotation
+        let repeat = span_width+span_number-1;
         *writer_pos = self.buffer.writel(
             writer_pos.0-1, 
             max_line_size+self.indentation.len()+3+span_width-span_number, 
-            &format!("|{}", "_".repeat(span_width+span_number-1)), 
+            &format!("|{}", "_".repeat(if repeat == 0 { 1 } else {repeat })), 
             Style::new(
                 Some(annotation.mode.get_color_class()), 
                 Some(Font::BOLD)
@@ -492,7 +493,7 @@ impl Logger {
                             
                             *writer_pos = self.buffer.writel(
                                 if prev_line_2 == lineno { writer_pos.0-1 } else { writer_pos.0 }, 
-                                writer_pos.1+span_thickness+(annotation.position_rel.0).1-1, 
+                                writer_pos.1+span_thickness+(annotation.position_rel.0).1, 
                                 &annotation.mode.get_underline().repeat(
                                     (annotation.position_rel.1).1
                                     -
@@ -574,26 +575,60 @@ impl Logger {
                                 );
                                 vertical_annotations.remove(&lineno);
                             } else if lineno == (annotation.position_rel.0).0 {
-                                // Start of multiline
-                                writer_pos.0 = start_line+line_offset+1;
-                                for _ in 0 .. *vertical_pos {
-                                    *writer_pos = self.add_pipe(writer_pos.0-1, max_line_size, &vertical_annotations, lineno, false);
+                                if vertical_pos == &0 {
+                                    // Start of multiline
+                                    println!("{:?}", self.get_lineno(79, &"examples/tests.fluo".to_string()));
+                                    if (annotation.position_rel.0).1 > 0 {
+                                        writer_pos.0 = start_line+line_offset+1;
+                                        *writer_pos = self.add_pipe(writer_pos.0-1, max_line_size, &vertical_annotations, lineno, false);
+                                        *writer_pos = self.buffer.writel(writer_pos.0-1, self.indentation.len()*2+3+span_thickness+(annotation.position_rel.0).1, annotation.mode.get_underline(), Style::new(Some(annotation.mode.get_color_class()), Some(Font::BOLD)));
+                                        writer_pos.0 += 1;
+                                        line_offset += 1;
+                                        self.buffer.writel(*vertical_pos+line_offset+start_line-1, self.indentation.len()*2+max_line_size+3+span_no, &"_".repeat(span_thickness-span_no+(annotation.position_rel.0).1-1), Style::new(Some(annotation.mode.get_color_class()), Some(Font::BOLD)));
+                                        
+                                        for _ in 0 .. span_thickness-vertical_pos {
+                                            self.buffer.writech(writer_pos.0-1, self.indentation.len()*2+max_line_size+2+span_no, '|', Style::new(Some(annotation.mode.get_color_class()), Some(Font::BOLD)));
+                                        }
+                                        
+                                        vertical_annotations.insert((annotation.position_rel.1).0, annotation.clone().clone());
+                                        span_no += 1;
+                                        if Some(vertical_pos) == match annotation_pos.len() {
+                                            0 => None,
+                                            n => Some(&annotation_pos[n-1].0)
+                                        } {
+                                            self.add_pipe(start_line+line_offset+vertical_pos+1, max_line_size, &vertical_annotations, lineno, false);
+                                            line_offset += *vertical_pos;
+                                        }
+                                    } else {
+                                        *writer_pos = self.buffer.writech(writer_pos.0, writer_pos.1, '/', Style::new(Some(annotation.mode.get_color_class()), Some(Font::BOLD)));
+                                    }
+                                } else {
+                                    // Start of multiline
+                                    writer_pos.0 = start_line+line_offset+1;
+                                    for _ in 0 .. *vertical_pos {
+                                        *writer_pos = self.add_pipe(writer_pos.0-1, max_line_size, &vertical_annotations, lineno, false);
 
-                                    *writer_pos = self.buffer.writel(writer_pos.0-1, self.indentation.len()*2+3+span_thickness+(annotation.position_rel.0).1, "|", Style::new(Some(annotation.mode.get_color_class()), Some(Font::BOLD)));
-                                    writer_pos.0 += 1
+                                        *writer_pos = self.buffer.writel(writer_pos.0-1, self.indentation.len()*2+3+span_thickness+(annotation.position_rel.0).1, "|", Style::new(Some(annotation.mode.get_color_class()), Some(Font::BOLD)));
+                                        writer_pos.0 += 1
+                                    }
+                                    
+                                    self.buffer.writel(*vertical_pos+line_offset+start_line-1, self.indentation.len()*2+max_line_size+3+span_no, &"_".repeat(span_thickness-span_no+(annotation.position_rel.0).1-1), Style::new(Some(annotation.mode.get_color_class()), Some(Font::BOLD)));
+                                    
+                                    for _ in 0 .. span_thickness-vertical_pos {
+                                        self.buffer.writech(writer_pos.0-1, self.indentation.len()*2+max_line_size+2+span_no, '|', Style::new(Some(annotation.mode.get_color_class()), Some(Font::BOLD)));
+                                    }
+                                    
+                                    vertical_annotations.insert((annotation.position_rel.1).0, annotation.clone().clone());
+                                    span_no += 1;
+                                    if Some(vertical_pos) == match annotation_pos.len() {
+                                        0 => None,
+                                        n => Some(&annotation_pos[n-1].0)
+                                    } {
+                                        self.add_pipe(start_line+line_offset+vertical_pos+1, max_line_size, &vertical_annotations, lineno, false);
+                                        line_offset += *vertical_pos;
+                                    }
                                 }
-                                
-                                self.buffer.writel(*vertical_pos+line_offset+start_line-1, self.indentation.len()*2+max_line_size+3+span_no, &"_".repeat(span_thickness-span_no+(annotation.position_rel.0).1-1), Style::new(Some(annotation.mode.get_color_class()), Some(Font::BOLD)));
-                                
-                                vertical_annotations.insert((annotation.position_rel.1).0, annotation.clone().clone());
-                                span_no += 1;
-                                if Some(vertical_pos) == match annotation_pos.len() {
-                                    0 => None,
-                                    n => Some(&annotation_pos[n-1].0)
-                                } {
-                                    self.add_pipe(start_line+line_offset+vertical_pos+1, max_line_size, &vertical_annotations, lineno, false);
-                                    line_offset += *vertical_pos;
-                                }
+
                                 break;
                             } else {
                                 // In between multiline annotation

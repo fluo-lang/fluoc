@@ -76,10 +76,7 @@ impl Parser {
             ErrorDisplayType::Error,
             self.lexer.filename.clone(),
             vec![
-                ErrorAnnotation::new(Some("unexpected token".to_string()), t.pos, ErrorDisplayType::Error, self.lexer.filename.clone()),
-                ErrorAnnotation::new(Some("unexpected token".to_string()), helpers::Pos { s: 92, e: 94 }, ErrorDisplayType::Error, self.lexer.filename.clone()),
-                ErrorAnnotation::new(Some("multi line test".to_string()), helpers::Pos { s: 80, e: 102 }, ErrorDisplayType::Error, self.lexer.filename.clone()),
-                ErrorAnnotation::new(Some("multi line testadwf".to_string()), helpers::Pos { s: 82, e: 120 }, ErrorDisplayType::Error, self.lexer.filename.clone()),
+                ErrorAnnotation::new(Some("unexpected token".to_string()), t.pos, ErrorDisplayType::Error, self.lexer.filename.clone())
             ]
         )
     }
