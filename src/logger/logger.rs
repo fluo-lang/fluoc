@@ -280,6 +280,7 @@ impl Logger {
         let mut curr_span = 0;
         let mut line_offset: usize = 0;
         let mut prev_line: usize = 0;
+        let mut prev_line_2: usize = 0;
         let mut first = true;
 
         for mut annotations in annotations_by_line {
@@ -406,10 +407,10 @@ impl Logger {
                             //                that     |     | other error 
                             //            overflows    | other error that goes over but its fine
 
-                            *writer_pos = self.add_pipe(writer_pos.0, max_line_size);
-
+                            *writer_pos = self.add_pipe(writer_pos.0-1, max_line_size);
+                            
                             *writer_pos = self.buffer.writel(
-                                writer_pos.0-1, 
+                                if prev_line_2 == lineno { writer_pos.0-1 } else { writer_pos.0 }, 
                                 writer_pos.1+span_thickness+(annotation.position_rel.0).1, 
                                 &annotation.mode.get_underline().repeat(
                                     (annotation.position_rel.1).1
@@ -464,13 +465,16 @@ impl Logger {
                         } {
                             line_offset += 
                             if vertical_pos == &0 {
-                                self.add_pipe(start_line+line_offset+1, max_line_size); 
+                                self.add_pipe(start_line+line_offset, max_line_size);
+                                self.add_pipe(start_line+line_offset+1, max_line_size);
                                 2usize
                             } else { 
-                                self.add_pipe(start_line+line_offset+vertical_pos+3, max_line_size);
-                                *vertical_pos+5
+                                self.add_pipe(start_line+line_offset+vertical_pos+2, max_line_size);
+                                //self.add_pipe(start_line+line_offset+1, max_line_size);
+                                *vertical_pos+3
                             };
                         }
+                        prev_line_2 = lineno;
                     }
 
                     if first {

@@ -80,6 +80,8 @@ impl Parser {
                 ErrorAnnotation::new(Some("unexpected token".to_string()), t.pos, ErrorDisplayType::Error, self.lexer.filename.clone()),
                 ErrorAnnotation::new(Some("Some warning".to_string()), helpers::Pos { s: 10, e: 12 }, ErrorDisplayType::Warning, self.lexer.filename.clone()),
                 ErrorAnnotation::new(Some("An error".to_string()), helpers::Pos { s: 20, e: 25 }, ErrorDisplayType::Error, self.lexer.filename.clone()),
+                ErrorAnnotation::new(Some("An error".to_string()), helpers::Pos { s: 70, e: 72 }, ErrorDisplayType::Error, self.lexer.filename.clone()),
+                ErrorAnnotation::new(Some("An error".to_string()), helpers::Pos { s: 90, e: 92 }, ErrorDisplayType::Error, self.lexer.filename.clone()),
             ]
         )
     }
