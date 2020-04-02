@@ -51,7 +51,7 @@ impl Parser {
                 if self.lexer.peek().token == lexer::TokenType::EOF && !fail {
                     // We've successfully parsed, break
                     break
-                } else if errors.len() != 0 && fail {
+                } else if !errors.is_empty() && fail {
                     // We've found an error, return the error
                     return Err(errors);
                 }
@@ -85,7 +85,7 @@ impl Parser {
     fn next(&mut self, token_type: lexer::TokenType, error_message: &str, position: (usize, usize)) -> Result<(), Error> {
         let t = self.lexer.advance().clone();
         
-        if &t.token != &token_type {
+        if t.token != token_type {
             self.lexer.set_pos(position);
             Err(self.syntax_error(t, error_message))
         } else {
@@ -170,16 +170,16 @@ impl Parser {
 
         let block = self.block()?;
         
-        return Ok(Box::new(ast::FunctionDefine {
+        Ok(Box::new(ast::FunctionDefine {
             return_type,
-            arguments: arguments,
+            arguments,
             block,
             name: id,
             pos: helpers::Pos {
                 s: position.0,
                 e: self.lexer.position
             }
-        }));
+        }))
     }
 
     fn parse_arguments(&mut self) -> Result<ast::Arguments, Error> {
@@ -251,7 +251,7 @@ impl Parser {
         Ok(Box::new(ast::VariableAssignDeclaration {
             t: var_type,
             name: var_name,
-            expr: expr,
+            expr,
             pos: helpers::Pos {
                 s: position.0,
                 e: self.lexer.position
@@ -294,7 +294,7 @@ impl Parser {
 
         Ok(Box::new(ast::VariableAssign {
             name: var_name,
-            expr: expr,
+            expr,
             pos: helpers::Pos {
                 s: position.0,
                 e: self.lexer.position
@@ -467,7 +467,7 @@ impl Parser {
             Ok(
                 Box::new(ast::Integer {
                     value: value.to_string(),
-                    pos: int.pos.clone()
+                    pos: int.pos
                 })
             )
         } else {

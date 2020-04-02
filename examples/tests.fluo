@@ -1,7 +1,9 @@
-def entry() => int {
+def entry () => int {
     let x: int = 10+10*(1929+10);
     x = 10;
+    x
 }
+
 jjjjjjjjj1as
 jjjjjjjjj1
 jjjjjjjjj1
