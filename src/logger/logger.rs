@@ -283,7 +283,7 @@ impl Logger {
         *writer_pos = self.buffer.writel(
             writer_pos.0-1, 
             max_line_size+self.indentation.len()+3+span_width-span_number, 
-            &format!("|{}", "_".repeat(if repeat == 0 { 1 } else {repeat })), 
+            &format!("|{}", "_".repeat(if repeat == 0 { 1 } else { repeat-1 })), 
             Style::new(
                 Some(annotation.mode.get_color_class()), 
                 Some(Font::BOLD)
@@ -401,7 +401,7 @@ impl Logger {
         let mut span_no = 0;
 
         for mut annotations in annotations_by_line {
-            annotations.sort_by_key(|v| (Reverse(v.position.s), v.position.e));
+            annotations.sort_by_key(|v| (Reverse(v.position.s), Reverse(v.position.e)));
 
             let mut annotation_pos = Vec::new();
 
@@ -577,7 +577,6 @@ impl Logger {
                             } else if lineno == (annotation.position_rel.0).0 {
                                 if vertical_pos == &0 {
                                     // Start of multiline
-                                    println!("{:?}", self.get_lineno(79, &"examples/tests.fluo".to_string()));
                                     if (annotation.position_rel.0).1 > 0 {
                                         writer_pos.0 = start_line+line_offset+1;
                                         *writer_pos = self.add_pipe(writer_pos.0-1, max_line_size, &vertical_annotations, lineno, false);
@@ -614,8 +613,8 @@ impl Logger {
                                     
                                     self.buffer.writel(*vertical_pos+line_offset+start_line-1, self.indentation.len()*2+max_line_size+3+span_no, &"_".repeat(span_thickness-span_no+(annotation.position_rel.0).1-1), Style::new(Some(annotation.mode.get_color_class()), Some(Font::BOLD)));
                                     
-                                    for _ in 0 .. span_thickness-vertical_pos {
-                                        self.buffer.writech(writer_pos.0-1, self.indentation.len()*2+max_line_size+2+span_no, '|', Style::new(Some(annotation.mode.get_color_class()), Some(Font::BOLD)));
+                                    for i in 0 .. span_thickness-vertical_pos {
+                                        self.buffer.writech(writer_pos.0-1+i, self.indentation.len()*2+max_line_size+2+span_no, '|', Style::new(Some(annotation.mode.get_color_class()), Some(Font::BOLD)));
                                     }
                                     
                                     vertical_annotations.insert((annotation.position_rel.1).0, annotation.clone().clone());

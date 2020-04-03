@@ -8,7 +8,7 @@ use crate::helpers;
 pub struct Parser {
     /// Lexer object
     pub lexer: lexer::Lexer,
-    // Abstract syntax tree
+    /// Abstract syntax tree
     pub ast: Option<ast::Block>,
 }
 
@@ -76,7 +76,9 @@ impl Parser {
             ErrorDisplayType::Error,
             self.lexer.filename.clone(),
             vec![
-                ErrorAnnotation::new(Some("unexpected token".to_string()), t.pos, ErrorDisplayType::Error, self.lexer.filename.clone())
+                ErrorAnnotation::new(Some("multiline 1".to_string()), helpers::Pos {s : 75, e: 88}, ErrorDisplayType::Error, self.lexer.filename.clone()),
+                ErrorAnnotation::new(Some("multiline 2".to_string()), helpers::Pos {s : 79, e: 98}, ErrorDisplayType::Warning, self.lexer.filename.clone()),
+                ErrorAnnotation::new(Some("multiline 3".to_string()), helpers::Pos {s : 79, e: 108}, ErrorDisplayType::Error, self.lexer.filename.clone()),
             ]
         )
     }
