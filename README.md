@@ -5,7 +5,7 @@
 </p>
 -->
 
-<p align = 'left'>A programming language</p>
+<p align = 'left'>A syntax oriented compiled programming language</p>
 
 <br>
 
