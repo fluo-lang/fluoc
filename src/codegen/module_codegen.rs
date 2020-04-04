@@ -7,10 +7,10 @@ use std::io;
 
 /// Module object
 /// 
-/// There is one module object per file (yes, each file has its own codegen, parser, lexer, and logger objects).
+/// There is one module object per file (yes, each file has its own codegen, parser, lexer object).
 pub struct CodeGenModule<'a> {
     pub module: module::Module<'a>,
-    pub parser: Parser,
+    pub parser: Parser<'a>
 }
 
 impl<'a> CodeGenModule<'a> {

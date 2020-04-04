@@ -6,7 +6,7 @@ pub fn read_file<'a>(filename: &'a str) -> io::Result<String> {
     Ok(f)
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 /// Position helper struct
 /// 
 /// Used to keep track of all tokens and nodes.

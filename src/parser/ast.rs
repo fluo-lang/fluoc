@@ -1,20 +1,6 @@
 use crate::helpers;
 use std::fmt::Debug;
-
-pub trait Node: Debug { }
-pub trait Expr: Debug { }
-
-macro_rules! impl_node {
-    ($($t:ty),+) => {
-        $(impl Node for $t {  })+
-    }
-}
-
-macro_rules! impl_expr {
-    ($($t:ty),+) => {
-        $(impl Expr for $t {  })+
-    }
-}
+use std::collections::HashMap;
 
 // EXPRESSIONS ---------------------------------------
 
@@ -42,51 +28,51 @@ pub struct Reference {
 #[derive(Debug)]
 /// Addition Node
 pub struct Add {
-    pub left: Box<dyn Expr>,
-    pub right: Box<dyn Expr>,
+    pub left: Box<Expr>,
+    pub right: Box<Expr>,
     pub pos: helpers::Pos
 }
 
 #[derive(Debug)]
 /// Multiplication Node
 pub struct Mul {
-    pub left: Box<dyn Expr>,
-    pub right: Box<dyn Expr>,
+    pub left: Box<Expr>,
+    pub right: Box<Expr>,
     pub pos: helpers::Pos
 }
 
 #[derive(Debug)]
 /// Division Node
 pub struct Div {
-    pub left: Box<dyn Expr>,
-    pub right: Box<dyn Expr>,
+    pub left: Box<Expr>,
+    pub right: Box<Expr>,
     pub pos: helpers::Pos
 }
 
 #[derive(Debug)]
 /// Addition Node
 pub struct Sub {
-    pub left: Box<dyn Expr>,
-    pub right: Box<dyn Expr>,
+    pub left: Box<Expr>,
+    pub right: Box<Expr>,
     pub pos: helpers::Pos
 }
 
 #[derive(Debug)]
 pub struct Mod {
-    pub left: Box<dyn Expr>,
-    pub right: Box<dyn Expr>,
+    pub left: Box<Expr>,
+    pub right: Box<Expr>,
     pub pos: helpers::Pos
 }
 
 #[derive(Debug)]
 pub struct Neg {
-    pub value: Box<dyn Expr>,
+    pub value: Box<Expr>,
     pub pos: helpers::Pos
 }
 
 // NODES ---------------------------------------	
 
-#[derive(Debug)]
+#[derive(Debug, Hash, PartialEq, Eq)]
 /// Name ID node
 pub struct NameID {
     pub value: String,
@@ -100,7 +86,7 @@ pub struct NameID {
 /// ```
 pub struct VariableAssign {
     pub name: NameID,
-    pub expr: Box<dyn Expr>,
+    pub expr: Box<Expr>,
     pub pos: helpers::Pos
 }
 
@@ -112,7 +98,7 @@ pub struct VariableAssign {
 pub struct VariableAssignDeclaration {
     pub t: Type,
     pub name: NameID,
-    pub expr: Box<dyn Expr>,
+    pub expr: Box<Expr>,
     pub pos: helpers::Pos
 }
 
@@ -138,7 +124,7 @@ pub struct Arguments {
 #[derive(Debug)]
 /// Block of code
 pub struct Block {
-    pub nodes: Vec<Box<dyn Node>>,
+    pub nodes: Vec<Statement>,
     pub pos: helpers::Pos
 }
 
@@ -154,7 +140,7 @@ pub struct FunctionDefine {
 
 #[derive(Debug)]
 pub struct ExpressionStatement {
-    pub expression: Box<dyn Expr>,
+    pub expression: Box<Expr>,
     pub pos: helpers::Pos
 }
 
@@ -172,31 +158,163 @@ pub struct Type {
     pub pos: helpers::Pos
 }
 
-impl_node!(
-    Integer, 
-    RefID, 
-    Reference, 
-    NameID, 
-    VariableAssign, 
-    VariableAssignDeclaration, 
-    Type, 
-    Arguments, 
-    Block, 
-    FunctionDefine,
-    ExpressionStatement,
-    VariableDeclaration
-);
+#[derive(Debug)]
+/// Type of custom node, i.e. statement or expression
+pub enum CustomType {
+    Statement,
+    Expression
+}
 
-impl_expr!(
-    Integer, 
-    RefID, 
-    Reference,
-    VariableAssign,
-    VariableAssignDeclaration,
-    Add,
-    Sub,
-    Neg,
-    Mul,
-    Div,
-    Mod
-);
+#[derive(Debug)]
+/// User defined syntax ast
+pub struct Custom {
+    pub custom_type: CustomType,
+    pub values: HashMap<NameID, Node>,
+    pub name: NameID,
+    pub pos: helpers::Pos,
+    pub rep: String,
+    pub scope: Scope
+}
+
+#[derive(Debug, Clone)]
+pub enum Scope {
+    Block,
+    Outer,
+    All
+}
+
+impl PartialEq for Scope {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Scope::Block, Scope::Outer) => false,
+            (Scope::Outer, Scope::Block) => false,
+            _ => true,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum Node {
+    Integer(Integer), 
+    RefID(RefID), 
+    Reference(Reference), 
+    NameID(NameID), 
+    VariableAssign(VariableAssign), 
+    VariableAssignDeclaration(VariableAssignDeclaration), 
+    Type(Type), 
+    Arguments(Arguments), 
+    Block(Block),
+    Add(Add),
+    Sub(Sub),
+    Neg(Neg),
+    Mul(Mul),
+    Div(Div),
+    Mod(Mod),
+
+    // We want the custom node to be
+    // customizable in terms of where 
+    // it can be put
+    Custom(Custom),
+
+    ExpressionStatement(ExpressionStatement),
+    VariableDeclaration(VariableDeclaration),
+    FunctionDefine(FunctionDefine)
+}
+
+#[derive(Debug)]
+pub enum Statement {
+    Custom(Custom),
+
+    ExpressionStatement(ExpressionStatement),
+    VariableDeclaration(VariableDeclaration),
+    FunctionDefine(FunctionDefine)
+}
+
+impl Statement {
+    pub fn pos(&self) -> helpers::Pos {
+        match &self {
+            Statement::Custom(val) => val.pos,
+            Statement::ExpressionStatement(val) => val.pos,
+            Statement::VariableDeclaration(val) => val.pos,
+            Statement::FunctionDefine(val) => val.pos,
+        }
+    }
+
+    pub fn to_string(&self) -> String {
+        match &self {
+            Statement::Custom(val) => val.rep.clone(),
+            Statement::ExpressionStatement(val) => format!("{}", val.expression.to_str()),
+            Statement::VariableDeclaration(_) => "variable declaration".to_string(),
+            Statement::FunctionDefine(_) => "function define".to_string(),
+        }
+    }
+
+    pub fn in_scope<'a>(&'a self, check_scope: &Scope) -> bool {
+        Statement::get_scope(self) == check_scope
+    }
+
+    pub fn get_scope<'a>(statement: &Statement) -> &Scope {
+        match statement {
+            Statement::Custom(val) => &val.scope,
+            Statement::ExpressionStatement(_) => &Scope::Block,
+            Statement::VariableDeclaration(_) => &Scope::Block,
+            Statement::FunctionDefine(_) => &Scope::Outer,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum Expr {
+    // We want the custom node to be
+    // customizable in terms of where 
+    // it can be put
+    Custom(Custom),
+
+    Integer(Integer), 
+    RefID(RefID), 
+    Reference(Reference),
+    VariableAssign(VariableAssign),
+    VariableAssignDeclaration(VariableAssignDeclaration),
+    Add(Add),
+    Sub(Sub),
+    Neg(Neg),
+    Mul(Mul),
+    Div(Div),
+    Mod(Mod),
+}
+
+impl Expr {
+    pub fn pos(&self) -> helpers::Pos {
+        match &self {
+            Expr::Custom(val) => val.pos,
+            Expr::Integer(val) => val.pos,
+            Expr::RefID(val) => val.pos,
+            Expr::Reference(val) => val.pos,
+            Expr::VariableAssign(val) => val.pos,
+            Expr::VariableAssignDeclaration(val) => val.pos,
+            Expr::Add(val) => val.pos,
+            Expr::Sub(val) => val.pos,
+            Expr::Neg(val) => val.pos,
+            Expr::Mul(val) => val.pos,
+            Expr::Div(val) => val.pos,
+            Expr::Mod(val) => val.pos
+        }
+    }
+
+    pub fn to_str<'a>(&'a self) -> &'a str {
+        match self {
+            Expr::Custom(val) => &val.rep,
+            Expr::Integer(_) => "integer",
+            Expr::RefID(_) => "ID",
+            Expr::Reference(_) => "refrence",
+            Expr::VariableAssign(_) => "variable assign",
+            Expr::VariableAssignDeclaration(_) => "variable assignment declaration",
+            Expr::Add(_) => "add",
+            Expr::Sub(_) => "subtract",
+            Expr::Neg(_) => "negate",
+            Expr::Mul(_) => "multiply",
+            Expr::Div(_) => "divide",
+            Expr::Mod(_) => "modulo"
+        }
+    }
+}

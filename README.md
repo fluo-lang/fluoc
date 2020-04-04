@@ -14,7 +14,7 @@ def fizzbuzz(value: int) {
     match loop 1..value {
         %% 3        -> print("Fizz");
         %% 5        -> print("Fizz");
-        %% 5 & 3 -> print("Fizzbuzz");
+        %% 5 & 3    -> print("Fizzbuzz");
         _           -> print(_);
     }
 }
