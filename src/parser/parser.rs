@@ -61,8 +61,8 @@ impl Parser<'_> {
                     // We've successfully parsed, break
                     break
                 } else if !errors.is_empty() && fail {
-                    // We've found an error, return the error
-                    return Err(errors);
+                    // We've found an error, raise the error
+                    return Err(vec![Logger::longest(errors)]);
                 }
             }
         }
@@ -73,7 +73,7 @@ impl Parser<'_> {
         self.ast = Some(block);
         Ok(())
     }
-
+    
     /// Template for syntax error
     fn syntax_error(&self, t: lexer::Token, message: &str, is_keyword: bool) -> Error {
         Error::new(
@@ -139,7 +139,7 @@ impl Parser<'_> {
             if self.lexer.peek().token == lexer::TokenType::RCP && !fail {
                 // We've successfully parsed, break
                 break
-            } else if errors.len() != 0 && fail {
+            } else if !errors.is_empty() && fail {
                 // We've found an error, raise the error
                 return Err(Logger::longest(errors));
             } else if self.lexer.peek().token != lexer::TokenType::RCP && fail {
