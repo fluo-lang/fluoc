@@ -27,7 +27,7 @@ impl<'a> CodeGenModule<'a> {
     pub fn generate(&mut self) -> Result<(), Vec<Error>> {
         self.parser.parse()?;
         
-        println!("{:?}", self.parser.ast);
+        println!("{:#?}", self.parser.ast);
 
         Ok(())
     }

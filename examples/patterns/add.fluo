@@ -1,0 +1,23 @@
+using syntax::(pattern, expr);
+
+impl add -> (pattern::pattern, expr::expr) {
+    pattern pattern::parse {
+        "{"
+        $expr: syntax::expr ";"
+        "}"
+    }
+
+    pattern pattern::eval {
+        -- Some complicated code to handle different possibilities
+    }
+
+    pattern expr::parse {
+        $left: syntax::expr 
+        "+"
+        $right: syntax::expr
+    }
+
+    pattern expr::eval {
+        $left + $right;
+    }
+}

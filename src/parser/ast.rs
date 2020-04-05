@@ -85,7 +85,7 @@ pub struct NameID {
 /// x = 10;
 /// ```
 pub struct VariableAssign {
-    pub name: NameID,
+    pub name: Namespace,
     pub expr: Box<Expr>,
     pub pos: helpers::Pos
 }
@@ -97,7 +97,7 @@ pub struct VariableAssign {
 /// ```
 pub struct VariableAssignDeclaration {
     pub t: Type,
-    pub name: NameID,
+    pub name: Namespace,
     pub expr: Box<Expr>,
     pub pos: helpers::Pos
 }
@@ -109,7 +109,7 @@ pub struct VariableAssignDeclaration {
 /// ```
 pub struct VariableDeclaration {
     pub t: Type,
-    pub name: NameID,
+    pub name: Namespace,
     pub pos: helpers::Pos
 }
 
@@ -118,7 +118,7 @@ pub struct VariableDeclaration {
 pub struct Arguments {
     pub positional: Vec<(NameID, Type)>,
     pub pos: helpers::Pos
-    // TODO: Add more types or arguments
+    // TODO: Add more types of arguments
 }
 
 #[derive(Debug)]
@@ -139,6 +139,21 @@ pub struct FunctionDefine {
 }
 
 #[derive(Debug)]
+pub struct ArgumentsRun {
+    pub positional: Vec<Expr>,
+    pub pos: helpers::Pos
+    // TODO: Add more types of arguments
+}
+
+#[derive(Debug)]
+/// Function definition
+pub struct FunctionCall {
+    pub arguments: ArgumentsRun,
+    pub name: Namespace,
+    pub pos: helpers::Pos
+}
+
+#[derive(Debug)]
 pub struct ExpressionStatement {
     pub expression: Box<Expr>,
     pub pos: helpers::Pos
@@ -147,7 +162,7 @@ pub struct ExpressionStatement {
 #[derive(Debug)]
 /// Type Types
 pub enum TypeType {
-    Type(String),
+    Type(Namespace),
     Tuple(Vec<TypeType>)
 }
 
@@ -156,6 +171,19 @@ pub enum TypeType {
 pub struct Type {
     pub value: TypeType,
     pub pos: helpers::Pos
+}
+
+#[derive(Debug)]
+/// This::is::a::namespace!
+pub struct Namespace {
+    pub scopes: Vec<NameID>,
+    pub pos: helpers::Pos
+}
+
+#[derive(Debug)]
+/// Impl block (for changeable syntax at compile time)
+pub struct Impl {
+    pub syntax_type: Namespace,
 }
 
 #[derive(Debug)]
@@ -271,27 +299,34 @@ pub enum Expr {
     Custom(Custom),
 
     Integer(Integer), 
+
     RefID(RefID), 
     Reference(Reference),
     VariableAssign(VariableAssign),
     VariableAssignDeclaration(VariableAssignDeclaration),
+    FunctionCall(FunctionCall),
+
     Add(Add),
     Sub(Sub),
     Neg(Neg),
     Mul(Mul),
     Div(Div),
-    Mod(Mod),
+    Mod(Mod)
 }
 
 impl Expr {
     pub fn pos(&self) -> helpers::Pos {
         match &self {
-            Expr::Custom(val) => val.pos,
             Expr::Integer(val) => val.pos,
+
+            Expr::Custom(val) => val.pos,
+            
             Expr::RefID(val) => val.pos,
             Expr::Reference(val) => val.pos,
             Expr::VariableAssign(val) => val.pos,
             Expr::VariableAssignDeclaration(val) => val.pos,
+            Expr::FunctionCall(val) => val.pos,
+
             Expr::Add(val) => val.pos,
             Expr::Sub(val) => val.pos,
             Expr::Neg(val) => val.pos,
@@ -303,12 +338,16 @@ impl Expr {
 
     pub fn to_str<'a>(&'a self) -> &'a str {
         match self {
-            Expr::Custom(val) => &val.rep,
             Expr::Integer(_) => "integer",
+
+            Expr::Custom(val) => &val.rep,
+            
             Expr::RefID(_) => "ID",
             Expr::Reference(_) => "refrence",
             Expr::VariableAssign(_) => "variable assign",
             Expr::VariableAssignDeclaration(_) => "variable assignment declaration",
+            Expr::FunctionCall(_) => "function call",
+
             Expr::Add(_) => "add",
             Expr::Sub(_) => "subtract",
             Expr::Neg(_) => "negate",

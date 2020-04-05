@@ -13,6 +13,7 @@ pub enum TokenType {
     IMPORT,
     RETURN,
     LET,
+    IMPL,
     IDENTIFIER(String),
     NUMBER(String),
     DIV,
@@ -33,6 +34,7 @@ pub enum TokenType {
     DOT,
     EQUALS,
     COLON,
+    DOUBLECOLON,
     
     SEMI,
     COMMA,
@@ -61,6 +63,7 @@ impl fmt::Display for Token {
             TokenType::IMPORT => String::from("keyword `import`"),
             TokenType::RETURN => String::from("keyword `return`"),
             TokenType::LET => String::from("keyword `let`"),
+            TokenType::IMPL => String::from("keyword `impl`"),
             
             TokenType::DIV => String::from("operator `/`"),
             TokenType::MOD => String::from("operator `%`"),
@@ -68,6 +71,8 @@ impl fmt::Display for Token {
             TokenType::ADD => String::from("operator `+`"),
             TokenType::SUB => String::from("operator `-`"),
             TokenType::DMOD => String::from("operator `%%`"),
+
+            TokenType::DOUBLECOLON => String::from("double colon"),
 
             TokenType::ARROW => String::from("token `=>`"),
 
@@ -120,12 +125,16 @@ fn get_tok_length(tok: &TokenType) -> usize {
         | TokenType::DEF 
         => 3,
 
+        TokenType::IMPL
+        => 4,
+
         | TokenType::IMPORT 
         | TokenType::RETURN 
         => 6,
 
         | TokenType::ARROW 
         | TokenType::DMOD
+        | TokenType::DOUBLECOLON
         => 2,
 
         | TokenType::DIV
@@ -258,8 +267,10 @@ impl Lexer {
         let mut token_kind = match first_char {
             '-' => match self.first() {
                 '-' => self.line_comment(),
-                // TODO: Implement block comments
-                // '*' => self.block_comment(),
+                '>' => {
+                    self.bump();
+                    TokenType::ARROW
+                },
                 _ => TokenType::SUB
             },
             c if is_whitespace(c) => self.whitespace(),
@@ -270,7 +281,10 @@ impl Lexer {
 
             '*' => TokenType::MUL,
             '+' => TokenType::ADD,
-            '/' => TokenType::DIV,
+            '/' => match self.first() {
+                '*' => self.block_comment(),
+                _ => TokenType::DIV
+            },
             '%' => match self.first() { 
                 '%' => {
                     self.bump();
@@ -284,16 +298,16 @@ impl Lexer {
             '}' => TokenType::RCP,
             '.' => TokenType::DOT,
             ';' => TokenType::SEMI,
-            '=' => match self.first() {
-                '>' => {
-                    self.bump();
-                    TokenType::ARROW
-                }
-                _ => TokenType::EQUALS,
-            }
+            '=' => TokenType::EQUALS,
             '?' => TokenType::QUESTION,
             ',' => TokenType::COMMA,
-            ':' => TokenType::COLON,
+            ':' => match self.first() {
+                ':' => {
+                    self.bump();
+                    TokenType::DOUBLECOLON
+                }
+                _ => TokenType::COLON
+            }
 
             EOF_CHAR => TokenType::EOF,
             
@@ -369,8 +383,42 @@ impl Lexer {
         match id.1.as_str() {
             "def" => TokenType::DEF,
             "let" => TokenType::LET,
+            "impl" => TokenType::IMPL,
             _ => TokenType::IDENTIFIER(id.1)
         }
+    }
+
+    /// Tokenize block comment
+    fn block_comment(&mut self) -> TokenType {
+        self.bump();
+        let position = self.position;
+
+        let mut depth = 1usize;
+        while self.first() != EOF_CHAR {
+            let c = self.first();
+            self.bump();
+            match c {
+                '/' if self.first() == '*' => {
+                    self.bump();
+                    depth += 1;
+                }
+                '*' if self.first() == '/' => {
+                    self.bump();
+                    depth -= 1;
+                    if depth == 0 {
+                        break;
+                    }
+                }
+                _ => (),
+            }
+        }
+
+        // We have eof
+        if depth != 0 {
+            
+        }
+
+        TokenType::BLOCKCOMMENT(self.position-position)
     }
 
     /// Tokenize line comment

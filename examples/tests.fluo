@@ -1,23 +1,24 @@
-impl for_loop => statement {
-    parse {
-        "for"
-        $name_id: index
-        "in"
-        $expr: iter
-        $block: code
+-- Example of syntax oriented programming
+
+--using syntax::statement;
+/*impl for_loop -> syntax::statement::statement {
+    pattern syntax::statement::parse {
+        "print"
+        $expr: syntax::expr
+        ";"
     }
 
-    run {
-        i = 0;
-        while len(iter) > i {
-            $index = &iter[i];
-            code();
-            i = i+1;
-        }
+    pattern syntax::statement::run {
+        print($expr);
     }
-}
+}*/
 
-def entry () => int {
+-- import tests2;
+
+-- Entry function: only run if this file is the one being run
+def entry () -> int {
     let x: int = 10+10*(1929+10);
     x = 10;
+
+    print::iajf:: (10); -- should change to print(10);
 }

@@ -1,0 +1,14 @@
+class Animal {
+    let farts: int;
+    let weight: int;
+
+    def fart() {
+        print("You have just made global warming worse");
+        this.farts += 1;
+    }
+
+    pattern std::oop::new (weight: int) {
+        Animal { farts = 0, weight: weight };
+    }
+}
+

@@ -25,6 +25,45 @@ impl Parser<'_> {
     pub fn new<'a>(l: lexer::Lexer) -> Parser<'a> {
         Parser { lexer: l, ast: None, modules: Vec::new(), statements: vec![Parser::function_define, Parser::expression_statement, Parser::variable_declaration]}
     }
+    
+    /// Template for syntax error
+    fn syntax_error(&self, t: lexer::Token, message: &str, is_keyword: bool) -> Error {
+        Error::new(
+            String::from(
+                if !is_keyword { 
+                    format!("{}, found {}", message, t) 
+                } else {  
+                    format!("unexpected {}", t) 
+                }
+            ),
+            ErrorType::Syntax, 
+            t.pos,
+            ErrorDisplayType::Error,
+            self.lexer.filename.clone(),
+            vec![
+                ErrorAnnotation::new(Some("unexpected token".to_string()), t.pos, ErrorDisplayType::Error, self.lexer.filename.clone())
+            ]
+        )
+    }
+
+    /// Validate next token
+    fn next(&mut self, token_type: lexer::TokenType, error_message: &str, position: (usize, usize), is_keyword: bool) -> Result<(), Error> {
+        let t = self.lexer.advance().clone();
+        
+        if t.token != token_type {
+            self.lexer.set_pos(position);
+            Err(self.syntax_error(t, error_message, is_keyword))
+        } else {
+            Ok(())
+        }
+    }
+
+    fn position(&mut self, position: (usize, usize)) -> helpers::Pos {
+        helpers::Pos {
+            s: position.0,
+            e: self.lexer.position
+        }
+    }
 
     /// Parse from lexer
     /// 
@@ -67,43 +106,9 @@ impl Parser<'_> {
             }
         }
 
-        let block = ast::Block { nodes: ast_list, pos: helpers::Pos { s: position.0, e: self.lexer.position } };
-        println!("{:?}", block);
-
+        let block = ast::Block { nodes: ast_list, pos: self.position(position) };
         self.ast = Some(block);
         Ok(())
-    }
-    
-    /// Template for syntax error
-    fn syntax_error(&self, t: lexer::Token, message: &str, is_keyword: bool) -> Error {
-        Error::new(
-            String::from(
-                if !is_keyword { 
-                    format!("{}, found {}", message, t) 
-                } else {  
-                    format!("unexpected {}", t) 
-                }
-            ),
-            ErrorType::Syntax, 
-            t.pos,
-            ErrorDisplayType::Error,
-            self.lexer.filename.clone(),
-            vec![
-                ErrorAnnotation::new(Some("unexpected token".to_string()), t.pos, ErrorDisplayType::Error, self.lexer.filename.clone())
-            ]
-        )
-    }
-
-    /// Validate next token
-    fn next(&mut self, token_type: lexer::TokenType, error_message: &str, position: (usize, usize), is_keyword: bool) -> Result<(), Error> {
-        let t = self.lexer.advance().clone();
-        
-        if t.token != token_type {
-            self.lexer.set_pos(position);
-            Err(self.syntax_error(t, error_message, is_keyword))
-        } else {
-            Ok(())
-        }
     }
 
     /// Parse basic block
@@ -132,7 +137,7 @@ impl Parser<'_> {
                             break
                         }
                     },
-                    Err(e) => errors.push(e)
+                    Err(e) => { errors.push(e); }
                 }
             }
 
@@ -153,52 +158,8 @@ impl Parser<'_> {
 
         Ok( ast::Block {
             nodes: ast_list,
-            pos: helpers::Pos {
-                s: position.0,
-                e: self.lexer.position
-            }
+            pos: self.position(position)
         } )
-    }
-
-    /// Parse function definition
-    fn function_define(&mut self) -> Result<Statement, Error> {
-        let position = self.lexer.get_pos();
-        
-        self.next(lexer::TokenType::DEF, "", position, true)?;
-
-        let id = self.name_id()?;
-
-        self.next(lexer::TokenType::LP, "expected `(`", position, false)?;
-
-        let arguments = self.parse_arguments()?;
-
-        self.next(lexer::TokenType::RP, "expected `)`", position, false)?;
-
-        let mut return_type = ast::Type {
-            value: ast::TypeType::Tuple(Vec::new()),
-            pos: helpers::Pos {
-                s: self.lexer.position,
-                e: self.lexer.position,
-            }
-        };
-
-        if self.lexer.peek().token == lexer::TokenType::ARROW {
-            self.lexer.advance();
-            return_type = self.type_expr()?;
-        }
-
-        let block = self.block()?;
-        
-        Ok(ast::Statement::FunctionDefine(ast::FunctionDefine {
-            return_type,
-            arguments,
-            block,
-            name: id,
-            pos: helpers::Pos {
-                s: position.0,
-                e: self.lexer.position
-            }
-        }))
     }
 
     fn parse_arguments(&mut self) -> Result<ast::Arguments, Error> {
@@ -228,11 +189,46 @@ impl Parser<'_> {
 
         Ok(ast::Arguments { 
             positional: positional_args,
-            pos: helpers::Pos {
-                s: position.0, 
-                e: self.lexer.position
-            }
+            pos: self.position(position)
         })
+    }
+
+    /// Parse function definition
+    fn function_define(&mut self) -> Result<Statement, Error> {
+        let position = self.lexer.get_pos();
+        
+        self.next(lexer::TokenType::DEF, "expected `def`", position, true)?;
+
+        let id = self.name_id()?;
+
+        self.next(lexer::TokenType::LP, "expected `(`", position, false)?;
+
+        let arguments = self.parse_arguments()?;
+
+        self.next(lexer::TokenType::RP, "expected `)`", position, false)?;
+
+        let mut return_type = ast::Type {
+            value: ast::TypeType::Tuple(Vec::new()),
+            pos: helpers::Pos {
+                s: self.lexer.position,
+                e: self.lexer.position,
+            }
+        };
+
+        if self.lexer.peek().token == lexer::TokenType::ARROW {
+            self.lexer.advance();
+            return_type = self.type_expr()?;
+        }
+
+        let block = self.block()?;
+        
+        Ok(ast::Statement::FunctionDefine(ast::FunctionDefine {
+            return_type,
+            arguments,
+            block,
+            name: id,
+            pos: self.position(position)
+        }))
     }
 
     /// Expressions statement
@@ -245,10 +241,52 @@ impl Parser<'_> {
 
         Ok(ast::Statement::ExpressionStatement(ast::ExpressionStatement {
             expression: Box::new(expr),
-            pos: helpers::Pos {
-                s: position.0,
-                e: self.lexer.position
+            pos: self.position(position)
+        }))
+    }
+
+    fn arguments_call(&mut self) -> Result<ast::ArgumentsRun, Error> {
+        let position = self.lexer.get_pos();
+        let mut positional_args: Vec<Expr> = Vec::new();
+
+        loop {
+            if self.lexer.peek().token == lexer::TokenType::RP {
+                // No error, we've reached the end
+                break
             }
+
+            let expr = self.expr()?;
+
+            positional_args.push(expr);
+            
+            if self.lexer.peek().token == lexer::TokenType::COMMA {
+                self.lexer.advance();
+            } else {
+                break
+            }
+        }
+
+        Ok(ast::ArgumentsRun {
+            positional: positional_args,
+            pos: self.position(position)
+        })
+    }
+
+    fn function_call(&mut self) -> Result<Expr, Error> {
+        let position = self.lexer.get_pos();
+
+        let namespace = self.namespace()?;
+
+        self.next(lexer::TokenType::LP, "expected `(`", position, false)?;
+
+        let arguments = self.arguments_call()?;
+
+        self.next(lexer::TokenType::RP, "expected `)`", position, false)?;
+
+        Ok(ast::Expr::FunctionCall(ast::FunctionCall {
+            arguments,
+            name: namespace,
+            pos: self.position(position)
         }))
     }
 
@@ -257,7 +295,7 @@ impl Parser<'_> {
         let position = self.lexer.get_pos();
         self.next(lexer::TokenType::LET, "expected `let` keyword", position, true)?;
 
-        let var_name = self.name_id()?;
+        let namespace = self.namespace()?;
 
         self.next(lexer::TokenType::COLON, "expected `:`", position, false)?;
         
@@ -269,12 +307,9 @@ impl Parser<'_> {
 
         Ok(ast::Expr::VariableAssignDeclaration(ast::VariableAssignDeclaration {
             t: var_type,
-            name: var_name,
+            name: namespace,
             expr: Box::new(expr),
-            pos: helpers::Pos {
-                s: position.0,
-                e: self.lexer.position
-            }
+            pos: self.position(position)
         }))
     }
 
@@ -283,7 +318,7 @@ impl Parser<'_> {
         let position = self.lexer.get_pos();
         self.next(lexer::TokenType::LET, "expected `let` keyword", position, true)?;
 
-        let var_name = self.name_id()?;
+        let namespace = self.namespace()?;
 
         self.next(lexer::TokenType::COLON, "expected `:`", position, false)?;
         
@@ -293,11 +328,8 @@ impl Parser<'_> {
 
         Ok(ast::Statement::VariableDeclaration(ast::VariableDeclaration {
             t: var_type,
-            name: var_name,
-            pos: helpers::Pos {
-                s: position.0,
-                e: self.lexer.position
-            }
+            name: namespace,
+            pos: self.position(position)
         }))
     }
 
@@ -305,19 +337,16 @@ impl Parser<'_> {
     fn variable_assign(&mut self) -> Result<Expr, Error> {
         let position = self.lexer.get_pos();
 
-        let var_name = self.name_id()?;
+        let namespace = self.namespace()?;
 
         self.next(lexer::TokenType::EQUALS, "expected `=`", position, false)?;
         
         let expr = self.expr()?;
 
         Ok(ast::Expr::VariableAssign(ast::VariableAssign {
-            name: var_name,
+            name: namespace,
             expr: Box::new(expr),
-            pos: helpers::Pos {
-                s: position.0,
-                e: self.lexer.position
-            }
+            pos: self.position(position)
         }))
     }
 
@@ -336,10 +365,7 @@ impl Parser<'_> {
                     left = ast::Expr::Add(ast::Add {
                         left: Box::new(left),
                         right: Box::new(right),
-                        pos: helpers::Pos {
-                            s: position.0,
-                            e: self.lexer.position,
-                        }
+                        pos: self.position(position)
                     });
                 },
 
@@ -350,10 +376,7 @@ impl Parser<'_> {
                     left = ast::Expr::Sub(ast::Sub {
                         left: Box::new(left),
                         right: Box::new(right),
-                        pos: helpers::Pos {
-                            s: position.0,
-                            e: self.lexer.position,
-                        }
+                        pos: self.position(position)
                     });
                 },
 
@@ -376,10 +399,7 @@ impl Parser<'_> {
                     left = ast::Expr::Mul(ast::Mul {
                         left: Box::new(left),
                         right: Box::new(right),
-                        pos: helpers::Pos {
-                            s: position.0,
-                            e: self.lexer.position,
-                        }
+                        pos: self.position(position)
                     });
                 },
 
@@ -390,10 +410,7 @@ impl Parser<'_> {
                     left = ast::Expr::Div(ast::Div {
                         left: Box::new(left),
                         right: Box::new(right),
-                        pos: helpers::Pos {
-                            s: position.0,
-                            e: self.lexer.position,
-                        }
+                        pos: self.position(position)
                     });
                 },
 
@@ -404,10 +421,7 @@ impl Parser<'_> {
                     left = ast::Expr::Mod(ast::Mod {
                         left: Box::new(left),
                         right: Box::new(right),
-                        pos: helpers::Pos {
-                            s: position.0,
-                            e: self.lexer.position,
-                        }
+                        pos: self.position(position)
                     });
                 },
 
@@ -425,10 +439,7 @@ impl Parser<'_> {
                     Ok(item) => Ok(ast::Expr::Neg(
                         ast::Neg { 
                             value: Box::new(item), 
-                            pos: helpers::Pos {
-                                s: position.0,
-                                e: self.lexer.position
-                            } 
+                            pos: self.position(position)
                         }
                     )),
                     Err(e) => {
@@ -451,17 +462,27 @@ impl Parser<'_> {
 
     fn item(&mut self) -> Result<Expr, Error> {
         let position = self.lexer.get_pos();
+        let mut errors: Vec<Error> = Vec::new();
 
-        if let Ok(ast) = self.integer() {
-            return Ok(ast);
+        match self.integer() {
+            Ok(ast) => return Ok(ast),
+            Err(e) => errors.push(e)
         }
 
-        if let Ok(ast) = self.variable_assign() {
-            return Ok(ast);
+        match self.function_call() {
+            Ok(ast) => return Ok(ast),
+            Err(e) => errors.push(e)
         }
 
-        if let Ok(ast) = self.variable_assign_full() {
-            return Ok(ast);
+        match self.variable_assign() {
+            Ok(ast) => return Ok(ast),
+            Err(e) => errors.push(e)
+        }
+
+
+        match self.variable_assign_full() {
+            Ok(ast) => return Ok(ast),
+            Err(e) => errors.push(e)
         }
         
         if let lexer::TokenType::LP = self.lexer.advance().token {
@@ -474,8 +495,7 @@ impl Parser<'_> {
         }
 
         self.lexer.set_pos(position);
-        let next_tok = self.lexer.peek().clone();
-        Err(self.syntax_error(next_tok, "expected expression", false))
+        Err(Logger::longest(errors))
     }
 
     fn integer(&mut self) -> Result<Expr, Error> {
@@ -493,6 +513,32 @@ impl Parser<'_> {
             self.lexer.set_pos(position);
             Err(self.syntax_error(int.clone(), "expected integer", false))
         }
+    }
+
+    fn namespace(&mut self) -> Result<ast::Namespace, Error> {
+        let position = self.lexer.get_pos();
+        let mut ids: Vec<ast::NameID> = Vec::new();
+        let id = self.name_id()?;
+
+        ids.push(id);
+
+        loop {
+            if self.lexer.peek().token != lexer::TokenType::DOUBLECOLON {
+                break
+            }
+
+            self.next(lexer::TokenType::DOUBLECOLON, "expected double colon", position, false)?;
+
+            match self.name_id() {
+                Ok(id) => { ids.push(id); },
+                Err(e) => { self.lexer.set_pos(position); return Err(e); } 
+            }
+        }
+
+        Ok(ast::Namespace {
+            scopes: ids,
+            pos: self.position(position)
+        })
     }
 
     /// Parse name identifier (i.e. function name)
@@ -513,20 +559,14 @@ impl Parser<'_> {
     }
 
     /// Parse type expression
-    fn type_expr(&mut self) -> Result<ast::Type, Error> {
-        let position = self.lexer.get_pos();
-        let id = self.lexer.advance().clone();
-        if let lexer::TokenType::IDENTIFIER(value) = &id.token {
-            return Ok(
-                ast::Type {
-                    value: ast::TypeType::Type(value.to_string()),
-                    pos: id.pos.clone()
-                }
-            );
-        }
-        
-        self.lexer.set_pos(position);
-        Err(self.syntax_error(id.clone(), "expected identifier", false))
-    }
+    fn type_expr(&mut self) -> Result<ast::Type, Error> {        
+        let namespace = self.namespace()?;
 
+        Ok(
+            ast::Type {
+                pos: namespace.pos.clone(),
+                value: ast::TypeType::Type(namespace)
+            }
+        )
+    }
 }

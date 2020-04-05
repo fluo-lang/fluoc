@@ -245,7 +245,7 @@ impl Logger {
     }
 
     fn insert_lineno(&mut self, ln: usize, max_line_size: usize, line_no: usize) {
-        self.buffer.writel(ln-1, self.indentation.len()+(max_line_size-format!("{}", line_no).len())+1, &format!("{}", line_no), Style::new(Some(Color::BLUE), Some(Font::BOLD)));
+        self.buffer.writel(ln-1, self.indentation.len()+(max_line_size+1-format!("{}", line_no).len()), &format!("{}", line_no), Style::new(Some(Color::BLUE), Some(Font::BOLD)));
     }
 
     fn get_line_string(&mut self, ln: usize, filename: String) -> String {
@@ -790,16 +790,8 @@ impl Logger {
     /// Static method for error that parses the furthest.
     /// Useful when you have multiple errors and want to know which one is the most accurate.
     pub fn longest(errors: Vec<Error>) -> Error {
-        let first = errors.first().unwrap().clone();
-        let mut longest = (first.clone().position.e, first);
-
-        for error in errors {
-            let last_pos = error.position.e;
-            if last_pos > longest.0 {
-                longest = (last_pos, error);
-            }
-        }
-
-        longest.1
+        let mut errors = errors;
+        errors.sort_by_key(|x| x.position.e);
+        errors.last().unwrap().clone()
     }
 }
