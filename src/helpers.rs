@@ -23,4 +23,8 @@ impl Pos {
     pub fn new(s: usize, e: usize) -> Pos {
         Pos { s, e }
     }
+
+    pub fn to_tuple(&self) -> (usize, usize) {
+        (self.s, self.e)
+    }
 }

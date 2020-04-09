@@ -8,7 +8,7 @@ impl add -> (pattern::pattern, expr::expr) {
     }
 
     pattern pattern::eval {
-        -- Some complicated code to handle different possibilities
+        -- some code here to handle overloading of add operator
     }
 
     pattern expr::parse {

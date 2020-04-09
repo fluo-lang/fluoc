@@ -7,7 +7,11 @@ use std::cmp::{max, Reverse};
 /// An error type, i.e `Syntax` error or `UnexpectedToken` error
 pub enum ErrorType {
     Syntax,
-    UnexpectedToken
+    UnexpectedToken,
+    UnterminatedString,
+    UnknownCharacter,
+    UndefinedSyntax,
+    SyntaxTypeError
 }
 
 impl ErrorType {
@@ -15,6 +19,10 @@ impl ErrorType {
         match *self {
             ErrorType::Syntax => String::from("syntax_error"),
             ErrorType::UnexpectedToken => String::from("unexpected_token"),
+            ErrorType::UnterminatedString => String::from("unterminated_string"),
+            ErrorType::UnknownCharacter => String::from("unknown_character"),
+            ErrorType::UndefinedSyntax => String::from("undefined_syntax"),
+            ErrorType::SyntaxTypeError => String::from("syntax_type_error")
         }
     }
 }
@@ -128,7 +136,9 @@ pub struct Error {
     /// Filename of error
     filename: String,
     /// Annotations
-    annotations: Vec<ErrorAnnotation>
+    annotations: Vec<ErrorAnnotation>,
+    /// Urgent error: raise even if another function parses further
+    urgent: bool
 }
 
 impl Error {
@@ -141,14 +151,15 @@ impl Error {
     /// * `position`: position of error
     /// * `token`: optional token associated with error
     /// * `mode`: mode of error report
-    pub fn new(message: String, error: ErrorType, position: Pos, mode: ErrorDisplayType, filename: String, annotations: Vec<ErrorAnnotation>) -> Error {
+    pub fn new(message: String, error: ErrorType, position: Pos, mode: ErrorDisplayType, filename: String, annotations: Vec<ErrorAnnotation>, urgent: bool) -> Error {
         Error {
             message,
             error,
             position,
             mode,
             filename,
-            annotations
+            annotations,
+            urgent
         }
     }
 }
@@ -194,6 +205,7 @@ impl Logger {
     fn get_lineno(&mut self, pos: usize, filename: &String) -> (usize, usize) {
         let mut lineno = 1;
         let mut relative_pos = 1;
+        
         for c in (&self.filename_contents[filename][..pos]).chars() {
             relative_pos += 1;
             if c == '\n' {
@@ -249,7 +261,7 @@ impl Logger {
     }
 
     fn get_line_string(&mut self, ln: usize, filename: String) -> String {
-        self.filename_contents[&filename].lines().into_iter().nth(ln-1).unwrap().to_string()
+        self.filename_contents[&filename].split("\n").into_iter().nth(ln-1).unwrap().to_string()
     }
 
     fn num_overlap(
@@ -732,6 +744,7 @@ impl Logger {
 
     fn raise_type(&mut self, errors: Vec<Error>, message_type: ErrorDisplayType) {
         if errors.len() > 0 { 
+            println!("{:?}", errors);
             eprintln!(
                 "{}{}{}{} {} Found:{}\n", 
                 message_type.get_color(), 
@@ -791,7 +804,7 @@ impl Logger {
     /// Useful when you have multiple errors and want to know which one is the most accurate.
     pub fn longest(errors: Vec<Error>) -> Error {
         let mut errors = errors;
-        errors.sort_by_key(|x| x.position.e);
+        errors.sort_by_key(|x| (if x.urgent { 1 } else { 0 }, x.position.e));
         errors.last().unwrap().clone()
     }
 }

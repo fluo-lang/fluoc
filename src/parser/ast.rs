@@ -1,6 +1,8 @@
 use crate::helpers;
 use std::fmt::Debug;
 use std::collections::HashMap;
+use std::fmt;
+use std::hash::{Hash, Hasher};
 
 // EXPRESSIONS ---------------------------------------
 
@@ -8,6 +10,20 @@ use std::collections::HashMap;
 /// Integer node
 pub struct Integer {
     pub value: String,
+    pub pos: helpers::Pos
+}
+
+#[derive(Debug)]
+/// String literal node
+pub struct StringLiteral {
+    pub value: String,
+    pub pos: helpers::Pos
+}
+
+#[derive(Debug)]
+/// Dollar sign id (i.e. `$myvar`) node
+pub struct DollarID {
+    pub value: NameID,
     pub pos: helpers::Pos
 }
 
@@ -72,11 +88,23 @@ pub struct Neg {
 
 // NODES ---------------------------------------	
 
-#[derive(Debug, Hash, PartialEq, Eq)]
+#[derive(Debug, Eq)]
 /// Name ID node
 pub struct NameID {
     pub value: String,
     pub pos: helpers::Pos
+}
+
+impl Hash for NameID {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.value.hash(state);
+    }
+}
+
+impl PartialEq for NameID {
+    fn eq(&self, other: &Self) -> bool {
+        self.value == other.value
+    }
 }
 
 #[derive(Debug)]
@@ -180,28 +208,71 @@ pub struct Namespace {
     pub pos: helpers::Pos
 }
 
-#[derive(Debug)]
-/// Impl block (for changeable syntax at compile time)
-pub struct Impl {
-    pub syntax_type: Namespace,
+impl fmt::Display for Namespace {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut rep = String::new();
+        for scope in &self.scopes {
+            rep += &scope.value;
+            rep += "::";
+        }
+        write!(f, "{}", rep)
+    }
 }
 
 #[derive(Debug)]
-/// Type of custom node, i.e. statement or expression
-pub enum CustomType {
-    Statement,
-    Expression
+/// Impl block (for changeable syntax at compile time definition)
+pub struct Impl {
+    pub name: NameID,
+    pub syntax_type: Namespace,
+    pub patterns: Vec<Pattern>,
+    pub pos: helpers::Pos
+}
+
+#[derive(Debug)]
+/// Pattern class
+pub struct Pattern {
+    pub prototype: Namespace,
+    pub contents: Vec<Node>,
+    pub pos: helpers::Pos
+}
+
+#[derive(Debug)]
+/// Terminal node in pattern
+pub struct Terminal {
+    pub contents: StringLiteral,
+    pub pos: helpers::Pos
+}
+
+#[derive(Debug)]
+/// Non-terminal node in pattern
+pub struct NonTerminal {
+    pub name: DollarID,
+    pub prototype: Namespace,
+    pub pos: helpers::Pos
 }
 
 #[derive(Debug)]
 /// User defined syntax ast
 pub struct Custom {
-    pub custom_type: CustomType,
+    /// Type of syntax, i.e. syntax::statement::statement
+    pub custom_type: Namespace,
+
+    /// Values, i.e. { $left = ast::Integer(10), $right = ast::Integer(1) }
     pub values: HashMap<NameID, Node>,
     pub name: NameID,
     pub pos: helpers::Pos,
+
+    /// String representation of statement
     pub rep: String,
-    pub scope: Scope
+
+    /// Scopes which it can be used
+    pub scope: Scope,
+}
+
+#[derive(Debug)]
+pub struct Nodes {
+    pub nodes: Vec<Node>,
+    pub pos: helpers::Pos
 }
 
 #[derive(Debug, Clone)]
@@ -243,10 +314,17 @@ pub enum Node {
     // customizable in terms of where 
     // it can be put
     Custom(Custom),
+    Pattern(Pattern),
 
     ExpressionStatement(ExpressionStatement),
     VariableDeclaration(VariableDeclaration),
-    FunctionDefine(FunctionDefine)
+    FunctionDefine(FunctionDefine),
+
+    StringLiteral(StringLiteral),
+    Terminal(Terminal),
+    NonTerminal(NonTerminal),
+    DollarID(DollarID),
+    Nodes(Nodes)
 }
 
 #[derive(Debug)]
@@ -255,7 +333,8 @@ pub enum Statement {
 
     ExpressionStatement(ExpressionStatement),
     VariableDeclaration(VariableDeclaration),
-    FunctionDefine(FunctionDefine)
+    FunctionDefine(FunctionDefine),
+    ImplDefine(Impl)
 }
 
 impl Statement {
@@ -265,6 +344,7 @@ impl Statement {
             Statement::ExpressionStatement(val) => val.pos,
             Statement::VariableDeclaration(val) => val.pos,
             Statement::FunctionDefine(val) => val.pos,
+            Statement::ImplDefine(val) => val.pos,
         }
     }
 
@@ -274,6 +354,7 @@ impl Statement {
             Statement::ExpressionStatement(val) => format!("{}", val.expression.to_str()),
             Statement::VariableDeclaration(_) => "variable declaration".to_string(),
             Statement::FunctionDefine(_) => "function define".to_string(),
+            Statement::ImplDefine(_) => "impl statement".to_string()
         }
     }
 
@@ -287,6 +368,7 @@ impl Statement {
             Statement::ExpressionStatement(_) => &Scope::Block,
             Statement::VariableDeclaration(_) => &Scope::Block,
             Statement::FunctionDefine(_) => &Scope::Outer,
+            Statement::ImplDefine(_) => &Scope::Outer
         }
     }
 }
@@ -311,7 +393,10 @@ pub enum Expr {
     Neg(Neg),
     Mul(Mul),
     Div(Div),
-    Mod(Mod)
+    Mod(Mod),
+    StringLiteral(StringLiteral),
+
+    DollarID(DollarID)
 }
 
 impl Expr {
@@ -322,10 +407,12 @@ impl Expr {
             Expr::Custom(val) => val.pos,
             
             Expr::RefID(val) => val.pos,
+            Expr::DollarID(val) => val.pos,
             Expr::Reference(val) => val.pos,
             Expr::VariableAssign(val) => val.pos,
             Expr::VariableAssignDeclaration(val) => val.pos,
             Expr::FunctionCall(val) => val.pos,
+            Expr::StringLiteral(val) => val.pos,
 
             Expr::Add(val) => val.pos,
             Expr::Sub(val) => val.pos,
@@ -343,10 +430,12 @@ impl Expr {
             Expr::Custom(val) => &val.rep,
             
             Expr::RefID(_) => "ID",
+            Expr::DollarID(_) => "dollar sign ID",
             Expr::Reference(_) => "refrence",
             Expr::VariableAssign(_) => "variable assign",
             Expr::VariableAssignDeclaration(_) => "variable assignment declaration",
             Expr::FunctionCall(_) => "function call",
+            Expr::StringLiteral(_) => "string literal",
 
             Expr::Add(_) => "add",
             Expr::Sub(_) => "subtract",

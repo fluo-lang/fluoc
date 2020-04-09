@@ -1,6 +1,7 @@
 use crate::helpers;
 use std::io;
 use std::fmt;
+use crate::logger::logger::{ Error, ErrorDisplayType, ErrorType };
 
 /// EOF Character
 const EOF_CHAR: char = '\0';
@@ -14,8 +15,11 @@ pub enum TokenType {
     RETURN,
     LET,
     IMPL,
+    PATTERN,
+
     IDENTIFIER(String),
     NUMBER(String),
+
     DIV,
     MOD,
     MUL,
@@ -35,6 +39,7 @@ pub enum TokenType {
     EQUALS,
     COLON,
     DOUBLECOLON,
+    DOLLAR,
     
     SEMI,
     COMMA,
@@ -43,6 +48,20 @@ pub enum TokenType {
     LINECOMMENT(usize),
     BLOCKCOMMENT(usize),
     WHITESPACE(usize)
+}
+
+impl fmt::Display for TokenType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let result = match self {
+            TokenType::STRING(_) => String::from("string"),
+            TokenType::IDENTIFIER(_) => String::from("identifier"),
+            TokenType::NUMBER(_) => String::from("integer"),
+            TokenType::UNKNOWN(_) => String::from("unknown token"),
+            
+            other => format!("{}", Token { token: other.clone(), pos: helpers::Pos { s: 0, e: 0 } })
+        };
+        write!(f, "{}", result)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -64,6 +83,7 @@ impl fmt::Display for Token {
             TokenType::RETURN => String::from("keyword `return`"),
             TokenType::LET => String::from("keyword `let`"),
             TokenType::IMPL => String::from("keyword `impl`"),
+            TokenType::PATTERN => String::from("keyword `pattern`"),
             
             TokenType::DIV => String::from("operator `/`"),
             TokenType::MOD => String::from("operator `%`"),
@@ -71,8 +91,9 @@ impl fmt::Display for Token {
             TokenType::ADD => String::from("operator `+`"),
             TokenType::SUB => String::from("operator `-`"),
             TokenType::DMOD => String::from("operator `%%`"),
+            TokenType::DOLLAR => String::from("token `$`"),
 
-            TokenType::DOUBLECOLON => String::from("double colon"),
+            TokenType::DOUBLECOLON => String::from("token `::`"),
 
             TokenType::ARROW => String::from("token `=>`"),
 
@@ -91,9 +112,9 @@ impl fmt::Display for Token {
             TokenType::EOF => String::from("end of file"),
             TokenType::UNKNOWN(val) => String::from(format!("unknown token `{}`", val)),
 
-            TokenType::LINECOMMENT(_) => String::from("Line Comment"),
-            TokenType::BLOCKCOMMENT(_) => String::from("Block Comment"),
-            TokenType::WHITESPACE(_) => String::from("Whitespace"),
+            TokenType::LINECOMMENT(_) => String::from("line comment"),
+            TokenType::BLOCKCOMMENT(_) => String::from("block comment"),
+            TokenType::WHITESPACE(_) => String::from("whitespace"),
         };
         write!(f, "{}", result)
     }
@@ -120,17 +141,20 @@ fn get_tok_length(tok: &TokenType) -> usize {
         | TokenType::BLOCKCOMMENT(val)
         | TokenType::WHITESPACE(val)
         => *val,
-        
-        | TokenType::LET
-        | TokenType::DEF 
-        => 3,
 
-        TokenType::IMPL
-        => 4,
+        TokenType::PATTERN
+        => 7,
 
         | TokenType::IMPORT 
         | TokenType::RETURN 
         => 6,
+        
+        TokenType::IMPL
+        => 4,
+
+        | TokenType::LET
+        | TokenType::DEF 
+        => 3,
 
         | TokenType::ARROW 
         | TokenType::DMOD
@@ -152,6 +176,7 @@ fn get_tok_length(tok: &TokenType) -> usize {
         | TokenType::EQUALS
         | TokenType::SEMI
         | TokenType::COLON
+        | TokenType::DOLLAR
         => 1,
         
         TokenType::EOF => 0
@@ -261,7 +286,7 @@ impl Lexer {
     }
 
     /// Get next token in input stream's type
-    fn get_next_tok_type<'a>(&'a mut self) -> TokenType {
+    fn get_next_tok_type<'a>(&'a mut self) -> Result<TokenType, Error> {
         let first_char = self.bump();
 
         let mut token_kind = match first_char {
@@ -269,9 +294,9 @@ impl Lexer {
                 '-' => self.line_comment(),
                 '>' => {
                     self.bump();
-                    TokenType::ARROW
+                    Ok(TokenType::ARROW)
                 },
-                _ => TokenType::SUB
+                _ => Ok(TokenType::SUB)
             },
             c if is_whitespace(c) => self.whitespace(),
 
@@ -279,42 +304,63 @@ impl Lexer {
 
             '0'..='9' => self.number(),
 
-            '*' => TokenType::MUL,
-            '+' => TokenType::ADD,
+            '*' => Ok(TokenType::MUL),
+            '+' => Ok(TokenType::ADD),
             '/' => match self.first() {
                 '*' => self.block_comment(),
-                _ => TokenType::DIV
+                _ => Ok(TokenType::DIV)
             },
+
             '%' => match self.first() { 
                 '%' => {
                     self.bump();
-                    TokenType::DMOD
+                    Ok(TokenType::DMOD)
                 }
-                _ => TokenType::MOD
-            }
-            '(' => TokenType::LP,
-            ')' => TokenType::RP,
-            '{' => TokenType::LCP,
-            '}' => TokenType::RCP,
-            '.' => TokenType::DOT,
-            ';' => TokenType::SEMI,
-            '=' => TokenType::EQUALS,
-            '?' => TokenType::QUESTION,
-            ',' => TokenType::COMMA,
+                _ => Ok(TokenType::MOD)
+            },
+            '$' => Ok(TokenType::DOLLAR),
+
+            '(' => Ok(TokenType::LP),
+            ')' => Ok(TokenType::RP),
+            '{' => Ok(TokenType::LCP),
+            '}' => Ok(TokenType::RCP),
+            '.' => Ok(TokenType::DOT),
+            ';' => Ok(TokenType::SEMI),
+            '=' => Ok(TokenType::EQUALS),
+            '?' => Ok(TokenType::QUESTION),
+            ',' => Ok(TokenType::COMMA),
             ':' => match self.first() {
                 ':' => {
                     self.bump();
-                    TokenType::DOUBLECOLON
+                    Ok(TokenType::DOUBLECOLON)
                 }
-                _ => TokenType::COLON
-            }
+                _ => Ok(TokenType::COLON)
+            },
 
-            EOF_CHAR => TokenType::EOF,
+            '"' => { self.string() },
             
-            unknown => TokenType::UNKNOWN(unknown.to_string())
+            EOF_CHAR => Ok(TokenType::EOF),
+            
+            unknown => Err(Error::new( 
+                format!("Unknown character `{}`", unknown.to_string()),
+                ErrorType::UnknownCharacter,
+                helpers::Pos {
+                    s: self.temp_pos-1,
+                    e: self.temp_pos
+                },
+                ErrorDisplayType::Error,
+                self.filename.clone(),
+                Vec::new(),
+                true
+            ))
         };
+
+        if let Ok(TokenType::EOF) = token_kind {
+            // Don't increment if EOF char, leads to weird out of bounds errors in error reporting
+            self.temp_pos -= 1;
+        }
         
-        if let TokenType::WHITESPACE(_) | TokenType::LINECOMMENT(_) | TokenType::BLOCKCOMMENT(_) = token_kind {
+        if let Ok(TokenType::WHITESPACE(_)) | Ok(TokenType::LINECOMMENT(_)) | Ok(TokenType::BLOCKCOMMENT(_)) = token_kind {
             token_kind = self.get_next_tok_type()
         }
         token_kind
@@ -332,8 +378,8 @@ impl Lexer {
     }
 
     /// Get next token in input stream, and advance
-    pub fn advance<'a>(&'a mut self) -> &Token {
-        let token_kind = self.get_next_tok_type();
+    pub fn advance<'a>(&'a mut self) -> Result<&Token, Error> {
+        let token_kind = self.get_next_tok_type()?;
         self.eat();
         
         self.current_token = Token {
@@ -344,12 +390,12 @@ impl Lexer {
             token: token_kind
         };
 
-        &self.current_token
+        Ok(&self.current_token)
     }
 
     /// Get next token in input stream, but don't advance
-    pub fn peek<'a>(&'a mut self) -> &Token {
-        let token_kind = self.get_next_tok_type();
+    pub fn peek<'a>(&'a mut self) -> Result<&Token, Error> {
+        let token_kind = self.get_next_tok_type()?;
 
         self.next_token = Token {
             pos: helpers::Pos::new(
@@ -361,13 +407,13 @@ impl Lexer {
 
         self.temp_pos = 0;
 
-        &self.next_token
+        Ok(&self.next_token)
     }
 
     /// Tokenize integer
-    fn number(&mut self) -> TokenType {
+    fn number(&mut self) -> Result<TokenType, Error> {
         let num = self.eat_while(|c| '0' <= c && c <= '9');
-        TokenType::NUMBER(num.1)
+        Ok(TokenType::NUMBER(num.1))
     }
 
     /// Get start of ID (excluding number)
@@ -378,18 +424,60 @@ impl Lexer {
     }
     
     /// Tokenize identifier and keywords
-    fn identifier(&mut self) -> TokenType {
+    fn identifier(&mut self) -> Result<TokenType, Error> {
         let id = self.eat_while(|c| is_id_continue(c));
         match id.1.as_str() {
-            "def" => TokenType::DEF,
-            "let" => TokenType::LET,
-            "impl" => TokenType::IMPL,
-            _ => TokenType::IDENTIFIER(id.1)
+            "def" => Ok(TokenType::DEF),
+            "let" => Ok(TokenType::LET),
+            "impl" => Ok(TokenType::IMPL),
+            "pattern" => Ok(TokenType::PATTERN),
+            _ => Ok(TokenType::IDENTIFIER(id.1))
         }
     }
 
+    /// Validate string
+    fn string(&mut self) -> Result<TokenType, Error> {
+        let pos = self.position-1;
+        let mut string = String::new();
+        string.push('"');
+        string.push(self.bump());
+        
+        let mut c = self.bump();
+
+        while c != EOF_CHAR {
+            match c {
+                '"' => {
+                    string.push(c);
+                    return Ok(TokenType::STRING(string));
+                }
+                '\\' if self.first() == '\\' || self.first() == '"' => {
+                    // Bump again to skip escaped character
+                    self.bump();
+                    string.push(c);
+                }
+                _ => {
+                    string.push(c);
+                },
+            }
+            c = self.bump();
+        }
+
+        Err(Error::new( 
+            "Unterminated string".to_string(),
+            ErrorType::UnterminatedString,
+            helpers::Pos {
+                s: pos,
+                e: self.temp_pos
+            },
+            ErrorDisplayType::Error,
+            self.filename.clone(),
+            Vec::new(),
+            true
+        ))
+    }
+
     /// Tokenize block comment
-    fn block_comment(&mut self) -> TokenType {
+    fn block_comment(&mut self) -> Result<TokenType, Error> {
         self.bump();
         let position = self.position;
 
@@ -414,22 +502,23 @@ impl Lexer {
         }
 
         // We have eof
+        // TODO: Error reporting: propagate back?
         if depth != 0 {
             
         }
 
-        TokenType::BLOCKCOMMENT(self.position-position)
+        Ok(TokenType::BLOCKCOMMENT(self.position-position))
     }
 
     /// Tokenize line comment
-    fn line_comment(&mut self) -> TokenType {
+    fn line_comment(&mut self) -> Result<TokenType, Error> {
         self.bump();
-        TokenType::LINECOMMENT(self.eat_while(|c| c != '\n').0 + 1)
+        Ok(TokenType::LINECOMMENT(self.eat_while(|c| c != '\n').0 + 1))
     }
 
     /// Tokenize whitespace
-    fn whitespace(&mut self) -> TokenType {
-        TokenType::WHITESPACE(self.eat_while(is_whitespace).0 + 1)
+    fn whitespace(&mut self) -> Result<TokenType, Error> {
+        Ok(TokenType::WHITESPACE(self.eat_while(is_whitespace).0 + 1))
     }
 
     /// Eat while condition is true utility
@@ -505,20 +594,20 @@ mod lexer_tests {
     #[test]
     fn lex_test() -> io::Result<()> {
         let mut l = Lexer::new(String::from("./examples/simple_tests.fluo"))?;
-        assert_eq!(*l.advance(), Token { token: TokenType::DEF, pos: helpers::Pos { s: 0, e: 3 } } ) ;
-        assert_eq!(*l.advance(), Token { token: TokenType::IDENTIFIER(String::from("entry")), pos: helpers::Pos { s: 4, e: 9 } } ) ;
-        assert_eq!(*l.advance(), Token { token: TokenType::LP, pos: helpers::Pos { s: 9, e: 10 } } ) ;
-        assert_eq!(*l.advance(), Token { token: TokenType::RP, pos: helpers::Pos { s: 10, e: 11 } } ) ;
-        assert_eq!(*l.advance(), Token { token: TokenType::LCP, pos: helpers::Pos { s: 12, e: 13 } } ) ;
-        assert_eq!(*l.advance(), Token { token: TokenType::LET, pos: helpers::Pos { s: 18, e: 21 } } ) ;
-        assert_eq!(*l.advance(), Token { token: TokenType::IDENTIFIER(String::from("x")), pos: helpers::Pos { s: 22, e: 23 } } ) ;
-        assert_eq!(*l.advance(), Token { token: TokenType::COLON, pos: helpers::Pos { s: 23, e: 24 } } ) ;
-        assert_eq!(*l.advance(), Token { token: TokenType::IDENTIFIER(String::from("int")), pos: helpers::Pos { s: 25, e: 28 } } ) ;
-        assert_eq!(*l.advance(), Token { token: TokenType::EQUALS, pos: helpers::Pos { s: 29, e: 30 } } ) ;
-        assert_eq!(*l.advance(), Token { token: TokenType::NUMBER(String::from("10")), pos: helpers::Pos { s: 31, e: 33 } } ) ;
-        assert_eq!(*l.advance(), Token { token: TokenType::SEMI, pos: helpers::Pos { s: 33, e: 34 } } ) ;
-        assert_eq!(*l.advance(), Token { token: TokenType::RCP, pos: helpers::Pos { s: 35, e: 36 } } ) ;
-        assert_eq!(*l.advance(), Token { token: TokenType::EOF, pos: helpers::Pos { s: 38, e: 38 } } ) ;
+        assert_eq!(*l.advance().unwrap(), Token { token: TokenType::DEF, pos: helpers::Pos { s: 0, e: 3 } } ) ;
+        assert_eq!(*l.advance().unwrap(), Token { token: TokenType::IDENTIFIER(String::from("entry")), pos: helpers::Pos { s: 4, e: 9 } } ) ;
+        assert_eq!(*l.advance().unwrap(), Token { token: TokenType::LP, pos: helpers::Pos { s: 9, e: 10 } } ) ;
+        assert_eq!(*l.advance().unwrap(), Token { token: TokenType::RP, pos: helpers::Pos { s: 10, e: 11 } } ) ;
+        assert_eq!(*l.advance().unwrap(), Token { token: TokenType::LCP, pos: helpers::Pos { s: 12, e: 13 } } ) ;
+        assert_eq!(*l.advance().unwrap(), Token { token: TokenType::LET, pos: helpers::Pos { s: 18, e: 21 } } ) ;
+        assert_eq!(*l.advance().unwrap(), Token { token: TokenType::IDENTIFIER(String::from("x")), pos: helpers::Pos { s: 22, e: 23 } } ) ;
+        assert_eq!(*l.advance().unwrap(), Token { token: TokenType::COLON, pos: helpers::Pos { s: 23, e: 24 } } ) ;
+        assert_eq!(*l.advance().unwrap(), Token { token: TokenType::IDENTIFIER(String::from("int")), pos: helpers::Pos { s: 25, e: 28 } } ) ;
+        assert_eq!(*l.advance().unwrap(), Token { token: TokenType::EQUALS, pos: helpers::Pos { s: 29, e: 30 } } ) ;
+        assert_eq!(*l.advance().unwrap(), Token { token: TokenType::NUMBER(String::from("10")), pos: helpers::Pos { s: 31, e: 33 } } ) ;
+        assert_eq!(*l.advance().unwrap(), Token { token: TokenType::SEMI, pos: helpers::Pos { s: 33, e: 34 } } ) ;
+        assert_eq!(*l.advance().unwrap(), Token { token: TokenType::RCP, pos: helpers::Pos { s: 35, e: 36 } } ) ;
+        assert_eq!(*l.advance().unwrap(), Token { token: TokenType::EOF, pos: helpers::Pos { s: 38, e: 38 } } ) ;
         Ok(())
     }
 }
