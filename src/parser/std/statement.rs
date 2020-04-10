@@ -9,6 +9,8 @@ impl Parser<'_> {
         let position = parser.lexer.get_pos();
         let mut items: Vec<Node> = Vec::new();
         let mut errors: Vec<Error> = Vec::new();
+        
+        parser.next(lexer::TokenType::LCP, position, false)?;
 
         loop {
             if parser.lexer.peek()?.token == lexer::TokenType::RCP {
@@ -37,9 +39,31 @@ impl Parser<'_> {
             }
         }
 
+        parser.next(lexer::TokenType::RCP, position, false)?;
+
         Ok(ast::Node::Nodes( ast::Nodes {
             nodes: items,
             pos: parser.position(position)
         }))
+    }
+
+    // Returns Node::Nodes
+    pub fn std_statement_run<'a>(parser: &mut Parser<'a>) -> Result<ast::Node, Error> {
+        let position = parser.lexer.get_pos();
+
+        let mut items: Vec<Node> = Vec::new();
+        for node in parser.block()?.nodes {
+            items.push(node.into_node());
+        }
+
+        Ok(ast::Node::Nodes( ast::Nodes {
+            nodes: items,
+            pos: parser.position(position)
+        }))
+    }
+
+    // Returns CustomStatement object
+    pub fn std_statement_statement<'a>(parser: &mut Parser<'a>, ) /* -> Result<ast::Node, Error> */ {
+
     }
 }

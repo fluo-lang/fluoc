@@ -23,9 +23,10 @@ fn new_name_id(name: &str) -> NameID {
     }
 }
 
-fn generate_statement_lib<'a>() -> NamespaceObj {
+fn generate_statement_lib() -> NamespaceObj {
     let objects = map![
-        new_name_id("parse") => NamespaceObj::ParserRule(Parser::std_statement_parse)
+        new_name_id("parse") => NamespaceObj::ParserRule(Parser::std_statement_parse),
+        new_name_id("run") => NamespaceObj::ParserRule(Parser::std_statement_run)
     ];
 
     NamespaceObj::ParserNamespace {
@@ -33,7 +34,7 @@ fn generate_statement_lib<'a>() -> NamespaceObj {
     }
 }
 
-pub fn generate_std_lib<'a>() -> NamespaceObj {
+pub fn generate_std_lib() -> NamespaceObj {
     let objects = map![
         new_name_id("statement") => generate_statement_lib()
     ];

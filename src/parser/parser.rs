@@ -1,12 +1,11 @@
 use crate::parser::ast;
 use crate::lexer;
 use crate::logger::logger::{Error, ErrorType, Logger, ErrorDisplayType, ErrorAnnotation};
-use crate::parser::ast::{ Statement, Expr, Scope, Pattern, Node };
+use crate::parser::ast::{ Statement, Expr, Scope, Node };
 use crate::helpers;
 use crate::codegen::module_codegen::CodeGenModule;
-use crate::parser::custom_syntax;
+use crate::parser:: { custom_syntax, custom_syntax::Pattern };
 use crate::parser::std::generate;
-use std::hash::{Hash, Hasher};
 
 
 /// Recursive descent parser
@@ -186,12 +185,13 @@ impl Parser<'_> {
     }
 
     
-    pub fn eval_impl() {
-
-    }
-
-    pub fn eval_pattern() {
-
+    pub fn eval_impl(&mut self, impl_block: &ast::Statement) {
+        match impl_block {
+            ast::Statement::ImplDefine(impl_block) => {
+                
+            },
+            _ => {}
+        };
     }
 
     pub fn parse_impl(&mut self) -> Result<Statement, Error> {
@@ -221,11 +221,18 @@ impl Parser<'_> {
 
         self.next(lexer::TokenType::RCP, position, false)?;
 
-        Ok(ast::Statement::ImplDefine( ast::Impl {
+        let final_impl = ast::Statement::ImplDefine( custom_syntax::Impl {
             patterns,
             name: name,
             pos: self.position(position),
-            syntax_type: impl_type
+            syntax_type: impl_type,
+            operations: None
+        });
+
+        self.eval_impl(&final_impl);
+
+        Ok(ast::Statement::Empty(ast::Empty {
+            pos: match final_impl { ast::Statement::ImplDefine(custom) => custom.pos, _ => helpers::Pos::new(0, 0) }
         }))
     }
 
@@ -242,17 +249,6 @@ impl Parser<'_> {
                         prev_namespace = &objects[&name];
                     } else {
                         // Namespace doesn't exit in namespace
-                        let mut hasher = std::collections::hash_map::DefaultHasher::new();
-                        
-                        for obj in objects.keys() {
-                            obj.hash(&mut hasher);
-                        }
-                        println!("{:?}", hasher.finish());
-                        println!("{:?}", objects.keys());
-                        let mut hasher2 = std::collections::hash_map::DefaultHasher::new();
-                        name.hash(&mut hasher2);
-                        println!("{:?}", hasher2.finish());
-
                         return Err( Error::new (
                             format!("namespace `{}` has no member `{}`", prev_name.value, name.value),
                             ErrorType::UndefinedSyntax,
@@ -308,15 +304,13 @@ impl Parser<'_> {
         self.next(lexer::TokenType::PATTERN, position, true)?;
 
         let prototype = self.namespace()?;
-        
-        self.next(lexer::TokenType::LCP, position, false)?;
 
         // TODO: parse_std_parse
         let items = match self.get_grammar(&prototype) {
             Ok(parser_func) => {
                 match parser_func(self) {
                     Ok(Node::Nodes(nodes)) => {nodes},
-                    Ok(other) => { return Err( Error::new (
+                    Ok(_) => { return Err( Error::new (
                         format!("`{}` is not a pattern syntax", prototype),
                         ErrorType::SyntaxTypeError,
                         prototype.pos,
@@ -326,23 +320,21 @@ impl Parser<'_> {
                             ErrorAnnotation::new(Some("not a pattern".to_string()), prototype.pos, ErrorDisplayType::Error, self.lexer.filename.clone())
                         ],
                         true  // High priority error
-                    ))}
+                    ))},
                     Err(e) => return Err(e)
                 }
             },
             Err(e) => return Err(e)
         };
 
-        self.next(lexer::TokenType::RCP, position, false)?;
-
-        Ok(ast::Pattern {
+        Ok(custom_syntax::Pattern {
             prototype,
             contents: items.nodes,
             pos: self.position(position)
         })
     }
 
-    pub fn parse_non_terminal(&mut self) -> Result<ast::NonTerminal, Error> {
+    pub fn parse_non_terminal(&mut self) -> Result<custom_syntax::NonTerminal, Error> {
         // Something that looks like this:
         // `$my_non_terminal: syntax::expr`
         let position = self.lexer.get_pos();
@@ -353,16 +345,16 @@ impl Parser<'_> {
 
         let namespace = self.namespace()?;
 
-        Ok(ast::NonTerminal { name, prototype: namespace, pos: self.position(position) })
+        Ok(custom_syntax::NonTerminal { name, prototype: namespace, pos: self.position(position) })
     }
     
-    pub fn parse_terminal(&mut self) -> Result<ast::Terminal, Error> {
+    pub fn parse_terminal(&mut self) -> Result<custom_syntax::Terminal, Error> {
         // String literals
         let position = self.lexer.get_pos();
 
         let literal = self.string_literal()?;
 
-        Ok(ast::Terminal { contents: literal, pos: self.position(position) })
+        Ok(custom_syntax::Terminal { contents: literal, pos: self.position(position) })
     }
 
     pub fn parse_arguments(&mut self) -> Result<ast::Arguments, Error> {

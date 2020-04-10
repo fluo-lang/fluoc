@@ -744,7 +744,6 @@ impl Logger {
 
     fn raise_type(&mut self, errors: Vec<Error>, message_type: ErrorDisplayType) {
         if errors.len() > 0 { 
-            println!("{:?}", errors);
             eprintln!(
                 "{}{}{}{} {} Found:{}\n", 
                 message_type.get_color(), 

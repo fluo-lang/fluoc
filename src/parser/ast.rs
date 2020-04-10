@@ -1,10 +1,16 @@
 use crate::helpers;
 use std::fmt::Debug;
-use std::collections::HashMap;
 use std::fmt;
 use std::hash::{Hash, Hasher};
+use crate::parser::custom_syntax::{ Custom, Pattern, Terminal, NonTerminal, Impl };
 
 // EXPRESSIONS ---------------------------------------
+
+#[derive(Debug)]
+/// Empty Placeholder value
+pub struct Empty {
+    pub pos: helpers::Pos
+}
 
 #[derive(Debug)]
 /// Integer node
@@ -220,56 +226,6 @@ impl fmt::Display for Namespace {
 }
 
 #[derive(Debug)]
-/// Impl block (for changeable syntax at compile time definition)
-pub struct Impl {
-    pub name: NameID,
-    pub syntax_type: Namespace,
-    pub patterns: Vec<Pattern>,
-    pub pos: helpers::Pos
-}
-
-#[derive(Debug)]
-/// Pattern class
-pub struct Pattern {
-    pub prototype: Namespace,
-    pub contents: Vec<Node>,
-    pub pos: helpers::Pos
-}
-
-#[derive(Debug)]
-/// Terminal node in pattern
-pub struct Terminal {
-    pub contents: StringLiteral,
-    pub pos: helpers::Pos
-}
-
-#[derive(Debug)]
-/// Non-terminal node in pattern
-pub struct NonTerminal {
-    pub name: DollarID,
-    pub prototype: Namespace,
-    pub pos: helpers::Pos
-}
-
-#[derive(Debug)]
-/// User defined syntax ast
-pub struct Custom {
-    /// Type of syntax, i.e. syntax::statement::statement
-    pub custom_type: Namespace,
-
-    /// Values, i.e. { $left = ast::Integer(10), $right = ast::Integer(1) }
-    pub values: HashMap<NameID, Node>,
-    pub name: NameID,
-    pub pos: helpers::Pos,
-
-    /// String representation of statement
-    pub rep: String,
-
-    /// Scopes which it can be used
-    pub scope: Scope,
-}
-
-#[derive(Debug)]
 pub struct Nodes {
     pub nodes: Vec<Node>,
     pub pos: helpers::Pos
@@ -319,12 +275,15 @@ pub enum Node {
     ExpressionStatement(ExpressionStatement),
     VariableDeclaration(VariableDeclaration),
     FunctionDefine(FunctionDefine),
+    ImplDefine(Impl),
 
     StringLiteral(StringLiteral),
     Terminal(Terminal),
     NonTerminal(NonTerminal),
     DollarID(DollarID),
-    Nodes(Nodes)
+    Nodes(Nodes),
+
+    Empty(Empty)
 }
 
 #[derive(Debug)]
@@ -334,7 +293,9 @@ pub enum Statement {
     ExpressionStatement(ExpressionStatement),
     VariableDeclaration(VariableDeclaration),
     FunctionDefine(FunctionDefine),
-    ImplDefine(Impl)
+    ImplDefine(Impl),
+
+    Empty(Empty)
 }
 
 impl Statement {
@@ -345,6 +306,7 @@ impl Statement {
             Statement::VariableDeclaration(val) => val.pos,
             Statement::FunctionDefine(val) => val.pos,
             Statement::ImplDefine(val) => val.pos,
+            Statement::Empty(val) => val.pos
         }
     }
 
@@ -354,7 +316,8 @@ impl Statement {
             Statement::ExpressionStatement(val) => format!("{}", val.expression.to_str()),
             Statement::VariableDeclaration(_) => "variable declaration".to_string(),
             Statement::FunctionDefine(_) => "function define".to_string(),
-            Statement::ImplDefine(_) => "impl statement".to_string()
+            Statement::ImplDefine(_) => "impl statement".to_string(),
+            Statement::Empty(_) => "empty statement".to_string()
         }
     }
 
@@ -368,8 +331,20 @@ impl Statement {
             Statement::ExpressionStatement(_) => &Scope::Block,
             Statement::VariableDeclaration(_) => &Scope::Block,
             Statement::FunctionDefine(_) => &Scope::Outer,
-            Statement::ImplDefine(_) => &Scope::Outer
+            Statement::ImplDefine(_) => &Scope::Outer,
+            Statement::Empty(_) => &Scope::All
         }
+    }
+
+    pub fn into_node(self) -> Node {
+        match self {
+            Statement::Custom(val) => Node::Custom(val),
+            Statement::ExpressionStatement(val) => Node::ExpressionStatement(val),
+            Statement::VariableDeclaration(val) => Node::VariableDeclaration(val),
+            Statement::FunctionDefine(val) => Node::FunctionDefine(val),
+            Statement::ImplDefine(val) => Node::ImplDefine(val),
+            Statement::Empty(val) => Node::Empty(val)
+        } 
     }
 }
 
@@ -396,7 +371,9 @@ pub enum Expr {
     Mod(Mod),
     StringLiteral(StringLiteral),
 
-    DollarID(DollarID)
+    DollarID(DollarID),
+
+    Empty(Empty)
 }
 
 impl Expr {
@@ -419,7 +396,9 @@ impl Expr {
             Expr::Neg(val) => val.pos,
             Expr::Mul(val) => val.pos,
             Expr::Div(val) => val.pos,
-            Expr::Mod(val) => val.pos
+            Expr::Mod(val) => val.pos,
+
+            Expr::Empty(val) => val.pos
         }
     }
 
@@ -442,7 +421,9 @@ impl Expr {
             Expr::Neg(_) => "negate",
             Expr::Mul(_) => "multiply",
             Expr::Div(_) => "divide",
-            Expr::Mod(_) => "modulo"
+            Expr::Mod(_) => "modulo",
+
+            Expr::Empty(_) => "empty"
         }
     }
 }
