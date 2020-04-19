@@ -161,6 +161,17 @@ pub struct Block {
     pub pos: helpers::Pos
 }
 
+impl Block {
+    pub fn to_string(&self) -> String {
+        let mut val = String::new();
+        for node in &self.nodes {
+            val += &node.to_string();
+            val += "\n";
+        }
+        val
+    }
+}
+
 #[derive(Debug)]
 /// Function definition
 pub struct FunctionDefine {
@@ -299,7 +310,9 @@ impl Statement {
         match &self {
             Statement::ExpressionStatement(val) => format!("{}", val.expression.to_str()),
             Statement::VariableDeclaration(_) => "variable declaration".to_string(),
-            Statement::FunctionDefine(_) => "function define".to_string(),
+            Statement::FunctionDefine(val) => { 
+                format!("function define \n{}", val.block.to_string())
+            },
             Statement::Empty(_) => "empty statement".to_string()
         }
     }
