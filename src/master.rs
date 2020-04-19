@@ -22,7 +22,7 @@ impl<'a> Master<'a> {
         
         match code_gen_mod {
             Ok(mut code_gen_safe) => { 
-                self.logger.add_file(filename.clone(), code_gen_safe.parser.lexer.file_contents.clone());
+                self.logger.add_file(filename.clone(), code_gen_safe.typecheck.parser.lexer.file_contents.clone());
                 let module = code_gen_safe.generate();
                 match module {
                     Ok(_) => {},
