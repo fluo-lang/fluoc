@@ -1,24 +1,8 @@
--- Example of syntax oriented programming
-
---using syntax::statement;
-impl useless_print -> syntax::statement::statement {
-    pattern syntax::statement::parse {
-        "print",
-        $expr: syntax::expr,
-        ";"
-    }
-
-    pattern syntax::statement::run {
-        print($expr);
-    }
-}
-
--- import tests2;
 
 -- Entry function: only run if this file is the one being run
 def entry () -> int {
     let x: int = 10+10*(1929+10); -- x takes ownership of this expr
     x = 10;
 
-    print 10 ; -- should change to print(10);
+    print(10); -- should change to print(10);
 }

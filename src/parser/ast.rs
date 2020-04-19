@@ -2,7 +2,6 @@ use crate::helpers;
 use std::fmt::Debug;
 use std::fmt;
 use std::hash::{Hash, Hasher};
-use crate::parser::custom_syntax::{ Custom, Pattern, Terminal, NonTerminal, Impl };
 
 // EXPRESSIONS ---------------------------------------
 
@@ -266,20 +265,11 @@ pub enum Node {
     Div(Div),
     Mod(Mod),
 
-    // We want the custom node to be
-    // customizable in terms of where 
-    // it can be put
-    Custom(Custom),
-    Pattern(Pattern),
-
     ExpressionStatement(ExpressionStatement),
     VariableDeclaration(VariableDeclaration),
     FunctionDefine(FunctionDefine),
-    ImplDefine(Impl),
 
     StringLiteral(StringLiteral),
-    Terminal(Terminal),
-    NonTerminal(NonTerminal),
     DollarID(DollarID),
     Nodes(Nodes),
 
@@ -288,12 +278,9 @@ pub enum Node {
 
 #[derive(Debug)]
 pub enum Statement {
-    Custom(Custom),
-
     ExpressionStatement(ExpressionStatement),
     VariableDeclaration(VariableDeclaration),
     FunctionDefine(FunctionDefine),
-    ImplDefine(Impl),
 
     Empty(Empty)
 }
@@ -301,22 +288,18 @@ pub enum Statement {
 impl Statement {
     pub fn pos(&self) -> helpers::Pos {
         match &self {
-            Statement::Custom(val) => val.pos,
             Statement::ExpressionStatement(val) => val.pos,
             Statement::VariableDeclaration(val) => val.pos,
             Statement::FunctionDefine(val) => val.pos,
-            Statement::ImplDefine(val) => val.pos,
             Statement::Empty(val) => val.pos
         }
     }
 
     pub fn to_string(&self) -> String {
         match &self {
-            Statement::Custom(val) => val.rep.clone(),
             Statement::ExpressionStatement(val) => format!("{}", val.expression.to_str()),
             Statement::VariableDeclaration(_) => "variable declaration".to_string(),
             Statement::FunctionDefine(_) => "function define".to_string(),
-            Statement::ImplDefine(_) => "impl statement".to_string(),
             Statement::Empty(_) => "empty statement".to_string()
         }
     }
@@ -327,22 +310,18 @@ impl Statement {
 
     pub fn get_scope<'a>(statement: &Statement) -> &Scope {
         match statement {
-            Statement::Custom(val) => &val.scope,
             Statement::ExpressionStatement(_) => &Scope::Block,
             Statement::VariableDeclaration(_) => &Scope::Block,
             Statement::FunctionDefine(_) => &Scope::Outer,
-            Statement::ImplDefine(_) => &Scope::Outer,
             Statement::Empty(_) => &Scope::All
         }
     }
 
     pub fn into_node(self) -> Node {
         match self {
-            Statement::Custom(val) => Node::Custom(val),
             Statement::ExpressionStatement(val) => Node::ExpressionStatement(val),
             Statement::VariableDeclaration(val) => Node::VariableDeclaration(val),
             Statement::FunctionDefine(val) => Node::FunctionDefine(val),
-            Statement::ImplDefine(val) => Node::ImplDefine(val),
             Statement::Empty(val) => Node::Empty(val)
         } 
     }
@@ -350,11 +329,6 @@ impl Statement {
 
 #[derive(Debug)]
 pub enum Expr {
-    // We want the custom node to be
-    // customizable in terms of where 
-    // it can be put
-    Custom(Custom),
-
     Integer(Integer), 
 
     RefID(RefID), 
@@ -380,8 +354,6 @@ impl Expr {
     pub fn pos(&self) -> helpers::Pos {
         match &self {
             Expr::Integer(val) => val.pos,
-
-            Expr::Custom(val) => val.pos,
             
             Expr::RefID(val) => val.pos,
             Expr::DollarID(val) => val.pos,
@@ -405,8 +377,6 @@ impl Expr {
     pub fn to_str<'a>(&'a self) -> &'a str {
         match self {
             Expr::Integer(_) => "integer",
-
-            Expr::Custom(val) => &val.rep,
             
             Expr::RefID(_) => "ID",
             Expr::DollarID(_) => "dollar sign ID",
