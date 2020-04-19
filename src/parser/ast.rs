@@ -360,7 +360,9 @@ pub enum Expr {
 
     DollarID(DollarID),
 
-    Empty(Empty)
+    Empty(Empty),
+
+    FunctionDefine(FunctionDefine)
 }
 
 impl Expr {
@@ -383,7 +385,8 @@ impl Expr {
             Expr::Div(val) => val.pos,
             Expr::Mod(val) => val.pos,
 
-            Expr::Empty(val) => val.pos
+            Expr::Empty(val) => val.pos,
+            Expr::FunctionDefine(val) => val.pos,
         }
     }
 
@@ -406,7 +409,8 @@ impl Expr {
             Expr::Div(_) => "divide",
             Expr::Mod(_) => "modulo",
 
-            Expr::Empty(_) => "empty"
+            Expr::Empty(_) => "empty",
+            Expr::FunctionDefine(_) => "function define"
         }
     }
 }
