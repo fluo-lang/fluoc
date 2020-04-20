@@ -1,4 +1,5 @@
 use crate::helpers;
+
 use std::fmt::Debug;
 use std::fmt;
 use std::hash::{Hash, Hasher};
@@ -217,11 +218,17 @@ pub struct Type {
     pub pos: helpers::Pos
 }
 
-#[derive(Debug)]
+#[derive(Debug, Hash, Eq)]
 /// This::is::a::namespace!
 pub struct Namespace {
     pub scopes: Vec<NameID>,
     pub pos: helpers::Pos
+}
+
+impl PartialEq for Namespace {
+    fn eq(&self, other: &Self) -> bool {
+        self.scopes == other.scopes
+    }
 }
 
 impl fmt::Display for Namespace {

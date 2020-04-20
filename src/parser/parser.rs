@@ -5,6 +5,8 @@ use crate::parser::ast::{ Statement, Expr, Scope };
 use crate::helpers;
 use crate::codegen::module_codegen::CodeGenModule;
 
+use std::collections::HashMap;
+
 
 /// Recursive descent parser
 pub struct Parser<'a> {
@@ -12,7 +14,7 @@ pub struct Parser<'a> {
     pub lexer: lexer::Lexer,
     /// Abstract syntax tree
     pub ast: Option<ast::Block>,
-    pub modules: Vec<CodeGenModule<'a>>,
+    pub modules: HashMap<ast::Namespace, CodeGenModule<'a>>,
     statements: Vec<fn (&mut Self) -> Result<Statement, Error>>,
 }
 
@@ -27,7 +29,7 @@ impl Parser<'_> {
         Parser { 
             lexer: l, 
             ast: None, 
-            modules: Vec::new(), 
+            modules: HashMap::new(), 
             statements: vec![Parser::function_define, Parser::expression_statement, Parser::variable_declaration],
         }
     }
@@ -225,17 +227,19 @@ impl Parser<'_> {
 
         self.next(lexer::TokenType::RP, position, false)?;
 
-        let mut return_type = ast::Type {
-            value: ast::TypeType::Tuple(Vec::new()),
-            pos: helpers::Pos {
-                s: self.lexer.position,
-                e: self.lexer.position,
-            }
-        };
+        let return_type: ast::Type;
 
         if self.lexer.peek()?.token == lexer::TokenType::ARROW {
             self.lexer.advance()?;
             return_type = self.type_expr()?;
+        } else {
+            return_type = ast::Type {
+                value: ast::TypeType::Tuple(Vec::new()),
+                pos: helpers::Pos {
+                    s: self.lexer.position,
+                    e: self.lexer.position,
+                }
+            };
         }
 
         let block = self.block()?;
