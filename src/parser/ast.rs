@@ -191,6 +191,12 @@ pub struct ArgumentsRun {
 }
 
 #[derive(Debug)]
+pub struct Return {
+    pub expression: Expr,
+    pub pos: helpers::Pos
+}
+
+#[derive(Debug)]
 /// Function definition
 pub struct FunctionCall {
     pub arguments: ArgumentsRun,
@@ -290,6 +296,8 @@ pub enum Node {
     StringLiteral(StringLiteral),
     DollarID(DollarID),
     Nodes(Nodes),
+    
+    Return(Return),
 
     Empty(Empty)
 }
@@ -299,6 +307,7 @@ pub enum Statement {
     ExpressionStatement(ExpressionStatement),
     VariableDeclaration(VariableDeclaration),
     FunctionDefine(FunctionDefine),
+    Return(Return),
 
     Empty(Empty)
 }
@@ -309,6 +318,8 @@ impl Statement {
             Statement::ExpressionStatement(val) => val.pos,
             Statement::VariableDeclaration(val) => val.pos,
             Statement::FunctionDefine(val) => val.pos,
+            Statement::Return(val) => val.pos,
+
             Statement::Empty(val) => val.pos
         }
     }
@@ -320,6 +331,8 @@ impl Statement {
             Statement::FunctionDefine(val) => { 
                 format!("function define \n{}", val.block.to_string())
             },
+            Statement::Return(_) => "return statement".to_string(),
+
             Statement::Empty(_) => "empty statement".to_string()
         }
     }
@@ -333,6 +346,8 @@ impl Statement {
             Statement::ExpressionStatement(_) => &Scope::Block,
             Statement::VariableDeclaration(_) => &Scope::Block,
             Statement::FunctionDefine(_) => &Scope::Outer,
+            Statement::Return(_) => &Scope::Block,
+
             Statement::Empty(_) => &Scope::All
         }
     }
@@ -342,6 +357,8 @@ impl Statement {
             Statement::ExpressionStatement(val) => Node::ExpressionStatement(val),
             Statement::VariableDeclaration(val) => Node::VariableDeclaration(val),
             Statement::FunctionDefine(val) => Node::FunctionDefine(val),
+            Statement::Return(val) => Node::Return(val),
+
             Statement::Empty(val) => Node::Empty(val)
         } 
     }

@@ -213,6 +213,7 @@ impl Logger {
                 relative_pos = 1;
             }
         }
+        println!("{:?}", (lineno, relative_pos));
         (lineno, relative_pos)
     }
 

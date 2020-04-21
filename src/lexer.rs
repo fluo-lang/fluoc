@@ -359,10 +359,12 @@ impl Lexer {
             // Don't increment if EOF char, leads to weird out of bounds errors in error reporting
             self.temp_pos -= 1;
         }
-        
+
         if let Ok(TokenType::WHITESPACE(_)) | Ok(TokenType::LINECOMMENT(_)) | Ok(TokenType::BLOCKCOMMENT(_)) = token_kind {
+            self.eat();
             token_kind = self.get_next_tok_type()
         }
+
         token_kind
     }
 
@@ -431,6 +433,7 @@ impl Lexer {
             "let" => Ok(TokenType::LET),
             "impl" => Ok(TokenType::IMPL),
             "pattern" => Ok(TokenType::PATTERN),
+            "return" => Ok(TokenType::RETURN),
             _ => Ok(TokenType::IDENTIFIER(id.1))
         }
     }

@@ -30,7 +30,7 @@ impl Parser<'_> {
             lexer: l, 
             ast: None, 
             modules: HashMap::new(), 
-            statements: vec![Parser::function_define, Parser::expression_statement, Parser::variable_declaration],
+            statements: vec![Parser::function_define, Parser::expression_statement, Parser::return_statement, Parser::variable_declaration],
         }
     }
     
@@ -102,6 +102,17 @@ impl Parser<'_> {
                                         ast_list.push(ast_production);
                                         break
                                     } else {
+                                        errors.push(Error::new(
+                                            "unexpected statement in outer scope".to_string(),
+                                            ErrorType::Syntax, 
+                                            ast_production.pos(),
+                                            ErrorDisplayType::Error,
+                                            self.lexer.filename.clone(),
+                                            vec![
+                                                ErrorAnnotation::new(Some("unexpected statement".to_string()), ast_production.pos(), ErrorDisplayType::Error, self.lexer.filename.clone())
+                                            ],
+                                            true
+                                        ));
                                         break
                                     }
                                 },
@@ -113,7 +124,7 @@ impl Parser<'_> {
                         match temp_peek {
                             Err(e) => { return Err(vec![e]); },
                             Ok(temp_peek) => {
-                                if temp_peek.token == lexer::TokenType::EOF && !fail{
+                                if temp_peek.token == lexer::TokenType::EOF && !fail {
                                     // We've successfully parsed, break
                                     break
                                 } else if !errors.is_empty() && fail {
@@ -154,6 +165,17 @@ impl Parser<'_> {
                             ast_list.push(ast_production);
                             break
                         } else {
+                            errors.push(Error::new(
+                                "unexpected statement in inner scope".to_string(),
+                                ErrorType::Syntax, 
+                                ast_production.pos(),
+                                ErrorDisplayType::Error,
+                                self.lexer.filename.clone(),
+                                vec![
+                                    ErrorAnnotation::new(Some("unexpected statement".to_string()), ast_production.pos(), ErrorDisplayType::Error, self.lexer.filename.clone())
+                                ],
+                                true
+                            ));
                             break
                         }
                     },
@@ -165,7 +187,7 @@ impl Parser<'_> {
                 // We've successfully parsed, break
                 break
             } else if !errors.is_empty() && fail {
-                // We've found an error, raise the error
+                // We've found an error, return the error
                 return Err(Logger::longest(errors));
             } else if self.lexer.peek()?.token != lexer::TokenType::RCP && fail {
                 // We've forgotten closing brace
@@ -249,6 +271,20 @@ impl Parser<'_> {
             arguments,
             block,
             name: id,
+            pos: self.position(position)
+        }))
+    }
+
+    pub fn return_statement(&mut self) -> Result<Statement, Error> {
+        let position = self.lexer.get_pos();
+
+        self.next(lexer::TokenType::RETURN, position, true)?;
+
+        let expr = self.expr()?;
+        self.next(lexer::TokenType::SEMI, position, false)?;
+
+        Ok(ast::Statement::Return(ast::Return {
+            expression: expr,
             pos: self.position(position)
         }))
     }
