@@ -610,7 +610,7 @@ mod lexer_tests {
         assert_eq!(*l.advance().unwrap(), Token { token: TokenType::NUMBER(String::from("10")), pos: helpers::Pos { s: 31, e: 33 } } ) ;
         assert_eq!(*l.advance().unwrap(), Token { token: TokenType::SEMI, pos: helpers::Pos { s: 33, e: 34 } } ) ;
         assert_eq!(*l.advance().unwrap(), Token { token: TokenType::RCP, pos: helpers::Pos { s: 35, e: 36 } } ) ;
-        assert_eq!(*l.advance().unwrap(), Token { token: TokenType::EOF, pos: helpers::Pos { s: 38, e: 38 } } ) ;
+        assert_eq!(*l.advance().unwrap(), Token { token: TokenType::EOF, pos: helpers::Pos { s: 37, e: 37 } } ) ;
         Ok(())
     }
 }
