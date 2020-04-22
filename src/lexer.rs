@@ -619,8 +619,7 @@ mod lexer_tests {
 
     #[test]
     fn lex_test() -> io::Result<()> {
-        println!("{:?}", env::current_dir());
-        let mut l = Lexer::new(String::from("./tests/simple_tests.fluo"))?;
+        let mut l = Lexer::new(String::from("./tests/lexer_test.fluo"))?;
     
         assert_eq!(*l.advance().unwrap(), Token { token: DEF, pos: Pos { s: 37, e: 40 } });
         assert_eq!(*l.advance().unwrap(), Token { token: IDENTIFIER("entry".to_string()), pos: Pos { s: 41, e: 46 } });
