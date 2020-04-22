@@ -3,6 +3,7 @@ use std::io;
 use std::fmt;
 use crate::logger::logger::{ Error, ErrorDisplayType, ErrorType };
 
+
 /// EOF Character
 const EOF_CHAR: char = '\0';
 
@@ -250,6 +251,25 @@ impl Lexer {
                 pos: helpers::Pos::new(0, 0)
             }
         })
+    }
+
+    /// generate a unit test for the lexer
+    pub fn get_unit_test(&mut self) {
+        loop {
+            let token = self.advance();
+
+            match token {
+                Ok(tok) => match tok.token {
+                    TokenType::EOF => {
+                        break;
+                    }
+                    _ => {
+                        println!("assert_eq!(*l.advance().unwrap(), {:?});", tok);
+                    }
+                },
+                Err(_) => { }
+            }
+        }
     }
 
     /// Get the nth char of input stream
@@ -543,6 +563,8 @@ impl Lexer {
 #[cfg(test)]
 mod lexer_tests {
     use super::*;
+    use TokenType::*;
+    use crate::helpers::Pos;
 
     #[test]
     fn token_len_bin_op() {
@@ -597,20 +619,55 @@ mod lexer_tests {
     #[test]
     fn lex_test() -> io::Result<()> {
         let mut l = Lexer::new(String::from("./examples/simple_tests.fluo"))?;
-        assert_eq!(*l.advance().unwrap(), Token { token: TokenType::DEF, pos: helpers::Pos { s: 0, e: 3 } } ) ;
-        assert_eq!(*l.advance().unwrap(), Token { token: TokenType::IDENTIFIER(String::from("entry")), pos: helpers::Pos { s: 4, e: 9 } } ) ;
-        assert_eq!(*l.advance().unwrap(), Token { token: TokenType::LP, pos: helpers::Pos { s: 9, e: 10 } } ) ;
-        assert_eq!(*l.advance().unwrap(), Token { token: TokenType::RP, pos: helpers::Pos { s: 10, e: 11 } } ) ;
-        assert_eq!(*l.advance().unwrap(), Token { token: TokenType::LCP, pos: helpers::Pos { s: 12, e: 13 } } ) ;
-        assert_eq!(*l.advance().unwrap(), Token { token: TokenType::LET, pos: helpers::Pos { s: 18, e: 21 } } ) ;
-        assert_eq!(*l.advance().unwrap(), Token { token: TokenType::IDENTIFIER(String::from("x")), pos: helpers::Pos { s: 22, e: 23 } } ) ;
-        assert_eq!(*l.advance().unwrap(), Token { token: TokenType::COLON, pos: helpers::Pos { s: 23, e: 24 } } ) ;
-        assert_eq!(*l.advance().unwrap(), Token { token: TokenType::IDENTIFIER(String::from("int")), pos: helpers::Pos { s: 25, e: 28 } } ) ;
-        assert_eq!(*l.advance().unwrap(), Token { token: TokenType::EQUALS, pos: helpers::Pos { s: 29, e: 30 } } ) ;
-        assert_eq!(*l.advance().unwrap(), Token { token: TokenType::NUMBER(String::from("10")), pos: helpers::Pos { s: 31, e: 33 } } ) ;
-        assert_eq!(*l.advance().unwrap(), Token { token: TokenType::SEMI, pos: helpers::Pos { s: 33, e: 34 } } ) ;
-        assert_eq!(*l.advance().unwrap(), Token { token: TokenType::RCP, pos: helpers::Pos { s: 35, e: 36 } } ) ;
-        assert_eq!(*l.advance().unwrap(), Token { token: TokenType::EOF, pos: helpers::Pos { s: 37, e: 37 } } ) ;
+        assert_eq!(*l.advance().unwrap(), Token { token: DEF, pos: Pos { s: 37, e: 40 } });
+        assert_eq!(*l.advance().unwrap(), Token { token: IDENTIFIER("entry".to_string()), pos: Pos { s: 41, e: 46 } });
+        assert_eq!(*l.advance().unwrap(), Token { token: LP, pos: Pos { s: 46, e: 47 } });
+        assert_eq!(*l.advance().unwrap(), Token { token: IDENTIFIER("one".to_string()), pos: Pos { s: 47, e: 50 } });
+        assert_eq!(*l.advance().unwrap(), Token { token: COMMA, pos: Pos { s: 50, e: 51 } });
+        assert_eq!(*l.advance().unwrap(), Token { token: IDENTIFIER("two".to_string()), pos: Pos { s: 52, e: 55 } });
+        assert_eq!(*l.advance().unwrap(), Token { token: RP, pos: Pos { s: 55, e: 56 } });
+        assert_eq!(*l.advance().unwrap(), Token { token: LCP, pos: Pos { s: 57, e: 58 } });
+        assert_eq!(*l.advance().unwrap(), Token { token: LET, pos: Pos { s: 63, e: 66 } });
+        assert_eq!(*l.advance().unwrap(), Token { token: IDENTIFIER("x".to_string()), pos: Pos { s: 67, e: 68 } });
+        assert_eq!(*l.advance().unwrap(), Token { token: COLON, pos: Pos { s: 68, e: 69 } });
+        assert_eq!(*l.advance().unwrap(), Token { token: IDENTIFIER("int".to_string()), pos: Pos { s: 70, e: 73 } });
+        assert_eq!(*l.advance().unwrap(), Token { token: EQUALS, pos: Pos { s: 74, e: 75 } });
+        assert_eq!(*l.advance().unwrap(), Token { token: NUMBER("10".to_string()), pos: Pos { s: 76, e: 78 } });
+        assert_eq!(*l.advance().unwrap(), Token { token: SEMI, pos: Pos { s: 78, e: 79 } });
+        assert_eq!(*l.advance().unwrap(), Token { token: RETURN, pos: Pos { s: 155, e: 161 } });
+        assert_eq!(*l.advance().unwrap(), Token { token: NUMBER("1".to_string()), pos: Pos { s: 162, e: 163 } });
+        assert_eq!(*l.advance().unwrap(), Token { token: ADD, pos: Pos { s: 163, e: 164 } });
+        assert_eq!(*l.advance().unwrap(), Token { token: NUMBER("192".to_string()), pos: Pos { s: 164, e: 167 } });
+        assert_eq!(*l.advance().unwrap(), Token { token: MUL, pos: Pos { s: 167, e: 168 } });
+        assert_eq!(*l.advance().unwrap(), Token { token: NUMBER("20".to_string()), pos: Pos { s: 168, e: 170 } });
+        assert_eq!(*l.advance().unwrap(), Token { token: DIV, pos: Pos { s: 170, e: 171 } });
+        assert_eq!(*l.advance().unwrap(), Token { token: LP, pos: Pos { s: 171, e: 172 } });
+        assert_eq!(*l.advance().unwrap(), Token { token: NUMBER("120".to_string()), pos: Pos { s: 172, e: 175 } });
+        assert_eq!(*l.advance().unwrap(), Token { token: ADD, pos: Pos { s: 176, e: 177 } });
+        assert_eq!(*l.advance().unwrap(), Token { token: STRING("\"2319\"".to_string()), pos: Pos { s: 178, e: 184 } });
+        assert_eq!(*l.advance().unwrap(), Token { token: RP, pos: Pos { s: 184, e: 185 } });
+        assert_eq!(*l.advance().unwrap(), Token { token: MOD, pos: Pos { s: 185, e: 186 } });
+        assert_eq!(*l.advance().unwrap(), Token { token: NUMBER("10".to_string()), pos: Pos { s: 186, e: 188 } });
+        assert_eq!(*l.advance().unwrap(), Token { token: DIV, pos: Pos { s: 188, e: 189 } });
+        assert_eq!(*l.advance().unwrap(), Token { token: NUMBER("203911234567890".to_string()), pos: Pos { s: 189, e: 204 } });
+        assert_eq!(*l.advance().unwrap(), Token { token: SEMI, pos: Pos { s: 204, e: 205 } });
+        assert_eq!(*l.advance().unwrap(), Token { token: LET, pos: Pos { s: 213, e: 216 } });
+        assert_eq!(*l.advance().unwrap(), Token { token: IDENTIFIER("_qwertyuiopasdfghjklzxcvbnm".to_string()), pos: Pos { s: 217, e: 244 } });
+        assert_eq!(*l.advance().unwrap(), Token { token: SEMI, pos: Pos { s: 244, e: 245 } });
+        assert_eq!(*l.advance().unwrap(), Token { token: IDENTIFIER("_qwertyuiopasdfghjklzxcvbnm".to_string()), pos: Pos { s: 250, e: 277 } });
+        assert_eq!(*l.advance().unwrap(), Token { token: EQUALS, pos: Pos { s: 278, e: 279 } });
+        assert_eq!(*l.advance().unwrap(), Token { token: STRING("\"hi\"".to_string()), pos: Pos { s: 280, e: 284 } });
+        assert_eq!(*l.advance().unwrap(), Token { token: SEMI, pos: Pos { s: 284, e: 285 } });
+        assert_eq!(*l.advance().unwrap(), Token { token: RCP, pos: Pos { s: 287, e: 288 } });
+        assert_eq!(*l.advance().unwrap(), Token { token: DEF, pos: Pos { s: 419, e: 422 } });
+        assert_eq!(*l.advance().unwrap(), Token { token: IDENTIFIER("_123awfawjfaifjaiwjf".to_string()), pos: Pos { s: 423, e: 443 } });
+        assert_eq!(*l.advance().unwrap(), Token { token: LP, pos: Pos { s: 443, e: 444 } });
+        assert_eq!(*l.advance().unwrap(), Token { token: IDENTIFIER("one".to_string()), pos: Pos { s: 444, e: 447 } });
+        assert_eq!(*l.advance().unwrap(), Token { token: COMMA, pos: Pos { s: 447, e: 448 } });
+        assert_eq!(*l.advance().unwrap(), Token { token: IDENTIFIER("two".to_string()), pos: Pos { s: 449, e: 452 } });
+        assert_eq!(*l.advance().unwrap(), Token { token: RP, pos: Pos { s: 452, e: 453 } });
+        assert_eq!(*l.advance().unwrap(), Token { token: LCP, pos: Pos { s: 454, e: 455 } });
+        assert_eq!(*l.advance().unwrap(), Token { token: RCP, pos: Pos { s: 458, e: 459 } });
         Ok(())
     }
 }
