@@ -618,7 +618,7 @@ mod lexer_tests {
 
     #[test]
     fn lex_test() -> io::Result<()> {
-        let mut l = Lexer::new(String::from("./examples/simple_tests.fluo"))?;
+        let mut l = Lexer::new(String::from("./tests/simple_tests.fluo"))?;
         assert_eq!(*l.advance().unwrap(), Token { token: DEF, pos: Pos { s: 37, e: 40 } });
         assert_eq!(*l.advance().unwrap(), Token { token: IDENTIFIER("entry".to_string()), pos: Pos { s: 41, e: 46 } });
         assert_eq!(*l.advance().unwrap(), Token { token: LP, pos: Pos { s: 46, e: 47 } });

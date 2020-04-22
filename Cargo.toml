@@ -8,4 +8,4 @@ edition = "2018"
 
 [dependencies]
 clap = {version = "2.33.0", features = ["yaml"]}
-inkwell = { git = "https://github.com/TheDan64/inkwell", branch = "llvm8-0" }
+inkwell = { git = "https://github.com/TheDan64/inkwell", branch = "llvm10-0" }

@@ -1,0 +1,37 @@
+-- lexer test (code shouldn't work)
+
+def entry() {
+    let x: int = 10;
+
+    -- hello work 12342824\n924910djwi2wkfjar2riar
+    /* ajwd asjf*/
+    return 1+192*20/(120 + "2319")%10/203911234567890;
+
+
+
+    let _qwertyuiopasdfghjklzxcvbnm: int;
+    _qwertyuiopasdfghjklzxcvbnm = "hi";
+    hi(10, 102, _qwertyuiopasdfghjklzxcvbnm+"other hi", x);
+}
+
+/*
+hlleoa1234567890qwertyuiopasdfghjklzxcvbnm,./?><;'":[]\|}{=-0987654321`~!@#$%^&*()_+
+one two
+djawd
+sfghsdjajdksajfiwjijfa
+*/
+
+def entry() {
+    let x: int = 10;
+
+    -- hello work 12342824\n924910djwi2wkfjar2riar
+    /* ajwd asjf*/
+    return 1+192*20/(120 + "2319")%10/203911234567890;
+
+
+
+    let _qwertyuiopasdfghjklzxcvbnm: int;
+    _qwertyuiopasdfghjklzxcvbnm = "hi";
+    hi(10, 102, _qwertyuiopasdfghjklzxcvbnm+"other hi", x);
+}
+

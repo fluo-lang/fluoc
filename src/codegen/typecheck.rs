@@ -24,7 +24,7 @@ impl<'a> TypeCheckModule<'a> {
 
     pub fn type_check(&mut self) -> Result<(), Vec<Error>> {
         self.parser.parse()?;
-        print!("\n{}", self.parser.ast.as_ref().unwrap().to_string());
+        print!("\n{:#?}\n", self.parser.ast.as_ref().unwrap());
 
         // Do type checking
 

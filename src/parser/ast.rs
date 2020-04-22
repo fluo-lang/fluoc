@@ -329,7 +329,7 @@ impl Statement {
             Statement::ExpressionStatement(val) => format!("{}", val.expression.to_str()),
             Statement::VariableDeclaration(_) => "variable declaration".to_string(),
             Statement::FunctionDefine(val) => { 
-                format!("function define \n{}", val.block.to_string())
+                format!("function define {{\n{}}}", val.block.to_string())
             },
             Statement::Return(_) => "return statement".to_string(),
 

@@ -527,6 +527,11 @@ impl Parser<'_> {
             Err(e) => errors.push(e)
         }
 
+        match self.string_literal() {
+            Ok(ast) => return Ok(ast),
+            Err(e) => errors.push(e)
+        }
+
         match self.dollar_id() {
             Ok(ast) => return Ok(Expr::DollarID(ast)),
             Err(e) => errors.push(e)
@@ -544,6 +549,11 @@ impl Parser<'_> {
 
         match self.variable_assign_full() {
             Ok(ast) => return Ok(ast),
+            Err(e) => errors.push(e)
+        }
+
+        match self.ref_id() {
+            Ok(ast) => return Ok(Expr::RefID(ast)),
             Err(e) => errors.push(e)
         }
         
@@ -577,16 +587,16 @@ impl Parser<'_> {
         }
     }
 
-    pub fn string_literal(&mut self) -> Result<ast::StringLiteral, Error> {
+    pub fn string_literal(&mut self) -> Result<Expr, Error> {
         let position = self.lexer.get_pos();
 
         let string = self.lexer.advance()?.clone();
         if let lexer::TokenType::STRING(value) = &string.token {
             Ok(
-                ast::StringLiteral {
+                ast::Expr::StringLiteral(ast::StringLiteral {
                     value: value.to_string(),
                     pos: string.pos
-                }
+                })
             )
         } else {
             self.lexer.set_pos(position);
@@ -637,6 +647,23 @@ impl Parser<'_> {
         }
     }
 
+    /// Parse ref identifier (i.e. variable refrence (not &))
+    pub fn ref_id(&mut self) -> Result<ast::RefID, Error> {
+        let position = self.lexer.get_pos();
+        let id = self.lexer.advance()?.clone();
+        if let lexer::TokenType::IDENTIFIER(value) = &id.token {
+            Ok(
+                ast::RefID {
+                    value: value.to_string(),
+                    pos: id.pos
+                }
+            )
+        } else {
+            self.lexer.set_pos(position);
+            Err(self.syntax_error(id, "expected variable", false, false))
+        }
+    }
+
     /// Parse type expression
     pub fn type_expr(&mut self) -> Result<ast::Type, Error> {
         // TODO: add tuple type  
@@ -661,5 +688,16 @@ impl Parser<'_> {
             value: id,
             pos: self.position(position)
         })
+    }
+}
+
+#[cfg(test)]
+mod parser_tests {
+    use super::*;
+
+    #[test]
+    fn parse_test() -> Result<(), Error> {
+        
+        Ok(())
     }
 }
