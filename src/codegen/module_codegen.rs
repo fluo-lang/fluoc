@@ -1,5 +1,5 @@
 use crate::logger::logger::Error;
-use crate::codegen::typecheck;
+use crate::typecheck::typecheck;
 
 use inkwell::module;
 use std::io;

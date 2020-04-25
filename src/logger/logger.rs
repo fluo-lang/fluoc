@@ -162,6 +162,10 @@ impl Error {
             urgent
         }
     }
+
+    pub fn is_priority(&self) -> bool {
+        self.urgent
+    }
 }
 
 #[derive(Clone)]
@@ -213,7 +217,7 @@ impl Logger {
                 relative_pos = 1;
             }
         }
-        println!("{:?}", (lineno, relative_pos));
+
         (lineno, relative_pos)
     }
 
@@ -804,7 +808,14 @@ impl Logger {
     /// Useful when you have multiple errors and want to know which one is the most accurate.
     pub fn longest(errors: Vec<Error>) -> Error {
         let mut errors = errors;
-        errors.sort_by_key(|x| (if x.urgent { 1 } else { 0 }, x.position.e));
+        errors.sort_by_key(|x| (
+            // Urgents have a greater priority (i.e. a scope error)
+            if x.urgent { 1 } else { 0 }, 
+            // If its urgent, the one first wins
+            Reverse(if x.urgent {  x.position.s } else { 0 }), 
+            // Otherwise classify as the end position (the error that parses the furthest)
+            x.position.e
+        ));
         errors.last().unwrap().clone()
     }
 }

@@ -58,7 +58,7 @@ impl Parser<'_> {
     /// Validate next token
     pub fn next(&mut self, token_type: lexer::TokenType, position: (usize, usize), is_keyword: bool) -> Result<(), Error> {
         let t = self.lexer.advance()?.clone();
-        
+
         if t.token != token_type {
             self.lexer.set_pos(position);
             Err(self.syntax_error(t, &format!("expected {}", token_type)[..], is_keyword, false))

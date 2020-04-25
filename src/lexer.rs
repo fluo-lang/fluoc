@@ -379,13 +379,34 @@ impl Lexer {
             // Don't increment if EOF char, leads to weird out of bounds errors in error reporting
             self.temp_pos -= 1;
         }
-
+        
         if let Ok(TokenType::WHITESPACE(_)) | Ok(TokenType::LINECOMMENT(_)) | Ok(TokenType::BLOCKCOMMENT(_)) = token_kind {
             self.eat();
-            token_kind = self.get_next_tok_type()
+            token_kind = self.get_next_tok_type();
         }
 
         token_kind
+    }
+
+    pub fn eat_whitespace(&mut self) -> Result<(), Error> {
+        let pos = (self.position, self.temp_pos);
+        let first_char = self.bump();
+
+        match first_char {
+            '-' => match self.first() {
+                '-' => { self.line_comment()?; self.eat(); return Ok(()); },
+                _ => {  }
+            },
+            '/' => match self.first() {
+                '*' => { self.block_comment()?; self.eat(); return Ok(()); },
+                _ => {  }
+            },
+            c if is_whitespace(c) => { self.whitespace()?; self.eat(); return Ok(()); },
+            _ => { }
+        };
+        
+        self.set_pos(pos);
+        Ok(())
     }
 
     /// Set position of lexer: for use by the parser
@@ -394,19 +415,22 @@ impl Lexer {
         self.temp_pos = pos.1;
     }
 
+    #[allow(unused_must_use)]
     /// Set get of lexer: for use by the parser
     pub fn get_pos(&mut self) -> (usize, usize) {
+        self.eat_whitespace();
         (self.position, self.temp_pos)
     }
 
     /// Get next token in input stream, and advance
     pub fn advance<'a>(&'a mut self) -> Result<&Token, Error> {
         let token_kind = self.get_next_tok_type()?;
+        let position = self.position;
         self.eat();
-        
+
         self.current_token = Token {
             pos: helpers::Pos::new(
-                self.position-get_tok_length(&token_kind), 
+                position,
                 self.position
             ),
             token: token_kind
@@ -565,7 +589,6 @@ mod lexer_tests {
     use super::*;
     use TokenType::*;
     use crate::helpers::Pos;
-    use std::env;
 
     #[test]
     fn token_len_bin_op() {

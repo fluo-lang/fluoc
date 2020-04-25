@@ -4,6 +4,7 @@ pub mod logger;
 pub mod parser;
 pub mod codegen;
 pub mod master;
+pub mod typecheck;
 
 #[macro_use]
 extern crate clap;

@@ -1,13 +1,11 @@
--- Entry function: only run if this file is the one being run
--- Default return value: ()
 def entry () -> int {
-def entry () -> int {
-    return 10;
-}
+    def entry_other () -> int {
+        return 10;
+    }
+    
     let x: int = 10+10*(1929+10); -- x takes ownership of this expr
     x = 10;
 
-    --print(10); -- should change to print(10);
+    --print(10); should change to print(10);
     return 100;
-    
 }

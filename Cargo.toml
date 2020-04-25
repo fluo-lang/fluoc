@@ -4,8 +4,6 @@ version = "0.0.1"
 authors = ["Monlih <MonliH@users.noreply.github.com>"]
 edition = "2018"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 clap = {version = "2.33.0", features = ["yaml"]}
 inkwell = { git = "https://github.com/TheDan64/inkwell", branch = "llvm10-0" }
