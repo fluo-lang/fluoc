@@ -1,13 +1,8 @@
-<h1 align = 'left'>Fluo</h1>
+# Fluo
 
-<!--<p align = 'center'>
-  <img src = '/images/igloo_logo.png'>
-</p>
--->
+> Simplicity is the ultimate sophistication.
 
-<p align = 'left'>A syntax oriented compiled programming language</p>
-
-<br>
+Fluo is a simple compiled language.
 
 ```rust
 def fizzbuzz(value: int) {
