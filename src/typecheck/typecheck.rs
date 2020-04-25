@@ -2,6 +2,7 @@ use crate::lexer;
 use crate::parser::{ parser, ast };
 use crate::parser::parser::{ Parser };
 use crate::logger::logger::Error;
+use crate::typecheck::ast_typecheck;
 use std::io;
 use std::collections::HashMap;
 
@@ -27,7 +28,9 @@ impl<'a> TypeCheckModule<'a> {
         print!("\n{:#?}\n", self.parser.ast.as_ref().unwrap());
 
         // Do type checking
-
-        Ok(())
+        match (self.parser.ast.as_ref().unwrap() as &dyn ast_typecheck::TypeCheck).type_check(&None) {
+            Ok(_) => Ok(()),
+            Err(e) => Err(e.unwrap_other())
+        }
     }
 }

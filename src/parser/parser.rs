@@ -260,6 +260,7 @@ impl Parser<'_> {
         } else {
             return_type = ast::Type {
                 value: ast::TypeType::Tuple(Vec::new()),
+                inferred: true,
                 pos: helpers::Pos {
                     s: self.lexer.position,
                     e: self.lexer.position,
@@ -675,6 +676,7 @@ impl Parser<'_> {
         Ok(
             ast::Type {
                 pos: namespace.pos.clone(),
+                inferred: false,
                 value: ast::TypeType::Type(namespace)
             }
         )

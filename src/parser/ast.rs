@@ -221,6 +221,7 @@ pub enum TypeType {
 /// Type Node
 pub struct Type {
     pub value: TypeType,
+    pub inferred: bool,
     pub pos: helpers::Pos
 }
 
@@ -345,7 +346,7 @@ impl Statement {
         match statement {
             Statement::ExpressionStatement(_) => &Scope::Block,
             Statement::VariableDeclaration(_) => &Scope::Block,
-            Statement::FunctionDefine(_) => &Scope::Outer,
+            Statement::FunctionDefine(_) => &Scope::All,
             Statement::Return(_) => &Scope::Block,
 
             Statement::Empty(_) => &Scope::All
