@@ -47,6 +47,15 @@ impl TypeCheck for Block {
         match return_type {
             Some(Type { value: TypeType::Tuple(tuple_contents), inferred: _, pos: _ }) if tuple_contents.is_empty() => {
                 // The function returns (), so we can implicitly do this at the end. This is the negate case for below.
+                if !returns {
+                    /*self.nodes.push(
+                        Statement::Return(
+                            Return {
+                                expression: 
+                            }
+                        )
+                    )*/
+                }
             },
             Some(Type { value: _, inferred: inferred, pos: pos }) => {
                 

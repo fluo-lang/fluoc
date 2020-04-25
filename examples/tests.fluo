@@ -6,5 +6,5 @@ def entry () -> int {
     let x: int = 10+10*(1929+10); -- x takes ownership of this expr
     x = 10;
 
-    return 100;
+    return ();
 }

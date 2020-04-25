@@ -560,6 +560,11 @@ impl Parser<'_> {
             Ok(ast) => return Ok(Expr::RefID(ast)),
             Err(e) => errors.push(e)
         }
+
+        match self.tuple() {
+            Ok(ast) => return Ok(Expr::Tuple(ast)),
+            Err(e) => errors.push(e)
+        }
         
         if let lexer::TokenType::LP = self.lexer.advance()?.token {
             let expr = self.expr()?;
@@ -666,6 +671,61 @@ impl Parser<'_> {
             self.lexer.set_pos(position);
             Err(self.syntax_error(id, "expected variable", false, false))
         }
+    }
+
+    pub fn tuple(&mut self) -> Result<ast::Tuple, Error> {
+        let position = self.lexer.get_pos()?;
+
+        self.next(lexer::TokenType::LP, position, false)?;
+
+        let values = match self.items() {
+            Ok(items) => {
+                if items.len() == 1 {
+                    // Required trailing comma
+                    self.next(lexer::TokenType::COMMA, position, false)?;
+                } else {
+                    // Optional trailing comma
+                    if let lexer::TokenType::COMMA = self.lexer.peek()?.token {
+                        self.lexer.advance()?;
+                    }
+                }
+                items
+            },
+            Err(_) => { Vec::new() }
+        };
+        
+        self.next(lexer::TokenType::RP, position, false)?;
+
+        Ok(
+            ast::Tuple {
+                values,
+                pos: self.position(position)
+            }
+        )
+    }
+
+    fn items(&mut self) -> Result<Vec<Expr>, Error> {
+        let mut items: Vec<Expr> = Vec::new();
+
+        let expr = self.expr()?;
+        items.push(expr);
+
+        loop {
+            let position = self.lexer.get_pos()?;
+            if let lexer::TokenType::COMMA = self.lexer.peek()?.token {
+                self.lexer.advance()?;
+                if let Ok(expr) = self.expr() {
+                    items.push(expr);
+                } else {
+                    self.lexer.set_pos(position);
+                    break
+                }
+            } else {
+                break
+            }
+        }
+
+        Ok(items)
     }
 
     /// Parse type expression

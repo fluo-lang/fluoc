@@ -20,6 +20,13 @@ pub struct Integer {
 }
 
 #[derive(Debug)]
+/// Tuple node
+pub struct Tuple {
+    pub values: Vec<Expr>,
+    pub pos: helpers::Pos
+}
+
+#[derive(Debug)]
 /// String literal node
 pub struct StringLiteral {
     pub value: String,
@@ -289,6 +296,7 @@ pub enum Node {
     Mul(Mul),
     Div(Div),
     Mod(Mod),
+    Tuple(Tuple),
 
     ExpressionStatement(ExpressionStatement),
     VariableDeclaration(VariableDeclaration),
@@ -381,7 +389,9 @@ pub enum Expr {
     Mul(Mul),
     Div(Div),
     Mod(Mod),
+
     StringLiteral(StringLiteral),
+    Tuple(Tuple),
 
     DollarID(DollarID),
 
@@ -402,6 +412,7 @@ impl Expr {
             Expr::VariableAssignDeclaration(val) => val.pos,
             Expr::FunctionCall(val) => val.pos,
             Expr::StringLiteral(val) => val.pos,
+            Expr::Tuple(val) => val.pos,
 
             Expr::Add(val) => val.pos,
             Expr::Sub(val) => val.pos,
@@ -426,6 +437,7 @@ impl Expr {
             Expr::VariableAssignDeclaration(_) => "variable assignment declaration",
             Expr::FunctionCall(_) => "function call",
             Expr::StringLiteral(_) => "string literal",
+            Expr::Tuple(_) => "tuple",
 
             Expr::Add(_) => "add",
             Expr::Sub(_) => "subtract",
