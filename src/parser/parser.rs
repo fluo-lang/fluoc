@@ -78,7 +78,10 @@ impl Parser<'_> {
     /// 
     /// Returns nothing
     pub fn parse(&mut self) -> Result<(), Vec<Error>> {
-        let position = self.lexer.get_pos();
+        let position = match self.lexer.get_pos() {
+            Ok(t) => t,
+            Err(e) => { return Err(vec![e]); }
+        };
 
         // Set our scope to outside
         let scope = Scope::Outer;
@@ -144,7 +147,7 @@ impl Parser<'_> {
 
     /// Parse basic block
     pub fn block(&mut self) -> Result<ast::Block, Error> {
-        let position = self.lexer.get_pos();
+        let position = self.lexer.get_pos()?;
         
         self.next(lexer::TokenType::LCP, position, false)?;
 
@@ -205,7 +208,7 @@ impl Parser<'_> {
     }
 
     pub fn parse_arguments(&mut self) -> Result<ast::Arguments, Error> {
-        let position = self.lexer.get_pos();
+        let position = self.lexer.get_pos()?;
         let mut positional_args: Vec<(ast::NameID, ast::Type)> = Vec::new();
 
         loop {
@@ -237,7 +240,7 @@ impl Parser<'_> {
 
     /// Parse function definition
     pub fn function_define(&mut self) -> Result<Statement, Error> {
-        let position = self.lexer.get_pos();
+        let position = self.lexer.get_pos()?;
         
         self.next(lexer::TokenType::DEF, position, true)?;
 
@@ -276,7 +279,7 @@ impl Parser<'_> {
     }
 
     pub fn return_statement(&mut self) -> Result<Statement, Error> {
-        let position = self.lexer.get_pos();
+        let position = self.lexer.get_pos()?;
 
         self.next(lexer::TokenType::RETURN, position, true)?;
 
@@ -291,7 +294,7 @@ impl Parser<'_> {
 
     /// Expressions statement
     pub fn expression_statement(&mut self) -> Result<Statement, Error> {
-        let position = self.lexer.get_pos();
+        let position = self.lexer.get_pos()?;
 
         let expr = self.expr()?;
 
@@ -304,7 +307,7 @@ impl Parser<'_> {
     }
 
     pub fn arguments_call(&mut self) -> Result<ast::ArgumentsRun, Error> {
-        let position = self.lexer.get_pos();
+        let position = self.lexer.get_pos()?;
         let mut positional_args: Vec<Expr> = Vec::new();
 
         loop {
@@ -331,7 +334,7 @@ impl Parser<'_> {
     }
 
     pub fn function_call(&mut self) -> Result<Expr, Error> {
-        let position = self.lexer.get_pos();
+        let position = self.lexer.get_pos()?;
 
         let namespace = self.namespace()?;
 
@@ -350,7 +353,7 @@ impl Parser<'_> {
 
     /// Ful variable assign with type declaration and expression
     pub fn variable_assign_full(&mut self) -> Result<Expr, Error> {
-        let position = self.lexer.get_pos();
+        let position = self.lexer.get_pos()?;
         self.next(lexer::TokenType::LET, position, true)?;
 
         let namespace = self.namespace()?;
@@ -373,7 +376,7 @@ impl Parser<'_> {
 
     /// Variable Declaration
     pub fn variable_declaration(&mut self) -> Result<Statement, Error> {
-        let position = self.lexer.get_pos();
+        let position = self.lexer.get_pos()?;
         self.next(lexer::TokenType::LET, position, true)?;
 
         let namespace = self.namespace()?;
@@ -393,7 +396,7 @@ impl Parser<'_> {
 
     /// Variable assign with only expression
     pub fn variable_assign(&mut self) -> Result<Expr, Error> {
-        let position = self.lexer.get_pos();
+        let position = self.lexer.get_pos()?;
 
         let namespace = self.namespace()?;
 
@@ -410,7 +413,7 @@ impl Parser<'_> {
 
     /// Top level expression
     pub fn expr(&mut self) -> Result<Expr, Error> {
-        let position = self.lexer.get_pos();
+        let position = self.lexer.get_pos()?;
 
         let mut left = self.term()?;
 
@@ -444,7 +447,7 @@ impl Parser<'_> {
     }
 
     pub fn term(&mut self) -> Result<Expr, Error> {
-        let position = self.lexer.get_pos();
+        let position = self.lexer.get_pos()?;
         
         let mut left = self.factor()?;
         
@@ -489,7 +492,7 @@ impl Parser<'_> {
     }
 
     pub fn factor(&mut self) -> Result<Expr, Error> {
-        let position = self.lexer.get_pos();
+        let position = self.lexer.get_pos()?;
         
         match self.next(lexer::TokenType::SUB, position, false) {
             Ok(_) => {
@@ -519,7 +522,7 @@ impl Parser<'_> {
     }
 
     pub fn item(&mut self) -> Result<Expr, Error> {
-        let position = self.lexer.get_pos();
+        let position = self.lexer.get_pos()?;
         let mut errors: Vec<Error> = Vec::new();
 
         match self.integer() {
@@ -571,7 +574,7 @@ impl Parser<'_> {
     }
 
     pub fn integer(&mut self) -> Result<Expr, Error> {
-        let position = self.lexer.get_pos();
+        let position = self.lexer.get_pos()?;
 
         let int = self.lexer.advance()?.clone();
         if let lexer::TokenType::NUMBER(value) = &int.token {
@@ -588,7 +591,7 @@ impl Parser<'_> {
     }
 
     pub fn string_literal(&mut self) -> Result<Expr, Error> {
-        let position = self.lexer.get_pos();
+        let position = self.lexer.get_pos()?;
 
         let string = self.lexer.advance()?.clone();
         if let lexer::TokenType::STRING(value) = &string.token {
@@ -605,7 +608,7 @@ impl Parser<'_> {
     }
 
     pub fn namespace(&mut self) -> Result<ast::Namespace, Error> {
-        let position = self.lexer.get_pos();
+        let position = self.lexer.get_pos()?;
         let mut ids: Vec<ast::NameID> = Vec::new();
         let id = self.name_id()?;
 
@@ -632,7 +635,7 @@ impl Parser<'_> {
 
     /// Parse name identifier (i.e. function name)
     pub fn name_id(&mut self) -> Result<ast::NameID, Error> {
-        let position = self.lexer.get_pos();
+        let position = self.lexer.get_pos()?;
         let id = self.lexer.advance()?.clone();
         if let lexer::TokenType::IDENTIFIER(value) = &id.token {
             Ok(
@@ -649,7 +652,7 @@ impl Parser<'_> {
 
     /// Parse ref identifier (i.e. variable refrence (not &))
     pub fn ref_id(&mut self) -> Result<ast::RefID, Error> {
-        let position = self.lexer.get_pos();
+        let position = self.lexer.get_pos()?;
         let id = self.lexer.advance()?.clone();
         if let lexer::TokenType::IDENTIFIER(value) = &id.token {
             Ok(
@@ -679,7 +682,7 @@ impl Parser<'_> {
 
     /// Parse dollar id
     pub fn dollar_id(&mut self) -> Result<ast::DollarID, Error> {
-        let position = self.lexer.get_pos();
+        let position = self.lexer.get_pos()?;
 
         self.next(lexer::TokenType::DOLLAR, position, false)?;
         let id = self.name_id()?;

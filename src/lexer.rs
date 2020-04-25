@@ -417,9 +417,9 @@ impl Lexer {
 
     #[allow(unused_must_use)]
     /// Set get of lexer: for use by the parser
-    pub fn get_pos(&mut self) -> (usize, usize) {
-        self.eat_whitespace();
-        (self.position, self.temp_pos)
+    pub fn get_pos(&mut self) -> Result<(usize, usize), Error> {
+        self.eat_whitespace()?;
+        Ok((self.position, self.temp_pos))
     }
 
     /// Get next token in input stream, and advance
