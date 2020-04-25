@@ -9,4 +9,10 @@ args:
     - debug:
         short: d
         multiple: false
-        help: Turns on debug mode (useful for development)
+        help: Debug mode
+    - verbose:
+        short: -v
+        help: Verbose mode
+    - version:
+        short: -V
+        help: Print version
