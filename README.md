@@ -1,6 +1,8 @@
 # Fluo
 
-> Simplicity is the ultimate sophistication.
+> "Simplicity is the ultimate sophistication."
+> <br>
+> — Leonardo da Vinci
 
 ```rust
 def fizzbuzz(value: int) {
