@@ -2,8 +2,6 @@
 
 > Simplicity is the ultimate sophistication.
 
-Fluo is a simple compiled language.
-
 ```rust
 def fizzbuzz(value: int) {
     match loop 1..value {
