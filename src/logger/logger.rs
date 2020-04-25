@@ -310,7 +310,7 @@ impl Logger {
         *writer_pos = self.buffer.writel(
             writer_pos.0-1, 
             writer_pos.1-1, 
-            &annotation.mode.get_underline().repeat((annotation.position_rel.1).1+1), 
+            &annotation.mode.get_underline().repeat((annotation.position_rel.1).1-1), 
             Style::new(
                 Some(annotation.mode.get_color_class()), 
                 Some(Font::BOLD)
