@@ -122,9 +122,8 @@ impl PartialEq for NameID {
 
 #[derive(Debug)]
 /// Variable Assign i.e.:
-/// ```
+///
 /// x = 10;
-/// ```
 pub struct VariableAssign {
     pub name: Namespace,
     pub expr: Box<Expr>,
@@ -133,9 +132,8 @@ pub struct VariableAssign {
 
 #[derive(Debug)]
 /// Variable Assign + Declaration i.e.:
-/// ```
+/// 
 /// let x: int = 10;
-/// ```
 pub struct VariableAssignDeclaration {
     pub t: Type,
     pub name: Namespace,
@@ -145,9 +143,8 @@ pub struct VariableAssignDeclaration {
 
 #[derive(Debug)]
 /// Variable Declaration i.e.:
-/// ```
+///
 /// let x: int;
-/// ```
 pub struct VariableDeclaration {
     pub t: Type,
     pub name: Namespace,
