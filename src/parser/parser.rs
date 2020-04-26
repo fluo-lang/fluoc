@@ -6,6 +6,7 @@ use crate::helpers;
 use crate::codegen::module_codegen::CodeGenModule;
 
 use std::collections::HashMap;
+use std::io;
 
 
 /// Recursive descent parser
@@ -25,13 +26,15 @@ impl Parser<'_> {
     /// 
     /// * `l`: lexer to use
     /// * `log`: logger to use
-    pub fn new<'a>(l: lexer::Lexer) -> Parser<'a> {
-        Parser { 
+    pub fn new<'a>(filename: String) -> io::Result<Parser<'a>> {
+        let l = lexer::Lexer::new(filename)?;
+
+        Ok(Parser { 
             lexer: l, 
             ast: None, 
             modules: HashMap::new(), 
             statements: vec![Parser::function_define, Parser::expression_statement, Parser::return_statement, Parser::variable_declaration],
-        }
+        })
     }
     
     /// Template for syntax error
@@ -730,16 +733,87 @@ impl Parser<'_> {
 
     /// Parse type expression
     pub fn type_expr(&mut self) -> Result<ast::Type, Error> {
-        // TODO: add tuple type  
+        let position = self.lexer.get_pos()?;
+        let mut errors: Vec<Error> = Vec::new();
+
+        match self.namespace_type() {
+            Ok(namespace) => { return Ok(namespace) },
+            Err(e) => { errors.push(e) }
+        }
+
+        match self.tuple_type() {
+            Ok(tuple) => { return Ok(tuple) },
+            Err(e) => { errors.push(e) }
+        }
+        
+        self.lexer.set_pos(position);
+        Err(Logger::longest(errors))
+    }
+
+    fn namespace_type(&mut self) -> Result<ast::Type, Error> {
         let namespace = self.namespace()?;
+
+        Ok(ast::Type {
+            pos: namespace.pos.clone(),
+            inferred: false,
+            value: ast::TypeType::Type(namespace)
+        })
+    }
+
+    fn tuple_type(&mut self) -> Result<ast::Type, Error> {
+        let position = self.lexer.get_pos()?;
+
+        self.next(lexer::TokenType::LP, position, false)?;
+
+        let values = match self.items_type() {
+            Ok(items) => {
+                if items.len() == 1 {
+                    // Required trailing comma
+                    self.next(lexer::TokenType::COMMA, position, false)?;
+                } else {
+                    // Optional trailing comma
+                    if let lexer::TokenType::COMMA = self.lexer.peek()?.token {
+                        self.lexer.advance()?;
+                    }
+                }
+                items
+            },
+            Err(_) => { Vec::new() }
+        };
+        
+        self.next(lexer::TokenType::RP, position, false)?;
 
         Ok(
             ast::Type {
-                pos: namespace.pos.clone(),
+                value: ast::TypeType::Tuple(values),
                 inferred: false,
-                value: ast::TypeType::Type(namespace)
+                pos: self.position(position)
             }
         )
+    }
+
+    fn items_type(&mut self) -> Result<Vec<ast::Type>, Error> {
+        let mut items: Vec<ast::Type> = Vec::new();
+
+        let type_type = self.type_expr()?;
+        items.push(type_type);
+
+        loop {
+            let position = self.lexer.get_pos()?;
+            if let lexer::TokenType::COMMA = self.lexer.peek()?.token {
+                self.lexer.advance()?;
+                if let Ok(type_type) = self.type_expr() {
+                    items.push(type_type);
+                } else {
+                    self.lexer.set_pos(position);
+                    break
+                }
+            } else {
+                break
+            }
+        }
+
+        Ok(items)
     }
 
     /// Parse dollar id

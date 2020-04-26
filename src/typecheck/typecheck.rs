@@ -1,4 +1,3 @@
-use crate::lexer;
 use crate::parser::{ parser, ast };
 use crate::parser::parser::{ Parser };
 use crate::logger::logger::Error;
@@ -18,8 +17,7 @@ impl<'a> TypeCheckModule<'a> {
     /// Arguments
     /// * `filename` - the filename of the file to read
     pub fn new(filename: String) -> io::Result<TypeCheckModule<'a>> {
-        let l = lexer::Lexer::new(filename)?;
-        let p = parser::Parser::new(l);
+        let p = parser::Parser::new(filename)?;
         Ok(TypeCheckModule { parser: p, symtab: HashMap::new() })
     }
 

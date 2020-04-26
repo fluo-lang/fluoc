@@ -221,7 +221,7 @@ pub struct ExpressionStatement {
 /// Type Types
 pub enum TypeType {
     Type(Namespace),
-    Tuple(Vec<TypeType>)
+    Tuple(Vec<Type>)
 }
 
 #[derive(Debug)]
