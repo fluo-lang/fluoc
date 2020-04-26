@@ -17,7 +17,8 @@ impl<'a> TypeCheckModule<'a> {
     /// Arguments
     /// * `filename` - the filename of the file to read
     pub fn new(filename: String) -> io::Result<TypeCheckModule<'a>> {
-        let p = parser::Parser::new(filename)?;
+        let mut p = parser::Parser::new(filename)?;
+        p.initialize_expr();
         Ok(TypeCheckModule { parser: p, symtab: HashMap::new() })
     }
 

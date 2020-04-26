@@ -8,6 +8,26 @@ use crate::codegen::module_codegen::CodeGenModule;
 use std::collections::HashMap;
 use std::io;
 
+#[derive(Copy, Clone)]
+pub enum Prec {
+    LOWEST = 0,
+    // TODO: Add bool operators
+
+    /// `+` and `-`
+    TERM = 1,
+
+    /// `*` and `/` and `%`
+    FACTOR = 2,
+
+    /// `-` (negate) and others (i.e. `!` logical negate)
+    PREFIX = 3,
+
+    /// Function call
+    CALL = 4,
+
+    /// Variable assignment as expr
+    VARIABLE = 5
+}
 
 /// Recursive descent parser
 pub struct Parser<'a> {
@@ -17,6 +37,8 @@ pub struct Parser<'a> {
     pub ast: Option<ast::Block>,
     pub modules: HashMap<ast::Namespace, CodeGenModule<'a>>,
     statements: Vec<fn (&mut Self) -> Result<Statement, Error>>,
+    prefix_op: HashMap<lexer::TokenType, Prec>,
+    infix_op: HashMap<lexer::TokenType, Prec>,
 }
 
 impl Parser<'_> {
@@ -34,6 +56,8 @@ impl Parser<'_> {
             ast: None, 
             modules: HashMap::new(), 
             statements: vec![Parser::function_define, Parser::expression_statement, Parser::return_statement, Parser::variable_declaration],
+            prefix_op: HashMap::new(),
+            infix_op: HashMap::new()
         })
     }
     
@@ -75,6 +99,32 @@ impl Parser<'_> {
             s: position.0,
             e: self.lexer.position
         }
+    }
+
+    pub fn initialize_expr(&mut self) {
+        self.register_prefix(lexer::TokenType::SUB, Prec::PREFIX);
+
+        // `-`
+        self.register_infix(lexer::TokenType::SUB, Prec::TERM);
+        // `+`
+        self.register_infix(lexer::TokenType::ADD, Prec::TERM);
+
+        // `/`
+        self.register_infix(lexer::TokenType::DIV, Prec::FACTOR);
+        // `%`
+        self.register_infix(lexer::TokenType::MOD, Prec::FACTOR);
+        // `*`
+        self.register_infix(lexer::TokenType::MUL, Prec::FACTOR);
+        // `%%`
+        self.register_infix(lexer::TokenType::DMOD, Prec::FACTOR);
+    }
+
+    pub fn register_prefix(&mut self, token: lexer::TokenType, prec: Prec) {
+        self.prefix_op.insert(token, prec);
+    }
+
+    pub fn register_infix(&mut self, token: lexer::TokenType, prec: Prec) {
+        self.infix_op.insert(token, prec);
     }
 
     /// Parse from lexer
@@ -287,7 +337,7 @@ impl Parser<'_> {
 
         self.next(lexer::TokenType::RETURN, position, true)?;
 
-        let expr = self.expr()?;
+        let expr = self.expr(Prec::LOWEST)?;
         self.next(lexer::TokenType::SEMI, position, false)?;
 
         Ok(ast::Statement::Return(ast::Return {
@@ -300,7 +350,7 @@ impl Parser<'_> {
     pub fn expression_statement(&mut self) -> Result<Statement, Error> {
         let position = self.lexer.get_pos()?;
 
-        let expr = self.expr()?;
+        let expr = self.expr(Prec::LOWEST)?;
 
         self.next(lexer::TokenType::SEMI, position, false)?;
 
@@ -320,7 +370,7 @@ impl Parser<'_> {
                 break
             }
 
-            let expr = self.expr()?;
+            let expr = self.expr(Prec::LOWEST)?;
 
             positional_args.push(expr);
             
@@ -368,7 +418,7 @@ impl Parser<'_> {
 
         self.next(lexer::TokenType::EQUALS, position, false)?;
         
-        let expr = self.expr()?;
+        let expr = self.expr(Prec::LOWEST)?;
 
         Ok(ast::Expr::VariableAssignDeclaration(ast::VariableAssignDeclaration {
             t: var_type,
@@ -406,7 +456,7 @@ impl Parser<'_> {
 
         self.next(lexer::TokenType::EQUALS, position, false)?;
         
-        let expr = self.expr()?;
+        let expr = self.expr(Prec::LOWEST)?;
 
         Ok(ast::Expr::VariableAssign(ast::VariableAssign {
             name: namespace,
@@ -416,113 +466,65 @@ impl Parser<'_> {
     }
 
     /// Top level expression
-    pub fn expr(&mut self) -> Result<Expr, Error> {
-        let position = self.lexer.get_pos()?;
+    pub fn expr(&mut self, prec: Prec) -> Result<Expr, Error> {
+        let mut left = self.item()?;
+        let mut operator;
 
-        let mut left = self.term()?;
-
-        loop {
-            match self.lexer.peek()?.token {
-                lexer::TokenType::ADD  => { 
-                    self.lexer.advance()?;
-                    let right = self.term()?;
-
-                    left = ast::Expr::Add(ast::Add {
-                        left: Box::new(left),
-                        right: Box::new(right),
-                        pos: self.position(position)
-                    });
-                },
-
-                lexer::TokenType::SUB => {
-                    self.lexer.advance()?;
-                    let right = self.term()?;
-                    
-                    left = ast::Expr::Sub(ast::Sub {
-                        left: Box::new(left),
-                        right: Box::new(right),
-                        pos: self.position(position)
-                    });
-                },
-
-                _  => { return Ok(left); }
+        while { 
+            match self.get_operator_infix() {
+                Ok(op) => { operator = op; },
+                Err(_) => { return Ok(left); }
             }
-        }
+            let binding_power = self.binding_power(&operator.token) as u8;
+            left = self.led(left, operator)?;
+            binding_power > prec as u8 
+        } { }
+
+        Ok(left)
     }
 
-    pub fn term(&mut self) -> Result<Expr, Error> {
+    fn get_operator_infix(&mut self) -> Result<lexer::Token, Error> {
         let position = self.lexer.get_pos()?;
-        
-        let mut left = self.factor()?;
-        
-        loop {
-            match self.lexer.peek()?.token {
-                lexer::TokenType::MUL  => { 
-                    self.lexer.advance()?;
-                    let right = self.factor()?;
-                    
-                    left = ast::Expr::Mul(ast::Mul {
-                        left: Box::new(left),
-                        right: Box::new(right),
-                        pos: self.position(position)
-                    });
-                },
-
-                lexer::TokenType::DIV => {
-                    self.lexer.advance()?;
-                    let right = self.factor()?;
-                    
-                    left = ast::Expr::Div(ast::Div {
-                        left: Box::new(left),
-                        right: Box::new(right),
-                        pos: self.position(position)
-                    });
-                },
-
-                lexer::TokenType::MOD  => {
-                    self.lexer.advance()?;
-                    let right = self.factor()?;
-                    
-                    left = ast::Expr::Mod(ast::Mod {
-                        left: Box::new(left),
-                        right: Box::new(right),
-                        pos: self.position(position)
-                    });
-                },
-
-                _  => { return Ok(left); }
+        let potential_op = self.lexer.advance()?;
+        for (op, _) in &self.infix_op {
+            if &potential_op.token == op {
+                return Ok(potential_op.clone());
             }
         }
+
+        self.lexer.set_pos(position);
+
+        Err(
+            Error::new(
+                "Expected an operator".to_string(), 
+                ErrorType::Syntax, 
+                self.position(position), 
+                ErrorDisplayType::Error, 
+                self.lexer.filename.clone(), 
+                vec![
+                    ErrorAnnotation::new(None, self.position(position), ErrorDisplayType::Error, self.lexer.filename.clone())
+                ], 
+                false
+            )
+        )
     }
 
-    pub fn factor(&mut self) -> Result<Expr, Error> {
+    fn binding_power(&mut self, token_type: &lexer::TokenType) -> Prec {
+        self.infix_op[token_type]
+    }
+
+    pub fn led(&mut self, left: Expr, operator: lexer::Token) -> Result<Expr, Error> {
         let position = self.lexer.get_pos()?;
-        
-        match self.next(lexer::TokenType::SUB, position, false) {
-            Ok(_) => {
-                match self.item() {
-                    Ok(item) => Ok(ast::Expr::Neg(
-                        ast::Neg { 
-                            value: Box::new(item), 
-                            pos: self.position(position)
-                        }
-                    )),
-                    Err(e) => {
-                        self.lexer.set_pos(position);
-                        Err(e)
-                    }
-                }
-            },
-            Err(_) => {
-                match self.item() {
-                    Ok(item) => Ok(item),
-                    Err(e) => {
-                        self.lexer.set_pos(position);
-                        Err(e)
-                    }
-                }
+        let binding_power = self.binding_power(&operator.token);
+
+        Ok(Expr::Infix (
+            ast::Infix {
+                left: Box::new(left),
+                operator,
+                right: Box::new(self.expr(binding_power)?),
+                pos: self.position(position)
             }
-        }
+        ))
     }
 
     pub fn item(&mut self) -> Result<Expr, Error> {
@@ -570,7 +572,7 @@ impl Parser<'_> {
         }
         
         if let lexer::TokenType::LP = self.lexer.advance()?.token {
-            let expr = self.expr()?;
+            let expr = self.expr(Prec::LOWEST)?;
             if let lexer::TokenType::RP = self.lexer.advance()?.token { 
                 return Ok(expr);
             }
@@ -710,14 +712,14 @@ impl Parser<'_> {
     fn items(&mut self) -> Result<Vec<Expr>, Error> {
         let mut items: Vec<Expr> = Vec::new();
 
-        let expr = self.expr()?;
+        let expr = self.expr(Prec::LOWEST)?;
         items.push(expr);
 
         loop {
             let position = self.lexer.get_pos()?;
             if let lexer::TokenType::COMMA = self.lexer.peek()?.token {
                 self.lexer.advance()?;
-                if let Ok(expr) = self.expr() {
+                if let Ok(expr) = self.expr(Prec::LOWEST) {
                     items.push(expr);
                 } else {
                     self.lexer.set_pos(position);

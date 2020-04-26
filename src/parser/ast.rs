@@ -3,6 +3,7 @@ use crate::helpers;
 use std::fmt::Debug;
 use std::fmt;
 use std::hash::{Hash, Hasher};
+use crate::lexer::Token;
 
 // EXPRESSIONS ---------------------------------------
 
@@ -55,51 +56,21 @@ pub struct Reference {
 }
 
 #[derive(Debug)]
-/// Addition Node
-pub struct Add {
+pub struct Infix {
     pub left: Box<Expr>,
     pub right: Box<Expr>,
+    pub operator: Token,
     pub pos: helpers::Pos
 }
 
 #[derive(Debug)]
-/// Multiplication Node
-pub struct Mul {
-    pub left: Box<Expr>,
-    pub right: Box<Expr>,
+pub struct Prefix {
+    pub val: Box<Expr>,
+    pub operator: Token,
     pub pos: helpers::Pos
 }
 
-#[derive(Debug)]
-/// Division Node
-pub struct Div {
-    pub left: Box<Expr>,
-    pub right: Box<Expr>,
-    pub pos: helpers::Pos
-}
-
-#[derive(Debug)]
-/// Addition Node
-pub struct Sub {
-    pub left: Box<Expr>,
-    pub right: Box<Expr>,
-    pub pos: helpers::Pos
-}
-
-#[derive(Debug)]
-pub struct Mod {
-    pub left: Box<Expr>,
-    pub right: Box<Expr>,
-    pub pos: helpers::Pos
-}
-
-#[derive(Debug)]
-pub struct Neg {
-    pub value: Box<Expr>,
-    pub pos: helpers::Pos
-}
-
-// NODES ---------------------------------------	
+// NODES ---------------------------------------
 
 #[derive(Debug, Eq)]
 /// Name ID node
@@ -287,12 +258,10 @@ pub enum Node {
     Type(Type), 
     Arguments(Arguments), 
     Block(Block),
-    Add(Add),
-    Sub(Sub),
-    Neg(Neg),
-    Mul(Mul),
-    Div(Div),
-    Mod(Mod),
+
+    Infix(Infix),
+    Prefix(Prefix),
+
     Tuple(Tuple),
 
     ExpressionStatement(ExpressionStatement),
@@ -380,12 +349,8 @@ pub enum Expr {
     VariableAssignDeclaration(VariableAssignDeclaration),
     FunctionCall(FunctionCall),
 
-    Add(Add),
-    Sub(Sub),
-    Neg(Neg),
-    Mul(Mul),
-    Div(Div),
-    Mod(Mod),
+    Infix(Infix),
+    Prefix(Prefix),
 
     StringLiteral(StringLiteral),
     Tuple(Tuple),
@@ -411,12 +376,8 @@ impl Expr {
             Expr::StringLiteral(val) => val.pos,
             Expr::Tuple(val) => val.pos,
 
-            Expr::Add(val) => val.pos,
-            Expr::Sub(val) => val.pos,
-            Expr::Neg(val) => val.pos,
-            Expr::Mul(val) => val.pos,
-            Expr::Div(val) => val.pos,
-            Expr::Mod(val) => val.pos,
+            Expr::Infix(val) => val.pos,
+            Expr::Prefix(val) => val.pos,
 
             Expr::Empty(val) => val.pos,
             Expr::FunctionDefine(val) => val.pos,
@@ -436,12 +397,8 @@ impl Expr {
             Expr::StringLiteral(_) => "string literal",
             Expr::Tuple(_) => "tuple",
 
-            Expr::Add(_) => "add",
-            Expr::Sub(_) => "subtract",
-            Expr::Neg(_) => "negate",
-            Expr::Mul(_) => "multiply",
-            Expr::Div(_) => "divide",
-            Expr::Mod(_) => "modulo",
+            Expr::Infix(_) => "infix",
+            Expr::Prefix(_) => "prefix",
 
             Expr::Empty(_) => "empty",
             Expr::FunctionDefine(_) => "function define"

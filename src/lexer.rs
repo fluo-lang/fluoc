@@ -3,11 +3,10 @@ use std::io;
 use std::fmt;
 use crate::logger::logger::{ Error, ErrorDisplayType, ErrorType };
 
-
 /// EOF Character
 const EOF_CHAR: char = '\0';
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 /// Type of tokens
 pub enum TokenType {
     STRING(String),
