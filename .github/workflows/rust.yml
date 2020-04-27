@@ -8,15 +8,11 @@ on:
 
 jobs:
   build:
-    strategy:
-      config:
-        operating-system: [ubuntu-latest]
-        llvm-version: [10]
-    runs-on: ${{ config.operating-system }}
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
     - name: Install LLVM
-      run: wget https://apt.llvm.org/llvm.sh && chmod +x llvm.sh && sudo ./llvm.sh ${{ config.llvm-version }}
+      run: wget https://apt.llvm.org/llvm.sh && chmod +x llvm.sh && sudo ./llvm.sh 10 # LLVM 10
     - name: Build
       run: cargo build --verbose
     - name: Run tests
