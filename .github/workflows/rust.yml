@@ -1,4 +1,4 @@
-name: Rust
+name: Build, test, and benchmark on ubuntu-latest
 
 on:
   push:
@@ -8,13 +8,15 @@ on:
 
 jobs:
   build:
-
-    runs-on: ubuntu-latest
-
+    strategy:
+      config:
+        operating-system: [ubuntu-latest]
+        llvm-version: [10]
+    runs-on: ${{ config.operating-system }}
     steps:
     - uses: actions/checkout@v2
     - name: Install LLVM
-      run: wget https://apt.llvm.org/llvm.sh && chmod +x llvm.sh && sudo ./llvm.sh 10
+      run: wget https://apt.llvm.org/llvm.sh && chmod +x llvm.sh && sudo ./llvm.sh ${{ config.llvm-version }}
     - name: Build
       run: cargo build --verbose
     - name: Run tests

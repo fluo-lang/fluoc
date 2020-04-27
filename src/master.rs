@@ -37,7 +37,7 @@ impl<'a> Master<'a> {
                 self.modules.insert(filename, code_gen_safe);
             },
             Err(e) => {
-                println!("{}{}Fatal Error{}: {}: `{}`", color::RED, color::BOLD, color::RESET, e, filename);
+                eprintln!("{}{}Fluo: Fatal Error{}{}: {}: `{}`{}", color::RED, color::BOLD, color::RESET, color::BOLD, e, filename, color::RESET);
                 process::exit(1);
             }
         };

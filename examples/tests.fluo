@@ -3,7 +3,7 @@ def entry () -> int {
         return 10;
     }
     
-    let x: int = 10+10*(1929+10); -- x takes ownership of this expr
+    let x: int = -10+10*(1929+10);
     x = 10;
 
     return ();

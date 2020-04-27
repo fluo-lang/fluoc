@@ -470,15 +470,15 @@ impl Parser<'_> {
         let mut left = self.item()?;
         let mut operator;
 
-        while { 
+        loop { 
             match self.get_operator_infix() {
                 Ok(op) => { operator = op; },
                 Err(_) => { return Ok(left); }
             }
             let binding_power = self.binding_power(&operator.token) as u8;
             left = self.led(left, operator)?;
-            binding_power > prec as u8 
-        } { }
+            if binding_power > prec as u8 { break; }
+        }
 
         Ok(left)
     }
@@ -497,6 +497,32 @@ impl Parser<'_> {
         Err(
             Error::new(
                 "Expected an operator".to_string(), 
+                ErrorType::Syntax, 
+                self.position(position), 
+                ErrorDisplayType::Error, 
+                self.lexer.filename.clone(), 
+                vec![
+                    ErrorAnnotation::new(None, self.position(position), ErrorDisplayType::Error, self.lexer.filename.clone())
+                ], 
+                false
+            )
+        )
+    }
+
+    fn get_operator_prefix(&mut self) -> Result<lexer::Token, Error> {
+        let position = self.lexer.get_pos()?;
+        let potential_op = self.lexer.advance()?;
+        for (op, _) in &self.prefix_op {
+            if &potential_op.token == op {
+                return Ok(potential_op.clone());
+            }
+        }
+
+        self.lexer.set_pos(position);
+
+        Err(
+            Error::new(
+                "Expected a prefix".to_string(), 
                 ErrorType::Syntax, 
                 self.position(position), 
                 ErrorDisplayType::Error, 
@@ -530,6 +556,18 @@ impl Parser<'_> {
     pub fn item(&mut self) -> Result<Expr, Error> {
         let position = self.lexer.get_pos()?;
         let mut errors: Vec<Error> = Vec::new();
+
+        if let Ok(prefix) = self.get_operator_prefix() {
+            let bp = self.binding_power(&prefix.token);
+            let item = self.expr(bp)?;
+            return Ok(
+                Expr::Prefix( ast::Prefix {
+                    operator: prefix,
+                    val: Box::new(item),
+                    pos: self.position(position)
+                } )
+            )
+        }
 
         match self.integer() {
             Ok(ast) => return Ok(ast),
@@ -581,7 +619,19 @@ impl Parser<'_> {
         }
 
         self.lexer.set_pos(position);
-        Err(Logger::longest(errors))
+        Err(
+            Error::new(
+                "Missing expression".to_string(), 
+                ErrorType::Syntax, 
+                self.position(position), 
+                ErrorDisplayType::Error, 
+                self.lexer.filename.clone(), 
+                vec![
+                    ErrorAnnotation::new(Some("Missing expression here".to_string()), self.position(position), ErrorDisplayType::Error, self.lexer.filename.clone())
+                ], 
+                false
+            )
+        )
     }
 
     pub fn integer(&mut self) -> Result<Expr, Error> {
