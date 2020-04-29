@@ -1,10 +1,8 @@
 use crate::codegen::module_codegen::CodeGenModule;
-use crate::logger::buffer_writer::color;
 use crate::logger;
 
-use std::process;
 use std::collections::HashMap;
-use std::io;
+use std::process;
 
 use inkwell::context::Context;
 
@@ -14,17 +12,26 @@ pub struct Master<'a> {
     modules: HashMap<&'a str, CodeGenModule<'a>>,
 }
 
-impl <'a> Master<'a> {
+impl<'a> Master<'a> {
     pub fn new(context: &'a Context) -> Master<'a> {
         let logger = logger::logger::Logger::new();
-        Master { context, modules: HashMap::new(), logger }
+        Master {
+            context,
+            modules: HashMap::new(),
+            logger,
+        }
     }
 
     pub fn add_file(&mut self, filename: &'a str, file_contents: &'a str) {
-        let mut code_gen_mod = CodeGenModule::new(self.context.create_module(filename), filename, file_contents);
-        self.logger.add_file(filename, code_gen_mod.typecheck.parser.lexer.file_contents);
+        let mut code_gen_mod = CodeGenModule::new(
+            self.context.create_module(filename),
+            filename,
+            file_contents,
+        );
+        self.logger
+            .add_file(filename, code_gen_mod.typecheck.parser.lexer.file_contents);
         match code_gen_mod.generate() {
-            Ok(_) => {},
+            Ok(_) => {}
             Err(errors) => {
                 for error in errors {
                     self.logger.error(error);

@@ -1,91 +1,91 @@
 use crate::helpers;
 
-use std::fmt::Debug;
-use std::fmt;
-use std::hash::{Hash, Hasher};
 use crate::lexer::Token;
+use std::fmt;
+use std::fmt::Debug;
+use std::hash::{Hash, Hasher};
 
 // EXPRESSIONS ---------------------------------------
 
 #[derive(Debug)]
 /// Empty Placeholder value
 pub struct Empty {
-    pub pos: helpers::Pos
+    pub pos: helpers::Pos,
 }
 
 #[derive(Debug)]
 /// Integer node
-pub struct Integer {
-    pub value: String,
-    pub pos: helpers::Pos
+pub struct Integer<'a> {
+    pub value: &'a str,
+    pub pos: helpers::Pos,
 }
 
 #[derive(Debug)]
 /// Tuple node
-pub struct Tuple {
-    pub values: Vec<Expr>,
-    pub pos: helpers::Pos
+pub struct Tuple<'a> {
+    pub values: Vec<Expr<'a>>,
+    pub pos: helpers::Pos,
 }
 
 #[derive(Debug)]
 /// String literal node
-pub struct StringLiteral {
-    pub value: String,
-    pub pos: helpers::Pos
+pub struct StringLiteral<'a> {
+    pub value: &'a str,
+    pub pos: helpers::Pos,
 }
 
 #[derive(Debug)]
 /// Dollar sign id (i.e. `$myvar`) node
-pub struct DollarID {
-    pub value: NameID,
-    pub pos: helpers::Pos
+pub struct DollarID<'a> {
+    pub value: NameID<'a>,
+    pub pos: helpers::Pos,
 }
 
 #[derive(Debug)]
 /// Reference ID (i.e. pass by value) node
-pub struct RefID {
-    pub value: String,
-    pub pos: helpers::Pos
+pub struct RefID<'a> {
+    pub value: &'a str,
+    pub pos: helpers::Pos,
 }
 
 #[derive(Debug)]
 /// Reference (i.e. pass by reference) node
-pub struct Reference {
-    pub value: RefID,
-    pub pos: helpers::Pos
+pub struct Reference<'a> {
+    pub value: RefID<'a>,
+    pub pos: helpers::Pos,
 }
 
 #[derive(Debug)]
-pub struct Infix {
-    pub left: Box<Expr>,
-    pub right: Box<Expr>,
-    pub operator: Token,
-    pub pos: helpers::Pos
+pub struct Infix<'a> {
+    pub left: Box<Expr<'a>>,
+    pub right: Box<Expr<'a>>,
+    pub operator: Token<'a>,
+    pub pos: helpers::Pos,
 }
 
 #[derive(Debug)]
-pub struct Prefix {
-    pub val: Box<Expr>,
-    pub operator: Token,
-    pub pos: helpers::Pos
+pub struct Prefix<'a> {
+    pub val: Box<Expr<'a>>,
+    pub operator: Token<'a>,
+    pub pos: helpers::Pos,
 }
 
 // NODES ---------------------------------------
 
 #[derive(Debug, Eq)]
 /// Name ID node
-pub struct NameID {
-    pub value: String,
-    pub pos: helpers::Pos
+pub struct NameID<'a> {
+    pub value: &'a str,
+    pub pos: helpers::Pos,
 }
 
-impl Hash for NameID {
+impl<'a> Hash for NameID<'a> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.value.hash(state);
     }
 }
 
-impl PartialEq for NameID {
+impl<'a> PartialEq for NameID<'a> {
     fn eq(&self, other: &Self) -> bool {
         self.value == other.value
     }
@@ -95,49 +95,48 @@ impl PartialEq for NameID {
 /// Variable Assign i.e.:
 ///
 /// x = 10;
-pub struct VariableAssign {
-    pub name: Namespace,
-    pub expr: Box<Expr>,
-    pub pos: helpers::Pos
+pub struct VariableAssign<'a> {
+    pub name: Namespace<'a>,
+    pub expr: Box<Expr<'a>>,
+    pub pos: helpers::Pos,
 }
 
 #[derive(Debug)]
 /// Variable Assign + Declaration i.e.:
-/// 
+///
 /// let x: int = 10;
-pub struct VariableAssignDeclaration {
-    pub t: Type,
-    pub name: Namespace,
-    pub expr: Box<Expr>,
-    pub pos: helpers::Pos
+pub struct VariableAssignDeclaration<'a> {
+    pub t: Type<'a>,
+    pub name: Namespace<'a>,
+    pub expr: Box<Expr<'a>>,
+    pub pos: helpers::Pos,
 }
 
 #[derive(Debug)]
 /// Variable Declaration i.e.:
 ///
 /// let x: int;
-pub struct VariableDeclaration {
-    pub t: Type,
-    pub name: Namespace,
-    pub pos: helpers::Pos
+pub struct VariableDeclaration<'a> {
+    pub t: Type<'a>,
+    pub name: Namespace<'a>,
+    pub pos: helpers::Pos,
 }
 
 #[derive(Debug)]
 /// Arguments for function
-pub struct Arguments {
-    pub positional: Vec<(NameID, Type)>,
-    pub pos: helpers::Pos
-    // TODO: Add more types of arguments
+pub struct Arguments<'a> {
+    pub positional: Vec<(NameID<'a>, Type<'a>)>,
+    pub pos: helpers::Pos, // TODO: Add more types of arguments
 }
 
 #[derive(Debug)]
 /// Block of code
-pub struct Block {
-    pub nodes: Vec<Statement>,
-    pub pos: helpers::Pos
+pub struct Block<'a> {
+    pub nodes: Vec<Statement<'a>>,
+    pub pos: helpers::Pos,
 }
 
-impl Block {
+impl<'a> Block<'a> {
     pub fn to_string(&self) -> String {
         let mut val = String::new();
         for node in &self.nodes {
@@ -150,70 +149,69 @@ impl Block {
 
 #[derive(Debug)]
 /// Function definition
-pub struct FunctionDefine {
-    pub return_type: Type,
-    pub arguments: Arguments,
-    pub block: Block,
-    pub name: NameID,
-    pub pos: helpers::Pos
+pub struct FunctionDefine<'a> {
+    pub return_type: Type<'a>,
+    pub arguments: Arguments<'a>,
+    pub block: Block<'a>,
+    pub name: NameID<'a>,
+    pub pos: helpers::Pos,
 }
 
 #[derive(Debug)]
-pub struct ArgumentsRun {
-    pub positional: Vec<Expr>,
-    pub pos: helpers::Pos
-    // TODO: Add more types of arguments
+pub struct ArgumentsRun<'a> {
+    pub positional: Vec<Expr<'a>>,
+    pub pos: helpers::Pos, // TODO: Add more types of arguments
 }
 
 #[derive(Debug)]
-pub struct Return {
-    pub expression: Expr,
-    pub pos: helpers::Pos
+pub struct Return<'a> {
+    pub expression: Expr<'a>,
+    pub pos: helpers::Pos,
 }
 
 #[derive(Debug)]
 /// Function definition
-pub struct FunctionCall {
-    pub arguments: ArgumentsRun,
-    pub name: Namespace,
-    pub pos: helpers::Pos
+pub struct FunctionCall<'a> {
+    pub arguments: ArgumentsRun<'a>,
+    pub name: Namespace<'a>,
+    pub pos: helpers::Pos,
 }
 
 #[derive(Debug)]
-pub struct ExpressionStatement {
-    pub expression: Box<Expr>,
-    pub pos: helpers::Pos
+pub struct ExpressionStatement<'a> {
+    pub expression: Expr<'a>,
+    pub pos: helpers::Pos,
 }
 
 #[derive(Debug)]
 /// Type Types
-pub enum TypeType {
-    Type(Namespace),
-    Tuple(Vec<Type>)
+pub enum TypeType<'a> {
+    Type(Namespace<'a>),
+    Tuple(Vec<Type<'a>>),
 }
 
 #[derive(Debug)]
 /// Type Node
-pub struct Type {
-    pub value: TypeType,
+pub struct Type<'a> {
+    pub value: TypeType<'a>,
     pub inferred: bool,
-    pub pos: helpers::Pos
+    pub pos: helpers::Pos,
 }
 
 #[derive(Debug, Hash, Eq)]
 /// This::is::a::namespace!
-pub struct Namespace {
-    pub scopes: Vec<NameID>,
-    pub pos: helpers::Pos
+pub struct Namespace<'a> {
+    pub scopes: Vec<NameID<'a>>,
+    pub pos: helpers::Pos,
 }
 
-impl PartialEq for Namespace {
+impl<'a> PartialEq for Namespace<'a> {
     fn eq(&self, other: &Self) -> bool {
         self.scopes == other.scopes
     }
 }
 
-impl fmt::Display for Namespace {
+impl<'a> fmt::Display for Namespace<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut rep = String::new();
         for scope in &self.scopes {
@@ -225,16 +223,16 @@ impl fmt::Display for Namespace {
 }
 
 #[derive(Debug)]
-pub struct Nodes {
-    pub nodes: Vec<Node>,
-    pub pos: helpers::Pos
+pub struct Nodes<'a> {
+    pub nodes: Vec<Node<'a>>,
+    pub pos: helpers::Pos,
 }
 
 #[derive(Debug, Clone)]
 pub enum Scope {
     Block,
     Outer,
-    All
+    All,
 }
 
 impl PartialEq for Scope {
@@ -248,46 +246,45 @@ impl PartialEq for Scope {
 }
 
 #[derive(Debug)]
-pub enum Node {
-    Integer(Integer), 
-    RefID(RefID), 
-    Reference(Reference), 
-    NameID(NameID), 
-    VariableAssign(VariableAssign), 
-    VariableAssignDeclaration(VariableAssignDeclaration), 
-    Type(Type), 
-    Arguments(Arguments), 
-    Block(Block),
+pub enum Node<'a> {
+    Integer(Integer<'a>),
+    RefID(RefID<'a>),
+    Reference(Reference<'a>),
+    NameID(NameID<'a>),
+    VariableAssign(VariableAssign<'a>),
+    VariableAssignDeclaration(VariableAssignDeclaration<'a>),
+    Type(Type<'a>),
+    Arguments(Arguments<'a>),
+    Block(Block<'a>),
 
-    Infix(Infix),
-    Prefix(Prefix),
+    Infix(Infix<'a>),
+    Prefix(Prefix<'a>),
 
-    Tuple(Tuple),
+    Tuple(Tuple<'a>),
 
-    ExpressionStatement(ExpressionStatement),
-    VariableDeclaration(VariableDeclaration),
-    FunctionDefine(FunctionDefine),
+    ExpressionStatement(ExpressionStatement<'a>),
+    VariableDeclaration(VariableDeclaration<'a>),
+    FunctionDefine(FunctionDefine<'a>),
 
-    StringLiteral(StringLiteral),
-    DollarID(DollarID),
-    Nodes(Nodes),
-    
-    Return(Return),
+    StringLiteral(StringLiteral<'a>),
+    DollarID(DollarID<'a>),
+    Nodes(Nodes<'a>),
+    Return(Return<'a>),
 
-    Empty(Empty)
+    Empty(Empty),
 }
 
 #[derive(Debug)]
-pub enum Statement {
-    ExpressionStatement(ExpressionStatement),
-    VariableDeclaration(VariableDeclaration),
-    FunctionDefine(FunctionDefine),
-    Return(Return),
+pub enum Statement<'a> {
+    ExpressionStatement(ExpressionStatement<'a>),
+    VariableDeclaration(VariableDeclaration<'a>),
+    FunctionDefine(FunctionDefine<'a>),
+    Return(Return<'a>),
 
-    Empty(Empty)
+    Empty(Empty),
 }
 
-impl Statement {
+impl<'a> Statement<'a> {
     pub fn pos(&self) -> helpers::Pos {
         match &self {
             Statement::ExpressionStatement(val) => val.pos,
@@ -295,7 +292,7 @@ impl Statement {
             Statement::FunctionDefine(val) => val.pos,
             Statement::Return(val) => val.pos,
 
-            Statement::Empty(val) => val.pos
+            Statement::Empty(val) => val.pos,
         }
     }
 
@@ -303,70 +300,69 @@ impl Statement {
         match &self {
             Statement::ExpressionStatement(val) => format!("{}", val.expression.to_str()),
             Statement::VariableDeclaration(_) => "variable declaration".to_string(),
-            Statement::FunctionDefine(val) => { 
+            Statement::FunctionDefine(val) => {
                 format!("function define {{\n{}}}", val.block.to_string())
-            },
+            }
             Statement::Return(_) => "return statement".to_string(),
 
-            Statement::Empty(_) => "empty statement".to_string()
+            Statement::Empty(_) => "empty statement".to_string(),
         }
     }
 
-    pub fn in_scope<'a>(&'a self, check_scope: &Scope) -> bool {
+    pub fn in_scope(&'a self, check_scope: &Scope) -> bool {
         Statement::get_scope(self) == check_scope
     }
 
-    pub fn get_scope<'a>(statement: &Statement) -> &Scope {
+    pub fn get_scope(statement: &Statement) -> &'a Scope {
         match statement {
             Statement::ExpressionStatement(_) => &Scope::Block,
             Statement::VariableDeclaration(_) => &Scope::Block,
             Statement::FunctionDefine(_) => &Scope::All,
             Statement::Return(_) => &Scope::Block,
 
-            Statement::Empty(_) => &Scope::All
+            Statement::Empty(_) => &Scope::All,
         }
     }
 
-    pub fn into_node(self) -> Node {
+    pub fn into_node(self) -> Node<'a> {
         match self {
             Statement::ExpressionStatement(val) => Node::ExpressionStatement(val),
             Statement::VariableDeclaration(val) => Node::VariableDeclaration(val),
             Statement::FunctionDefine(val) => Node::FunctionDefine(val),
             Statement::Return(val) => Node::Return(val),
 
-            Statement::Empty(val) => Node::Empty(val)
-        } 
+            Statement::Empty(val) => Node::Empty(val),
+        }
     }
 }
 
 #[derive(Debug)]
-pub enum Expr {
-    Integer(Integer), 
+pub enum Expr<'a> {
+    Integer(Integer<'a>),
 
-    RefID(RefID), 
-    Reference(Reference),
-    VariableAssign(VariableAssign),
-    VariableAssignDeclaration(VariableAssignDeclaration),
-    FunctionCall(FunctionCall),
+    RefID(RefID<'a>),
+    Reference(Reference<'a>),
+    VariableAssign(VariableAssign<'a>),
+    VariableAssignDeclaration(VariableAssignDeclaration<'a>),
+    FunctionCall(FunctionCall<'a>),
 
-    Infix(Infix),
-    Prefix(Prefix),
+    Infix(Infix<'a>),
+    Prefix(Prefix<'a>),
 
-    StringLiteral(StringLiteral),
-    Tuple(Tuple),
+    StringLiteral(StringLiteral<'a>),
+    Tuple(Tuple<'a>),
 
-    DollarID(DollarID),
+    DollarID(DollarID<'a>),
 
     Empty(Empty),
 
-    FunctionDefine(FunctionDefine)
+    FunctionDefine(FunctionDefine<'a>),
 }
 
-impl Expr {
+impl<'a> Expr<'a> {
     pub fn pos(&self) -> helpers::Pos {
         match &self {
             Expr::Integer(val) => val.pos,
-            
             Expr::RefID(val) => val.pos,
             Expr::DollarID(val) => val.pos,
             Expr::Reference(val) => val.pos,
@@ -384,10 +380,9 @@ impl Expr {
         }
     }
 
-    pub fn to_str<'a>(&'a self) -> &'a str {
+    pub fn to_str(&'a self) -> &'a str {
         match self {
             Expr::Integer(_) => "integer",
-            
             Expr::RefID(_) => "ID",
             Expr::DollarID(_) => "dollar sign ID",
             Expr::Reference(_) => "refrence",
@@ -401,7 +396,7 @@ impl Expr {
             Expr::Prefix(_) => "prefix",
 
             Expr::Empty(_) => "empty",
-            Expr::FunctionDefine(_) => "function define"
+            Expr::FunctionDefine(_) => "function define",
         }
     }
 }

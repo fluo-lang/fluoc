@@ -1,4 +1,3 @@
-
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Color {
     BLACK,
@@ -8,12 +7,12 @@ pub enum Color {
     BLUE,
     MAGENTA,
     CYAN,
-    WHITE
+    WHITE,
 }
 
 pub mod color {
     pub const BLACK: &'static str = "\x1b[30m";
-    pub const BOLD: &'static str= "\x1b[1m";
+    pub const BOLD: &'static str = "\x1b[1m";
     pub const RED: &'static str = "\x1b[31m";
     pub const GREEN: &'static str = "\x1b[32m";
     pub const YELLOW: &'static str = "\x1b[33m";
@@ -43,14 +42,14 @@ impl Color {
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Font {
     RESET,
-    BOLD
+    BOLD,
 }
 
 impl Font {
     pub fn to_string(&self) -> &'static str {
         match self {
             Font::RESET => color::RESET,
-            Font::BOLD => color::BOLD
+            Font::BOLD => color::BOLD,
         }
     }
 }
@@ -58,7 +57,7 @@ impl Font {
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Style {
     color: Option<Color>,
-    font: Option<Font>
+    font: Option<Font>,
 }
 
 impl Style {
@@ -70,14 +69,14 @@ impl Style {
 #[derive(Clone)]
 pub struct Buffer {
     contents: Vec<Vec<char>>,
-    styles: Vec<Vec<Style>>
+    styles: Vec<Vec<Style>>,
 }
 
 impl Buffer {
     pub fn new() -> Buffer {
         Buffer {
             contents: Vec::new(),
-            styles: Vec::new()
+            styles: Vec::new(),
         }
     }
 
@@ -88,7 +87,7 @@ impl Buffer {
         }
     }
 
-    pub fn render(&mut self) -> String{
+    pub fn render(&mut self) -> String {
         let mut output = String::new();
         let mut current_style: Option<Style> = None;
 
@@ -98,7 +97,6 @@ impl Buffer {
                     output.push_str(color::RESET);
                     current_style = Some(*chs);
                 }
-                
                 if let Some(color) = current_style.unwrap().color {
                     output.push_str(color.to_string());
                 }
@@ -117,15 +115,19 @@ impl Buffer {
     pub fn writech(&mut self, line: usize, col: usize, chr: char, style: Style) -> (usize, usize) {
         self.ensure_lines(line);
         if col < self.contents[line].len() {
-            if chr != '\t' { 
+            if chr != '\t' {
                 self.contents[line][col] = chr;
                 self.styles[line][col] = style;
-                (line+1, col)
-            } else { 
-                self.writel(line, self.contents[line].len(), &" ".repeat(4), Style::new(None, None)); 
-                (line+1, col+4)
+                (line + 1, col)
+            } else {
+                self.writel(
+                    line,
+                    self.contents[line].len(),
+                    &" ".repeat(4),
+                    Style::new(None, None),
+                );
+                (line + 1, col + 4)
             }
-            
         } else {
             let mut i = self.contents[line].len();
             while i < col {
@@ -133,36 +135,60 @@ impl Buffer {
                 self.styles[line].push(Style::new(None, None));
                 i += 1;
             }
-            if chr != '\t' { 
-                self.contents[line].push(chr); 
-                self.styles[line].push(style); 
-                (line+1, col)
-            } else { 
-                self.writel(line, self.contents[line].len(), &" ".repeat(4), Style::new(None, None)); 
-                (line+1, col+4)
+            if chr != '\t' {
+                self.contents[line].push(chr);
+                self.styles[line].push(style);
+                (line + 1, col)
+            } else {
+                self.writel(
+                    line,
+                    self.contents[line].len(),
+                    &" ".repeat(4),
+                    Style::new(None, None),
+                );
+                (line + 1, col + 4)
             }
         }
-
     }
 
-    pub fn writechln(&mut self, line: usize, col: usize, chr: char, style: Style) -> (usize, usize) {
+    pub fn writechln(
+        &mut self,
+        line: usize,
+        col: usize,
+        chr: char,
+        style: Style,
+    ) -> (usize, usize) {
         self.writech(line, col, chr, style);
-        (line+2, 1)
+        (line + 2, 1)
     }
 
-    pub fn writel(&mut self, line: usize, col: usize, string: &str, style: Style) -> (usize, usize) {
+    pub fn writel(
+        &mut self,
+        line: usize,
+        col: usize,
+        string: &str,
+        style: Style,
+    ) -> (usize, usize) {
         let mut n = col;
         for c in string.chars() {
             self.writech(line, n, c, style);
-            if c == '\t' { n += 3 }
+            if c == '\t' {
+                n += 3
+            }
             n += 1;
         }
-        (line+1, col+string.len()+1)
+        (line + 1, col + string.len() + 1)
     }
 
-    pub fn writeln(&mut self, line: usize, col: usize, string: &str, style: Style) -> (usize, usize) {
+    pub fn writeln(
+        &mut self,
+        line: usize,
+        col: usize,
+        string: &str,
+        style: Style,
+    ) -> (usize, usize) {
         self.writel(line, col, string, style);
-        (line+2, 1)
+        (line + 2, 1)
     }
 
     pub fn prepend(&mut self, line: usize, string: &str, style: Style) {

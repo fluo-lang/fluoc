@@ -1,15 +1,24 @@
+use crate::logger::buffer_writer::color;
 use std::fs;
 use std::process;
-use crate::logger::buffer_writer::color;
 
 pub fn read_file<'a>(filename: &'a str) -> String {
     let f = fs::read_to_string(filename);
     match f {
-        Ok(file_cont) => { 
+        Ok(file_cont) => {
             return file_cont;
-        },
+        }
         Err(e) => {
-            eprintln!("{}{}Fluo: Fatal Error{}{}: {}: `{}`{}", color::RED, color::BOLD, color::RESET, color::BOLD, e, filename, color::RESET);
+            eprintln!(
+                "{}{}Fluo: Fatal Error{}{}: {}: `{}`{}",
+                color::RED,
+                color::BOLD,
+                color::RESET,
+                color::BOLD,
+                e,
+                filename,
+                color::RESET
+            );
             process::exit(1);
         }
     };
@@ -17,7 +26,7 @@ pub fn read_file<'a>(filename: &'a str) -> String {
 
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 /// Position helper struct
-/// 
+///
 /// Used to keep track of all tokens and nodes.
 /// Note that there are no line numbers, a `\n` character counts as on character.
 pub struct Pos {
@@ -25,7 +34,7 @@ pub struct Pos {
     pub s: usize,
 
     /// End position in characters
-    pub e: usize
+    pub e: usize,
 }
 
 impl Pos {

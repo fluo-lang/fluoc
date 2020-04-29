@@ -1,9 +1,9 @@
+pub mod codegen;
 pub mod helpers;
 pub mod lexer;
 pub mod logger;
-pub mod parser;
-pub mod codegen;
 pub mod master;
+pub mod parser;
 pub mod typecheck;
 
 #[macro_use]
