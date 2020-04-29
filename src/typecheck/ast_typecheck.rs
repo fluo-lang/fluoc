@@ -1,20 +1,20 @@
 use crate::parser::ast::*;
 use crate::logger::logger::{ Error, ErrorAnnotation, ErrorDisplayType, ErrorType };
 
-pub enum ErrorOrVec {
-    VecError(Vec<Error>),
-    Error(Error)
+pub enum ErrorOrVec<'a> {
+    VecError(Vec<Error<'a>>),
+    Error(Error<'a>)
 }
 
-impl ErrorOrVec {
-    pub fn unwrap(self) -> Error {
+impl <'a> ErrorOrVec<'a> {
+    pub fn unwrap(self) -> Error<'a> {
         match self {
             ErrorOrVec::VecError(_) => { panic!("Tried to unwrap `Error` from `ErrorOrVec`, got `VecError`"); },
             ErrorOrVec::Error(e) => { return e }
         }
     }
 
-    pub fn unwrap_other(self) -> Vec<Error> {
+    pub fn unwrap_other(self) -> Vec<Error<'a>> {
         match self {
             ErrorOrVec::Error(_) => { panic!("Tried to unwrap `VecError` from `ErrorOrVec`, got `Error`"); },
             ErrorOrVec::VecError(e) => { return e; }
@@ -22,14 +22,14 @@ impl ErrorOrVec {
     }
 }
 
-pub trait TypeCheck { 
-    fn type_check(&self, return_type: &Option<&Type>) -> Result<(), ErrorOrVec> {
+pub trait TypeCheck<'a> { 
+    fn type_check(&self, return_type: &Option<&Type>) -> Result<(), ErrorOrVec<'a>> {
         Ok(())
     }
 }
 
-impl TypeCheck for Block {
-    fn type_check(&self, return_type: &Option<&Type>) -> Result<(), ErrorOrVec> {
+impl <'a> TypeCheck<'a> for Block {
+    fn type_check(&self, return_type: &Option<&Type>) -> Result<(), ErrorOrVec<'a>> {
         let mut errors: Vec<Error> = Vec::new();
         let mut returns = false;
 
@@ -67,8 +67,8 @@ impl TypeCheck for Block {
     }
 }
 
-impl TypeCheck for FunctionDefine {
-    fn type_check(&self, return_type: &Option<&Type>) -> Result<(), ErrorOrVec> {
+impl <'a> TypeCheck<'a> for FunctionDefine {
+    fn type_check(&self, return_type: &Option<&Type>) -> Result<(), ErrorOrVec<'a>> {
         
         (&self.block as &dyn TypeCheck).type_check(&Some(&self.return_type))?;
 
@@ -76,6 +76,6 @@ impl TypeCheck for FunctionDefine {
     }
 }
 
-impl TypeCheck for Statement {
+impl <'a> TypeCheck<'a> for Statement {
 
 }

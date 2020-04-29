@@ -1,5 +1,4 @@
 use crate::helpers;
-use std::io;
 use std::fmt;
 use crate::logger::logger::{ Error, ErrorDisplayType, ErrorType };
 
@@ -210,9 +209,9 @@ pub fn is_whitespace(c: char) -> bool {
 
 #[derive(Debug, Clone)]
 /// Lexer object
-pub struct Lexer {
-    pub filename: String,
-    pub file_contents: String,
+pub struct Lexer<'a> {
+    pub filename: &'a str,
+    pub file_contents: &'a str,
     previous: char,
     pub position: usize,
     temp_pos: usize,
@@ -228,16 +227,15 @@ fn is_id_continue(c: char) -> bool {
         || c == '_'
 }
 
-impl Lexer {
+impl <'a> Lexer<'a> {
     /// Return new lexer object.
     /// 
     /// Arguments
     /// * `filename` - the filename of the file to read
-    pub fn new(filename: String) -> io::Result<Lexer> {
-        let file_contents = helpers::read_file(&filename)?;
-        Ok(Lexer { 
-            filename, 
-            file_contents, 
+    pub fn new(filename: &'a str, file_contents: &'a str) -> Lexer<'a> {
+        Lexer { 
+            filename: filename, 
+            file_contents: file_contents, 
             previous: EOF_CHAR, 
             position: 0, 
             temp_pos: 0,
@@ -249,7 +247,7 @@ impl Lexer {
                 token: TokenType::EOF, 
                 pos: helpers::Pos::new(0, 0)
             }
-        })
+        }
     }
 
     /// generate a unit test for the lexer
@@ -305,7 +303,7 @@ impl Lexer {
     }
 
     /// Get next token in input stream's type
-    fn get_next_tok_type<'a>(&'a mut self) -> Result<TokenType, Error> {
+    fn get_next_tok_type(&mut self) -> Result<TokenType, Error<'a>> {
         let first_char = self.bump();
 
         let mut token_kind = match first_char {
@@ -368,7 +366,7 @@ impl Lexer {
                     e: self.temp_pos
                 },
                 ErrorDisplayType::Error,
-                self.filename.clone(),
+                self.filename,
                 Vec::new(),
                 true
             ))
@@ -387,7 +385,7 @@ impl Lexer {
         token_kind
     }
 
-    pub fn eat_whitespace(&mut self) -> Result<(), Error> {
+    pub fn eat_whitespace(&mut self) -> Result<(), Error<'a>> {
         let pos = (self.position, self.temp_pos);
         let first_char = self.bump();
 
@@ -416,13 +414,13 @@ impl Lexer {
 
     #[allow(unused_must_use)]
     /// Set get of lexer: for use by the parser
-    pub fn get_pos(&mut self) -> Result<(usize, usize), Error> {
+    pub fn get_pos(&mut self) -> Result<(usize, usize), Error<'a>> {
         self.eat_whitespace()?;
         Ok((self.position, self.temp_pos))
     }
 
     /// Get next token in input stream, and advance
-    pub fn advance<'a>(&'a mut self) -> Result<&Token, Error> {
+    pub fn advance(&mut self) -> Result<&Token, Error<'a>> {
         let token_kind = self.get_next_tok_type()?;
         let position = self.position;
         self.eat();
@@ -439,7 +437,7 @@ impl Lexer {
     }
 
     /// Get next token in input stream, but don't advance
-    pub fn peek<'a>(&'a mut self) -> Result<&Token, Error> {
+    pub fn peek(&mut self) -> Result<&Token, Error<'a>> {
         let token_kind = self.get_next_tok_type()?;
 
         self.next_token = Token {
@@ -456,7 +454,7 @@ impl Lexer {
     }
 
     /// Tokenize integer
-    fn number(&mut self) -> Result<TokenType, Error> {
+    fn number(&mut self) -> Result<TokenType, Error<'a>> {
         let num = self.eat_while(|c| '0' <= c && c <= '9');
         Ok(TokenType::NUMBER(num.1))
     }
@@ -469,7 +467,7 @@ impl Lexer {
     }
     
     /// Tokenize identifier and keywords
-    fn identifier(&mut self) -> Result<TokenType, Error> {
+    fn identifier(&mut self) -> Result<TokenType, Error<'a>> {
         let id = self.eat_while(|c| is_id_continue(c));
         match id.1.as_str() {
             "def" => Ok(TokenType::DEF),
@@ -482,7 +480,7 @@ impl Lexer {
     }
 
     /// Validate string
-    fn string(&mut self) -> Result<TokenType, Error> {
+    fn string(&mut self) -> Result<TokenType, Error<'a>> {
         let pos = self.position-1;
         let mut string = String::new();
         string.push('"');
@@ -516,14 +514,14 @@ impl Lexer {
                 e: self.temp_pos
             },
             ErrorDisplayType::Error,
-            self.filename.clone(),
+            self.filename,
             Vec::new(),
             true
         ))
     }
 
     /// Tokenize block comment
-    fn block_comment(&mut self) -> Result<TokenType, Error> {
+    fn block_comment(&mut self) -> Result<TokenType, Error<'a>> {
         self.bump();
         let position = self.position;
 
@@ -557,13 +555,13 @@ impl Lexer {
     }
 
     /// Tokenize line comment
-    fn line_comment(&mut self) -> Result<TokenType, Error> {
+    fn line_comment(&mut self) -> Result<TokenType, Error<'a>> {
         self.bump();
         Ok(TokenType::LINECOMMENT(self.eat_while(|c| c != '\n').0 + 1))
     }
 
     /// Tokenize whitespace
-    fn whitespace(&mut self) -> Result<TokenType, Error> {
+    fn whitespace(&mut self) -> Result<TokenType, Error<'a>> {
         Ok(TokenType::WHITESPACE(self.eat_while(is_whitespace).0 + 1))
     }
 
@@ -640,8 +638,38 @@ mod lexer_tests {
     }
 
     #[test]
-    fn lex_test() -> io::Result<()> {
-        let mut l = Lexer::new(String::from("./tests/lexer_test.fluo"))?;
+    fn lex_test() -> Result<(), ()> {
+        let mut l = Lexer::new(
+            "./tests/lexer_test.fluo", 
+r#"-- lexer test (code shouldn't work)
+
+def entry(one, two) {
+    let x: int = 10;
+
+    -- hello work 12342824\n924910djwi2wkfjar2riar
+    /* ajwd asjf*/
+    return 1+192*20/(120 + "2319")%10/203911234567890;
+
+
+
+    let _qwertyuiopasdfghjklzxcvbnm;
+    _qwertyuiopasdfghjklzxcvbnm = "hi";
+
+}
+
+/*
+hlleoa1234567890qwertyuiopasdfghjklzxcvbnm,./?><;'":[]\|}{=-0987654321`~!@#$%^&*()_+
+one two
+djawd
+sfghsdjajdksajfiwjijfa
+*/
+
+def _123awfawjfaifjaiwjf(one, two) {
+
+
+}
+"#
+        );
     
         assert_eq!(*l.advance().unwrap(), Token { token: DEF, pos: Pos { s: 37, e: 40 } });
         assert_eq!(*l.advance().unwrap(), Token { token: IDENTIFIER("entry".to_string()), pos: Pos { s: 41, e: 46 } });

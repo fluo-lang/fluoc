@@ -82,7 +82,7 @@ impl ErrorDisplayType {
 
 #[derive(Debug, Clone)]
 /// Underlines and such
-pub struct ErrorAnnotation {
+pub struct ErrorAnnotation<'a> {
     /// Error message
     message: Option<String>,
     /// Error position
@@ -90,12 +90,12 @@ pub struct ErrorAnnotation {
     /// Error display mode
     mode: ErrorDisplayType,
     /// Filename of annotation
-    filename: String,
+    filename: &'a str,
     /// Position
     position_rel: ((usize, usize), (usize, usize))
 }
 
-impl<'a> ErrorAnnotation {
+impl<'a> ErrorAnnotation <'a> {
     /// Returns an error annotation
     /// 
     /// Arguments
@@ -104,7 +104,7 @@ impl<'a> ErrorAnnotation {
     /// * `position`: position of error
     /// * `mode`: mode of error report
     /// * `filename`: filename of annotation
-    pub fn new(message: Option<String>, position: Pos, mode: ErrorDisplayType, filename: String) -> ErrorAnnotation {
+    pub fn new(message: Option<String>, position: Pos, mode: ErrorDisplayType, filename: &'a str) -> ErrorAnnotation {
         ErrorAnnotation {
             message,
             position,
@@ -124,7 +124,7 @@ impl<'a> ErrorAnnotation {
 
 #[derive(Debug, Clone)]
 /// An full on error containing useful info.
-pub struct Error {
+pub struct Error<'a> {
     /// Error message
     message: String,
     /// Error type
@@ -134,14 +134,14 @@ pub struct Error {
     /// Error display mode
     mode: ErrorDisplayType,
     /// Filename of error
-    filename: String,
+    filename: &'a str,
     /// Annotations
-    annotations: Vec<ErrorAnnotation>,
+    annotations: Vec<ErrorAnnotation<'a>>,
     /// Urgent error: raise even if another function parses further
     urgent: bool
 }
 
-impl Error {
+impl Error<'_> {
     /// Returns an error object
     /// 
     /// # Arguments
@@ -151,7 +151,7 @@ impl Error {
     /// * `position`: position of error
     /// * `token`: optional token associated with error
     /// * `mode`: mode of error report
-    pub fn new(message: String, error: ErrorType, position: Pos, mode: ErrorDisplayType, filename: String, annotations: Vec<ErrorAnnotation>, urgent: bool) -> Error {
+    pub fn new<'a>(message: String, error: ErrorType, position: Pos, mode: ErrorDisplayType, filename: &'a str, annotations: Vec<ErrorAnnotation<'a>>, urgent: bool) -> Error<'a> {
         Error {
             message,
             error,
@@ -170,21 +170,21 @@ impl Error {
 
 #[derive(Clone)]
 /// Logger object for one file
-pub struct Logger {
+pub struct Logger<'a> {
     /// Vector of errors
-    errors: Vec<Error>,
+    errors: Vec<Error<'a>>,
     /// Filename + file contents the logger serves
-    filename_contents: HashMap<String, String>,
+    filename_contents: HashMap<&'a str, &'a str>,
     /// Amount of indentation used for error
     indentation: String,
     /// Buffer object
     buffer: Buffer
 }
 
-impl Logger {
+impl<'a> Logger <'a> {
     /// Return a new logger object.
    
-    pub fn new() -> Logger {
+    pub fn new() -> Logger<'a> {
         let buffer = Buffer::new();
         Logger { errors: Vec::new(), filename_contents: HashMap::new(),  indentation: String::from("  "), buffer }
     }
@@ -195,18 +195,18 @@ impl Logger {
     /// 
     /// * `filename`: filename of the file
     /// * `file_contents`: contents of the file
-    pub fn add_file(&mut self, filename: String, file_contents: String) {
+    pub fn add_file(&mut self, filename: &'a str, file_contents: &'a str) {
         self.filename_contents.insert(filename, file_contents);
     }
 
     /// Pushes an error onto the error vector. 
-    pub fn error(&mut self, error: Error) {
+    pub fn error(&mut self, error: Error<'a>) {
         self.errors.push(
             error
         );
     }
 
-    fn get_lineno(&mut self, pos: usize, filename: &String) -> (usize, usize) {
+    fn get_lineno(&mut self, pos: usize, filename: &'a str) -> (usize, usize) {
         let mut lineno = 1;
         let mut relative_pos = 1;
         
@@ -265,8 +265,8 @@ impl Logger {
         self.buffer.writel(ln-1, self.indentation.len()+(max_line_size+1-format!("{}", line_no).len()), &format!("{}", line_no), Style::new(Some(Color::BLUE), Some(Font::BOLD)));
     }
 
-    fn get_line_string(&mut self, ln: usize, filename: String) -> String {
-        self.filename_contents[&filename].split("\n").into_iter().nth(ln-1).unwrap().to_string()
+    fn get_line_string(&mut self, ln: usize, filename: &'a str) -> String {
+        self.filename_contents[filename].split("\n").into_iter().nth(ln-1).unwrap().to_string()
     }
 
     fn num_overlap(
@@ -334,22 +334,22 @@ impl Logger {
 
     fn draw_line(&mut self, 
         writer_pos: &mut (usize, usize), 
-        annotation: &&ErrorAnnotation, 
+        annotation: &&ErrorAnnotation<'a>, 
         max_line_size: usize, 
         span_thickness: usize, 
         lineno: usize, 
         prev_line: &mut usize, 
-        printed_lines: &mut HashMap<String, HashSet<usize>>,
+        printed_lines: &mut HashMap<&'a str, HashSet<usize>>,
         first: bool,
         line_offset: &mut usize,
-        vertical_annotations: &HashMap<usize, ErrorAnnotation>
+        vertical_annotations: &HashMap<usize, ErrorAnnotation<'a>>
     ) {
         // Add pipe on the left
         *writer_pos = self.add_pipe(writer_pos.0-1, max_line_size, &vertical_annotations, lineno, true);
 
         writer_pos.1 += 1; // add two proceeding spaces
         
-        let line = self.get_line_string(lineno, annotation.filename.clone()); // get line of code
+        let line = self.get_line_string(lineno, annotation.filename); // get line of code
 
         // Add line of code to buffer
         *writer_pos = self.buffer.writel(writer_pos.0-1, writer_pos.1+span_thickness, &line, Style::new(None, None));
@@ -367,12 +367,12 @@ impl Logger {
         *line_offset += 1;
 
         // remember we did this, so we don't need to do it again
-        if printed_lines.contains_key(&annotation.filename) {
-            printed_lines.get_mut(&annotation.filename).unwrap().insert(lineno);
+        if printed_lines.contains_key(annotation.filename) {
+            printed_lines.get_mut(annotation.filename).unwrap().insert(lineno);
         } else {
             let mut lines: HashSet<usize> = HashSet::new();
             lines.insert(lineno);
-            printed_lines.insert(annotation.filename.clone(), lines);
+            printed_lines.insert(annotation.filename, lines);
         }
 
         // Store previous line
@@ -381,12 +381,12 @@ impl Logger {
 
     fn format_line(
         &mut self, 
-        mut annotations: Vec<ErrorAnnotation>,
+        mut annotations: Vec<ErrorAnnotation<'a>>,
         writer_pos: &mut (usize, usize), 
         span_thickness: usize, 
         max_line_size: usize
     ) {
-        let mut printed_lines: HashMap<String, HashSet<usize>> = HashMap::new();
+        let mut printed_lines: HashMap<&str, HashSet<usize>> = HashMap::new();
         let start_line = writer_pos.0-1;
         let mut annotations_by_line: Vec<Vec<ErrorAnnotation>> = Vec::new();
         let mut temp: Vec<ErrorAnnotation> = Vec::new();
@@ -478,7 +478,7 @@ impl Logger {
                     writer_pos.1 = 0;
 
                     // draw line
-                    if !(printed_lines.contains_key(&annotation.filename) && printed_lines.get(&annotation.filename).unwrap_or(&HashSet::new()).contains(&lineno)) {
+                    if !(printed_lines.contains_key(annotation.filename) && printed_lines.get(annotation.filename).unwrap_or(&HashSet::new()).contains(&lineno)) {
                         self.draw_line(
                             writer_pos, 
                             annotation, 
@@ -700,7 +700,7 @@ impl Logger {
     }
 
     fn add_filename_pos(&mut self, 
-        filename: &String, 
+        filename: &'a str, 
         position: &((usize, usize), (usize, usize)), 
         max_line_size: usize, 
         writer_pos: &mut (usize, usize)
@@ -719,7 +719,7 @@ impl Logger {
         (annotation.position_rel.0).0 != (annotation.position_rel.1).0
     }
 
-    fn get_code(&mut self, mut annotations: Vec<ErrorAnnotation>, err_pos: Pos) {
+    fn get_code(&mut self, mut annotations: Vec<ErrorAnnotation<'a>>, err_pos: Pos) {
         let first = annotations.first().unwrap();
         let max_line_size: usize = self.get_max_line_size(&annotations);
 
@@ -728,17 +728,17 @@ impl Logger {
         let position;
         let mut span_thickness: usize = 0;
 
-        position = (self.get_lineno(err_pos.s, &first.filename), self.get_lineno(err_pos.e, &first.filename));
+        position = (self.get_lineno(err_pos.s, first.filename), self.get_lineno(err_pos.e, first.filename));
 
         // Add filename + position annotation
-        writer_pos = self.add_filename_pos(&first.filename, &position, max_line_size, &mut writer_pos);
+        writer_pos = self.add_filename_pos(first.filename, &position, max_line_size, &mut writer_pos);
 
         // Add pipe for padding
         writer_pos = self.add_pipe_pure(writer_pos.0-1, max_line_size);
         writer_pos.0 += 1;
 
         for mut annotation in &mut annotations {
-            annotation.position_rel = (self.get_lineno(annotation.position.s, &annotation.filename), self.get_lineno(annotation.position.e, &annotation.filename));
+            annotation.position_rel = (self.get_lineno(annotation.position.s, annotation.filename), self.get_lineno(annotation.position.e, annotation.filename));
             if self.is_multiline(annotation) {
                 span_thickness += 1;
             }
@@ -747,7 +747,7 @@ impl Logger {
         self.format_line(annotations, &mut writer_pos, span_thickness, max_line_size);
     }
 
-    fn raise_type(&mut self, errors: Vec<Error>, message_type: ErrorDisplayType) {
+    fn raise_type(&mut self, errors: Vec<Error<'a>>, message_type: ErrorDisplayType) {
         if errors.len() > 0 { 
             eprintln!(
                 "{}{}{}{} {} Found:{}\n", 

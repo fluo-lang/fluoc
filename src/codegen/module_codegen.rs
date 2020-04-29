@@ -17,12 +17,12 @@ impl<'a> CodeGenModule<'a> {
     /// 
     /// Arguments
     /// * `filename` - the filename of the file to read
-    pub fn new(module: module::Module<'a>, filename: String) -> io::Result<CodeGenModule<'a>> {
-        let typecheck = typecheck::TypeCheckModule::new(filename)?;
-        Ok(CodeGenModule { module, typecheck })
+    pub fn new(module: module::Module<'a>, filename: &'a str, file_contents: &'a str) -> CodeGenModule<'a> {
+        let typecheck = typecheck::TypeCheckModule::new(filename, file_contents);
+        CodeGenModule { module, typecheck }
     }
 
-    pub fn generate(&mut self) -> Result<(), Vec<Error>> {
+    pub fn generate(&mut self) -> Result<(), Vec<Error<'a>>> {
         self.typecheck.type_check()?;
         
         Ok(())

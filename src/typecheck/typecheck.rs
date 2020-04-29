@@ -2,7 +2,7 @@ use crate::parser::{ parser, ast };
 use crate::parser::parser::{ Parser };
 use crate::logger::logger::Error;
 use crate::typecheck::ast_typecheck;
-use std::io;
+
 use std::collections::HashMap;
 
 /// Typecheck object
@@ -16,13 +16,13 @@ impl<'a> TypeCheckModule<'a> {
     /// 
     /// Arguments
     /// * `filename` - the filename of the file to read
-    pub fn new(filename: String) -> io::Result<TypeCheckModule<'a>> {
-        let mut p = parser::Parser::new(filename)?;
+    pub fn new(filename: &'a str, file_contents: &'a str) -> TypeCheckModule<'a> {
+        let mut p = parser::Parser::new(filename, file_contents);
         p.initialize_expr();
-        Ok(TypeCheckModule { parser: p, symtab: HashMap::new() })
+        TypeCheckModule { parser: p, symtab: HashMap::new() }
     }
 
-    pub fn type_check(&mut self) -> Result<(), Vec<Error>> {
+    pub fn type_check(&mut self) -> Result<(), Vec<Error<'a>>> {
         self.parser.parse()?;
         println!("{}", self.parser.ast.as_ref().unwrap().to_string());
 

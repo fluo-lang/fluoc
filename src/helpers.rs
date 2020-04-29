@@ -1,9 +1,18 @@
 use std::fs;
-use std::io;
+use std::process;
+use crate::logger::buffer_writer::color;
 
-pub fn read_file<'a>(filename: &'a str) -> io::Result<String> {
-    let f = fs::read_to_string(filename)?;
-    Ok(f)
+pub fn read_file<'a>(filename: &'a str) -> String {
+    let f = fs::read_to_string(filename);
+    match f {
+        Ok(file_cont) => { 
+            return file_cont;
+        },
+        Err(e) => {
+            eprintln!("{}{}Fluo: Fatal Error{}{}: {}: `{}`{}", color::RED, color::BOLD, color::RESET, color::BOLD, e, filename, color::RESET);
+            process::exit(1);
+        }
+    };
 }
 
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
