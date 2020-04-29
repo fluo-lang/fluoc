@@ -1,0 +1,12 @@
+# Commit Tags Description
+
+| Tag                | Description                                                                  |
+| ------------------ | ---------------------------------------------------------------------------- |
+| `[Tests]`          | Changes to unit tests                                                        |
+| `[CI]`             | Changes to continuous integration (i.e. Github actions)                      |
+| `[Infrastructure]` | Changes to a whole system (i.e. making a small change to the `Error` struct) |
+| `[Documentation]`  | Changes to documentation (readme, etc.)                                      |
+| `[Parser]`         | Changes **specifically** to the parser                                       |
+| `[Lexer]`          | Changes **specifically** to the lexer                                        |
+| `[Codegen]`        | Changes **specifically** to the codegen stage (llvm)                         |
+| `[Typecheck]`      | Changes **specifically** to the type checker                                 |
