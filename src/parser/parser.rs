@@ -905,13 +905,3 @@ impl<'a> Parser<'a> {
         })
     }
 }
-
-#[cfg(test)]
-mod parser_tests {
-    use super::*;
-
-    #[test]
-    fn parse_test() -> Result<(), ()> {
-        Ok(())
-    }
-}
