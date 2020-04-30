@@ -60,20 +60,17 @@ impl<'a> TypeCheck<'a> for Block<'a> {
             }) if tuple_contents.is_empty() => {
                 // The function returns (), so we can implicitly do this at the end. This is the negate case for below.
                 if !returns {
-                    /*self.nodes.push(
-                        Statement::Return(
-                            Return {
-                                expression:
-                            }
-                        )
-                    )*/
+                    
                 }
             }
             Some(Type {
                 value: _,
                 inferred: inferred,
                 pos: pos,
-            }) => {}
+            }) => {
+                // A case that is not the explicit `()` case
+
+            },
             None => {}
         }
 

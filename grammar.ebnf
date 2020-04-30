@@ -3,19 +3,23 @@ Block := (
           | VariableAssignmentDeclaration
           | VariableDeclaration
           | FunctionDefine
+          | ExpressionStatement
           | Epsilon
          )+;
 
 VariableAssignment := "let", NameID, "=", Expression, ";";
 VariableAssignmentDeclaration := "let", NameID, ":", TypeID, "=", Expression, ";";
-VariableDeclaration := "let", NameID, ":", TypeID ";";
-FunctionDefine := "func", ID, "(", FunctionArgs, ")", "{", Block, "}";
+VariableDeclaration := "let", NameID, ":", TypeID, ";";
+FunctionDefine := "func", ID, "(", FunctionArgs, ")", "->", TypeExpr, "{", Block, "}";
+ExpressionStatement := Expression, ";";
 
-FunctionArgs := {Posarg, ","} ; (* {OptionalPosArg ","} {Kwarg ","} last comma is optional *)
+FunctionArgs := {Posarg, ","}; (* {OptionalPosArg ","} {Kwarg ","} last comma is optional *)
 
 (* OptionalPosArg := ID, "?";
 
 Kwarg := ID, "=", Expression; *)
+
+TypeExpr := ;
 
 Posarg := NameID, ":", TypeID;
 
@@ -27,3 +31,5 @@ Expression := Term, {( "+" | "-" ), Term};
 Term := Factor, {( "*" | "/" | "%" ), Factor};
 Factor := Item | "-", Factor;
 Item := Integer | Float | Tuple | ID | "(", Expression, ")";
+
+FunctionCall := ID, "(", {Expresion, ","}+, ")";

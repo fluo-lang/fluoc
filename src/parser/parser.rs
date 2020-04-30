@@ -7,6 +7,15 @@ use crate::parser::ast::{Expr, Scope, Statement};
 
 use std::collections::HashMap;
 
+macro_rules! ignore_or_return {
+    ( $e:expr ) => {
+        match $e {
+            Ok(x) => return Ok(x),
+            Err(_) => {}
+        }
+    };
+}
+
 #[derive(Copy, Clone)]
 pub enum Prec {
     LOWEST = 0,
@@ -591,7 +600,6 @@ impl<'a> Parser<'a> {
 
     pub fn item(&mut self) -> Result<Expr<'a>, Error<'a>> {
         let position = self.lexer.get_pos()?;
-        let mut errors: Vec<Error> = Vec::new();
 
         if let Ok(prefix) = self.get_operator_prefix() {
             let bp = self.binding_power(&prefix.token);
@@ -603,45 +611,20 @@ impl<'a> Parser<'a> {
             }));
         }
 
-        match self.integer() {
-            Ok(ast) => return Ok(ast),
-            Err(e) => errors.push(e),
+        let exprs = [
+            Parser::integer,
+            Parser::string_literal,
+            Parser::dollar_expr,
+            Parser::function_call,
+            Parser::variable_assign,
+            Parser::variable_assign_full,
+            Parser::ref_expr,
+            Parser::tuple_expr,
+        ];
+        for expr in exprs.iter() {
+            ignore_or_return!(expr(self));
         }
 
-        match self.string_literal() {
-            Ok(ast) => return Ok(ast),
-            Err(e) => errors.push(e),
-        }
-
-        match self.dollar_id() {
-            Ok(ast) => return Ok(Expr::DollarID(ast)),
-            Err(e) => errors.push(e),
-        }
-
-        match self.function_call() {
-            Ok(ast) => return Ok(ast),
-            Err(e) => errors.push(e),
-        }
-
-        match self.variable_assign() {
-            Ok(ast) => return Ok(ast),
-            Err(e) => errors.push(e),
-        }
-
-        match self.variable_assign_full() {
-            Ok(ast) => return Ok(ast),
-            Err(e) => errors.push(e),
-        }
-
-        match self.ref_id() {
-            Ok(ast) => return Ok(Expr::RefID(ast)),
-            Err(e) => errors.push(e),
-        }
-
-        match self.tuple() {
-            Ok(ast) => return Ok(Expr::Tuple(ast)),
-            Err(e) => errors.push(e),
-        }
         if let lexer::TokenType::LP = self.lexer.advance()?.token {
             let expr = self.expr(Prec::LOWEST)?;
             if let lexer::TokenType::RP = self.lexer.advance()?.token {
@@ -744,6 +727,10 @@ impl<'a> Parser<'a> {
         }
     }
 
+    pub fn ref_expr(&mut self) -> Result<Expr<'a>, Error<'a>> {
+        Ok(Expr::RefID(self.ref_id()?))
+    }
+
     /// Parse ref identifier (i.e. variable refrence (not &))
     pub fn ref_id(&mut self) -> Result<ast::RefID<'a>, Error<'a>> {
         let position = self.lexer.get_pos()?;
@@ -757,6 +744,10 @@ impl<'a> Parser<'a> {
             self.lexer.set_pos(position);
             Err(self.syntax_error(id, "expected variable", false, false))
         }
+    }
+
+    pub fn tuple_expr(&mut self) -> Result<Expr<'a>, Error<'a>> {
+        Ok(Expr::Tuple(self.tuple()?))
     }
 
     pub fn tuple(&mut self) -> Result<ast::Tuple<'a>, Error<'a>> {
@@ -890,6 +881,10 @@ impl<'a> Parser<'a> {
         }
 
         Ok(items)
+    }
+
+    pub fn dollar_expr(&mut self) -> Result<Expr<'a>, Error<'a>> {
+        Ok(Expr::DollarID(self.dollar_id()?))
     }
 
     /// Parse dollar id
