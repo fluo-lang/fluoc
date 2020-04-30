@@ -12,7 +12,7 @@ impl<'a> ErrorOrVec<'a> {
             ErrorOrVec::VecError(_) => {
                 panic!("Tried to unwrap `Error` from `ErrorOrVec`, got `VecError`");
             }
-            ErrorOrVec::Error(e) => return e,
+            ErrorOrVec::Error(e) => e,
         }
     }
 
@@ -21,21 +21,19 @@ impl<'a> ErrorOrVec<'a> {
             ErrorOrVec::Error(_) => {
                 panic!("Tried to unwrap `VecError` from `ErrorOrVec`, got `Error`");
             }
-            ErrorOrVec::VecError(e) => {
-                return e;
-            }
+            ErrorOrVec::VecError(e) => e,
         }
     }
 }
 
 pub trait TypeCheck<'a> {
-    fn type_check(&self, return_type: &Option<&Type>) -> Result<(), ErrorOrVec<'a>> {
+    fn type_check(&self, return_type: Option<&Type>) -> Result<(), ErrorOrVec<'a>> {
         Ok(())
     }
 }
 
 impl<'a> TypeCheck<'a> for Block<'a> {
-    fn type_check(&self, return_type: &Option<&Type>) -> Result<(), ErrorOrVec<'a>> {
+    fn type_check(&self, return_type: Option<&Type>) -> Result<(), ErrorOrVec<'a>> {
         let mut errors: Vec<Error> = Vec::new();
         let mut returns = false;
 
@@ -59,9 +57,7 @@ impl<'a> TypeCheck<'a> for Block<'a> {
                 pos: _,
             }) if tuple_contents.is_empty() => {
                 // The function returns (), so we can implicitly do this at the end. This is the negate case for below.
-                if !returns {
-                    
-                }
+                if !returns {}
             }
             Some(Type {
                 value: _,
@@ -69,8 +65,7 @@ impl<'a> TypeCheck<'a> for Block<'a> {
                 pos: pos,
             }) => {
                 // A case that is not the explicit `()` case
-
-            },
+            }
             None => {}
         }
 
@@ -79,8 +74,8 @@ impl<'a> TypeCheck<'a> for Block<'a> {
 }
 
 impl<'a> TypeCheck<'a> for FunctionDefine<'a> {
-    fn type_check(&self, return_type: &Option<&Type>) -> Result<(), ErrorOrVec<'a>> {
-        (&self.block as &dyn TypeCheck).type_check(&Some(&self.return_type))?;
+    fn type_check(&self, return_type: Option<&Type>) -> Result<(), ErrorOrVec<'a>> {
+        (&self.block as &dyn TypeCheck).type_check(Some(&self.return_type))?;
 
         Ok(())
     }

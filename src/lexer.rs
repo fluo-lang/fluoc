@@ -78,9 +78,9 @@ pub struct Token<'a> {
 impl<'a> fmt::Display for Token<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let result = match &self.token {
-            TokenType::STRING(val) => format!("string `{}`", val.clone()),
-            TokenType::IDENTIFIER(val) => format!("identifier `{}`", val.clone()),
-            TokenType::NUMBER(val) => format!("number `{}`", val.clone()),
+            TokenType::STRING(val) => format!("string `{}`", val),
+            TokenType::IDENTIFIER(val) => format!("identifier `{}`", val),
+            TokenType::NUMBER(val) => format!("number `{}`", val),
 
             TokenType::DEF => String::from("keyword `func`"),
             TokenType::IMPORT => String::from("keyword `import`"),
@@ -112,7 +112,7 @@ impl<'a> fmt::Display for Token<'a> {
             TokenType::SEMI => String::from("terminator `;`"),
             TokenType::COMMA => String::from("token `,`"),
             TokenType::EOF => String::from("end of file"),
-            TokenType::UNKNOWN(val) => String::from(format!("unknown token `{}`", val)),
+            TokenType::UNKNOWN(val) => format!("unknown token `{}`", val),
 
             TokenType::LINECOMMENT(_) => String::from("line comment"),
             TokenType::BLOCKCOMMENT(_) => String::from("block comment"),
@@ -220,8 +220,8 @@ impl<'a> Lexer<'a> {
     /// * `filename` - the filename of the file to read
     pub fn new(filename: &'a str, file_contents: &'a str) -> Lexer<'a> {
         Lexer {
-            filename: filename,
-            file_contents: file_contents,
+            filename,
+            file_contents,
             previous: EOF_CHAR,
             position: 0,
             temp_pos: 0,
@@ -241,16 +241,15 @@ impl<'a> Lexer<'a> {
         loop {
             let token = self.advance();
 
-            match token {
-                Ok(tok) => match tok.token {
+            if let Ok(tok) = token {
+                match tok.token {
                     TokenType::EOF => {
                         break;
                     }
                     _ => {
                         println!("assert_eq!(*l.advance().unwrap(), {:?});", tok);
                     }
-                },
-                Err(_) => {}
+                }
             }
         }
     }
@@ -270,11 +269,10 @@ impl<'a> Lexer<'a> {
 
     /// Check if next value is EOF
     fn is_eof(&self) -> bool {
-        if let None = self.file_contents.chars().nth(self.position as usize) {
-            true
-        } else {
-            false
-        }
+        self.file_contents
+            .chars()
+            .nth(self.position as usize)
+            .is_none()
     }
 
     /// Move position forward
@@ -472,7 +470,7 @@ impl<'a> Lexer<'a> {
     }
     /// Tokenize identifier and keywords
     fn identifier(&mut self) -> Result<TokenType<'a>, Error<'a>> {
-        let id = self.eat_while(|c| is_id_continue(c));
+        let id = self.eat_while(is_id_continue);
         match id.1 {
             "def" => Ok(TokenType::DEF),
             "let" => Ok(TokenType::LET),

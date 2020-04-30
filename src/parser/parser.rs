@@ -9,9 +9,8 @@ use std::collections::HashMap;
 
 macro_rules! ignore_or_return {
     ( $e:expr ) => {
-        match $e {
-            Ok(x) => return Ok(x),
-            Err(_) => {}
+        if let Ok(x) = $e {
+            return Ok(x);
         }
     };
 }
@@ -81,11 +80,11 @@ impl<'a> Parser<'a> {
         urgent: bool,
     ) -> Error<'a> {
         Error::new(
-            String::from(if !is_keyword {
+            if !is_keyword {
                 format!("{}, found {}", message, t)
             } else {
                 format!("unexpected {}", t)
-            }),
+            },
             ErrorType::Syntax,
             t.pos,
             ErrorDisplayType::Error,
@@ -340,21 +339,19 @@ impl<'a> Parser<'a> {
 
         self.next(lexer::TokenType::RP, position, false)?;
 
-        let return_type: ast::Type;
-
-        if self.lexer.peek()?.token == lexer::TokenType::ARROW {
+        let return_type: ast::Type = if self.lexer.peek()?.token == lexer::TokenType::ARROW {
             self.lexer.advance()?;
-            return_type = self.type_expr()?;
+            self.type_expr()?
         } else {
-            return_type = ast::Type {
+            ast::Type {
                 value: ast::TypeType::Tuple(Vec::new()),
                 inferred: true,
                 pos: helpers::Pos {
                     s: self.lexer.position,
                     e: self.lexer.position,
                 },
-            };
-        }
+            }
+        };
 
         let block = self.block()?;
         Ok(ast::Statement::FunctionDefine(ast::FunctionDefine {
@@ -527,7 +524,7 @@ impl<'a> Parser<'a> {
     fn get_operator_infix(&mut self) -> Result<lexer::Token<'a>, Error<'a>> {
         let position = self.lexer.get_pos()?;
         let potential_op = self.lexer.advance()?;
-        for (op, _) in &self.infix_op {
+        for op in self.infix_op.keys() {
             if &potential_op.token == op {
                 return Ok(potential_op);
             }
@@ -554,7 +551,7 @@ impl<'a> Parser<'a> {
     fn get_operator_prefix(&mut self) -> Result<lexer::Token<'a>, Error<'a>> {
         let position = self.lexer.get_pos()?;
         let potential_op = self.lexer.advance()?;
-        for (op, _) in &self.prefix_op {
+        for op in self.prefix_op.keys() {
             if &potential_op.token == op {
                 return Ok(potential_op);
             }
@@ -657,7 +654,7 @@ impl<'a> Parser<'a> {
         let int = self.lexer.advance()?;
         if let lexer::TokenType::NUMBER(value) = &int.token {
             Ok(ast::Expr::Integer(ast::Integer {
-                value: value,
+                value,
                 pos: int.pos,
             }))
         } else {
@@ -672,7 +669,7 @@ impl<'a> Parser<'a> {
         let string = self.lexer.advance()?;
         if let lexer::TokenType::STRING(value) = &string.token {
             Ok(ast::Expr::StringLiteral(ast::StringLiteral {
-                value: value,
+                value,
                 pos: string.pos,
             }))
         } else {
@@ -717,10 +714,7 @@ impl<'a> Parser<'a> {
         let position = self.lexer.get_pos()?;
         let id = self.lexer.advance()?;
         if let lexer::TokenType::IDENTIFIER(value) = &id.token {
-            Ok(ast::NameID {
-                value: value,
-                pos: id.pos,
-            })
+            Ok(ast::NameID { value, pos: id.pos })
         } else {
             self.lexer.set_pos(position);
             Err(self.syntax_error(id, "expected identifier", false, false))
@@ -736,10 +730,7 @@ impl<'a> Parser<'a> {
         let position = self.lexer.get_pos()?;
         let id = self.lexer.advance()?;
         if let lexer::TokenType::IDENTIFIER(value) = &id.token {
-            Ok(ast::RefID {
-                value: value,
-                pos: id.pos,
-            })
+            Ok(ast::RefID { value, pos: id.pos })
         } else {
             self.lexer.set_pos(position);
             Err(self.syntax_error(id, "expected variable", false, false))

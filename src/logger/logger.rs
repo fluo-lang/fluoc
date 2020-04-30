@@ -63,7 +63,7 @@ impl ErrorDisplayType {
         }
     }
 
-    fn get_color(&self) -> &'static str {
+    fn get_color(self) -> &'static str {
         match self {
             ErrorDisplayType::Error => color::RED,
             ErrorDisplayType::Warning => color::YELLOW,
@@ -71,7 +71,7 @@ impl ErrorDisplayType {
         }
     }
 
-    fn get_color_class(&self) -> Color {
+    fn get_color_class(self) -> Color {
         match self {
             ErrorDisplayType::Error => Color::RED,
             ErrorDisplayType::Warning => Color::YELLOW,
@@ -120,10 +120,7 @@ impl<'a> ErrorAnnotation<'a> {
     }
 
     pub fn has_label(&self) -> bool {
-        match self.message {
-            Some(_) => true,
-            None => false,
-        }
+        self.message.is_some()
     }
 }
 
@@ -181,7 +178,7 @@ impl Error<'_> {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 /// Logger object for one file
 pub struct Logger<'a> {
     /// Vector of errors
@@ -195,17 +192,6 @@ pub struct Logger<'a> {
 }
 
 impl<'a> Logger<'a> {
-    /// Return a new logger object.
-    pub fn new() -> Logger<'a> {
-        let buffer = Buffer::new();
-        Logger {
-            errors: Vec::new(),
-            filename_contents: HashMap::new(),
-            indentation: String::from("  "),
-            buffer,
-        }
-    }
-
     /// Adds a file to the logger hash map
     ///
     /// Arguments
@@ -235,7 +221,7 @@ impl<'a> Logger<'a> {
         (lineno, relative_pos)
     }
 
-    fn get_max_line_size(&mut self, errors: &Vec<ErrorAnnotation>) -> usize {
+    fn get_max_line_size(&mut self, errors: &[ErrorAnnotation]) -> usize {
         let mut max_line_size = 0;
         for error in errors {
             let temp = (error.position_rel.1)
@@ -271,7 +257,7 @@ impl<'a> Logger<'a> {
         );
 
         let mut vertical_annotations: Vec<(&usize, &ErrorAnnotation)> =
-            vertical_annotations.into_iter().collect();
+            vertical_annotations.iter().collect();
         vertical_annotations.sort_by_key(|a| Reverse(a.0));
         let mut span_no = 0;
 
@@ -311,8 +297,7 @@ impl<'a> Logger<'a> {
 
     fn get_line_string(&mut self, ln: usize, filename: &'a str) -> String {
         self.filename_contents[filename]
-            .split("\n")
-            .into_iter()
+            .split('\n')
             .nth(ln - 1)
             .unwrap()
             .to_string()
@@ -429,21 +414,19 @@ impl<'a> Logger<'a> {
         self.insert_lineno(writer_pos.0, max_line_size, lineno); // insert line number on the left of pipe
 
         // Add dots if we are not displaying lines continually
-        if !first {
-            if lineno - *prev_line > 1 {
-                self.buffer.writel(
-                    writer_pos.0 - 2,
-                    max_line_size + self.indentation.len() - 1,
-                    "...",
-                    Style::new(Some(Color::BLUE), None),
-                );
-                self.buffer.writech(
-                    writer_pos.0 - 2,
-                    max_line_size + self.indentation.len() + 2,
-                    ' ',
-                    Style::new(Some(Color::BLUE), None),
-                );
-            }
+        if !first && lineno - *prev_line > 1 {
+            self.buffer.writel(
+                writer_pos.0 - 2,
+                max_line_size + self.indentation.len() - 1,
+                "...",
+                Style::new(Some(Color::BLUE), None),
+            );
+            self.buffer.writech(
+                writer_pos.0 - 2,
+                max_line_size + self.indentation.len() + 2,
+                ' ',
+                Style::new(Some(Color::BLUE), None),
+            );
         }
 
         *line_offset += 1;
@@ -765,7 +748,7 @@ impl<'a> Logger<'a> {
 
                                         vertical_annotations.insert(
                                             (annotation.position_rel.1).0,
-                                            annotation.clone().clone(),
+                                            (*annotation).clone().clone(),
                                         );
                                         span_no += 1;
                                         if Some(vertical_pos)
@@ -852,7 +835,7 @@ impl<'a> Logger<'a> {
 
                                     vertical_annotations.insert(
                                         (annotation.position_rel.1).0,
-                                        annotation.clone().clone(),
+                                        (*annotation).clone().clone(),
                                     );
                                     span_no += 1;
                                     if Some(vertical_pos)
@@ -1007,7 +990,7 @@ impl<'a> Logger<'a> {
     }
 
     fn raise_type(&mut self, errors: Vec<Error<'a>>, message_type: ErrorDisplayType) {
-        if errors.len() > 0 {
+        if !errors.is_empty() {
             eprintln!(
                 "{}{}{}{} {} Found:{}\n",
                 message_type.get_color(),
@@ -1022,7 +1005,7 @@ impl<'a> Logger<'a> {
                 color::RESET
             );
         } else {
-            return ();
+            return;
         }
         for error in errors {
             eprintln!(

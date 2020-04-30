@@ -2,12 +2,10 @@ use crate::logger::buffer_writer::color;
 use std::fs;
 use std::process;
 
-pub fn read_file<'a>(filename: &'a str) -> String {
+pub fn read_file(filename: &str) -> String {
     let f = fs::read_to_string(filename);
     match f {
-        Ok(file_cont) => {
-            return file_cont;
-        }
+        Ok(file_cont) => file_cont,
         Err(e) => {
             eprintln!(
                 "{}{}Fluo: Fatal Error{}{}: {}: `{}`{}",
@@ -21,7 +19,7 @@ pub fn read_file<'a>(filename: &'a str) -> String {
             );
             process::exit(1);
         }
-    };
+    }
 }
 
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]

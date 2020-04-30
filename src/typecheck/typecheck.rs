@@ -30,7 +30,7 @@ impl<'a> TypeCheckModule<'a> {
         //println!("{}", self.parser.ast.as_ref().unwrap().to_string());
 
         // Do type checking
-        match (self.parser.ast.as_ref().unwrap() as &dyn ast_typecheck::TypeCheck).type_check(&None)
+        match (self.parser.ast.as_ref().unwrap() as &dyn ast_typecheck::TypeCheck).type_check(None)
         {
             Ok(_) => Ok(()),
             Err(e) => Err(e.unwrap_other()),

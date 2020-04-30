@@ -11,21 +11,21 @@ pub enum Color {
 }
 
 pub mod color {
-    pub const BLACK: &'static str = "\x1b[30m";
-    pub const BOLD: &'static str = "\x1b[1m";
-    pub const RED: &'static str = "\x1b[31m";
-    pub const GREEN: &'static str = "\x1b[32m";
-    pub const YELLOW: &'static str = "\x1b[33m";
-    pub const BLUE: &'static str = "\x1b[34m";
-    pub const MAGENTA: &'static str = "\x1b[35m";
-    pub const CYAN: &'static str = "\x1b[36m";
-    pub const WHITE: &'static str = "\x1b[37m";
-    pub const UNDERLINE: &'static str = "\x1b[4m";
-    pub const RESET: &'static str = "\x1b[0m";
+    pub const BLACK: &str = "\x1b[30m";
+    pub const BOLD: &str = "\x1b[1m";
+    pub const RED: &str = "\x1b[31m";
+    pub const GREEN: &str = "\x1b[32m";
+    pub const YELLOW: &str = "\x1b[33m";
+    pub const BLUE: &str = "\x1b[34m";
+    pub const MAGENTA: &str = "\x1b[35m";
+    pub const CYAN: &str = "\x1b[36m";
+    pub const WHITE: &str = "\x1b[37m";
+    pub const UNDERLINE: &str = "\x1b[4m";
+    pub const RESET: &str = "\x1b[0m";
 }
 
 impl Color {
-    pub fn to_string(&self) -> &'static str {
+    pub fn to_string(self) -> &'static str {
         match self {
             Color::BLACK => color::BLACK,
             Color::RED => color::RED,
@@ -46,7 +46,7 @@ pub enum Font {
 }
 
 impl Font {
-    pub fn to_string(&self) -> &'static str {
+    pub fn to_string(self) -> &'static str {
         match self {
             Font::RESET => color::RESET,
             Font::BOLD => color::BOLD,
@@ -66,20 +66,13 @@ impl Style {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct Buffer {
     contents: Vec<Vec<char>>,
     styles: Vec<Vec<Style>>,
 }
 
 impl Buffer {
-    pub fn new() -> Buffer {
-        Buffer {
-            contents: Vec::new(),
-            styles: Vec::new(),
-        }
-    }
-
     fn ensure_lines(&mut self, line: usize) {
         while line >= self.contents.len() {
             self.contents.push(vec![]);
