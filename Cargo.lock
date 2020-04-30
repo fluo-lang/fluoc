@@ -88,9 +88,9 @@ dependencies = [
 
 [[package]]
 name = "hermit-abi"
-version = "0.1.11"
+version = "0.1.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8a0d737e0f947a1864e93d33fdef4af8445a00d1ed8dc0c8ddb73139ea6abf15"
+checksum = "61565ff7aaace3525556587bd2dc31d4a07071957be715e63ce7b1eccf51a8f4"
 dependencies = [
  "libc",
 ]
@@ -98,7 +98,7 @@ dependencies = [
 [[package]]
 name = "inkwell"
 version = "0.1.0"
-source = "git+https://github.com/TheDan64/inkwell?branch=llvm10-0#7a49bb6634b67fe0962b7222b310f12a63a190ea"
+source = "git+https://github.com/TheDan64/inkwell?branch=llvm10-0#82c88e2c8aff2298bd741f342696fde93e02c909"
 dependencies = [
  "either",
  "inkwell_internals",
@@ -112,7 +112,7 @@ dependencies = [
 [[package]]
 name = "inkwell_internals"
 version = "0.1.0"
-source = "git+https://github.com/TheDan64/inkwell?branch=llvm10-0#7a49bb6634b67fe0962b7222b310f12a63a190ea"
+source = "git+https://github.com/TheDan64/inkwell?branch=llvm10-0#82c88e2c8aff2298bd741f342696fde93e02c909"
 dependencies = [
  "proc-macro2",
  "quote",
