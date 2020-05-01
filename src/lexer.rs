@@ -206,6 +206,7 @@ pub struct Lexer<'a> {
     temp_pos: usize,
     next_token: Token<'a>,
     pub current_token: Token<'a>,
+    change_peek: bool,
 }
 
 /// Check if ID is continue
@@ -233,6 +234,7 @@ impl<'a> Lexer<'a> {
                 token: TokenType::EOF,
                 pos: helpers::Pos::new(0, 0),
             },
+            change_peek: true,
         }
     }
 
@@ -414,6 +416,8 @@ impl<'a> Lexer<'a> {
     pub fn set_pos(&mut self, pos: (usize, usize)) {
         self.position = pos.0;
         self.temp_pos = pos.1;
+
+        self.change_peek = true;
     }
 
     #[allow(unused_must_use)]
@@ -434,28 +438,36 @@ impl<'a> Lexer<'a> {
             token: token_kind,
         };
 
+        self.change_peek = true;
+
         Ok(self.current_token)
     }
 
     /// Get next token in input stream, but don't advance
     pub fn peek(&mut self) -> Result<Token<'a>, Error<'a>> {
-        let token_kind = self.get_next_tok_type()?;
+        if self.change_peek {
+            let token_kind = self.get_next_tok_type()?;
 
-        self.next_token = Token {
-            pos: helpers::Pos::new(
-                if get_tok_length(&token_kind) + self.temp_pos > self.position {
-                    0
-                } else {
-                    self.position - get_tok_length(&token_kind) + self.temp_pos
-                },
-                self.position + self.temp_pos,
-            ),
-            token: token_kind,
-        };
+            self.next_token = Token {
+                pos: helpers::Pos::new(
+                    if get_tok_length(&token_kind) + self.temp_pos > self.position {
+                        0
+                    } else {
+                        self.position - get_tok_length(&token_kind) + self.temp_pos
+                    },
+                    self.position + self.temp_pos,
+                ),
+                token: token_kind,
+            };
 
-        self.temp_pos = 0;
+            self.temp_pos = 0;
 
-        Ok(self.next_token)
+            self.change_peek = false;
+
+            Ok(self.next_token)
+        } else {
+            Ok(self.next_token)
+        }
     }
 
     /// Tokenize integer
