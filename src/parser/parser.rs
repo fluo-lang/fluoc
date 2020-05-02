@@ -129,7 +129,7 @@ impl<'a> Parser<'a> {
     pub fn position(&mut self, position: usize) -> helpers::Pos {
         helpers::Pos {
             s: self.tokens[position].pos.s,
-            e: self.tokens[self.token_pos].pos.s,
+            e: self.tokens[self.token_pos].pos.e,
         }
     }
 
@@ -539,7 +539,17 @@ impl<'a> Parser<'a> {
                 }
             }
             let binding_power = self.binding_power(&operator.token) as u8;
-            left = self.led(left, operator)?;
+            // Unmatched expression if Err(), raise error (priority mode)
+            match self.led(left, operator) {
+                Ok(val) => {
+                    left = val;
+                }
+                Err(mut e) => {
+                    e.urgent = true;
+                    e.position.e += 1;
+                    return Err(e);
+                }
+            }
             if binding_power > prec as u8 {
                 break;
             }
@@ -655,6 +665,7 @@ impl<'a> Parser<'a> {
         }
 
         self.set_pos(position);
+        let next = self.peek();
         Err(Error::new(
             "Missing expression".to_string(),
             ErrorType::Syntax,
@@ -662,7 +673,7 @@ impl<'a> Parser<'a> {
             ErrorDisplayType::Error,
             self.lexer.filename,
             vec![ErrorAnnotation::new(
-                Some("Missing expression here".to_string()),
+                Some(format!("Expected expression, found {}", next)),
                 self.position(position),
                 ErrorDisplayType::Error,
                 self.lexer.filename,

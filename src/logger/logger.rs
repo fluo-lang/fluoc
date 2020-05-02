@@ -132,7 +132,7 @@ pub struct Error<'a> {
     /// Error type
     error: ErrorType,
     /// Error position
-    position: Pos,
+    pub position: Pos,
     /// Error display mode
     mode: ErrorDisplayType,
     /// Filename of error
