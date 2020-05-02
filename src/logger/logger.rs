@@ -140,7 +140,7 @@ pub struct Error<'a> {
     /// Annotations
     annotations: Vec<ErrorAnnotation<'a>>,
     /// Urgent error: raise even if another function parses further
-    urgent: bool,
+    pub urgent: bool,
 }
 
 impl Error<'_> {
@@ -178,7 +178,7 @@ impl Error<'_> {
     }
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone)]
 /// Logger object for one file
 pub struct Logger<'a> {
     /// Vector of errors
@@ -192,6 +192,15 @@ pub struct Logger<'a> {
 }
 
 impl<'a> Logger<'a> {
+    pub fn new() -> Logger<'a> {
+        Logger {
+            errors: Vec::new(),
+            filename_contents: HashMap::new(),
+            indentation: "  ".to_string(),
+            buffer: Buffer::new(),
+        }
+    }
+
     /// Adds a file to the logger hash map
     ///
     /// Arguments
@@ -210,6 +219,7 @@ impl<'a> Logger<'a> {
     fn get_lineno(&mut self, pos: usize, filename: &'a str) -> (usize, usize) {
         let mut lineno = 1;
         let mut relative_pos = 1;
+
         for c in (&self.filename_contents[filename][..pos]).chars() {
             relative_pos += 1;
             if c == '\n' {
@@ -568,11 +578,11 @@ impl<'a> Logger<'a> {
                             //
                             //   --> examples/tests.fluo:5:1
                             //    |
-                            //    |   def entry() {
-                            //    |       let x: int = 10+10*(1929+10);
-                            //            ^^^ Error    ------------
-                            //                that     |     | other error
-                            //            overflows    | other error that goes over but its fine
+                            //  1 |   def entry() {
+                            //  2 |       let x: int = 10+10*(1929+10);
+                            //    |       ^^^ Error    ------------
+                            //    |           that     |     | other error
+                            //    |       overflows    | other error that goes over but its fine
 
                             *writer_pos = self.add_pipe(
                                 writer_pos.0 - 1,

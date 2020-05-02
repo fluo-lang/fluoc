@@ -61,8 +61,8 @@ impl<'a> TypeCheck<'a> for Block<'a> {
             }
             Some(Type {
                 value: _,
-                inferred: inferred,
-                pos: pos,
+                inferred,
+                pos,
             }) => {
                 // A case that is not the explicit `()` case
             }

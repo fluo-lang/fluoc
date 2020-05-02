@@ -82,7 +82,7 @@ impl<'a> fmt::Display for Token<'a> {
             TokenType::IDENTIFIER(val) => format!("identifier `{}`", val),
             TokenType::NUMBER(val) => format!("number `{}`", val),
 
-            TokenType::DEF => String::from("keyword `func`"),
+            TokenType::DEF => String::from("keyword `def`"),
             TokenType::IMPORT => String::from("keyword `import`"),
             TokenType::RETURN => String::from("keyword `return`"),
             TokenType::LET => String::from("keyword `let`"),
@@ -196,15 +196,13 @@ pub fn is_whitespace(c: char) -> bool {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 /// Lexer object
 pub struct Lexer<'a> {
     pub filename: &'a str,
     pub file_contents: &'a str,
-    previous: char,
+    file_iter: std::iter::Peekable<std::str::Chars<'a>>,
     pub position: usize,
-    temp_pos: usize,
-    next_token: Token<'a>,
     pub current_token: Token<'a>,
     change_peek: bool,
 }
@@ -223,14 +221,9 @@ impl<'a> Lexer<'a> {
         Lexer {
             filename,
             file_contents,
-            previous: EOF_CHAR,
+            file_iter: file_contents.chars().peekable(),
             position: 0,
-            temp_pos: 0,
             current_token: Token {
-                token: TokenType::EOF,
-                pos: helpers::Pos::new(0, 0),
-            },
-            next_token: Token {
                 token: TokenType::EOF,
                 pos: helpers::Pos::new(0, 0),
             },
@@ -241,7 +234,8 @@ impl<'a> Lexer<'a> {
     /// generate a unit test for the lexer
     pub fn get_unit_test(&mut self) {
         loop {
-            let token = self.advance();
+            let token = self.peek();
+            self.eat();
 
             if let Ok(tok) = token {
                 match tok.token {
@@ -256,59 +250,37 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    /// Get the nth char of input stream
-    fn nth_char(&mut self, n: usize) -> char {
-        self.file_contents
-            .chars()
-            .nth(n + self.position + self.temp_pos)
-            .unwrap_or(EOF_CHAR)
-    }
-
     /// Get next chat in input stream
-    fn first(&mut self) -> char {
-        self.nth_char(0)
+    fn peek_char(&mut self) -> char {
+        *self.file_iter.peek().unwrap_or(&EOF_CHAR)
     }
-
-    /// Check if next value is EOF
-    fn is_eof(&self) -> bool {
-        self.file_contents
-            .chars()
-            .nth(self.position as usize)
-            .is_none()
-    }
-
     /// Move position forward
     fn bump(&mut self) -> char {
-        self.previous = self.first();
-        let c = self
-            .file_contents
-            .chars()
-            .nth((self.position + self.temp_pos) as usize)
-            .unwrap_or(EOF_CHAR);
-        self.temp_pos += 1;
+        let c = self.file_iter.nth(0).unwrap_or(EOF_CHAR);
+        self.position += 1;
         c
-    }
-
-    /// Eat up character from temp pos
-    fn eat(&mut self) {
-        self.position += self.temp_pos;
-        self.temp_pos = 0;
     }
 
     /// Get next token in input stream's type
     fn get_next_tok_type(&mut self) -> Result<TokenType<'a>, Error<'a>> {
         let first_char = self.bump();
-
-        let mut token_kind = match first_char {
-            '-' => match self.first() {
-                '-' => self.line_comment(),
+        let token_kind = match first_char {
+            '-' => match self.peek_char() {
+                '-' => {
+                    self.line_comment()?;
+                    self.bump(); // Eat the \n
+                    self.get_next_tok_type()
+                }
                 '>' => {
                     self.bump();
                     Ok(TokenType::ARROW)
                 }
                 _ => Ok(TokenType::SUB),
             },
-            c if is_whitespace(c) => self.whitespace(),
+            c if is_whitespace(c) => {
+                self.whitespace()?;
+                self.get_next_tok_type()
+            }
 
             c if self.is_id_start(c) => self.identifier(),
 
@@ -316,16 +288,17 @@ impl<'a> Lexer<'a> {
 
             '*' => Ok(TokenType::MUL),
             '+' => Ok(TokenType::ADD),
-            '/' => match self.first() {
-                '*' => self.block_comment(),
+            '/' => match self.peek_char() {
+                '*' => {
+                    self.bump();
+                    self.block_comment()?;
+                    self.get_next_tok_type()
+                }
                 _ => Ok(TokenType::DIV),
             },
 
-            '%' => match self.first() {
-                '%' => {
-                    self.bump();
-                    Ok(TokenType::DMOD)
-                }
+            '%' => match self.peek_char() {
+                '%' => Ok(TokenType::DMOD),
                 _ => Ok(TokenType::MOD),
             },
             '$' => Ok(TokenType::DOLLAR),
@@ -339,23 +312,23 @@ impl<'a> Lexer<'a> {
             '=' => Ok(TokenType::EQUALS),
             '?' => Ok(TokenType::QUESTION),
             ',' => Ok(TokenType::COMMA),
-            ':' => match self.first() {
-                ':' => {
-                    self.bump();
-                    Ok(TokenType::DOUBLECOLON)
-                }
+            ':' => match self.peek_char() {
+                ':' => Ok(TokenType::DOUBLECOLON),
                 _ => Ok(TokenType::COLON),
             },
 
             '"' => self.string(),
-            EOF_CHAR => Ok(TokenType::EOF),
+            EOF_CHAR => {
+                self.position -= 1;
+                Ok(TokenType::EOF)
+            }
 
             unknown => Err(Error::new(
                 format!("Unknown character `{}`", unknown.to_string()),
                 ErrorType::UnknownCharacter,
                 helpers::Pos {
-                    s: self.temp_pos - 1,
-                    e: self.temp_pos,
+                    s: self.position - 1,
+                    e: self.position,
                 },
                 ErrorDisplayType::Error,
                 self.filename,
@@ -364,83 +337,53 @@ impl<'a> Lexer<'a> {
             )),
         };
 
-        if let Ok(TokenType::EOF) = token_kind {
-            // Don't increment if EOF char, leads to weird out of bounds errors in error reporting
-            self.temp_pos -= 1;
-        }
-
-        if let Ok(TokenType::WHITESPACE(_))
-        | Ok(TokenType::LINECOMMENT(_))
-        | Ok(TokenType::BLOCKCOMMENT(_)) = token_kind
-        {
-            self.eat();
-            token_kind = self.get_next_tok_type();
-        }
-
         token_kind
     }
 
     pub fn eat_whitespace(&mut self) -> Result<(), Error<'a>> {
-        let pos = (self.position, self.temp_pos);
-        let first_char = self.bump();
+        let first_char = self.peek_char();
 
         match first_char {
-            '-' => match self.first() {
+            '-' => match self.peek_char() {
                 '-' => {
                     self.line_comment()?;
-                    self.eat();
+                    self.bump(); // Eat the \n
                     return Ok(());
                 }
                 _ => {}
             },
-            '/' => match self.first() {
+            '/' => match self.peek_char() {
                 '*' => {
+                    self.bump();
                     self.block_comment()?;
-                    self.eat();
                     return Ok(());
                 }
                 _ => {}
             },
             c if is_whitespace(c) => {
                 self.whitespace()?;
-                self.eat();
                 return Ok(());
             }
             _ => {}
         };
-        self.set_pos(pos);
         Ok(())
-    }
-
-    /// Set position of lexer: for use by the parser
-    pub fn set_pos(&mut self, pos: (usize, usize)) {
-        self.position = pos.0;
-        self.temp_pos = pos.1;
-
-        self.change_peek = true;
     }
 
     #[allow(unused_must_use)]
     /// Set get of lexer: for use by the parser
-    pub fn get_pos(&mut self) -> Result<(usize, usize), Error<'a>> {
+    pub fn get_pos(&mut self) -> Result<usize, Error<'a>> {
         self.eat_whitespace()?;
-        Ok((self.position, self.temp_pos))
+        Ok(self.position)
     }
 
-    /// Get next token in input stream, and advance
     pub fn advance(&mut self) -> Result<Token<'a>, Error<'a>> {
-        let token_kind = self.get_next_tok_type()?;
-        let position = self.position;
-        self.eat();
+        self.peek()?;
+        Ok(self.eat())
+    }
 
-        self.current_token = Token {
-            pos: helpers::Pos::new(position, self.position),
-            token: token_kind,
-        };
-
+    pub fn eat(&mut self) -> Token<'a> {
         self.change_peek = true;
-
-        Ok(self.current_token)
+        self.current_token
     }
 
     /// Get next token in input stream, but don't advance
@@ -448,31 +391,27 @@ impl<'a> Lexer<'a> {
         if self.change_peek {
             let token_kind = self.get_next_tok_type()?;
 
-            self.next_token = Token {
+            self.current_token = Token {
                 pos: helpers::Pos::new(
-                    if get_tok_length(&token_kind) + self.temp_pos > self.position {
+                    if get_tok_length(&token_kind) > self.position {
                         0
                     } else {
-                        self.position - get_tok_length(&token_kind) + self.temp_pos
+                        self.position - get_tok_length(&token_kind)
                     },
-                    self.position + self.temp_pos,
+                    self.position,
                 ),
                 token: token_kind,
             };
-
-            self.temp_pos = 0;
-
-            self.change_peek = false;
-
-            Ok(self.next_token)
-        } else {
-            Ok(self.next_token)
+            self.change_peek = false
         }
+        Ok(self.current_token)
     }
 
     /// Tokenize integer
     fn number(&mut self) -> Result<TokenType<'a>, Error<'a>> {
+        self.position -= 1;
         let num = self.eat_while(|c| '0' <= c && c <= '9');
+        self.position += 1;
         Ok(TokenType::NUMBER(num.1))
     }
 
@@ -482,7 +421,10 @@ impl<'a> Lexer<'a> {
     }
     /// Tokenize identifier and keywords
     fn identifier(&mut self) -> Result<TokenType<'a>, Error<'a>> {
+        self.position -= 1;
         let id = self.eat_while(is_id_continue);
+        self.position += 1;
+
         match id.1 {
             "def" => Ok(TokenType::DEF),
             "let" => Ok(TokenType::LET),
@@ -502,14 +444,16 @@ impl<'a> Lexer<'a> {
             match c {
                 '"' => {
                     return Ok(TokenType::STRING(
-                        &self.file_contents[pos..self.temp_pos + pos],
+                        &self.file_contents[pos - 1..self.position],
                     ));
                 }
-                '\\' if self.first() == '\\' || self.first() == '"' => {
-                    // Bump again to skip escaped character
-                    self.bump();
+                val => {
+                    let first = self.bump();
+                    if (first == '\\' || first == '"') && val == '\\' {
+                        // Bump again to skip escaped character
+                        self.bump();
+                    }
                 }
-                _ => {}
             }
             c = self.bump();
         }
@@ -519,7 +463,7 @@ impl<'a> Lexer<'a> {
             ErrorType::UnterminatedString,
             helpers::Pos {
                 s: pos,
-                e: self.temp_pos,
+                e: self.position,
             },
             ErrorDisplayType::Error,
             self.filename,
@@ -530,19 +474,18 @@ impl<'a> Lexer<'a> {
 
     /// Tokenize block comment
     fn block_comment(&mut self) -> Result<TokenType<'a>, Error<'a>> {
-        self.bump();
         let position = self.position;
 
         let mut depth = 1usize;
-        while self.first() != EOF_CHAR {
-            let c = self.first();
-            self.bump();
+        while self.peek_char() != EOF_CHAR {
+            let c = self.bump();
+            let o = self.peek_char();
             match c {
-                '/' if self.first() == '*' => {
+                '/' if o == '*' => {
                     self.bump();
                     depth += 1;
                 }
-                '*' if self.first() == '/' => {
+                '*' if o == '/' => {
                     self.bump();
                     depth -= 1;
                     if depth == 0 {
@@ -563,7 +506,7 @@ impl<'a> Lexer<'a> {
     /// Tokenize line comment
     fn line_comment(&mut self) -> Result<TokenType<'a>, Error<'a>> {
         self.bump();
-        Ok(TokenType::LINECOMMENT(self.eat_while(|c| c != '\n').0 + 1))
+        Ok(TokenType::LINECOMMENT(self.eat_while(|c| c != '\n').0 + 2))
     }
 
     /// Tokenize whitespace
@@ -578,12 +521,21 @@ impl<'a> Lexer<'a> {
     {
         let mut eaten: usize = 0;
         let pos = self.position;
-        while predicate(self.first()) && !self.is_eof() {
-            eaten += 1;
+        let mut val = self.peek_char();
+        while predicate(val) && val != EOF_CHAR {
             self.bump();
+            eaten += 1;
+            val = self.peek_char();
         }
 
-        (eaten, &self.file_contents[pos..pos + eaten + 1])
+        (
+            eaten,
+            if val != EOF_CHAR {
+                &self.file_contents[pos..pos + eaten + 1]
+            } else {
+                &self.file_contents[pos..pos + eaten]
+            },
+        )
     }
 }
 

@@ -14,11 +14,10 @@ pub struct Master<'a> {
 
 impl<'a> Master<'a> {
     pub fn new(context: &'a Context) -> Master<'a> {
-        let logger: logger::logger::Logger = Default::default();
         Master {
             context,
             modules: HashMap::new(),
-            logger,
+            logger: logger::logger::Logger::new(),
         }
     }
 

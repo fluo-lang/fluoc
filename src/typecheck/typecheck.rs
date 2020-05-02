@@ -27,7 +27,7 @@ impl<'a> TypeCheckModule<'a> {
 
     pub fn type_check(&mut self) -> Result<(), Vec<Error<'a>>> {
         self.parser.parse()?;
-        println!("{}", self.parser.ast.as_ref().unwrap().to_string());
+        //println!("{:#?}", self.parser.ast.as_ref().unwrap());
 
         // Do type checking
         match (self.parser.ast.as_ref().unwrap() as &dyn ast_typecheck::TypeCheck).type_check(None)

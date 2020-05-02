@@ -4,7 +4,8 @@ def entry () -> int {
     }
     
     let x: int = -10+10*(1929+10);
-    x = 10;
+    
+    hello = 100;
 
-    return ();
+    return (1,1,asd,,);
 }

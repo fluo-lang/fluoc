@@ -66,13 +66,20 @@ impl Style {
     }
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct Buffer {
     contents: Vec<Vec<char>>,
     styles: Vec<Vec<Style>>,
 }
 
 impl Buffer {
+    pub fn new() -> Buffer {
+        Buffer {
+            contents: Vec::new(),
+            styles: Vec::new(),
+        }
+    }
+
     fn ensure_lines(&mut self, line: usize) {
         while line >= self.contents.len() {
             self.contents.push(vec![]);
