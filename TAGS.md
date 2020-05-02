@@ -11,4 +11,5 @@
 | `[Parser]`         | Changes **specifically** to the parser                                                               |
 | `[Lexer]`          | Changes **specifically** to the lexer                                                                |
 | `[Codegen]`        | Changes **specifically** to the codegen stage (llvm)                                                 |
+| `[Logger]`         | Changes **specifically** to the logger and error reporting                                           |
 | `[Typecheck]`      | Changes **specifically** to the type checker                                                         |
