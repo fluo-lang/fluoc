@@ -102,6 +102,16 @@ pub struct VariableAssign<'a> {
 }
 
 #[derive(Debug)]
+/// Type Assign i.e.:
+///
+/// type km = int;
+pub struct TypeAssign<'a> {
+    pub name: Namespace<'a>,
+    pub value: Type<'a>,
+    pub pos: helpers::Pos,
+}
+
+#[derive(Debug)]
 /// Variable Assign + Declaration i.e.:
 ///
 /// let x: int = 10;
@@ -253,6 +263,8 @@ pub enum Node<'a> {
     NameID(NameID<'a>),
     VariableAssign(VariableAssign<'a>),
     VariableAssignDeclaration(VariableAssignDeclaration<'a>),
+    TypeAssign(TypeAssign<'a>),
+
     Type(Type<'a>),
     Arguments(Arguments<'a>),
     Block(Block<'a>),
@@ -280,6 +292,7 @@ pub enum Statement<'a> {
     VariableDeclaration(VariableDeclaration<'a>),
     FunctionDefine(FunctionDefine<'a>),
     Return(Return<'a>),
+    TypeAssign(TypeAssign<'a>),
 
     Empty(Empty),
 }
@@ -291,6 +304,7 @@ impl<'a> Statement<'a> {
             Statement::VariableDeclaration(val) => val.pos,
             Statement::FunctionDefine(val) => val.pos,
             Statement::Return(val) => val.pos,
+            Statement::TypeAssign(val) => val.pos,
 
             Statement::Empty(val) => val.pos,
         }
@@ -298,12 +312,13 @@ impl<'a> Statement<'a> {
 
     pub fn to_string(&self) -> String {
         match &self {
-            Statement::ExpressionStatement(val) => format!("{}", val.expression.to_str()),
+            Statement::ExpressionStatement(val) => val.expression.to_str().to_string(),
             Statement::VariableDeclaration(_) => "variable declaration".to_string(),
             Statement::FunctionDefine(val) => {
                 format!("function define {{\n{}}}", val.block.to_string())
             }
             Statement::Return(_) => "return statement".to_string(),
+            Statement::TypeAssign(_) => "type assignment".to_string(),
 
             Statement::Empty(_) => "empty statement".to_string(),
         }
@@ -319,6 +334,7 @@ impl<'a> Statement<'a> {
             Statement::VariableDeclaration(_) => &Scope::Block,
             Statement::FunctionDefine(_) => &Scope::All,
             Statement::Return(_) => &Scope::Block,
+            Statement::TypeAssign(_) => &Scope::All,
 
             Statement::Empty(_) => &Scope::All,
         }
@@ -330,6 +346,7 @@ impl<'a> Statement<'a> {
             Statement::VariableDeclaration(val) => Node::VariableDeclaration(val),
             Statement::FunctionDefine(val) => Node::FunctionDefine(val),
             Statement::Return(val) => Node::Return(val),
+            Statement::TypeAssign(val) => Node::TypeAssign(val),
 
             Statement::Empty(val) => Node::Empty(val),
         }

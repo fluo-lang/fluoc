@@ -1,6 +1,7 @@
-pub mod parser;
+// For benchmarks
+pub mod codegen;
+pub mod helpers;
 pub mod lexer;
 pub mod logger;
-pub mod codegen;
+pub mod parser;
 pub mod typecheck;
-pub mod helpers;

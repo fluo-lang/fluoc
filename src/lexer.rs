@@ -15,6 +15,8 @@ pub enum TokenType<'a> {
     LET,
     IMPL,
     PATTERN,
+    AS,
+    TYPE,
 
     IDENTIFIER(&'a str),
     NUMBER(&'a str),
@@ -51,10 +53,10 @@ pub enum TokenType<'a> {
 impl fmt::Display for TokenType<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let result = match &self {
-            TokenType::STRING(_) => String::from("string"),
-            TokenType::IDENTIFIER(_) => String::from("identifier"),
-            TokenType::NUMBER(_) => String::from("integer"),
-            TokenType::UNKNOWN(_) => String::from("unknown token"),
+            TokenType::STRING(_) => "string".to_string(),
+            TokenType::IDENTIFIER(_) => "identifier".to_string(),
+            TokenType::NUMBER(_) => "integer".to_string(),
+            TokenType::UNKNOWN(_) => "unknown token".to_string(),
 
             other => format!(
                 "{}",
@@ -82,41 +84,43 @@ impl<'a> fmt::Display for Token<'a> {
             TokenType::IDENTIFIER(val) => format!("identifier `{}`", val),
             TokenType::NUMBER(val) => format!("number `{}`", val),
 
-            TokenType::DEF => String::from("keyword `def`"),
-            TokenType::IMPORT => String::from("keyword `import`"),
-            TokenType::RETURN => String::from("keyword `return`"),
-            TokenType::LET => String::from("keyword `let`"),
-            TokenType::IMPL => String::from("keyword `impl`"),
-            TokenType::PATTERN => String::from("keyword `pattern`"),
-            TokenType::DIV => String::from("operator `/`"),
-            TokenType::MOD => String::from("operator `%`"),
-            TokenType::MUL => String::from("operator `*`"),
-            TokenType::ADD => String::from("operator `+`"),
-            TokenType::SUB => String::from("operator `-`"),
-            TokenType::DMOD => String::from("operator `%%`"),
-            TokenType::DOLLAR => String::from("token `$`"),
+            TokenType::DEF => "keyword `def`".to_string(),
+            TokenType::IMPORT => "keyword `import`".to_string(),
+            TokenType::RETURN => "keyword `return`".to_string(),
+            TokenType::LET => "keyword `let`".to_string(),
+            TokenType::IMPL => "keyword `impl`".to_string(),
+            TokenType::PATTERN => "keyword `pattern`".to_string(),
+            TokenType::TYPE => "keyword `type`".to_string(),
+            TokenType::AS => "operator `as`".to_string(),
+            TokenType::DIV => "operator `/`".to_string(),
+            TokenType::MOD => "operator `%`".to_string(),
+            TokenType::MUL => "operator `*`".to_string(),
+            TokenType::ADD => "operator `+`".to_string(),
+            TokenType::SUB => "operator `-`".to_string(),
+            TokenType::DMOD => "operator `%%`".to_string(),
+            TokenType::DOLLAR => "token `$`".to_string(),
 
-            TokenType::DOUBLECOLON => String::from("token `::`"),
+            TokenType::DOUBLECOLON => "token `::`".to_string(),
 
-            TokenType::ARROW => String::from("token `=>`"),
+            TokenType::ARROW => "token `=>`".to_string(),
 
-            TokenType::LP => String::from("token `(`"),
-            TokenType::RP => String::from("token `)`"),
-            TokenType::LCP => String::from("token `{`"),
-            TokenType::RCP => String::from("token `}`"),
+            TokenType::LP => "token `(`".to_string(),
+            TokenType::RP => "token `)`".to_string(),
+            TokenType::LCP => "token `{`".to_string(),
+            TokenType::RCP => "token `}`".to_string(),
 
-            TokenType::QUESTION => String::from("token `?`"),
-            TokenType::DOT => String::from("token `.`"),
-            TokenType::EQUALS => String::from("token `=`"),
-            TokenType::COLON => String::from("token `:`"),
-            TokenType::SEMI => String::from("terminator `;`"),
-            TokenType::COMMA => String::from("token `,`"),
-            TokenType::EOF => String::from("end of file"),
+            TokenType::QUESTION => "token `?`".to_string(),
+            TokenType::DOT => "token `.`".to_string(),
+            TokenType::EQUALS => "token `=`".to_string(),
+            TokenType::COLON => "token `:`".to_string(),
+            TokenType::SEMI => "terminator `;`".to_string(),
+            TokenType::COMMA => "token `,`".to_string(),
+            TokenType::EOF => "end of file".to_string(),
             TokenType::UNKNOWN(val) => format!("unknown token `{}`", val),
 
-            TokenType::LINECOMMENT(_) => String::from("line comment"),
-            TokenType::BLOCKCOMMENT(_) => String::from("block comment"),
-            TokenType::WHITESPACE(_) => String::from("whitespace"),
+            TokenType::LINECOMMENT(_) => "line comment".to_string(),
+            TokenType::BLOCKCOMMENT(_) => "block comment".to_string(),
+            TokenType::WHITESPACE(_) => "whitespace".to_string(),
         };
         write!(f, "{}", result)
     }
@@ -144,11 +148,11 @@ fn get_tok_length(tok: &TokenType) -> usize {
 
         TokenType::IMPORT | TokenType::RETURN => 6,
 
-        TokenType::IMPL => 4,
+        TokenType::IMPL | TokenType::TYPE => 4,
 
         TokenType::LET | TokenType::DEF => 3,
 
-        TokenType::ARROW | TokenType::DMOD | TokenType::DOUBLECOLON => 2,
+        TokenType::ARROW | TokenType::DMOD | TokenType::DOUBLECOLON | TokenType::AS => 2,
 
         TokenType::DIV
         | TokenType::MOD
@@ -431,6 +435,8 @@ impl<'a> Lexer<'a> {
             "impl" => Ok(TokenType::IMPL),
             "pattern" => Ok(TokenType::PATTERN),
             "return" => Ok(TokenType::RETURN),
+            "as" => Ok(TokenType::AS),
+            "type" => Ok(TokenType::TYPE),
             _ => Ok(TokenType::IDENTIFIER(id.1)),
         }
     }

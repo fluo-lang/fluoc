@@ -1,0 +1,6 @@
+type km = int;
+
+def get_distance() -> int {
+    let my_distance: km = 10;
+    return my_distance as int;
+}

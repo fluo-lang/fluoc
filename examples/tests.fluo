@@ -1,11 +1,7 @@
 def entry () -> int {
-    def entry_other () -> int {
-        return 10;
-    }
-    
     let x: int = -10+10*(1929+10);
     
     hello = 100*;
 
-    return (1,1,asd,);
+    return (1,1,asd);
 }

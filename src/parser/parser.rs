@@ -30,14 +30,17 @@ pub enum Prec {
     /// `*` and `/` and `%`
     FACTOR = 2,
 
+    /// `as` operator (CONVersion operator)
+    CONV = 3,
+
     /// `-` (negate) and others (i.e. `!` logical negate)
-    PREFIX = 3,
+    PREFIX = 4,
 
     /// Function call
-    CALL = 4,
+    CALL = 5,
 
     /// Variable assignment as expr
-    VARIABLE = 5,
+    VARIABLE = 6,
 }
 
 /// Recursive descent parser
@@ -47,7 +50,7 @@ pub struct Parser<'a> {
     /// Abstract syntax tree
     pub ast: Option<ast::Block<'a>>,
     pub modules: HashMap<ast::Namespace<'a>, CodeGenModule<'a>>,
-    statements: [fn(&mut Self) -> Result<Statement<'a>, Error<'a>>; 4],
+    statements: [fn(&mut Self) -> Result<Statement<'a>, Error<'a>>; 5],
     prefix_op: HashMap<lexer::TokenType<'a>, Prec>,
     infix_op: HashMap<lexer::TokenType<'a>, Prec>,
     tokens: Vec<lexer::Token<'a>>,
@@ -73,6 +76,7 @@ impl<'a> Parser<'a> {
                 Parser::expression_statement,
                 Parser::return_statement,
                 Parser::variable_declaration,
+                Parser::type_assign,
             ],
             prefix_op: HashMap::new(),
             infix_op: HashMap::new(),
@@ -149,6 +153,9 @@ impl<'a> Parser<'a> {
         self.register_infix(lexer::TokenType::MUL, Prec::FACTOR);
         // `%%`
         self.register_infix(lexer::TokenType::DMOD, Prec::FACTOR);
+
+        // `as` keyword
+        self.register_infix(lexer::TokenType::AS, Prec::CONV);
     }
 
     pub fn register_prefix(&mut self, token: lexer::TokenType<'a>, prec: Prec) {
@@ -352,6 +359,25 @@ impl<'a> Parser<'a> {
             positional: positional_args,
             pos: self.position(position),
         })
+    }
+
+    fn type_assign(&mut self) -> Result<Statement<'a>, Error<'a>> {
+        let position = self.token_pos;
+        self.next(lexer::TokenType::TYPE, position, true)?;
+
+        let name = self.namespace()?;
+
+        self.next(lexer::TokenType::EQUALS, position, false)?;
+
+        let value = self.type_expr()?;
+
+        self.next(lexer::TokenType::SEMI, position, false)?;
+
+        Ok(Statement::TypeAssign(ast::TypeAssign {
+            value,
+            name,
+            pos: self.position(position),
+        }))
     }
 
     /// Parse function definition

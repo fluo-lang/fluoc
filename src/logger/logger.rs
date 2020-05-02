@@ -17,12 +17,12 @@ pub enum ErrorType {
 impl ErrorType {
     fn as_str(&self) -> String {
         match *self {
-            ErrorType::Syntax => String::from("syntax_error"),
-            ErrorType::UnexpectedToken => String::from("unexpected_token"),
-            ErrorType::UnterminatedString => String::from("unterminated_string"),
-            ErrorType::UnknownCharacter => String::from("unknown_character"),
-            ErrorType::UndefinedSyntax => String::from("undefined_syntax"),
-            ErrorType::SyntaxTypeError => String::from("syntax_type_error"),
+            ErrorType::Syntax => "syntax_error".to_string(),
+            ErrorType::UnexpectedToken => "unexpected_token".to_string(),
+            ErrorType::UnterminatedString => "unterminated_string".to_string(),
+            ErrorType::UnknownCharacter => "unknown_character".to_string(),
+            ErrorType::UndefinedSyntax => "undefined_syntax".to_string(),
+            ErrorType::SyntaxTypeError => "syntax_type_error".to_string(),
         }
     }
 }
