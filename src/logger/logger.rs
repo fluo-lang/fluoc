@@ -424,7 +424,7 @@ impl<'a> Logger<'a> {
         self.insert_lineno(writer_pos.0, max_line_size, lineno); // insert line number on the left of pipe
 
         // Add dots if we are not displaying lines continually
-        if !first && lineno - *prev_line > 1 {
+        if !first && ((lineno - *prev_line) > 1) {
             self.buffer.writel(
                 writer_pos.0 - 2,
                 max_line_size + self.indentation.len() - 1,
@@ -864,7 +864,9 @@ impl<'a> Logger<'a> {
                                         line_offset += *vertical_pos;
                                     }
                                 }
-
+                                if first {
+                                    first = false;
+                                }
                                 break;
                             } else {
                                 // In between multiline annotation
@@ -882,7 +884,6 @@ impl<'a> Logger<'a> {
                         }
                         prev_line_2 = lineno;
                     }
-
                     if first {
                         first = false;
                     }
@@ -956,7 +957,7 @@ impl<'a> Logger<'a> {
         self.buffer.writeln(
             writer_pos.0 - 1,
             writer_pos.1 - 1,
-            &format!("{}:{}:{}", &filename, (position.0).0, (position.0).1 - 1),
+            &format!("{}:{}:{}", &filename, (position.0).0, (position.0).1),
             Style::new(None, None),
         )
     }

@@ -122,9 +122,10 @@ impl<'a> Parser<'a> {
         let t = self.forward();
 
         if t.token != token_type {
-            self.set_pos(position);
             let error = format!("expected {}", token_type);
-            Err(self.syntax_error(t, &error[..], is_keyword, false))
+            let temp = Err(self.syntax_error(t, &error[..], is_keyword, false));
+            self.set_pos(position);
+            temp
         } else {
             Ok(())
         }
@@ -133,7 +134,13 @@ impl<'a> Parser<'a> {
     pub fn position(&mut self, position: usize) -> helpers::Pos {
         helpers::Pos {
             s: self.tokens[position].pos.s,
-            e: self.tokens[self.token_pos].pos.e,
+            e: self.tokens[if self.token_pos > 0 {
+                self.token_pos - 1
+            } else {
+                self.token_pos
+            }]
+            .pos
+            .e,
         }
     }
 
@@ -225,6 +232,7 @@ impl<'a> Parser<'a> {
                                 ast_list.push(ast_production);
                                 break;
                             } else {
+                                println!("{:?}", ast_production.pos());
                                 errors.push(Error::new(
                                     "unexpected statement in outer scope".to_string(),
                                     ErrorType::Syntax,
@@ -592,10 +600,7 @@ impl<'a> Parser<'a> {
                 return Ok(potential_op);
             }
         }
-
-        self.set_pos(position);
-
-        Err(Error::new(
+        let temp = Err(Error::new(
             "Expected an operator".to_string(),
             ErrorType::Syntax,
             self.position(position),
@@ -608,7 +613,10 @@ impl<'a> Parser<'a> {
                 self.lexer.filename,
             )],
             false,
-        ))
+        ));
+
+        self.set_pos(position);
+        temp
     }
 
     fn get_operator_prefix(&mut self) -> Result<lexer::Token<'a>, Error<'a>> {
@@ -620,9 +628,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        self.set_pos(position);
-
-        Err(Error::new(
+        let temp = Err(Error::new(
             "Expected a prefix".to_string(),
             ErrorType::Syntax,
             self.position(position),
@@ -635,7 +641,10 @@ impl<'a> Parser<'a> {
                 self.lexer.filename,
             )],
             false,
-        ))
+        ));
+
+        self.set_pos(position);
+        temp
     }
 
     fn binding_power(&mut self, token_type: &lexer::TokenType<'a>) -> Prec {
@@ -690,9 +699,8 @@ impl<'a> Parser<'a> {
             return Err(self.syntax_error(next_tok, "expected `)`", false, false));
         }
 
-        self.set_pos(position);
         let next = self.peek();
-        Err(Error::new(
+        let temp = Err(Error::new(
             "Missing expression".to_string(),
             ErrorType::Syntax,
             self.position(position),
@@ -705,7 +713,9 @@ impl<'a> Parser<'a> {
                 self.lexer.filename,
             )],
             false,
-        ))
+        ));
+        self.set_pos(position);
+        temp
     }
 
     fn integer(&mut self) -> Result<Expr<'a>, Error<'a>> {
@@ -718,8 +728,9 @@ impl<'a> Parser<'a> {
                 pos: int.pos,
             }))
         } else {
+            let temp = Err(self.syntax_error(int, "expected integer", false, false));
             self.set_pos(position);
-            Err(self.syntax_error(int, "expected integer", false, false))
+            temp
         }
     }
 
@@ -733,8 +744,9 @@ impl<'a> Parser<'a> {
                 pos: string.pos,
             }))
         } else {
+            let temp = Err(self.syntax_error(string, "expected string literal", false, false));
             self.set_pos(position);
-            Err(self.syntax_error(string, "expected string", false, false))
+            temp
         }
     }
 
@@ -776,8 +788,9 @@ impl<'a> Parser<'a> {
         if let lexer::TokenType::IDENTIFIER(value) = &id.token {
             Ok(ast::NameID { value, pos: id.pos })
         } else {
+            let temp = Err(self.syntax_error(id, "expected identifier", false, false));
             self.set_pos(position);
-            Err(self.syntax_error(id, "expected identifier", false, false))
+            temp
         }
     }
 
@@ -792,8 +805,9 @@ impl<'a> Parser<'a> {
         if let lexer::TokenType::IDENTIFIER(value) = &id.token {
             Ok(ast::RefID { value, pos: id.pos })
         } else {
+            let temp = Err(self.syntax_error(id, "expected variable", false, false));
             self.set_pos(position);
-            Err(self.syntax_error(id, "expected variable", false, false))
+            temp
         }
     }
 
