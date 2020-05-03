@@ -82,3 +82,28 @@ impl<'a> TypeCheck<'a> for FunctionDefine<'a> {
 }
 
 impl<'a> TypeCheck<'a> for Statement<'a> {}
+
+impl TypeType<'_> {
+    fn is_basic_type(&self) -> Result<&str, ()> {
+        match &self {
+            TypeType::Type(Namespace { pos: _, scopes }) => {
+                if let Some(val) = scopes.get(0) {
+                    match val.value {
+                        "int" => return Ok("int"),
+                        _ => {}
+                    }
+                };
+            }
+            _ => {}
+        };
+        Err(())
+    }
+
+    pub(crate) fn sequiv(left: &Self, right: &Self) -> bool {
+        match (left.is_basic_type(), right.is_basic_type()) {
+            (Ok(left_ok), Ok(right_ok)) => return left_ok == right_ok,
+            _ => {}
+        }
+        false
+    }
+}
