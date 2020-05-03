@@ -60,7 +60,7 @@ impl<'a> TypeCheck<'a> for Block<'a> {
                 if !returns {}
             }
             Some(Type {
-                value: _,
+                value,
                 inferred,
                 pos,
             }) => {

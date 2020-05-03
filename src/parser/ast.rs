@@ -200,6 +200,31 @@ pub enum TypeType<'a> {
     Tuple(Vec<Type<'a>>),
 }
 
+impl TypeType<'_> {
+    fn is_basic_type(&self) -> Result<&str, ()> {
+        match &self {
+            TypeType::Type(Namespace { pos: _, scopes }) => {
+                if let Some(val) = scopes.get(0) {
+                    match val.value {
+                        "int" => return Ok("int"),
+                        _ => {}
+                    }
+                };
+            }
+            _ => {}
+        };
+        Err(())
+    }
+
+    pub fn seqeqv(left: &Self, right: &Self) -> bool {
+        match (left.is_basic_type(), right.is_basic_type()) {
+            (Ok(left_ok), Ok(right_ok)) => return left_ok == right_ok,
+            _ => {}
+        }
+        false
+    }
+}
+
 #[derive(Debug)]
 /// Type Node
 pub struct Type<'a> {
