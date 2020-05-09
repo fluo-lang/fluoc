@@ -797,14 +797,11 @@ impl<'a> Parser<'a> {
     /// Parse ref identifier (i.e. variable refrence (not &))
     fn ref_id(&mut self) -> Result<ast::RefID<'a>, Error<'a>> {
         let position = self.token_pos;
-        let id = self.forward();
-        if let lexer::TokenType::IDENTIFIER(value) = &id.token {
-            Ok(ast::RefID { value, pos: id.pos })
-        } else {
-            let temp = Err(self.syntax_error(id, "expected variable", false, false));
-            self.set_pos(position);
-            temp
-        }
+        let value = self.namespace()?;
+        Ok(ast::RefID {
+            pos: value.pos,
+            value,
+        })
     }
 
     fn tuple_expr(&mut self) -> Result<Expr<'a>, Error<'a>> {
@@ -953,7 +950,7 @@ impl<'a> Parser<'a> {
         let position = self.token_pos;
 
         self.next(lexer::TokenType::DOLLAR, position, false)?;
-        let id = self.name_id()?;
+        let id = self.namespace()?;
 
         Ok(ast::DollarID {
             value: id,
