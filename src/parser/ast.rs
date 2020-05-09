@@ -7,55 +7,55 @@ use std::hash::{Hash, Hasher};
 
 // EXPRESSIONS ---------------------------------------
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 /// Empty Placeholder value
 pub struct Empty {
     pub pos: helpers::Pos,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 /// Integer node
 pub struct Integer<'a> {
     pub value: &'a str,
     pub pos: helpers::Pos,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 /// Tuple node
 pub struct Tuple<'a> {
     pub values: Vec<Expr<'a>>,
     pub pos: helpers::Pos,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 /// String literal node
 pub struct StringLiteral<'a> {
     pub value: &'a str,
     pub pos: helpers::Pos,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 /// Dollar sign id (i.e. `$myvar`) node
 pub struct DollarID<'a> {
     pub value: NameID<'a>,
     pub pos: helpers::Pos,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 /// Reference ID (i.e. pass by value) node
 pub struct RefID<'a> {
     pub value: &'a str,
     pub pos: helpers::Pos,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 /// Reference (i.e. pass by reference) node
 pub struct Reference<'a> {
     pub value: RefID<'a>,
     pub pos: helpers::Pos,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Infix<'a> {
     pub left: Box<Expr<'a>>,
     pub right: Box<Expr<'a>>,
@@ -63,7 +63,7 @@ pub struct Infix<'a> {
     pub pos: helpers::Pos,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Prefix<'a> {
     pub val: Box<Expr<'a>>,
     pub operator: Token<'a>,
@@ -72,7 +72,7 @@ pub struct Prefix<'a> {
 
 // NODES ---------------------------------------
 
-#[derive(Debug, Eq)]
+#[derive(Debug, Eq, Clone)]
 /// Name ID node
 pub struct NameID<'a> {
     pub value: &'a str,
@@ -91,7 +91,7 @@ impl<'a> PartialEq for NameID<'a> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 /// Variable Assign i.e.:
 ///
 /// x = 10;
@@ -101,7 +101,7 @@ pub struct VariableAssign<'a> {
     pub pos: helpers::Pos,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 /// Type Assign i.e.:
 ///
 /// type km = int;
@@ -111,7 +111,7 @@ pub struct TypeAssign<'a> {
     pub pos: helpers::Pos,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 /// Variable Assign + Declaration i.e.:
 ///
 /// let x: int = 10;
@@ -122,7 +122,7 @@ pub struct VariableAssignDeclaration<'a> {
     pub pos: helpers::Pos,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 /// Variable Declaration i.e.:
 ///
 /// let x: int;
@@ -132,14 +132,14 @@ pub struct VariableDeclaration<'a> {
     pub pos: helpers::Pos,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 /// Arguments for function
 pub struct Arguments<'a> {
     pub positional: Vec<(NameID<'a>, Type<'a>)>,
     pub pos: helpers::Pos, // TODO: Add more types of arguments
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 /// Block of code
 pub struct Block<'a> {
     pub nodes: Vec<Statement<'a>>,
@@ -157,7 +157,7 @@ impl<'a> Block<'a> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 /// Function definition
 pub struct FunctionDefine<'a> {
     pub return_type: Type<'a>,
@@ -167,19 +167,19 @@ pub struct FunctionDefine<'a> {
     pub pos: helpers::Pos,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ArgumentsRun<'a> {
     pub positional: Vec<Expr<'a>>,
     pub pos: helpers::Pos, // TODO: Add more types of arguments
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Return<'a> {
     pub expression: Expr<'a>,
     pub pos: helpers::Pos,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 /// Function definition
 pub struct FunctionCall<'a> {
     pub arguments: ArgumentsRun<'a>,
@@ -187,20 +187,36 @@ pub struct FunctionCall<'a> {
     pub pos: helpers::Pos,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ExpressionStatement<'a> {
     pub expression: Expr<'a>,
     pub pos: helpers::Pos,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 /// Type Types
 pub enum TypeType<'a> {
     Type(Namespace<'a>),
     Tuple(Vec<Type<'a>>),
 }
 
-#[derive(Debug)]
+impl<'a> fmt::Display for TypeType<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let rep = match &self {
+            TypeType::Type(namespace) => namespace.to_string(),
+            TypeType::Tuple(types) => {
+                let mut final_string = String::new();
+                for type_val in types.iter() {
+                    final_string.push_str(&type_val.to_string()[..]);
+                }
+                final_string
+            }
+        };
+        write!(f, "{}", rep)
+    }
+}
+
+#[derive(Debug, Clone)]
 /// Type Node
 pub struct Type<'a> {
     pub value: TypeType<'a>,
@@ -208,7 +224,19 @@ pub struct Type<'a> {
     pub pos: helpers::Pos,
 }
 
-#[derive(Debug, Hash, Eq)]
+impl<'a> PartialEq for Type<'a> {
+    fn eq(&self, other: &Self) -> bool {
+        self.value == other.value
+    }
+}
+
+impl<'a> fmt::Display for Type<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.value)
+    }
+}
+
+#[derive(Debug, Hash, Eq, Clone)]
 /// This::is::a::namespace!
 pub struct Namespace<'a> {
     pub scopes: Vec<NameID<'a>>,
@@ -223,16 +251,19 @@ impl<'a> PartialEq for Namespace<'a> {
 
 impl<'a> fmt::Display for Namespace<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut rep = String::new();
-        for scope in &self.scopes {
-            rep += &scope.value;
-            rep += "::";
-        }
-        write!(f, "{}", rep)
+        write!(
+            f,
+            "{}",
+            self.scopes
+                .iter()
+                .map(|value| value.value)
+                .collect::<Vec<&str>>()
+                .join("::")
+        )
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Nodes<'a> {
     pub nodes: Vec<Node<'a>>,
     pub pos: helpers::Pos,
@@ -255,7 +286,7 @@ impl PartialEq for Scope {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Node<'a> {
     Integer(Integer<'a>),
     RefID(RefID<'a>),
@@ -286,7 +317,7 @@ pub enum Node<'a> {
     Empty(Empty),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Statement<'a> {
     ExpressionStatement(ExpressionStatement<'a>),
     VariableDeclaration(VariableDeclaration<'a>),
@@ -353,7 +384,7 @@ impl<'a> Statement<'a> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Expr<'a> {
     Integer(Integer<'a>),
 

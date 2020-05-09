@@ -1,7 +1,7 @@
 def entry () -> int {
-    let x: int = -10+10*(1929+10);
+    --let x: int = -10+10*(1929+10);
     
-    hello = 100*;
+    --hello = 100*100;
 
-    return (1,1,asd);
+    return 1+"ahvhg"sd";
 }

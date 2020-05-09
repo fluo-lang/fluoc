@@ -12,17 +12,25 @@ pub enum ErrorType {
     UnknownCharacter,
     UndefinedSyntax,
     SyntaxTypeError,
+    UndefinedTypeError,
+    TypeMismatch,
+    UndefinedSymbol,
+    TypeCastError,
 }
 
 impl ErrorType {
-    fn as_str(&self) -> String {
+    fn as_str(&self) -> &str {
         match *self {
-            ErrorType::Syntax => "syntax_error".to_string(),
-            ErrorType::UnexpectedToken => "unexpected_token".to_string(),
-            ErrorType::UnterminatedString => "unterminated_string".to_string(),
-            ErrorType::UnknownCharacter => "unknown_character".to_string(),
-            ErrorType::UndefinedSyntax => "undefined_syntax".to_string(),
-            ErrorType::SyntaxTypeError => "syntax_type_error".to_string(),
+            ErrorType::Syntax => "syntax_error",
+            ErrorType::UnexpectedToken => "unexpected_token",
+            ErrorType::UnterminatedString => "unterminated_string",
+            ErrorType::UnknownCharacter => "unknown_character",
+            ErrorType::UndefinedSyntax => "undefined_syntax",
+            ErrorType::SyntaxTypeError => "syntax_type",
+            ErrorType::UndefinedTypeError => "undefined_type",
+            ErrorType::TypeMismatch => "type_mismatch",
+            ErrorType::UndefinedSymbol => "undefined_symbol",
+            ErrorType::TypeCastError => "type_case",
         }
     }
 }

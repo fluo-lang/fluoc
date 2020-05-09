@@ -1,14 +1,13 @@
 use crate::logger::logger::Error;
+use crate::parser::ast::*;
+use crate::parser::parser;
 use crate::parser::parser::Parser;
-use crate::parser::{ast, parser};
 use crate::typecheck::ast_typecheck;
-
-use std::collections::HashMap;
 
 /// Typecheck object
 pub struct TypeCheckModule<'a> {
     pub parser: Parser<'a>,
-    pub symtab: HashMap<ast::NameID<'a>, ast::Expr<'a>>,
+    pub symtab: ast_typecheck::TypeCheckSymbTab<'a>,
 }
 
 impl<'a> TypeCheckModule<'a> {
@@ -21,7 +20,7 @@ impl<'a> TypeCheckModule<'a> {
         p.initialize_expr();
         TypeCheckModule {
             parser: p,
-            symtab: HashMap::new(),
+            symtab: ast_typecheck::TypeCheckSymbTab::new(),
         }
     }
 
@@ -29,11 +28,31 @@ impl<'a> TypeCheckModule<'a> {
         self.parser.parse()?;
         //println!("{:#?}", self.parser.ast.as_ref().unwrap());
 
+        let mut errors = Vec::new();
+
+        let mut return_types = Vec::new();
         // Do type checking
-        match (self.parser.ast.as_ref().unwrap() as &dyn ast_typecheck::TypeCheck).type_check(None)
-        {
-            Ok(_) => Ok(()),
-            Err(e) => Err(e.unwrap_other()),
+        for node in &self.parser.ast.as_ref().unwrap().nodes {
+            match (node as &dyn ast_typecheck::TypeCheck).type_check(
+                None,
+                &self.symtab,
+                self.parser.lexer.filename,
+            ) {
+                Ok(_) => {}
+                Err(e) => {
+                    errors.push(e);
+                }
+            }
+
+            if let Statement::Return(Return { expression, pos: _ }) = node {
+                return_types.push(expression)
+            }
+        }
+
+        if !errors.is_empty() {
+            Err(errors)
+        } else {
+            Ok(())
         }
     }
 }

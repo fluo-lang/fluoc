@@ -16,11 +16,11 @@ impl<'a> CodeGenModule<'a> {
     ///
     /// Arguments
     /// * `filename` - the filename of the file to read
-    pub fn new(
-        module: module::Module<'a>,
-        filename: &'a str,
-        file_contents: &'a str,
-    ) -> CodeGenModule<'a> {
+    pub fn new<'b>(
+        module: module::Module<'b>,
+        filename: &'b str,
+        file_contents: &'b str,
+    ) -> CodeGenModule<'b> {
         let typecheck = typecheck::TypeCheckModule::new(filename, file_contents);
         CodeGenModule { module, typecheck }
     }

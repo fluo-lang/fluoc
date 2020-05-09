@@ -1,7 +1,7 @@
-class Animal {
-    let pub farts: int;
-    let weight: int;
-
+class Animal (
+    farts: int,
+    weight: int,
+) {
     def fart() {
         println("You have just made global warming worse!");
         this.farts += 1;

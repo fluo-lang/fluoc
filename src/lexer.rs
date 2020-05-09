@@ -1,5 +1,5 @@
 use crate::helpers;
-use crate::logger::logger::{Error, ErrorDisplayType, ErrorType};
+use crate::logger::logger::{Error, ErrorAnnotation, ErrorDisplayType, ErrorType};
 use std::fmt;
 
 /// EOF Character
@@ -454,26 +454,34 @@ impl<'a> Lexer<'a> {
                     ));
                 }
                 val => {
-                    let first = self.bump();
+                    let first = self.peek_char();
                     if (first == '\\' || first == '"') && val == '\\' {
                         // Bump again to skip escaped character
+                        self.bump();
                         self.bump();
                     }
                 }
             }
             c = self.bump();
         }
-
         Err(Error::new(
             "Unterminated string".to_string(),
             ErrorType::UnterminatedString,
             helpers::Pos {
-                s: pos,
-                e: self.position,
+                s: pos - 1,
+                e: self.position - 1,
             },
             ErrorDisplayType::Error,
             self.filename,
-            Vec::new(),
+            vec![ErrorAnnotation::new(
+                None,
+                helpers::Pos {
+                    s: pos - 1,
+                    e: self.position - 1,
+                },
+                ErrorDisplayType::Error,
+                self.filename,
+            )],
             true,
         ))
     }

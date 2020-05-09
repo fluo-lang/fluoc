@@ -27,6 +27,7 @@ impl<'a> Master<'a> {
             filename,
             file_contents,
         );
+
         self.logger
             .add_file(filename, code_gen_mod.typecheck.parser.lexer.file_contents);
         match code_gen_mod.generate() {
