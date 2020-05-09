@@ -1,3 +1,5 @@
 def entry () {
-    
+
+    return (10, "bar", "foo");
+    return (10, "bar");
 }

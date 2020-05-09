@@ -1,5 +1,4 @@
 use crate::logger::logger::Error;
-use crate::parser::ast::*;
 use crate::parser::parser;
 use crate::parser::parser::Parser;
 use crate::typecheck::ast_typecheck;
@@ -30,7 +29,6 @@ impl<'a> TypeCheckModule<'a> {
 
         let mut errors = Vec::new();
 
-        let mut return_types = Vec::new();
         // Do type checking
         for node in &self.parser.ast.as_ref().unwrap().nodes {
             match (node as &dyn ast_typecheck::TypeCheck).type_check(
@@ -40,12 +38,8 @@ impl<'a> TypeCheckModule<'a> {
             ) {
                 Ok(_) => {}
                 Err(e) => {
-                    errors.push(e);
+                    errors.append(&mut e.as_vec());
                 }
-            }
-
-            if let Statement::Return(Return { expression, pos: _ }) = node {
-                return_types.push(expression)
             }
         }
 

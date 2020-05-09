@@ -318,7 +318,7 @@ impl<'a> Parser<'a> {
                 }
             }
 
-            if self.peek().token == lexer::TokenType::RCP && !fail {
+            if self.peek().token == lexer::TokenType::RCP {
                 // We've successfully parsed, break
                 break;
             } else if !errors.is_empty() && fail {
@@ -400,21 +400,28 @@ impl<'a> Parser<'a> {
 
         self.next(lexer::TokenType::RP, position, false)?;
 
+        let block;
         let return_type: ast::Type = if self.peek().token == lexer::TokenType::ARROW {
             self.forward();
-            self.type_expr()?
+            let temp = self.type_expr()?;
+            block = self.block()?;
+            temp
+        } else if {
+            block = self.block()?;
+            true
+        } {
+            ast::Type {
+                value: ast::TypeType::Tuple(Vec::new()),
+                inferred: true,
+                pos: block.pos,
+            }
         } else {
             ast::Type {
                 value: ast::TypeType::Tuple(Vec::new()),
                 inferred: true,
-                pos: helpers::Pos {
-                    s: self.lexer.position,
-                    e: self.lexer.position,
-                },
+                pos: block.pos,
             }
         };
-
-        let block = self.block()?;
         Ok(ast::Statement::FunctionDefine(ast::FunctionDefine {
             return_type,
             arguments,
