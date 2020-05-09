@@ -60,7 +60,7 @@ pub struct TypeCheckSymbTab<'a> {
 #[derive(Debug, Clone)]
 pub struct UnionType<'a> {
     types: Vec<TypeCheckType<'a>>,
-    pos: helpers::Pos,
+    pos: helpers::Pos<'a>,
     inferred: bool,
 }
 
@@ -102,7 +102,7 @@ pub enum TypeCheckTypeType<'a> {
 #[derive(Debug, Clone)]
 pub struct TypeCheckType<'a> {
     value: TypeCheckTypeType<'a>,
-    pos: helpers::Pos,
+    pos: helpers::Pos<'a>,
     inferred: bool,
 }
 
@@ -130,16 +130,8 @@ impl<'a> fmt::Display for TypeCheckType<'a> {
 }
 
 impl<'a> TypeCheckType<'a> {
-    fn sequiv<'b>(
-        left: &Self,
-        right: &Self,
-        context: &'b TypeCheckSymbTab<'a>,
-        filename: &'a str,
-    ) -> bool {
-        match (
-            left.cast_to_basic(context, filename),
-            right.cast_to_basic(context, filename),
-        ) {
+    fn sequiv<'b>(left: &Self, right: &Self, context: &'b TypeCheckSymbTab<'a>) -> bool {
+        match (left.cast_to_basic(context), right.cast_to_basic(context)) {
             (Ok(left_ok), Ok(right_ok)) => return left_ok == right_ok,
             _ => {}
         }
@@ -160,7 +152,6 @@ impl<'a> TypeCheckType<'a> {
     fn cast_to_basic<'b>(
         &'b self,
         context: &'b TypeCheckSymbTab<'a>,
-        filename: &'a str,
     ) -> Result<&str, ErrorOrVec<'a>> {
         match &self.value {
             TypeCheckTypeType::FunctionSig(_, _) => Err(ErrorOrVec::Error(Error::new(
@@ -168,12 +159,10 @@ impl<'a> TypeCheckType<'a> {
                 ErrorType::TypeCastError,
                 self.pos,
                 ErrorDisplayType::Error,
-                filename,
                 vec![ErrorAnnotation::new(
                     Some(format!("has type `{}`", self)),
                     self.pos,
                     ErrorDisplayType::Error,
-                    filename,
                 )],
                 true,
             ))),
@@ -184,12 +173,10 @@ impl<'a> TypeCheckType<'a> {
                         ErrorType::TypeCastError,
                         self.pos,
                         ErrorDisplayType::Error,
-                        filename,
                         vec![ErrorAnnotation::new(
                             Some(format!("has type `{}`", self)),
                             self.pos,
                             ErrorDisplayType::Error,
-                            filename,
                         )],
                         true,
                     )))
@@ -200,12 +187,10 @@ impl<'a> TypeCheckType<'a> {
                 ErrorType::TypeCastError,
                 self.pos,
                 ErrorDisplayType::Error,
-                filename,
                 vec![ErrorAnnotation::new(
                     Some(format!("has type `{}`", self)),
                     self.pos,
                     ErrorDisplayType::Error,
-                    filename,
                 )],
                 true,
             ))),
@@ -214,33 +199,30 @@ impl<'a> TypeCheckType<'a> {
                 ErrorType::TypeCastError,
                 self.pos,
                 ErrorDisplayType::Error,
-                filename,
                 vec![ErrorAnnotation::new(
                     Some(format!("has type `{}`", self)),
                     self.pos,
                     ErrorDisplayType::Error,
-                    filename,
                 )],
                 true,
             ))),
-            TypeCheckTypeType::CustomType(name_type) => context
-                .get_basic_type(&name_type, filename)?
-                .cast_to_basic(context, filename),
+            TypeCheckTypeType::CustomType(name_type) => {
+                context.get_basic_type(&name_type)?.cast_to_basic(context)
+            }
         }
     }
 
     fn all_same_type<'b>(
         types: &[TypeCheckType<'a>],
         context: &'b TypeCheckSymbTab<'a>,
-        filename: &'a str,
     ) -> Result<(), ErrorOrVec<'a>> {
         types
             .windows(2)
             .map(|w| {
-                if match w[0].cast_to_basic(context, filename) {
+                if match w[0].cast_to_basic(context) {
                     Ok(val) => val,
                     Err(e) => return Err(e),
-                } == match w[1].cast_to_basic(context, filename) {
+                } == match w[1].cast_to_basic(context) {
                     Ok(val) => val,
                     Err(e) => return Err(e),
                 } {
@@ -251,19 +233,16 @@ impl<'a> TypeCheckType<'a> {
                         ErrorType::TypeMismatch,
                         w[0].pos,
                         ErrorDisplayType::Error,
-                        filename,
                         vec![
                             ErrorAnnotation::new(
                                 Some(format!("Type `{}`...", w[0])),
                                 w[0].pos,
                                 ErrorDisplayType::Error,
-                                filename,
                             ),
                             ErrorAnnotation::new(
                                 Some(format!("is not the same as `{}`", w[1])),
                                 w[1].pos,
                                 ErrorDisplayType::Error,
-                                filename,
                             ),
                         ],
                         true,
@@ -307,7 +286,7 @@ impl<'a> TypeCheckType<'a> {
         }
     }
 
-    fn construct_basic(type_name: &'a str, pos: helpers::Pos) -> TypeCheckType<'a> {
+    fn construct_basic(type_name: &'a str, pos: helpers::Pos<'a>) -> TypeCheckType<'a> {
         TypeCheckType {
             value: TypeCheckTypeType::SingleType(Type {
                 value: TypeType::Type(Namespace {
@@ -328,7 +307,6 @@ impl<'a> TypeCheckType<'a> {
     fn from_expr<'b>(
         val: &Expr<'a>,
         context: &'b TypeCheckSymbTab<'a>,
-        filename: &'a str,
     ) -> Result<TypeCheckType<'a>, ErrorOrVec<'a>> {
         Ok(match val {
             Expr::Tuple(tuple_val) => TypeCheckType {
@@ -338,7 +316,7 @@ impl<'a> TypeCheckType<'a> {
                     types: tuple_val
                         .values
                         .iter()
-                        .map(|x| TypeCheckType::from_expr(x, context, filename))
+                        .map(|x| TypeCheckType::from_expr(x, context))
                         .collect::<Result<Vec<TypeCheckType>, _>>()?,
                     inferred: false,
                 }),
@@ -350,7 +328,7 @@ impl<'a> TypeCheckType<'a> {
             Expr::Integer(int_val) => TypeCheckType::construct_basic("int", int_val.pos),
             Expr::FunctionCall(func_call) => {
                 // Validate function call
-                let func = context.get_function(&func_call.name, filename)?;
+                let func = context.get_function(&func_call.name)?;
                 let func_arg_types: Vec<TypeCheckType> = func
                     .arguments
                     .positional
@@ -362,7 +340,7 @@ impl<'a> TypeCheckType<'a> {
                     .arguments
                     .positional
                     .iter()
-                    .map(|argument| TypeCheckType::from_expr(&argument, context, filename))
+                    .map(|argument| TypeCheckType::from_expr(&argument, context))
                     .collect::<Result<Vec<TypeCheckType>, _>>()?;
 
                 for (real_type, call_type) in func_arg_types.iter().zip(&func_call_arg_types) {
@@ -373,7 +351,6 @@ impl<'a> TypeCheckType<'a> {
                             ErrorType::TypeMismatch,
                             func_call.pos,
                             ErrorDisplayType::Error,
-                            filename,
                             vec![
                                 ErrorAnnotation::new(
                                     Some(format!(
@@ -387,7 +364,6 @@ impl<'a> TypeCheckType<'a> {
                                     )),
                                     func_call.pos,
                                     ErrorDisplayType::Info,
-                                    filename,
                                 ),
                                 ErrorAnnotation::new(
                                     Some(format!(
@@ -401,7 +377,6 @@ impl<'a> TypeCheckType<'a> {
                                     )),
                                     func_call.pos,
                                     ErrorDisplayType::Info,
-                                    filename,
                                 ),
                             ],
                             true,
@@ -413,14 +388,14 @@ impl<'a> TypeCheckType<'a> {
             }
             Expr::VariableAssign(variable_assignment) => {
                 // TODO: validate that the variable is declared and has same type
-                TypeCheckType::from_expr(&*variable_assignment.expr, context, filename)?
+                TypeCheckType::from_expr(&*variable_assignment.expr, context)?
             }
             Expr::VariableAssignDeclaration(variable_assignment_dec) => {
-                TypeCheckType::from_expr(&*variable_assignment_dec.expr, context, filename)?
+                TypeCheckType::from_expr(&*variable_assignment_dec.expr, context)?
             }
             Expr::Infix(infix) => {
-                let left_type = TypeCheckType::from_expr(&*infix.left, context, filename)?;
-                let right_type = TypeCheckType::from_expr(&*infix.right, context, filename)?;
+                let left_type = TypeCheckType::from_expr(&*infix.left, context)?;
+                let right_type = TypeCheckType::from_expr(&*infix.right, context)?;
 
                 // TODO: check if the types can be casted to on another
                 if left_type == right_type {
@@ -436,19 +411,16 @@ impl<'a> TypeCheckType<'a> {
                         ErrorType::TypeMismatch,
                         infix.pos,
                         ErrorDisplayType::Error,
-                        filename,
                         vec![
                             ErrorAnnotation::new(
                                 Some(format!("Has type `{}`", left_type)),
                                 left_type.pos,
                                 ErrorDisplayType::Info,
-                                filename,
                             ),
                             ErrorAnnotation::new(
                                 Some(format!("Has type `{}`", right_type)),
                                 right_type.pos,
                                 ErrorDisplayType::Info,
-                                filename,
                             ),
                         ],
                         true,
@@ -465,7 +437,6 @@ pub trait TypeCheck<'a>: std::fmt::Debug {
         &self,
         _return_type: Option<Cow<'a, TypeCheckType<'a>>>,
         _context: &'b TypeCheckSymbTab<'a>,
-        _filename: &'a str,
     ) -> Result<Cow<'a, TypeCheckType<'a>>, ErrorOrVec<'a>> {
         panic!(format!(
             "TypeCheckType type_check not implemented for {:?}",
@@ -479,26 +450,22 @@ impl<'a> Return<'a> {
         &self,
         value: TypeCheckType<'a>,
         returned_type: TypeCheckType<'a>,
-        filename: &'a str,
     ) -> ErrorOrVec<'a> {
         ErrorOrVec::Error(Error::new(
             "mismatched return type".to_string(),
             ErrorType::TypeMismatch,
             self.expression.pos(),
             ErrorDisplayType::Error,
-            filename,
             vec![
                 ErrorAnnotation::new(
                     Some("but the block implicitly returns `()`".to_string()),
                     value.pos,
                     ErrorDisplayType::Info,
-                    filename,
                 ),
                 ErrorAnnotation::new(
                     Some(format!("Found return type `{}`...", returned_type)),
                     returned_type.pos,
                     ErrorDisplayType::Error,
-                    filename,
                 ),
             ],
             true,
@@ -509,26 +476,22 @@ impl<'a> Return<'a> {
         &self,
         value: TypeCheckType<'a>,
         returned_type: TypeCheckType<'a>,
-        filename: &'a str,
     ) -> ErrorOrVec<'a> {
         ErrorOrVec::Error(Error::new(
             "mismatched return type".to_string(),
             ErrorType::TypeMismatch,
             self.expression.pos(),
             ErrorDisplayType::Error,
-            filename,
             vec![
                 ErrorAnnotation::new(
                     Some(format!("Return type `{}` found here...", value)),
                     value.pos,
                     ErrorDisplayType::Info,
-                    filename,
                 ),
                 ErrorAnnotation::new(
                     Some(format!("but found `{}` instead", returned_type)),
                     returned_type.pos,
                     ErrorDisplayType::Error,
-                    filename,
                 ),
             ],
             true,
@@ -541,9 +504,8 @@ impl<'a> TypeCheck<'a> for Return<'a> {
         &self,
         return_type: Option<Cow<'a, TypeCheckType<'a>>>,
         context: &'b TypeCheckSymbTab<'a>,
-        filename: &'a str,
     ) -> Result<Cow<'a, TypeCheckType<'a>>, ErrorOrVec<'a>> {
-        let returned_type = TypeCheckType::from_expr(&self.expression, context, filename)?;
+        let returned_type = TypeCheckType::from_expr(&self.expression, context)?;
         match return_type {
             Some(return_type_some) if return_type_some.is_tuple_empty() => {
                 // The block returns (), so we can implicitly do this during codegen. This is the negate case for below.
@@ -554,35 +516,21 @@ impl<'a> TypeCheck<'a> for Return<'a> {
                 } = &returned_type
                 {
                     if !tuple_returned_contents.types.is_empty() && return_type_some.inferred {
-                        Err(self.construct_implicit_err(
-                            return_type_some.into_owned(),
-                            returned_type,
-                            filename,
-                        ))
+                        Err(self
+                            .construct_implicit_err(return_type_some.into_owned(), returned_type))
                     } else if !tuple_returned_contents.types.is_empty()
                         && !return_type_some.inferred
                     {
-                        Err(self.construct_err(
-                            return_type_some.into_owned(),
-                            returned_type,
-                            filename,
-                        ))
+                        Err(self.construct_err(return_type_some.into_owned(), returned_type))
                     } else {
                         Ok(return_type_some)
                     }
                 } else {
                     if return_type_some.inferred {
-                        Err(self.construct_implicit_err(
-                            return_type_some.into_owned(),
-                            returned_type,
-                            filename,
-                        ))
+                        Err(self
+                            .construct_implicit_err(return_type_some.into_owned(), returned_type))
                     } else {
-                        Err(self.construct_err(
-                            return_type_some.into_owned(),
-                            returned_type,
-                            filename,
-                        ))
+                        Err(self.construct_err(return_type_some.into_owned(), returned_type))
                     }
                 }
             }
@@ -592,8 +540,8 @@ impl<'a> TypeCheck<'a> for Return<'a> {
                     // Same type
                     Ok(value)
                 } else if {
-                    let possible_basic = returned_type.cast_to_basic(context, filename);
-                    let value_basic = value.cast_to_basic(context, filename);
+                    let possible_basic = returned_type.cast_to_basic(context);
+                    let value_basic = value.cast_to_basic(context);
                     possible_basic.is_ok()
                         && value_basic.is_ok()
                         && (possible_basic.unwrap() == value_basic.unwrap())
@@ -601,7 +549,7 @@ impl<'a> TypeCheck<'a> for Return<'a> {
                     // Same basic type
                     Ok(value)
                 } else {
-                    Err(self.construct_err(value.into_owned(), returned_type, filename))
+                    Err(self.construct_err(value.into_owned(), returned_type))
                 }
             }
             None => {
@@ -609,7 +557,6 @@ impl<'a> TypeCheck<'a> for Return<'a> {
                 Ok(Cow::Owned(TypeCheckType::from_expr(
                     &self.expression,
                     context,
-                    filename,
                 )?))
             }
         }
@@ -621,13 +568,12 @@ impl<'a> TypeCheck<'a> for Block<'a> {
         &self,
         return_type: Option<Cow<'a, TypeCheckType<'a>>>,
         context: &'b TypeCheckSymbTab<'a>,
-        filename: &'a str,
     ) -> Result<Cow<'a, TypeCheckType<'a>>, ErrorOrVec<'a>> {
         let mut errors: Vec<Error> = Vec::new();
         let mut ret_types: Vec<&Expr> = Vec::new();
 
         for node in &self.nodes {
-            match node.type_check(return_type.clone(), context, filename) {
+            match node.type_check(return_type.clone(), context) {
                 Ok(_) => {}
                 Err(e) => {
                     errors.append(&mut e.as_vec());
@@ -646,9 +592,9 @@ impl<'a> TypeCheck<'a> for Block<'a> {
         if !ret_types.is_empty() {
             let ret_types = ret_types
                 .iter()
-                .map(|expr| Ok(TypeCheckType::from_expr(&expr, context, filename)?))
+                .map(|expr| Ok(TypeCheckType::from_expr(&expr, context)?))
                 .collect::<Result<Vec<TypeCheckType<'a>>, ErrorOrVec>>()?;
-            TypeCheckType::all_same_type(&ret_types[..], context, filename)?;
+            TypeCheckType::all_same_type(&ret_types[..], context)?;
             Ok(Cow::Owned(ret_types.into_iter().nth(0).unwrap()))
         } else {
             Ok(Cow::Owned(TypeCheckType {
@@ -669,12 +615,10 @@ impl<'a> TypeCheck<'a> for FunctionDefine<'a> {
         &self,
         _return_type: Option<Cow<'a, TypeCheckType<'a>>>,
         context: &'b TypeCheckSymbTab<'a>,
-        filename: &'a str,
     ) -> Result<Cow<'a, TypeCheckType<'a>>, ErrorOrVec<'a>> {
         (&self.block as &dyn TypeCheck).type_check(
             Some(Cow::Owned(TypeCheckType::as_type(self.return_type.clone()))),
             context,
-            filename,
         )
     }
 }
@@ -684,14 +628,13 @@ impl<'a> TypeCheck<'a> for Statement<'a> {
         &self,
         return_type: Option<Cow<'a, TypeCheckType<'a>>>,
         context: &'b TypeCheckSymbTab<'a>,
-        filename: &'a str,
     ) -> Result<Cow<'a, TypeCheckType<'a>>, ErrorOrVec<'a>> {
         match &self {
             Statement::Return(statement) => {
-                (statement as &dyn TypeCheck).type_check(return_type, context, filename)
+                (statement as &dyn TypeCheck).type_check(return_type, context)
             }
             Statement::FunctionDefine(statement) => {
-                (statement as &dyn TypeCheck).type_check(return_type, context, filename)
+                (statement as &dyn TypeCheck).type_check(return_type, context)
             }
             _ => panic!(format!(
                 "Type_check not implemented for statement `{}`",
@@ -729,7 +672,6 @@ impl<'a> TypeCheckSymbTab<'a> {
     fn get_function<'b>(
         &self,
         namespace: &Namespace<'a>,
-        filename: &'a str,
     ) -> Result<&'b FunctionDefine<'a>, ErrorOrVec<'a>> {
         match self.items.get(namespace) {
             Some(val) => match val {
@@ -740,12 +682,10 @@ impl<'a> TypeCheckSymbTab<'a> {
                         ErrorType::UndefinedSymbol,
                         namespace.pos,
                         ErrorDisplayType::Error,
-                        filename,
                         vec![ErrorAnnotation::new(
                             Some(format!("`{}` is a `{}`, not a function", namespace, other)),
                             namespace.pos,
                             ErrorDisplayType::Error,
-                            filename,
                         )],
                         true,
                     )));
@@ -758,22 +698,16 @@ impl<'a> TypeCheckSymbTab<'a> {
             ErrorType::UndefinedSymbol,
             namespace.pos,
             ErrorDisplayType::Error,
-            filename,
             vec![ErrorAnnotation::new(
                 Some(format!("Undefined function `{}`", namespace)),
                 namespace.pos,
                 ErrorDisplayType::Error,
-                filename,
             )],
             true,
         )))
     }
 
-    fn get_type(
-        &self,
-        namespace: &Namespace<'a>,
-        filename: &'a str,
-    ) -> Result<&TypeCheckType<'a>, ErrorOrVec<'a>> {
+    fn get_type(&self, namespace: &Namespace<'a>) -> Result<&TypeCheckType<'a>, ErrorOrVec<'a>> {
         match self.items.get(&namespace) {
             Some(val) => match val {
                 SymbTabObj::CustomType(type_val) => return Ok(type_val),
@@ -783,12 +717,10 @@ impl<'a> TypeCheckSymbTab<'a> {
                         ErrorType::UndefinedSymbol,
                         namespace.pos,
                         ErrorDisplayType::Error,
-                        filename,
                         vec![ErrorAnnotation::new(
                             Some(format!("`{}` is a `{}`, not a type", namespace, other)),
                             namespace.pos,
                             ErrorDisplayType::Error,
-                            filename,
                         )],
                         true,
                     )));
@@ -801,12 +733,10 @@ impl<'a> TypeCheckSymbTab<'a> {
             ErrorType::UndefinedSymbol,
             namespace.pos,
             ErrorDisplayType::Error,
-            filename,
             vec![ErrorAnnotation::new(
                 Some(format!("Undefined type `{}`", namespace)),
                 namespace.pos,
                 ErrorDisplayType::Error,
-                filename,
             )],
             true,
         )))
@@ -815,25 +745,20 @@ impl<'a> TypeCheckSymbTab<'a> {
     fn get_basic_type(
         &self,
         namespace: &Namespace<'a>,
-        filename: &'a str,
     ) -> Result<&TypeCheckType<'a>, ErrorOrVec<'a>> {
-        let mut type_val = self.get_type(namespace, filename)?;
+        let mut type_val = self.get_type(namespace)?;
         while let TypeCheckType {
             value: TypeCheckTypeType::CustomType(name),
             pos: _,
             inferred: _,
         } = type_val
         {
-            type_val = self.get_type(name, filename)?;
+            type_val = self.get_type(name)?;
         }
         Ok(type_val)
     }
 
-    fn get_variable(
-        &self,
-        namespace: &Namespace<'a>,
-        filename: &'a str,
-    ) -> Result<&Expr<'a>, ErrorOrVec<'a>> {
+    fn get_variable(&self, namespace: &Namespace<'a>) -> Result<&Expr<'a>, ErrorOrVec<'a>> {
         match self.items.get(&namespace) {
             Some(val) => match val {
                 SymbTabObj::Variable(variable) => return Ok(variable),
@@ -843,12 +768,10 @@ impl<'a> TypeCheckSymbTab<'a> {
                         ErrorType::UndefinedSymbol,
                         namespace.pos,
                         ErrorDisplayType::Error,
-                        filename,
                         vec![ErrorAnnotation::new(
                             Some(format!("`{}` is a `{}`, not a variable", namespace, other)),
                             namespace.pos,
                             ErrorDisplayType::Error,
-                            filename,
                         )],
                         true,
                     )));
@@ -861,12 +784,10 @@ impl<'a> TypeCheckSymbTab<'a> {
             ErrorType::UndefinedSymbol,
             namespace.pos,
             ErrorDisplayType::Error,
-            filename,
             vec![ErrorAnnotation::new(
                 Some(format!("Undefined variable `{}`", namespace)),
                 namespace.pos,
                 ErrorDisplayType::Error,
-                filename,
             )],
             true,
         )))

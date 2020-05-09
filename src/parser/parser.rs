@@ -87,7 +87,7 @@ impl<'a> Parser<'a> {
     /// Template for syntax error
     pub fn syntax_error(
         &self,
-        t: lexer::Token,
+        t: lexer::Token<'a>,
         message: &str,
         is_keyword: bool,
         urgent: bool,
@@ -101,12 +101,10 @@ impl<'a> Parser<'a> {
             ErrorType::Syntax,
             t.pos,
             ErrorDisplayType::Error,
-            self.lexer.filename,
             vec![ErrorAnnotation::new(
                 Some("unexpected token".to_string()),
                 t.pos,
                 ErrorDisplayType::Error,
-                self.lexer.filename,
             )],
             urgent,
         )
@@ -131,7 +129,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn position(&mut self, position: usize) -> helpers::Pos {
+    pub fn position(&mut self, position: usize) -> helpers::Pos<'a> {
         helpers::Pos {
             s: self.tokens[position].pos.s,
             e: self.tokens[if self.token_pos > 0 {
@@ -141,6 +139,7 @@ impl<'a> Parser<'a> {
             }]
             .pos
             .e,
+            filename: self.lexer.filename,
         }
     }
 
@@ -238,12 +237,10 @@ impl<'a> Parser<'a> {
                                     ErrorType::Syntax,
                                     ast_production.pos(),
                                     ErrorDisplayType::Error,
-                                    self.lexer.filename,
                                     vec![ErrorAnnotation::new(
                                         Some("unexpected statement".to_string()),
                                         ast_production.pos(),
                                         ErrorDisplayType::Error,
-                                        self.lexer.filename,
                                     )],
                                     true,
                                 ));
@@ -300,12 +297,10 @@ impl<'a> Parser<'a> {
                                 ErrorType::Syntax,
                                 ast_production.pos(),
                                 ErrorDisplayType::Error,
-                                self.lexer.filename,
                                 vec![ErrorAnnotation::new(
                                     Some("unexpected statement".to_string()),
                                     ast_production.pos(),
                                     ErrorDisplayType::Error,
-                                    self.lexer.filename,
                                 )],
                                 true,
                             ));
@@ -612,12 +607,10 @@ impl<'a> Parser<'a> {
             ErrorType::Syntax,
             self.position(position),
             ErrorDisplayType::Error,
-            self.lexer.filename,
             vec![ErrorAnnotation::new(
                 None,
                 self.position(position),
                 ErrorDisplayType::Error,
-                self.lexer.filename,
             )],
             false,
         ));
@@ -640,12 +633,10 @@ impl<'a> Parser<'a> {
             ErrorType::Syntax,
             self.position(position),
             ErrorDisplayType::Error,
-            self.lexer.filename,
             vec![ErrorAnnotation::new(
                 None,
                 self.position(position),
                 ErrorDisplayType::Error,
-                self.lexer.filename,
             )],
             false,
         ));
@@ -712,12 +703,10 @@ impl<'a> Parser<'a> {
             ErrorType::Syntax,
             self.position(position),
             ErrorDisplayType::Error,
-            self.lexer.filename,
             vec![ErrorAnnotation::new(
                 Some(format!("Expected expression, found {}", next)),
                 self.position(position),
                 ErrorDisplayType::Error,
-                self.lexer.filename,
             )],
             false,
         ));

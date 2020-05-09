@@ -94,11 +94,9 @@ pub struct ErrorAnnotation<'a> {
     /// Error message
     message: Option<String>,
     /// Error position
-    position: Pos,
+    position: Pos<'a>,
     /// Error display mode
     mode: ErrorDisplayType,
-    /// Filename of annotation
-    filename: &'a str,
     /// Position
     position_rel: ((usize, usize), (usize, usize)),
 }
@@ -114,15 +112,13 @@ impl<'a> ErrorAnnotation<'a> {
     /// * `filename`: filename of annotation
     pub fn new(
         message: Option<String>,
-        position: Pos,
+        position: Pos<'a>,
         mode: ErrorDisplayType,
-        filename: &'a str,
-    ) -> ErrorAnnotation {
+    ) -> ErrorAnnotation<'a> {
         ErrorAnnotation {
             message,
             position,
             mode,
-            filename,
             position_rel: ((0, 0), (0, 0)),
         }
     }
@@ -140,11 +136,9 @@ pub struct Error<'a> {
     /// Error type
     error: ErrorType,
     /// Error position
-    pub position: Pos,
+    pub position: Pos<'a>,
     /// Error display mode
     mode: ErrorDisplayType,
-    /// Filename of error
-    filename: &'a str,
     /// Annotations
     annotations: Vec<ErrorAnnotation<'a>>,
     /// Urgent error: raise even if another function parses further
@@ -161,12 +155,11 @@ impl Error<'_> {
     /// * `position`: position of error
     /// * `token`: optional token associated with error
     /// * `mode`: mode of error report
-    pub fn new<'a>(
+    pub fn new<'a, 'b>(
         message: String,
         error: ErrorType,
-        position: Pos,
+        position: Pos<'a>,
         mode: ErrorDisplayType,
-        filename: &'a str,
         annotations: Vec<ErrorAnnotation<'a>>,
         urgent: bool,
     ) -> Error<'a> {
@@ -175,7 +168,6 @@ impl Error<'_> {
             error,
             position,
             mode,
-            filename,
             annotations,
             urgent,
         }
@@ -307,7 +299,7 @@ impl<'a> Logger<'a> {
     fn insert_lineno(&mut self, ln: usize, max_line_size: usize, line_no: usize) {
         self.buffer.writel(
             ln - 1,
-            self.indentation.len() + (max_line_size + 1 - format!("{}", line_no).len()),
+            self.indentation.len() + max_line_size + 1 - line_no.to_string().len(),
             &format!("{}", line_no),
             Style::new(Some(Color::BLUE), Some(Font::BOLD)),
         );
@@ -413,7 +405,7 @@ impl<'a> Logger<'a> {
         );
 
         writer_pos.1 += 1; // add two proceeding spaces
-        let line = self.get_line_string(lineno, annotation.filename); // get line of code
+        let line = self.get_line_string(lineno, annotation.position.filename); // get line of code
 
         // Add line of code to buffer
         *writer_pos = self.buffer.writel(
@@ -450,15 +442,15 @@ impl<'a> Logger<'a> {
         *line_offset += 1;
 
         // remember we did this, so we don't need to do it again
-        if printed_lines.contains_key(annotation.filename) {
+        if printed_lines.contains_key(annotation.position.filename) {
             printed_lines
-                .get_mut(annotation.filename)
+                .get_mut(annotation.position.filename)
                 .unwrap()
                 .insert(lineno);
         } else {
             let mut lines: HashSet<usize> = HashSet::new();
             lines.insert(lineno);
-            printed_lines.insert(annotation.filename, lines);
+            printed_lines.insert(annotation.position.filename, lines);
         }
 
         // Store previous line
@@ -559,9 +551,9 @@ impl<'a> Logger<'a> {
                     writer_pos.1 = 0;
 
                     // draw line
-                    if !(printed_lines.contains_key(annotation.filename)
+                    if !(printed_lines.contains_key(annotation.position.filename)
                         && printed_lines
-                            .get(annotation.filename)
+                            .get(annotation.position.filename)
                             .unwrap_or(&HashSet::new())
                             .contains(&lineno))
                     {
@@ -983,13 +975,17 @@ impl<'a> Logger<'a> {
         let mut span_thickness: usize = 0;
 
         position = (
-            self.get_lineno(err_pos.s, first.filename),
-            self.get_lineno(err_pos.e, first.filename),
+            self.get_lineno(err_pos.s, first.position.filename),
+            self.get_lineno(err_pos.e, first.position.filename),
         );
 
         // Add filename + position annotation
-        writer_pos =
-            self.add_filename_pos(first.filename, &position, max_line_size, &mut writer_pos);
+        writer_pos = self.add_filename_pos(
+            first.position.filename,
+            &position,
+            max_line_size,
+            &mut writer_pos,
+        );
 
         // Add pipe for padding
         writer_pos = self.add_pipe_pure(writer_pos.0 - 1, max_line_size);
@@ -997,8 +993,8 @@ impl<'a> Logger<'a> {
 
         for mut annotation in &mut annotations {
             annotation.position_rel = (
-                self.get_lineno(annotation.position.s, annotation.filename),
-                self.get_lineno(annotation.position.e, annotation.filename),
+                self.get_lineno(annotation.position.s, annotation.position.filename),
+                self.get_lineno(annotation.position.e, annotation.position.filename),
             );
             if self.is_multiline(annotation) {
                 span_thickness += 1;
@@ -1080,7 +1076,7 @@ impl<'a> Logger<'a> {
 
     /// Static method for error that parses the furthest.
     /// Useful when you have multiple errors and want to know which one is the most accurate.
-    pub fn longest(errors: Vec<Error>) -> Error {
+    pub fn longest(errors: Vec<Error<'a>>) -> Error<'a> {
         let mut errors = errors;
         errors.sort_by_key(|x| {
             (

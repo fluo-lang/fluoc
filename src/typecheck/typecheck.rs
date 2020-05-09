@@ -31,11 +31,7 @@ impl<'a> TypeCheckModule<'a> {
 
         // Do type checking
         for node in &self.parser.ast.as_ref().unwrap().nodes {
-            match (node as &dyn ast_typecheck::TypeCheck).type_check(
-                None,
-                &self.symtab,
-                self.parser.lexer.filename,
-            ) {
+            match (node as &dyn ast_typecheck::TypeCheck).type_check(None, &self.symtab) {
                 Ok(_) => {}
                 Err(e) => {
                     errors.append(&mut e.as_vec());

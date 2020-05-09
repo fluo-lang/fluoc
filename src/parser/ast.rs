@@ -9,50 +9,50 @@ use std::hash::{Hash, Hasher};
 
 #[derive(Debug, Clone)]
 /// Empty Placeholder value
-pub struct Empty {
-    pub pos: helpers::Pos,
+pub struct Empty<'a> {
+    pub pos: helpers::Pos<'a>,
 }
 
 #[derive(Debug, Clone)]
 /// Integer node
 pub struct Integer<'a> {
     pub value: &'a str,
-    pub pos: helpers::Pos,
+    pub pos: helpers::Pos<'a>,
 }
 
 #[derive(Debug, Clone)]
 /// Tuple node
 pub struct Tuple<'a> {
     pub values: Vec<Expr<'a>>,
-    pub pos: helpers::Pos,
+    pub pos: helpers::Pos<'a>,
 }
 
 #[derive(Debug, Clone)]
 /// String literal node
 pub struct StringLiteral<'a> {
     pub value: &'a str,
-    pub pos: helpers::Pos,
+    pub pos: helpers::Pos<'a>,
 }
 
 #[derive(Debug, Clone)]
 /// Dollar sign id (i.e. `$myvar`) node
 pub struct DollarID<'a> {
     pub value: NameID<'a>,
-    pub pos: helpers::Pos,
+    pub pos: helpers::Pos<'a>,
 }
 
 #[derive(Debug, Clone)]
 /// Reference ID (i.e. pass by value) node
 pub struct RefID<'a> {
     pub value: &'a str,
-    pub pos: helpers::Pos,
+    pub pos: helpers::Pos<'a>,
 }
 
 #[derive(Debug, Clone)]
 /// Reference (i.e. pass by reference) node
 pub struct Reference<'a> {
     pub value: RefID<'a>,
-    pub pos: helpers::Pos,
+    pub pos: helpers::Pos<'a>,
 }
 
 #[derive(Debug, Clone)]
@@ -60,14 +60,14 @@ pub struct Infix<'a> {
     pub left: Box<Expr<'a>>,
     pub right: Box<Expr<'a>>,
     pub operator: Token<'a>,
-    pub pos: helpers::Pos,
+    pub pos: helpers::Pos<'a>,
 }
 
 #[derive(Debug, Clone)]
 pub struct Prefix<'a> {
     pub val: Box<Expr<'a>>,
     pub operator: Token<'a>,
-    pub pos: helpers::Pos,
+    pub pos: helpers::Pos<'a>,
 }
 
 // NODES ---------------------------------------
@@ -76,7 +76,7 @@ pub struct Prefix<'a> {
 /// Name ID node
 pub struct NameID<'a> {
     pub value: &'a str,
-    pub pos: helpers::Pos,
+    pub pos: helpers::Pos<'a>,
 }
 
 impl<'a> Hash for NameID<'a> {
@@ -98,7 +98,7 @@ impl<'a> PartialEq for NameID<'a> {
 pub struct VariableAssign<'a> {
     pub name: Namespace<'a>,
     pub expr: Box<Expr<'a>>,
-    pub pos: helpers::Pos,
+    pub pos: helpers::Pos<'a>,
 }
 
 #[derive(Debug, Clone)]
@@ -108,7 +108,7 @@ pub struct VariableAssign<'a> {
 pub struct TypeAssign<'a> {
     pub name: Namespace<'a>,
     pub value: Type<'a>,
-    pub pos: helpers::Pos,
+    pub pos: helpers::Pos<'a>,
 }
 
 #[derive(Debug, Clone)]
@@ -119,7 +119,7 @@ pub struct VariableAssignDeclaration<'a> {
     pub t: Type<'a>,
     pub name: Namespace<'a>,
     pub expr: Box<Expr<'a>>,
-    pub pos: helpers::Pos,
+    pub pos: helpers::Pos<'a>,
 }
 
 #[derive(Debug, Clone)]
@@ -129,21 +129,21 @@ pub struct VariableAssignDeclaration<'a> {
 pub struct VariableDeclaration<'a> {
     pub t: Type<'a>,
     pub name: Namespace<'a>,
-    pub pos: helpers::Pos,
+    pub pos: helpers::Pos<'a>,
 }
 
 #[derive(Debug, Clone)]
 /// Arguments for function
 pub struct Arguments<'a> {
     pub positional: Vec<(NameID<'a>, Type<'a>)>,
-    pub pos: helpers::Pos, // TODO: Add more types of arguments
+    pub pos: helpers::Pos<'a>, // TODO: Add more types of arguments
 }
 
 #[derive(Debug, Clone)]
 /// Block of code
 pub struct Block<'a> {
     pub nodes: Vec<Statement<'a>>,
-    pub pos: helpers::Pos,
+    pub pos: helpers::Pos<'a>,
 }
 
 impl<'a> Block<'a> {
@@ -164,19 +164,19 @@ pub struct FunctionDefine<'a> {
     pub arguments: Arguments<'a>,
     pub block: Block<'a>,
     pub name: NameID<'a>,
-    pub pos: helpers::Pos,
+    pub pos: helpers::Pos<'a>,
 }
 
 #[derive(Debug, Clone)]
 pub struct ArgumentsRun<'a> {
     pub positional: Vec<Expr<'a>>,
-    pub pos: helpers::Pos, // TODO: Add more types of arguments
+    pub pos: helpers::Pos<'a>, // TODO: Add more types of arguments
 }
 
 #[derive(Debug, Clone)]
 pub struct Return<'a> {
     pub expression: Expr<'a>,
-    pub pos: helpers::Pos,
+    pub pos: helpers::Pos<'a>,
 }
 
 #[derive(Debug, Clone)]
@@ -184,13 +184,13 @@ pub struct Return<'a> {
 pub struct FunctionCall<'a> {
     pub arguments: ArgumentsRun<'a>,
     pub name: Namespace<'a>,
-    pub pos: helpers::Pos,
+    pub pos: helpers::Pos<'a>,
 }
 
 #[derive(Debug, Clone)]
 pub struct ExpressionStatement<'a> {
     pub expression: Expr<'a>,
-    pub pos: helpers::Pos,
+    pub pos: helpers::Pos<'a>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -221,7 +221,7 @@ impl<'a> fmt::Display for TypeType<'a> {
 pub struct Type<'a> {
     pub value: TypeType<'a>,
     pub inferred: bool,
-    pub pos: helpers::Pos,
+    pub pos: helpers::Pos<'a>,
 }
 
 impl<'a> PartialEq for Type<'a> {
@@ -240,7 +240,7 @@ impl<'a> fmt::Display for Type<'a> {
 /// This::is::a::namespace!
 pub struct Namespace<'a> {
     pub scopes: Vec<NameID<'a>>,
-    pub pos: helpers::Pos,
+    pub pos: helpers::Pos<'a>,
 }
 
 impl<'a> PartialEq for Namespace<'a> {
@@ -266,7 +266,7 @@ impl<'a> fmt::Display for Namespace<'a> {
 #[derive(Debug, Clone)]
 pub struct Nodes<'a> {
     pub nodes: Vec<Node<'a>>,
-    pub pos: helpers::Pos,
+    pub pos: helpers::Pos<'a>,
 }
 
 #[derive(Debug, Clone)]
@@ -314,7 +314,7 @@ pub enum Node<'a> {
     Nodes(Nodes<'a>),
     Return(Return<'a>),
 
-    Empty(Empty),
+    Empty(Empty<'a>),
 }
 
 #[derive(Debug, Clone)]
@@ -325,11 +325,11 @@ pub enum Statement<'a> {
     Return(Return<'a>),
     TypeAssign(TypeAssign<'a>),
 
-    Empty(Empty),
+    Empty(Empty<'a>),
 }
 
 impl<'a> Statement<'a> {
-    pub fn pos(&self) -> helpers::Pos {
+    pub fn pos(&self) -> helpers::Pos<'a> {
         match &self {
             Statement::ExpressionStatement(val) => val.pos,
             Statement::VariableDeclaration(val) => val.pos,
@@ -402,13 +402,13 @@ pub enum Expr<'a> {
 
     DollarID(DollarID<'a>),
 
-    Empty(Empty),
+    Empty(Empty<'a>),
 
     FunctionDefine(FunctionDefine<'a>),
 }
 
 impl<'a> Expr<'a> {
-    pub fn pos(&self) -> helpers::Pos {
+    pub fn pos(&self) -> helpers::Pos<'a> {
         match &self {
             Expr::Integer(val) => val.pos,
             Expr::RefID(val) => val.pos,

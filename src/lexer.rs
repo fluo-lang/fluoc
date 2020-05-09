@@ -62,7 +62,7 @@ impl fmt::Display for TokenType<'_> {
                 "{}",
                 Token {
                     token: **other,
-                    pos: helpers::Pos::new(0, 0)
+                    pos: helpers::Pos::new(0, 0, "")
                 }
             ),
         };
@@ -74,7 +74,7 @@ impl fmt::Display for TokenType<'_> {
 /// Token object
 pub struct Token<'a> {
     pub token: TokenType<'a>,
-    pub pos: helpers::Pos,
+    pub pos: helpers::Pos<'a>,
 }
 
 impl<'a> fmt::Display for Token<'a> {
@@ -229,7 +229,7 @@ impl<'a> Lexer<'a> {
             position: 0,
             current_token: Token {
                 token: TokenType::EOF,
-                pos: helpers::Pos::new(0, 0),
+                pos: helpers::Pos::new(0, 0, filename),
             },
             change_peek: true,
         }
@@ -333,9 +333,9 @@ impl<'a> Lexer<'a> {
                 helpers::Pos {
                     s: self.position - 1,
                     e: self.position,
+                    filename: self.filename,
                 },
                 ErrorDisplayType::Error,
-                self.filename,
                 Vec::new(),
                 true,
             )),
@@ -403,6 +403,7 @@ impl<'a> Lexer<'a> {
                         self.position - get_tok_length(&token_kind)
                     },
                     self.position,
+                    self.filename,
                 ),
                 token: token_kind,
             };
@@ -470,17 +471,17 @@ impl<'a> Lexer<'a> {
             helpers::Pos {
                 s: pos - 1,
                 e: self.position - 1,
+                filename: self.filename,
             },
             ErrorDisplayType::Error,
-            self.filename,
             vec![ErrorAnnotation::new(
                 None,
                 helpers::Pos {
                     s: pos - 1,
                     e: self.position - 1,
+                    filename: self.filename,
                 },
                 ErrorDisplayType::Error,
-                self.filename,
             )],
             true,
         ))

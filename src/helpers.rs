@@ -27,17 +27,20 @@ pub fn read_file(filename: &str) -> String {
 ///
 /// Used to keep track of all tokens and nodes.
 /// Note that there are no line numbers, a `\n` character counts as on character.
-pub struct Pos {
+pub struct Pos<'a> {
     /// Start position in characters
     pub s: usize,
 
     /// End position in characters
     pub e: usize,
+
+    /// Filename of pos
+    pub filename: &'a str,
 }
 
-impl Pos {
-    pub fn new(s: usize, e: usize) -> Pos {
-        Pos { s, e }
+impl<'a> Pos<'a> {
+    pub fn new(s: usize, e: usize, filename: &'a str) -> Pos {
+        Pos { s, e, filename }
     }
 
     pub fn to_tuple(&self) -> (usize, usize) {
