@@ -272,6 +272,15 @@ impl<'a> fmt::Display for Namespace<'a> {
     }
 }
 
+impl<'a> Namespace<'a> {
+    pub fn from_name_id(value: NameID<'a>) -> Namespace<'a> {
+        Namespace {
+            pos: value.pos,
+            scopes: vec![value],
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Nodes<'a> {
     pub nodes: Vec<Node<'a>>,
