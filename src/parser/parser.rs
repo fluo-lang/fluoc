@@ -4,8 +4,10 @@ use crate::lexer;
 use crate::logger::logger::{Error, ErrorAnnotation, ErrorDisplayType, ErrorType, Logger};
 use crate::parser::ast;
 use crate::parser::ast::{Expr, Scope, Statement};
+use crate::typecheck::ast_typecheck::SymbTabObj;
 
 use std::collections::HashMap;
+use std::rc::Rc;
 
 macro_rules! ignore_or_return {
     ( $e:expr ) => {
@@ -336,7 +338,7 @@ impl<'a> Parser<'a> {
 
     fn parse_arguments(&mut self) -> Result<ast::Arguments<'a>, Error<'a>> {
         let position = self.token_pos;
-        let mut positional_args: Vec<(ast::NameID, ast::Type)> = Vec::new();
+        let mut positional_args: Vec<(ast::NameID, Rc<ast::Type>)> = Vec::new();
 
         loop {
             if self.peek().token == lexer::TokenType::RP {
@@ -350,7 +352,7 @@ impl<'a> Parser<'a> {
 
             let arg_type = self.type_expr()?;
 
-            positional_args.push((id, arg_type));
+            positional_args.push((id, Rc::new(arg_type)));
             if self.peek().token == lexer::TokenType::COMMA {
                 self.forward();
             } else {
@@ -377,8 +379,8 @@ impl<'a> Parser<'a> {
         self.next(lexer::TokenType::SEMI, position, false)?;
 
         Ok(Statement::TypeAssign(ast::TypeAssign {
-            value,
-            name,
+            value: Rc::new(value),
+            name: Rc::new(name),
             pos: self.position(position),
         }))
     }
@@ -418,7 +420,7 @@ impl<'a> Parser<'a> {
             }
         };
         Ok(ast::Statement::FunctionDefine(ast::FunctionDefine {
-            return_type,
+            return_type: Rc::new(return_type),
             arguments,
             block,
             name: id,
@@ -435,7 +437,7 @@ impl<'a> Parser<'a> {
         self.next(lexer::TokenType::SEMI, position, false)?;
 
         Ok(ast::Statement::Return(ast::Return {
-            expression: expr,
+            expression: Rc::new(expr),
             pos: self.position(position),
         }))
     }
@@ -449,7 +451,7 @@ impl<'a> Parser<'a> {
 
         Ok(ast::Statement::ExpressionStatement(
             ast::ExpressionStatement {
-                expression: expr,
+                expression: Rc::new(expr),
                 pos: self.position(position),
             },
         ))
@@ -494,7 +496,7 @@ impl<'a> Parser<'a> {
 
         Ok(ast::Expr::FunctionCall(ast::FunctionCall {
             arguments,
-            name: namespace,
+            name: Rc::new(namespace),
             pos: self.position(position),
         }))
     }
@@ -514,9 +516,9 @@ impl<'a> Parser<'a> {
 
         Ok(ast::Expr::VariableAssignDeclaration(
             ast::VariableAssignDeclaration {
-                t: var_type,
-                name: namespace,
-                expr: Box::new(expr),
+                t: Rc::new(var_type),
+                name: Rc::new(namespace),
+                expr: Rc::new(SymbTabObj::Variable(expr)),
                 pos: self.position(position),
             },
         ))
@@ -536,8 +538,8 @@ impl<'a> Parser<'a> {
 
         Ok(ast::Statement::VariableDeclaration(
             ast::VariableDeclaration {
-                t: var_type,
-                name: namespace,
+                t: Rc::new(var_type),
+                name: Rc::new(namespace),
                 pos: self.position(position),
             },
         ))
@@ -554,8 +556,8 @@ impl<'a> Parser<'a> {
         let expr = self.expr(Prec::LOWEST)?;
 
         Ok(ast::Expr::VariableAssign(ast::VariableAssign {
-            name: namespace,
-            expr: Box::new(expr),
+            name: Rc::new(namespace),
+            expr: Rc::new(expr),
             pos: self.position(position),
         }))
     }
@@ -800,7 +802,7 @@ impl<'a> Parser<'a> {
         let value = self.namespace()?;
         Ok(ast::RefID {
             pos: value.pos,
-            value,
+            value: Rc::new(value),
         })
     }
 
@@ -884,7 +886,7 @@ impl<'a> Parser<'a> {
         Ok(ast::Type {
             pos: namespace.pos,
             inferred: false,
-            value: ast::TypeType::Type(namespace),
+            value: ast::TypeType::Type(Rc::new(namespace)),
         })
     }
 
@@ -917,18 +919,18 @@ impl<'a> Parser<'a> {
         })
     }
 
-    fn items_type(&mut self) -> Result<Vec<ast::Type<'a>>, Error<'a>> {
-        let mut items: Vec<ast::Type> = Vec::new();
+    fn items_type(&mut self) -> Result<Vec<Rc<ast::Type<'a>>>, Error<'a>> {
+        let mut items: Vec<Rc<ast::Type>> = Vec::new();
 
         let type_type = self.type_expr()?;
-        items.push(type_type);
+        items.push(Rc::new(type_type));
 
         loop {
             let position = self.token_pos;
             if let lexer::TokenType::COMMA = self.peek().token {
                 self.forward();
                 if let Ok(type_type) = self.type_expr() {
-                    items.push(type_type);
+                    items.push(Rc::new(type_type));
                 } else {
                     self.set_pos(position);
                     break;
@@ -953,7 +955,7 @@ impl<'a> Parser<'a> {
         let id = self.namespace()?;
 
         Ok(ast::DollarID {
-            value: id,
+            value: Rc::new(id),
             pos: self.position(position),
         })
     }

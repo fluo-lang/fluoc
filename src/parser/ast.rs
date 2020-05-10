@@ -1,9 +1,10 @@
 use crate::helpers;
-
 use crate::lexer::Token;
+use crate::typecheck::ast_typecheck::SymbTabObj;
 use std::fmt;
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
+use std::rc::Rc;
 
 // EXPRESSIONS ---------------------------------------
 
@@ -37,14 +38,14 @@ pub struct StringLiteral<'a> {
 #[derive(Debug, Clone, PartialEq)]
 /// Dollar sign id (i.e. `$myvar`) node
 pub struct DollarID<'a> {
-    pub value: Namespace<'a>,
+    pub value: Rc<Namespace<'a>>,
     pub pos: helpers::Pos<'a>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 /// Reference ID (i.e. pass by value) node
 pub struct RefID<'a> {
-    pub value: Namespace<'a>,
+    pub value: Rc<Namespace<'a>>,
     pub pos: helpers::Pos<'a>,
 }
 
@@ -96,8 +97,8 @@ impl<'a> PartialEq for NameID<'a> {
 ///
 /// x = 10;
 pub struct VariableAssign<'a> {
-    pub name: Namespace<'a>,
-    pub expr: Box<Expr<'a>>,
+    pub name: Rc<Namespace<'a>>,
+    pub expr: Rc<Expr<'a>>,
     pub pos: helpers::Pos<'a>,
 }
 
@@ -106,8 +107,8 @@ pub struct VariableAssign<'a> {
 ///
 /// type km = int;
 pub struct TypeAssign<'a> {
-    pub name: Namespace<'a>,
-    pub value: Type<'a>,
+    pub name: Rc<Namespace<'a>>,
+    pub value: Rc<Type<'a>>,
     pub pos: helpers::Pos<'a>,
 }
 
@@ -116,9 +117,9 @@ pub struct TypeAssign<'a> {
 ///
 /// let x: int = 10;
 pub struct VariableAssignDeclaration<'a> {
-    pub t: Type<'a>,
-    pub name: Namespace<'a>,
-    pub expr: Box<Expr<'a>>,
+    pub t: Rc<Type<'a>>,
+    pub name: Rc<Namespace<'a>>,
+    pub expr: Rc<SymbTabObj<'a>>,
     pub pos: helpers::Pos<'a>,
 }
 
@@ -127,15 +128,15 @@ pub struct VariableAssignDeclaration<'a> {
 ///
 /// let x: int;
 pub struct VariableDeclaration<'a> {
-    pub t: Type<'a>,
-    pub name: Namespace<'a>,
+    pub t: Rc<Type<'a>>,
+    pub name: Rc<Namespace<'a>>,
     pub pos: helpers::Pos<'a>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 /// Arguments for function
 pub struct Arguments<'a> {
-    pub positional: Vec<(NameID<'a>, Type<'a>)>,
+    pub positional: Vec<(NameID<'a>, Rc<Type<'a>>)>,
     pub pos: helpers::Pos<'a>, // TODO: Add more types of arguments
 }
 
@@ -160,7 +161,7 @@ impl<'a> Block<'a> {
 #[derive(Debug, Clone, PartialEq)]
 /// Function definition
 pub struct FunctionDefine<'a> {
-    pub return_type: Type<'a>,
+    pub return_type: Rc<Type<'a>>,
     pub arguments: Arguments<'a>,
     pub block: Block<'a>,
     pub name: NameID<'a>,
@@ -175,7 +176,7 @@ pub struct ArgumentsRun<'a> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Return<'a> {
-    pub expression: Expr<'a>,
+    pub expression: Rc<Expr<'a>>,
     pub pos: helpers::Pos<'a>,
 }
 
@@ -183,21 +184,21 @@ pub struct Return<'a> {
 /// Function definition
 pub struct FunctionCall<'a> {
     pub arguments: ArgumentsRun<'a>,
-    pub name: Namespace<'a>,
+    pub name: Rc<Namespace<'a>>,
     pub pos: helpers::Pos<'a>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ExpressionStatement<'a> {
-    pub expression: Expr<'a>,
+    pub expression: Rc<Expr<'a>>,
     pub pos: helpers::Pos<'a>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
 /// Type Types
 pub enum TypeType<'a> {
-    Type(Namespace<'a>),
-    Tuple(Vec<Type<'a>>),
+    Type(Rc<Namespace<'a>>),
+    Tuple(Vec<Rc<Type<'a>>>),
 }
 
 impl<'a> fmt::Display for TypeType<'a> {
@@ -236,7 +237,7 @@ impl<'a> fmt::Display for Type<'a> {
     }
 }
 
-#[derive(Debug, Hash, Eq, Clone)]
+#[derive(Debug, Eq, Clone)]
 /// This::is::a::namespace!
 pub struct Namespace<'a> {
     pub scopes: Vec<NameID<'a>>,
@@ -246,6 +247,14 @@ pub struct Namespace<'a> {
 impl<'a> PartialEq for Namespace<'a> {
     fn eq(&self, other: &Self) -> bool {
         self.scopes == other.scopes
+    }
+}
+
+impl<'a> Hash for Namespace<'a> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        for scope in &self.scopes {
+            scope.hash(state);
+        }
     }
 }
 

@@ -3,7 +3,7 @@ use crate::logger::buffer_writer::{color, Buffer, Color, Font, Style};
 use std::cmp::{max, Reverse};
 use std::collections::{HashMap, HashSet};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 /// An error type, i.e `Syntax` error or `UnexpectedToken` error
 pub enum ErrorType {
     Syntax,

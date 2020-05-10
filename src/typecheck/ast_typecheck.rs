@@ -5,11 +5,69 @@ use crate::parser::ast::*;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt;
+use std::ops::Deref;
+use std::rc::Rc;
 
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum SymbTabObj<'a> {
     CustomType(TypeCheckType<'a>),
     Function(FunctionDefine<'a>),
     Variable(Expr<'a>),
+}
+
+#[derive(Debug, Clone, Copy)]
+/// For incremental error reporting so we don't have weird unnecessary errors caused by another error.
+/// I.e. so we don't' have a undefined variable error because of a type error in the declaration.
+pub enum ErrorLevel {
+    NoneExistentValue = 0,
+    TypeError = 1,
+}
+
+impl<'a> SymbTabObj<'a> {
+    fn unwrap_expr(&self) -> &Expr<'a> {
+        match self {
+            SymbTabObj::Variable(expr) => expr,
+            _ => panic!("Tried to unwrap expr from `{}`, failed", self),
+        }
+    }
+
+    fn unwrap_fn(&self) -> &FunctionDefine<'a> {
+        match self {
+            SymbTabObj::Function(function_def) => function_def,
+            _ => panic!("Tried to unwrap fn from `{}`, failed", self),
+        }
+    }
+
+    fn unwrap_type(&self) -> &TypeCheckType<'a> {
+        match self {
+            SymbTabObj::CustomType(custom_type) => custom_type,
+            _ => panic!("Tried to unwrap type from `{}`, failed", self),
+        }
+    }
+
+    fn unwrap_expr_owned(self) -> Expr<'a> {
+        match self {
+            SymbTabObj::Variable(expr) => expr,
+            _ => panic!("Tried to unwrap expr from owned `{}`, failed", self),
+        }
+    }
+
+    fn unwrap_fn_owned(self) -> FunctionDefine<'a> {
+        match self {
+            SymbTabObj::Function(function_def) => function_def,
+            _ => panic!("Tried to unwrap fn from owned `{}`, failed", self),
+        }
+    }
+
+    fn unwrap_type_owned(self) -> TypeCheckType<'a> {
+        match self {
+            SymbTabObj::CustomType(custom_type) => custom_type,
+            _ => panic!("Tried to unwrap type from owned `{}`, failed", self),
+        }
+    }
 }
 
 impl<'a> fmt::Display for SymbTabObj<'a> {
@@ -25,28 +83,28 @@ impl<'a> fmt::Display for SymbTabObj<'a> {
 
 #[derive(Debug, Clone)]
 pub enum ErrorOrVec<'a> {
-    Error(Error<'a>),
-    ErrorVec(Vec<Error<'a>>),
+    Error(Error<'a>, ErrorLevel),
+    ErrorVec(Vec<(Error<'a>, ErrorLevel)>),
 }
 
 impl<'a> ErrorOrVec<'a> {
-    pub fn unwrap_error(self) -> Error<'a> {
+    pub fn unwrap_error(self) -> (Error<'a>, ErrorLevel) {
         match self {
-            ErrorOrVec::Error(e) => e,
+            ErrorOrVec::Error(e, level) => (e, level),
             ErrorOrVec::ErrorVec(_) => panic!("Tried to unwrap ErrorVec value"),
         }
     }
 
-    pub fn unwrap_vec(self) -> Vec<Error<'a>> {
+    pub fn unwrap_vec(self) -> Vec<(Error<'a>, ErrorLevel)> {
         match self {
-            ErrorOrVec::Error(_) => panic!("Tried to unwrap Error value"),
+            ErrorOrVec::Error(_, _) => panic!("Tried to unwrap Error value"),
             ErrorOrVec::ErrorVec(e) => e,
         }
     }
 
-    pub fn as_vec(self) -> Vec<Error<'a>> {
+    pub fn as_vec(self) -> Vec<(Error<'a>, ErrorLevel)> {
         match self {
-            ErrorOrVec::Error(e) => vec![e],
+            ErrorOrVec::Error(e, level) => vec![(e, level)],
             ErrorOrVec::ErrorVec(e) => e,
         }
     }
@@ -54,7 +112,7 @@ impl<'a> ErrorOrVec<'a> {
 
 #[derive(Clone)]
 pub struct TypeCheckSymbTab<'a> {
-    items: HashMap<&'a Namespace<'a>, &'a SymbTabObj<'a>>,
+    items: HashMap<Rc<Namespace<'a>>, Rc<SymbTabObj<'a>>>,
 }
 
 #[derive(Debug, Clone)]
@@ -93,10 +151,10 @@ impl<'a> UnionType<'a> {
 #[derive(PartialEq, Debug, Clone)]
 pub enum TypeCheckTypeType<'a> {
     FunctionSig(UnionType<'a>, Box<TypeCheckType<'a>>),
-    SingleType(Type<'a>),
+    SingleType(Rc<Type<'a>>),
     TupleType(UnionType<'a>),
     ArrayType(Box<TypeCheckType<'a>>, Box<TypeCheckType<'a>>),
-    CustomType(Namespace<'a>),
+    CustomType(Rc<Namespace<'a>>),
 }
 
 #[derive(Debug, Clone)]
@@ -130,6 +188,7 @@ impl<'a> fmt::Display for TypeCheckType<'a> {
 }
 
 impl<'a> TypeCheckType<'a> {
+    /// Check for equivalence of types
     fn sequiv<'b>(left: &Self, right: &Self, context: &'b TypeCheckSymbTab<'a>) -> bool {
         match (left.cast_to_basic(context), right.cast_to_basic(context)) {
             (Ok(left_ok), Ok(right_ok)) => return left_ok == right_ok,
@@ -152,62 +211,75 @@ impl<'a> TypeCheckType<'a> {
     fn cast_to_basic<'b>(
         &'b self,
         context: &'b TypeCheckSymbTab<'a>,
-    ) -> Result<&str, ErrorOrVec<'a>> {
+    ) -> Result<&'static str, ErrorOrVec<'a>> {
         match &self.value {
-            TypeCheckTypeType::FunctionSig(_, _) => Err(ErrorOrVec::Error(Error::new(
-                "cannot cast to primitive".to_string(),
-                ErrorType::TypeCastError,
-                self.pos,
-                ErrorDisplayType::Error,
-                vec![ErrorAnnotation::new(
-                    Some(format!("has type `{}`", self)),
+            TypeCheckTypeType::FunctionSig(_, _) => Err(ErrorOrVec::Error(
+                Error::new(
+                    "cannot cast to primitive".to_string(),
+                    ErrorType::TypeCastError,
                     self.pos,
                     ErrorDisplayType::Error,
-                )],
-                true,
-            ))),
-            TypeCheckTypeType::SingleType(type_val) => {
-                type_val.value.is_basic_type().or_else(|_| {
-                    Err(ErrorOrVec::Error(Error::new(
-                        format!("`{}` is not primitive", self),
-                        ErrorType::TypeCastError,
+                    vec![ErrorAnnotation::new(
+                        Some(format!("has type `{}`", self)),
                         self.pos,
                         ErrorDisplayType::Error,
-                        vec![ErrorAnnotation::new(
-                            Some(format!("has type `{}`", self)),
+                    )],
+                    true,
+                ),
+                ErrorLevel::TypeError,
+            )),
+            TypeCheckTypeType::SingleType(type_val) => {
+                type_val.value.is_basic_type().or_else(|_| {
+                    Err(ErrorOrVec::Error(
+                        Error::new(
+                            format!("`{}` is not primitive", self),
+                            ErrorType::TypeCastError,
                             self.pos,
                             ErrorDisplayType::Error,
-                        )],
-                        true,
-                    )))
+                            vec![ErrorAnnotation::new(
+                                Some(format!("has type `{}`", self)),
+                                self.pos,
+                                ErrorDisplayType::Error,
+                            )],
+                            true,
+                        ),
+                        ErrorLevel::TypeError,
+                    ))
                 })
             }
-            TypeCheckTypeType::TupleType(_) => Err(ErrorOrVec::Error(Error::new(
-                "tuple cannot be casted as primitive".to_string(),
-                ErrorType::TypeCastError,
-                self.pos,
-                ErrorDisplayType::Error,
-                vec![ErrorAnnotation::new(
-                    Some(format!("has type `{}`", self)),
+            TypeCheckTypeType::TupleType(_) => Err(ErrorOrVec::Error(
+                Error::new(
+                    "tuple cannot be casted as primitive".to_string(),
+                    ErrorType::TypeCastError,
                     self.pos,
                     ErrorDisplayType::Error,
-                )],
-                true,
-            ))),
-            TypeCheckTypeType::ArrayType(_, _) => Err(ErrorOrVec::Error(Error::new(
-                "array cannot be casted as primitive".to_string(),
-                ErrorType::TypeCastError,
-                self.pos,
-                ErrorDisplayType::Error,
-                vec![ErrorAnnotation::new(
-                    Some(format!("has type `{}`", self)),
+                    vec![ErrorAnnotation::new(
+                        Some(format!("has type `{}`", self)),
+                        self.pos,
+                        ErrorDisplayType::Error,
+                    )],
+                    true,
+                ),
+                ErrorLevel::TypeError,
+            )),
+            TypeCheckTypeType::ArrayType(_, _) => Err(ErrorOrVec::Error(
+                Error::new(
+                    "array cannot be casted as primitive".to_string(),
+                    ErrorType::TypeCastError,
                     self.pos,
                     ErrorDisplayType::Error,
-                )],
-                true,
-            ))),
+                    vec![ErrorAnnotation::new(
+                        Some(format!("has type `{}`", self)),
+                        self.pos,
+                        ErrorDisplayType::Error,
+                    )],
+                    true,
+                ),
+                ErrorLevel::TypeError,
+            )),
             TypeCheckTypeType::CustomType(name_type) => {
-                context.get_basic_type(&name_type)?.cast_to_basic(context)
+                let val = context.get_basic_type(Rc::clone(name_type))?;
+                val.unwrap_type().cast_to_basic(context)
             }
         }
     }
@@ -219,52 +291,49 @@ impl<'a> TypeCheckType<'a> {
         types
             .windows(2)
             .map(|w| {
-                if match w[0].cast_to_basic(context) {
-                    Ok(val) => val,
-                    Err(e) => return Err(e),
-                } == match w[1].cast_to_basic(context) {
-                    Ok(val) => val,
-                    Err(e) => return Err(e),
-                } {
+                if TypeCheckType::sequiv(&w[0], &w[1], context) {
                     Ok(())
                 } else {
-                    return Err(ErrorOrVec::Error(Error::new(
-                        "mismatched return type".to_string(),
-                        ErrorType::TypeMismatch,
-                        w[0].pos,
-                        ErrorDisplayType::Error,
-                        vec![
-                            ErrorAnnotation::new(
-                                Some(format!("Type `{}`...", w[0])),
-                                w[0].pos,
-                                ErrorDisplayType::Error,
-                            ),
-                            ErrorAnnotation::new(
-                                Some(format!("is not the same as `{}`", w[1])),
-                                w[1].pos,
-                                ErrorDisplayType::Error,
-                            ),
-                        ],
-                        true,
-                    )));
+                    return Err(ErrorOrVec::Error(
+                        Error::new(
+                            "mismatched return type".to_string(),
+                            ErrorType::TypeMismatch,
+                            w[0].pos,
+                            ErrorDisplayType::Error,
+                            vec![
+                                ErrorAnnotation::new(
+                                    Some(format!("Type `{}`...", w[0])),
+                                    w[0].pos,
+                                    ErrorDisplayType::Error,
+                                ),
+                                ErrorAnnotation::new(
+                                    Some(format!("is not the same as `{}`", w[1])),
+                                    w[1].pos,
+                                    ErrorDisplayType::Error,
+                                ),
+                            ],
+                            true,
+                        ),
+                        ErrorLevel::TypeError,
+                    ));
                 }
             })
             .collect::<Result<(), ErrorOrVec>>()
     }
 
-    fn as_type(val: Type<'a>) -> TypeCheckType<'a> {
+    fn as_type(val: Rc<Type<'a>>) -> TypeCheckType<'a> {
         if let Ok(_) = val.value.is_basic_type() {
             TypeCheckType {
                 pos: val.pos,
                 inferred: val.inferred,
                 value: TypeCheckTypeType::SingleType(val),
             }
-        } else if let TypeType::Tuple(types) = val.value {
+        } else if let TypeType::Tuple(types) = &val.value {
             TypeCheckType {
                 value: TypeCheckTypeType::TupleType(UnionType {
                     types: types
                         .into_iter()
-                        .map(|x| TypeCheckType::as_type(x))
+                        .map(|x| TypeCheckType::as_type(Rc::clone(x)))
                         .collect::<Vec<TypeCheckType>>(),
                     pos: val.pos,
                     inferred: val.inferred,
@@ -272,9 +341,9 @@ impl<'a> TypeCheckType<'a> {
                 pos: val.pos,
                 inferred: val.inferred,
             }
-        } else if let TypeType::Type(other) = val.value {
+        } else if let TypeType::Type(other) = &val.value {
             TypeCheckType {
-                value: TypeCheckTypeType::CustomType(other),
+                value: TypeCheckTypeType::CustomType(Rc::clone(other)),
                 pos: val.pos,
                 inferred: val.inferred,
             }
@@ -288,17 +357,17 @@ impl<'a> TypeCheckType<'a> {
 
     fn construct_basic(type_name: &'a str, pos: helpers::Pos<'a>) -> TypeCheckType<'a> {
         TypeCheckType {
-            value: TypeCheckTypeType::SingleType(Type {
-                value: TypeType::Type(Namespace {
+            value: TypeCheckTypeType::SingleType(Rc::new(Type {
+                value: TypeType::Type(Rc::new(Namespace {
                     scopes: vec![NameID {
                         value: type_name,
                         pos,
                     }],
                     pos,
-                }),
+                })),
                 pos,
                 inferred: false,
-            }),
+            })),
             pos,
             inferred: false,
         }
@@ -306,7 +375,7 @@ impl<'a> TypeCheckType<'a> {
 
     fn from_expr<'b>(
         val: &Expr<'a>,
-        context: &'b TypeCheckSymbTab<'a>,
+        context: &'b mut TypeCheckSymbTab<'a>,
     ) -> Result<TypeCheckType<'a>, ErrorOrVec<'a>> {
         Ok(match val {
             Expr::Tuple(tuple_val) => TypeCheckType {
@@ -328,12 +397,13 @@ impl<'a> TypeCheckType<'a> {
             Expr::Integer(int_val) => TypeCheckType::construct_basic("int", int_val.pos),
             Expr::FunctionCall(func_call) => {
                 // Validate function call
-                let func = context.get_function(&func_call.name)?;
+                let func = context.get_function(Rc::clone(&func_call.name))?;
                 let func_arg_types: Vec<TypeCheckType> = func
+                    .unwrap_fn()
                     .arguments
                     .positional
                     .iter()
-                    .map(|argument| TypeCheckType::as_type(argument.1.clone()))
+                    .map(|argument| TypeCheckType::as_type(Rc::clone(&argument.1)))
                     .collect();
 
                 let func_call_arg_types = func_call
@@ -345,87 +415,128 @@ impl<'a> TypeCheckType<'a> {
 
                 for (real_type, call_type) in func_arg_types.iter().zip(&func_call_arg_types) {
                     // Check if called argument type matches with expected type
-                    if real_type != call_type {
-                        return Err(ErrorOrVec::Error(Error::new(
-                            "type mismatch between function and function call".to_string(),
+                    if !TypeCheckType::sequiv(real_type, call_type, context) {
+                        return Err(ErrorOrVec::Error(
+                            Error::new(
+                                "type mismatch between function and function call".to_string(),
+                                ErrorType::TypeMismatch,
+                                func_call.pos,
+                                ErrorDisplayType::Error,
+                                vec![
+                                    ErrorAnnotation::new(
+                                        Some(format!(
+                                            "`{}` has arguments `{}`",
+                                            func_call.name,
+                                            func_arg_types
+                                                .iter()
+                                                .map(|x| x.to_string())
+                                                .collect::<Vec<String>>()
+                                                .join(", ")
+                                        )),
+                                        func_call.pos,
+                                        ErrorDisplayType::Info,
+                                    ),
+                                    ErrorAnnotation::new(
+                                        Some(format!(
+                                            "`{}` called with `{}`",
+                                            " ".repeat(
+                                                func_call.name.to_string().chars().count() + 2
+                                            ),
+                                            func_call_arg_types
+                                                .iter()
+                                                .map(|x| x.to_string())
+                                                .collect::<Vec<String>>()
+                                                .join(", ")
+                                        )),
+                                        func_call.pos,
+                                        ErrorDisplayType::Info,
+                                    ),
+                                ],
+                                true,
+                            ),
+                            ErrorLevel::TypeError,
+                        ));
+                    }
+                }
+
+                TypeCheckType::as_type(Rc::clone(&func.unwrap_fn().return_type))
+            }
+            Expr::VariableAssignDeclaration(variable_assignment_dec) => {
+                let value_type = TypeCheckType::from_expr(
+                    (*variable_assignment_dec.expr).unwrap_expr(),
+                    context,
+                )?;
+                let cast_type = TypeCheckType::as_type(Rc::clone(&variable_assignment_dec.t));
+                if !TypeCheckType::sequiv(&cast_type, &value_type, context) {
+                    // Not the same type, error
+                    return Err(ErrorOrVec::Error(
+                        Error::new(
+                            "cannot cast value to specified type annotation".to_string(),
                             ErrorType::TypeMismatch,
-                            func_call.pos,
+                            cast_type.pos,
                             ErrorDisplayType::Error,
                             vec![
                                 ErrorAnnotation::new(
-                                    Some(format!(
-                                        "`{}` has arguments `{}`",
-                                        func_call.name,
-                                        func_arg_types
-                                            .iter()
-                                            .map(|x| x.to_string())
-                                            .collect::<Vec<String>>()
-                                            .join(", ")
-                                    )),
-                                    func_call.pos,
+                                    Some(format!("value has type `{}`", value_type)),
+                                    value_type.pos,
                                     ErrorDisplayType::Info,
                                 ),
                                 ErrorAnnotation::new(
-                                    Some(format!(
-                                        "`{}` called with `{}`",
-                                        " ".repeat(func_call.name.to_string().chars().count() + 2),
-                                        func_call_arg_types
-                                            .iter()
-                                            .map(|x| x.to_string())
-                                            .collect::<Vec<String>>()
-                                            .join(", ")
-                                    )),
-                                    func_call.pos,
+                                    Some(format!("type annotation has type `{}`", cast_type)),
+                                    cast_type.pos,
                                     ErrorDisplayType::Info,
                                 ),
                             ],
                             true,
-                        )));
-                    }
-                }
+                        ),
+                        ErrorLevel::TypeError,
+                    ));
+                } else {
+                    context.set_value(
+                        Rc::clone(&variable_assignment_dec.name),
+                        Rc::clone(&variable_assignment_dec.expr),
+                    );
 
-                TypeCheckType::as_type(func.return_type.clone())
-            }
-            Expr::VariableAssign(variable_assignment) => {
-                // TODO: validate that the variable is declared and has same type
-                TypeCheckType::from_expr(&*variable_assignment.expr, context)?
-            }
-            Expr::VariableAssignDeclaration(variable_assignment_dec) => {
-                TypeCheckType::from_expr(&*variable_assignment_dec.expr, context)?
+                    cast_type
+                }
             }
             Expr::Infix(infix) => {
                 let left_type = TypeCheckType::from_expr(&*infix.left, context)?;
                 let right_type = TypeCheckType::from_expr(&*infix.right, context)?;
 
                 // TODO: check if the types can be casted to on another
-                if left_type == right_type {
-                    // Exact same type
+                if TypeCheckType::sequiv(&left_type, &right_type, context) {
+                    // Same type
                     left_type
                 } else {
-                    // Operands are not basic types
-                    // TODO: implement checking for namespace like types (custom types)
-                    // For now, an error will be raised
-
-                    return Err(ErrorOrVec::Error(Error::new(
-                        format!("type mismatch between operands of {}", infix.operator.token),
-                        ErrorType::TypeMismatch,
-                        infix.pos,
-                        ErrorDisplayType::Error,
-                        vec![
-                            ErrorAnnotation::new(
-                                Some(format!("Has type `{}`", left_type)),
-                                left_type.pos,
-                                ErrorDisplayType::Info,
-                            ),
-                            ErrorAnnotation::new(
-                                Some(format!("Has type `{}`", right_type)),
-                                right_type.pos,
-                                ErrorDisplayType::Info,
-                            ),
-                        ],
-                        true,
-                    )));
+                    return Err(ErrorOrVec::Error(
+                        Error::new(
+                            format!("type mismatch between operands of {}", infix.operator.token),
+                            ErrorType::TypeMismatch,
+                            infix.pos,
+                            ErrorDisplayType::Error,
+                            vec![
+                                ErrorAnnotation::new(
+                                    Some(format!("has type `{}`", left_type)),
+                                    left_type.pos,
+                                    ErrorDisplayType::Info,
+                                ),
+                                ErrorAnnotation::new(
+                                    Some(format!("has type `{}`", right_type)),
+                                    right_type.pos,
+                                    ErrorDisplayType::Info,
+                                ),
+                            ],
+                            true,
+                        ),
+                        ErrorLevel::TypeError,
+                    ));
                 }
+            }
+            Expr::RefID(ref_namespace) => {
+                let val = context.get_variable(Rc::clone(&ref_namespace.value))?;
+                let val = val.unwrap_expr();
+                TypeCheckType::from_expr(val, context)?
             }
             _ => panic!("Type expression inference not implemented yet"),
         })
@@ -436,7 +547,7 @@ pub trait TypeCheck<'a>: std::fmt::Debug {
     fn type_check<'b>(
         &self,
         _return_type: Option<Cow<'a, TypeCheckType<'a>>>,
-        _context: &'b TypeCheckSymbTab<'a>,
+        _context: &'b mut TypeCheckSymbTab<'a>,
     ) -> Result<Cow<'a, TypeCheckType<'a>>, ErrorOrVec<'a>> {
         panic!(format!(
             "TypeCheckType type_check not implemented for {:?}",
@@ -451,25 +562,33 @@ impl<'a> Return<'a> {
         value: TypeCheckType<'a>,
         returned_type: TypeCheckType<'a>,
     ) -> ErrorOrVec<'a> {
-        ErrorOrVec::Error(Error::new(
-            "mismatched return type".to_string(),
-            ErrorType::TypeMismatch,
-            self.expression.pos(),
-            ErrorDisplayType::Error,
-            vec![
-                ErrorAnnotation::new(
-                    Some("but the block implicitly returns `()`".to_string()),
-                    value.pos,
-                    ErrorDisplayType::Info,
-                ),
-                ErrorAnnotation::new(
-                    Some(format!("Found return type `{}`...", returned_type)),
-                    returned_type.pos,
-                    ErrorDisplayType::Error,
-                ),
-            ],
-            true,
-        ))
+        ErrorOrVec::Error(
+            Error::new(
+                "mismatched return type".to_string(),
+                ErrorType::TypeMismatch,
+                self.expression.pos(),
+                ErrorDisplayType::Error,
+                vec![
+                    ErrorAnnotation::new(
+                        Some("but the block implicitly returns `()`".to_string()),
+                        value.pos,
+                        ErrorDisplayType::Info,
+                    ),
+                    ErrorAnnotation::new(
+                        Some(format!("found return type `{}`...", returned_type)),
+                        returned_type.pos,
+                        ErrorDisplayType::Error,
+                    ),
+                    ErrorAnnotation::new(
+                        Some("value is returned here".to_string()),
+                        self.pos,
+                        ErrorDisplayType::Info,
+                    ),
+                ],
+                true,
+            ),
+            ErrorLevel::TypeError,
+        )
     }
 
     fn construct_err(
@@ -477,25 +596,33 @@ impl<'a> Return<'a> {
         value: TypeCheckType<'a>,
         returned_type: TypeCheckType<'a>,
     ) -> ErrorOrVec<'a> {
-        ErrorOrVec::Error(Error::new(
-            "mismatched return type".to_string(),
-            ErrorType::TypeMismatch,
-            self.expression.pos(),
-            ErrorDisplayType::Error,
-            vec![
-                ErrorAnnotation::new(
-                    Some(format!("Return type `{}` found here...", value)),
-                    value.pos,
-                    ErrorDisplayType::Info,
-                ),
-                ErrorAnnotation::new(
-                    Some(format!("but found `{}` instead", returned_type)),
-                    returned_type.pos,
-                    ErrorDisplayType::Error,
-                ),
-            ],
-            true,
-        ))
+        ErrorOrVec::Error(
+            Error::new(
+                "mismatched return type".to_string(),
+                ErrorType::TypeMismatch,
+                self.expression.pos(),
+                ErrorDisplayType::Error,
+                vec![
+                    ErrorAnnotation::new(
+                        Some(format!("return type `{}` found here...", value)),
+                        value.pos,
+                        ErrorDisplayType::Info,
+                    ),
+                    ErrorAnnotation::new(
+                        Some(format!("but found `{}` instead", returned_type)),
+                        returned_type.pos,
+                        ErrorDisplayType::Error,
+                    ),
+                    ErrorAnnotation::new(
+                        Some("value is returned here".to_string()),
+                        self.pos,
+                        ErrorDisplayType::Info,
+                    ),
+                ],
+                true,
+            ),
+            ErrorLevel::TypeError,
+        )
     }
 }
 
@@ -503,7 +630,7 @@ impl<'a> TypeCheck<'a> for Return<'a> {
     fn type_check<'b>(
         &self,
         return_type: Option<Cow<'a, TypeCheckType<'a>>>,
-        context: &'b TypeCheckSymbTab<'a>,
+        context: &'b mut TypeCheckSymbTab<'a>,
     ) -> Result<Cow<'a, TypeCheckType<'a>>, ErrorOrVec<'a>> {
         let returned_type = TypeCheckType::from_expr(&self.expression, context)?;
         match return_type {
@@ -536,17 +663,8 @@ impl<'a> TypeCheck<'a> for Return<'a> {
             }
             Some(value) => {
                 // Make sure returns are of the same type or can be casted
-                if returned_type == *value {
+                if TypeCheckType::sequiv(&returned_type, &value, context) {
                     // Same type
-                    Ok(value)
-                } else if {
-                    let possible_basic = returned_type.cast_to_basic(context);
-                    let value_basic = value.cast_to_basic(context);
-                    possible_basic.is_ok()
-                        && value_basic.is_ok()
-                        && (possible_basic.unwrap() == value_basic.unwrap())
-                } {
-                    // Same basic type
                     Ok(value)
                 } else {
                     Err(self.construct_err(value.into_owned(), returned_type))
@@ -567,9 +685,9 @@ impl<'a> TypeCheck<'a> for Block<'a> {
     fn type_check<'b>(
         &self,
         return_type: Option<Cow<'a, TypeCheckType<'a>>>,
-        context: &'b TypeCheckSymbTab<'a>,
+        context: &'b mut TypeCheckSymbTab<'a>,
     ) -> Result<Cow<'a, TypeCheckType<'a>>, ErrorOrVec<'a>> {
-        let mut errors: Vec<Error> = Vec::new();
+        let mut errors: Vec<(Error, ErrorLevel)> = Vec::new();
         let mut ret_types: Vec<&Expr> = Vec::new();
 
         for node in &self.nodes {
@@ -614,7 +732,7 @@ impl<'a> TypeCheck<'a> for FunctionDefine<'a> {
     fn type_check<'b>(
         &self,
         _return_type: Option<Cow<'a, TypeCheckType<'a>>>,
-        context: &'b TypeCheckSymbTab<'a>,
+        context: &'b mut TypeCheckSymbTab<'a>,
     ) -> Result<Cow<'a, TypeCheckType<'a>>, ErrorOrVec<'a>> {
         (&self.block as &dyn TypeCheck).type_check(
             Some(Cow::Owned(TypeCheckType::as_type(self.return_type.clone()))),
@@ -623,17 +741,33 @@ impl<'a> TypeCheck<'a> for FunctionDefine<'a> {
     }
 }
 
+impl<'a> TypeCheck<'a> for ExpressionStatement<'a> {
+    fn type_check<'b>(
+        &self,
+        _return_type: Option<Cow<'a, TypeCheckType<'a>>>,
+        context: &'b mut TypeCheckSymbTab<'a>,
+    ) -> Result<Cow<'a, TypeCheckType<'a>>, ErrorOrVec<'a>> {
+        Ok(Cow::Owned(TypeCheckType::from_expr(
+            &self.expression,
+            context,
+        )?))
+    }
+}
+
 impl<'a> TypeCheck<'a> for Statement<'a> {
     fn type_check<'b>(
         &self,
         return_type: Option<Cow<'a, TypeCheckType<'a>>>,
-        context: &'b TypeCheckSymbTab<'a>,
+        context: &'b mut TypeCheckSymbTab<'a>,
     ) -> Result<Cow<'a, TypeCheckType<'a>>, ErrorOrVec<'a>> {
         match &self {
             Statement::Return(statement) => {
                 (statement as &dyn TypeCheck).type_check(return_type, context)
             }
             Statement::FunctionDefine(statement) => {
+                (statement as &dyn TypeCheck).type_check(return_type, context)
+            }
+            Statement::ExpressionStatement(statement) => {
                 (statement as &dyn TypeCheck).type_check(return_type, context)
             }
             _ => panic!(format!(
@@ -645,10 +779,10 @@ impl<'a> TypeCheck<'a> for Statement<'a> {
 }
 
 impl<'a> TypeType<'a> {
-    fn is_basic_type(&self) -> Result<&str, ()> {
+    fn is_basic_type(&self) -> Result<&'static str, ()> {
         match &self {
-            TypeType::Type(Namespace { pos: _, scopes }) => {
-                if let Some(val) = scopes.get(0) {
+            TypeType::Type(value) => {
+                if let Some(val) = value.scopes.get(0) {
                     match val.value {
                         "int" => return Ok("int"),
                         "str" => return Ok("str"),
@@ -669,127 +803,152 @@ impl<'a> TypeCheckSymbTab<'a> {
         }
     }
 
-    fn get_function<'b>(
-        &self,
-        namespace: &Namespace<'a>,
-    ) -> Result<&'b FunctionDefine<'a>, ErrorOrVec<'a>> {
-        match self.items.get(namespace) {
-            Some(val) => match val {
-                SymbTabObj::Function(function) => return Ok(function),
-                other => {
-                    return Err(ErrorOrVec::Error(Error::new(
-                        format!("`{}` is not a function", namespace),
-                        ErrorType::UndefinedSymbol,
-                        namespace.pos,
-                        ErrorDisplayType::Error,
-                        vec![ErrorAnnotation::new(
-                            Some(format!("`{}` is a `{}`, not a function", namespace, other)),
-                            namespace.pos,
-                            ErrorDisplayType::Error,
-                        )],
-                        true,
-                    )));
-                }
-            },
-            None => {}
-        }
-        Err(ErrorOrVec::Error(Error::new(
-            "function does not exist".to_string(),
-            ErrorType::UndefinedSymbol,
-            namespace.pos,
-            ErrorDisplayType::Error,
-            vec![ErrorAnnotation::new(
-                Some(format!("Undefined function `{}`", namespace)),
-                namespace.pos,
-                ErrorDisplayType::Error,
-            )],
-            true,
-        )))
+    fn set_value(&mut self, namespace: Rc<Namespace<'a>>, value: Rc<SymbTabObj<'a>>) {
+        self.items.insert(namespace, value);
     }
 
-    fn get_type(&self, namespace: &Namespace<'a>) -> Result<&TypeCheckType<'a>, ErrorOrVec<'a>> {
+    fn get_function(
+        &self,
+        namespace: Rc<Namespace<'a>>,
+    ) -> Result<Rc<SymbTabObj<'a>>, ErrorOrVec<'a>> {
         match self.items.get(&namespace) {
-            Some(val) => match val {
-                SymbTabObj::CustomType(type_val) => return Ok(type_val),
+            Some(val) => match val.deref() {
+                SymbTabObj::Function(_) => return Ok(Rc::clone(val)),
                 other => {
-                    return Err(ErrorOrVec::Error(Error::new(
-                        format!("`{}` is not a type", namespace),
-                        ErrorType::UndefinedSymbol,
-                        namespace.pos,
-                        ErrorDisplayType::Error,
-                        vec![ErrorAnnotation::new(
-                            Some(format!("`{}` is a `{}`, not a type", namespace, other)),
+                    return Err(ErrorOrVec::Error(
+                        Error::new(
+                            format!("`{}` is not a function", namespace),
+                            ErrorType::UndefinedSymbol,
                             namespace.pos,
                             ErrorDisplayType::Error,
-                        )],
-                        true,
-                    )));
+                            vec![ErrorAnnotation::new(
+                                Some(format!("`{}` is a `{}`, not a function", namespace, other)),
+                                namespace.pos,
+                                ErrorDisplayType::Error,
+                            )],
+                            true,
+                        ),
+                        ErrorLevel::TypeError,
+                    ));
                 }
             },
             None => {}
         }
-        Err(ErrorOrVec::Error(Error::new(
-            "type does not exist".to_string(),
-            ErrorType::UndefinedSymbol,
-            namespace.pos,
-            ErrorDisplayType::Error,
-            vec![ErrorAnnotation::new(
-                Some(format!("Undefined type `{}`", namespace)),
+        Err(ErrorOrVec::Error(
+            Error::new(
+                "function does not exist".to_string(),
+                ErrorType::UndefinedSymbol,
                 namespace.pos,
                 ErrorDisplayType::Error,
-            )],
-            true,
-        )))
+                vec![ErrorAnnotation::new(
+                    Some(format!("undefined function `{}`", namespace)),
+                    namespace.pos,
+                    ErrorDisplayType::Error,
+                )],
+                true,
+            ),
+            ErrorLevel::NoneExistentValue,
+        ))
+    }
+
+    fn get_type(&self, namespace: Rc<Namespace<'a>>) -> Result<Rc<SymbTabObj<'a>>, ErrorOrVec<'a>> {
+        match self.items.get(&namespace) {
+            Some(val) => match val.deref() {
+                SymbTabObj::CustomType(_) => return Ok(Rc::clone(val)),
+                other => {
+                    return Err(ErrorOrVec::Error(
+                        Error::new(
+                            format!("`{}` is not a type", namespace),
+                            ErrorType::UndefinedSymbol,
+                            namespace.pos,
+                            ErrorDisplayType::Error,
+                            vec![ErrorAnnotation::new(
+                                Some(format!("`{}` is a `{}`, not a type", namespace, other)),
+                                namespace.pos,
+                                ErrorDisplayType::Error,
+                            )],
+                            true,
+                        ),
+                        ErrorLevel::TypeError,
+                    ));
+                }
+            },
+            None => {}
+        }
+        Err(ErrorOrVec::Error(
+            Error::new(
+                "type does not exist".to_string(),
+                ErrorType::UndefinedSymbol,
+                namespace.pos,
+                ErrorDisplayType::Error,
+                vec![ErrorAnnotation::new(
+                    Some(format!("undefined type `{}`", namespace)),
+                    namespace.pos,
+                    ErrorDisplayType::Error,
+                )],
+                true,
+            ),
+            ErrorLevel::NoneExistentValue,
+        ))
     }
 
     fn get_basic_type(
         &self,
-        namespace: &Namespace<'a>,
-    ) -> Result<&TypeCheckType<'a>, ErrorOrVec<'a>> {
+        namespace: Rc<Namespace<'a>>,
+    ) -> Result<Rc<SymbTabObj<'a>>, ErrorOrVec<'a>> {
         let mut type_val = self.get_type(namespace)?;
-        while let TypeCheckType {
+        while let SymbTabObj::CustomType(TypeCheckType {
             value: TypeCheckTypeType::CustomType(name),
             pos: _,
             inferred: _,
-        } = type_val
+        }) = type_val.deref()
         {
-            type_val = self.get_type(name)?;
+            type_val = self.get_type(Rc::clone(name))?;
         }
         Ok(type_val)
     }
 
-    fn get_variable(&self, namespace: &Namespace<'a>) -> Result<&Expr<'a>, ErrorOrVec<'a>> {
+    fn get_variable(
+        &self,
+        namespace: Rc<Namespace<'a>>,
+    ) -> Result<Rc<SymbTabObj<'a>>, ErrorOrVec<'a>> {
         match self.items.get(&namespace) {
-            Some(val) => match val {
-                SymbTabObj::Variable(variable) => return Ok(variable),
+            Some(val) => match val.deref() {
+                SymbTabObj::Variable(_) => return Ok(Rc::clone(val)),
                 other => {
-                    return Err(ErrorOrVec::Error(Error::new(
-                        format!("`{}` is not a variable", namespace),
-                        ErrorType::UndefinedSymbol,
-                        namespace.pos,
-                        ErrorDisplayType::Error,
-                        vec![ErrorAnnotation::new(
-                            Some(format!("`{}` is a `{}`, not a variable", namespace, other)),
+                    return Err(ErrorOrVec::Error(
+                        Error::new(
+                            format!("`{}` is not a variable", namespace),
+                            ErrorType::UndefinedSymbol,
                             namespace.pos,
                             ErrorDisplayType::Error,
-                        )],
-                        true,
-                    )));
+                            vec![ErrorAnnotation::new(
+                                Some(format!("`{}` is a `{}`, not a variable", namespace, other)),
+                                namespace.pos,
+                                ErrorDisplayType::Error,
+                            )],
+                            true,
+                        ),
+                        ErrorLevel::TypeError,
+                    ));
                 }
             },
             None => {}
         }
-        Err(ErrorOrVec::Error(Error::new(
-            "Variable does not exist".to_string(),
-            ErrorType::UndefinedSymbol,
-            namespace.pos,
-            ErrorDisplayType::Error,
-            vec![ErrorAnnotation::new(
-                Some(format!("Undefined variable `{}`", namespace)),
+        Err(ErrorOrVec::Error(
+            Error::new(
+                "variable does not exist".to_string(),
+                ErrorType::UndefinedSymbol,
                 namespace.pos,
                 ErrorDisplayType::Error,
-            )],
-            true,
-        )))
+                vec![ErrorAnnotation::new(
+                    Some(format!("undefined variable `{}`", namespace)),
+                    namespace.pos,
+                    ErrorDisplayType::Error,
+                )],
+                true,
+            ),
+            ErrorLevel::NoneExistentValue,
+        ))
     }
 }

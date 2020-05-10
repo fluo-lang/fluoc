@@ -25,13 +25,12 @@ impl<'a> TypeCheckModule<'a> {
 
     pub fn type_check(&mut self) -> Result<(), Vec<Error<'a>>> {
         self.parser.parse()?;
-        //println!("{:#?}", self.parser.ast.as_ref().unwrap());
 
         let mut errors = Vec::new();
 
         // Do type checking
         for node in &self.parser.ast.as_ref().unwrap().nodes {
-            match (node as &dyn ast_typecheck::TypeCheck).type_check(None, &self.symtab) {
+            match (node as &dyn ast_typecheck::TypeCheck).type_check(None, &mut self.symtab) {
                 Ok(_) => {}
                 Err(e) => {
                     errors.append(&mut e.as_vec());
@@ -40,7 +39,16 @@ impl<'a> TypeCheckModule<'a> {
         }
 
         if !errors.is_empty() {
-            Err(errors)
+            // The different errors to have different priorities
+            // We want to show the errors with the highest priority
+            // Show all of the errors that have the the same priority
+            let max_error_priority = errors.iter().max_by_key(|x| x.1 as usize).unwrap().1 as usize;
+            let errors_priority = errors
+                .into_iter()
+                .filter(|error| error.1 as usize == max_error_priority)
+                .map(|error| error.0)
+                .collect();
+            Err(errors_priority)
         } else {
             Ok(())
         }

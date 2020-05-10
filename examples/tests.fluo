@@ -1,3 +1,4 @@
 def entry() {
-    
+    let x: int = 0;
+    return x;
 }
