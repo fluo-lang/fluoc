@@ -19,7 +19,7 @@ Some examples of what a branch could look like:
 
 ## How Can I Help?!?!
 ### Writing Code
-See the [trello](https://trello.com/b/5gxtFXun/fluo) for a list of things that need to be done.
+See the [trello](https://trello.com/b/5gxtFXun/fluo) for a list of things that need to be done. Open a [pull request](https://github.com/MonliH/fluo/pulls) and explain your changes.
 
 ### Bug reports and suggestions
 Feel free to open an [issue](https://github.com/MonliH/fluo/issues)
