@@ -500,6 +500,14 @@ impl<'a> TypeCheckType<'a> {
                     cast_type
                 }
             }
+            Expr::VariableAssign(variable_assign) => {
+                // TODO: add variable assign to type checker
+                panic!("Inference for variable assign not implemented yet");
+            }
+            Expr::VariableDeclaration(variable_assign) => {
+                // TODO: add variable declaration to type checker
+                panic!("Inference for variable assign not implemented yet");
+            }
             Expr::Infix(infix) => {
                 let left_type = TypeCheckType::from_expr(&*infix.left, context)?;
                 let right_type = TypeCheckType::from_expr(&*infix.right, context)?;
