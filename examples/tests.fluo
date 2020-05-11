@@ -1,5 +1,5 @@
-def multiply_by_2(val: int) -> int {
-    return val*2;
+def multiply_by_2(val: int) {
+    return val;
 }
 
 def entry() -> int {

@@ -8,14 +8,11 @@ use std::fmt;
 use std::ops::Deref;
 use std::rc::Rc;
 
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
-
 #[derive(Debug, Clone, PartialEq)]
 pub enum SymbTabObj<'a> {
     CustomType(TypeCheckType<'a>),
-    Function(FunctionDefine<'a>),
-    Variable(Expr<'a>),
+    Function(TypeCheckType<'a>),
+    Variable(TypeCheckType<'a>),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -27,45 +24,19 @@ pub enum ErrorLevel {
 }
 
 impl<'a> SymbTabObj<'a> {
-    fn unwrap_expr(&self) -> &Expr<'a> {
-        match self {
-            SymbTabObj::Variable(expr) => expr,
-            _ => panic!("Tried to unwrap expr from `{}`, failed", self),
-        }
-    }
-
-    fn unwrap_fn(&self) -> &FunctionDefine<'a> {
-        match self {
-            SymbTabObj::Function(function_def) => function_def,
-            _ => panic!("Tried to unwrap fn from `{}`, failed", self),
-        }
-    }
-
     fn unwrap_type(&self) -> &TypeCheckType<'a> {
         match self {
-            SymbTabObj::CustomType(custom_type) => custom_type,
-            _ => panic!("Tried to unwrap type from `{}`, failed", self),
-        }
-    }
-
-    fn unwrap_expr_owned(self) -> Expr<'a> {
-        match self {
             SymbTabObj::Variable(expr) => expr,
-            _ => panic!("Tried to unwrap expr from owned `{}`, failed", self),
-        }
-    }
-
-    fn unwrap_fn_owned(self) -> FunctionDefine<'a> {
-        match self {
-            SymbTabObj::Function(function_def) => function_def,
-            _ => panic!("Tried to unwrap fn from owned `{}`, failed", self),
+            SymbTabObj::Function(expr) => expr,
+            SymbTabObj::CustomType(expr) => expr,
         }
     }
 
     fn unwrap_type_owned(self) -> TypeCheckType<'a> {
         match self {
-            SymbTabObj::CustomType(custom_type) => custom_type,
-            _ => panic!("Tried to unwrap type from owned `{}`, failed", self),
+            SymbTabObj::Variable(expr) => expr,
+            SymbTabObj::Function(expr) => expr,
+            SymbTabObj::CustomType(expr) => expr,
         }
     }
 }
@@ -112,7 +83,7 @@ impl<'a> ErrorOrVec<'a> {
 
 #[derive(Clone)]
 pub struct TypeCheckSymbTab<'a> {
-    items: HashMap<Rc<Namespace<'a>>, Rc<SymbTabObj<'a>>>,
+    items: HashMap<Rc<Namespace<'a>>, SymbTabObj<'a>>,
 }
 
 #[derive(Debug, Clone)]
@@ -148,13 +119,51 @@ impl<'a> UnionType<'a> {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct ArgumentsTypeCheck<'a> {
+    positional: Vec<(NameID<'a>, TypeCheckType<'a>)>,
+    pos: helpers::Pos<'a>,
+}
+
+impl<'a> fmt::Display for ArgumentsTypeCheck<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut final_string = Vec::new();
+        for type_val in self.positional.iter() {
+            final_string.push(type_val.1.to_string());
+        }
+        write!(f, "{}", final_string.join(", "))
+    }
+}
+
+impl<'a> PartialEq for ArgumentsTypeCheck<'a> {
+    fn eq(&self, other: &Self) -> bool {
+        self.positional == other.positional
+    }
+}
+
 #[derive(PartialEq, Debug, Clone)]
 pub enum TypeCheckTypeType<'a> {
-    FunctionSig(UnionType<'a>, Box<TypeCheckType<'a>>),
+    FunctionSig(ArgumentsTypeCheck<'a>, Box<TypeCheckType<'a>>),
     SingleType(Rc<Type<'a>>),
     TupleType(UnionType<'a>),
     ArrayType(Box<TypeCheckType<'a>>, Box<TypeCheckType<'a>>),
     CustomType(Rc<Namespace<'a>>),
+}
+
+impl<'a> TypeCheckTypeType<'a> {
+    fn unwrap_func_return(self) -> TypeCheckType<'a> {
+        match self {
+            TypeCheckTypeType::FunctionSig(_, ret_type) => *ret_type,
+            _ => panic!("Tried to unwrap func return from type check type"),
+        }
+    }
+
+    fn unwrap_func(&self) -> (&ArgumentsTypeCheck<'a>, &TypeCheckType<'a>) {
+        match self {
+            TypeCheckTypeType::FunctionSig(arguments, ret_type) => (arguments, ret_type),
+            _ => panic!("Tried to unwrap func from type check type"),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -302,7 +311,7 @@ impl<'a> TypeCheckType<'a> {
                             ErrorDisplayType::Error,
                             vec![
                                 ErrorAnnotation::new(
-                                    Some(format!("Type `{}`...", w[0])),
+                                    Some(format!("type `{}`", w[0])),
                                     w[0].pos,
                                     ErrorDisplayType::Error,
                                 ),
@@ -397,21 +406,22 @@ impl<'a> TypeCheckType<'a> {
             Expr::Integer(int_val) => TypeCheckType::construct_basic("int", int_val.pos),
             Expr::FunctionCall(func_call) => {
                 // Validate function call
-                let func = context.get_function(Rc::clone(&func_call.name))?;
-                let func_arg_types: Vec<TypeCheckType> = func
-                    .unwrap_fn()
-                    .arguments
-                    .positional
-                    .iter()
-                    .map(|argument| TypeCheckType::as_type(Rc::clone(&argument.1)))
-                    .collect();
-
                 let func_call_arg_types = func_call
                     .arguments
                     .positional
                     .iter()
                     .map(|argument| TypeCheckType::from_expr(&argument, context))
                     .collect::<Result<Vec<TypeCheckType>, _>>()?;
+                let func = context.get_function(Rc::clone(&func_call.name))?;
+                let func_arg_types: Vec<&TypeCheckType> = func
+                    .unwrap_type()
+                    .value
+                    .unwrap_func()
+                    .0
+                    .positional
+                    .iter()
+                    .map(|argument| &argument.1)
+                    .collect();
 
                 for (real_type, call_type) in func_arg_types.iter().zip(&func_call_arg_types) {
                     // Check if called argument type matches with expected type
@@ -425,7 +435,7 @@ impl<'a> TypeCheckType<'a> {
                                 vec![
                                     ErrorAnnotation::new(
                                         Some(format!(
-                                            "`{}` has arguments `{}`",
+                                            "`{}` has arguments of type `{}`",
                                             func_call.name,
                                             func_arg_types
                                                 .iter()
@@ -438,9 +448,9 @@ impl<'a> TypeCheckType<'a> {
                                     ),
                                     ErrorAnnotation::new(
                                         Some(format!(
-                                            "`{}` called with `{}`",
+                                            "{} but called with `{}`",
                                             " ".repeat(
-                                                func_call.name.to_string().chars().count() + 2
+                                                func_call.name.to_string().chars().count() + 8
                                             ),
                                             func_call_arg_types
                                                 .iter()
@@ -459,13 +469,10 @@ impl<'a> TypeCheckType<'a> {
                     }
                 }
 
-                TypeCheckType::as_type(Rc::clone(&func.unwrap_fn().return_type))
+                func.unwrap_type().value.clone().unwrap_func_return()
             }
             Expr::VariableAssignDeclaration(variable_assignment_dec) => {
-                let value_type = TypeCheckType::from_expr(
-                    (*variable_assignment_dec.expr).unwrap_expr(),
-                    context,
-                )?;
+                let value_type = TypeCheckType::from_expr(&variable_assignment_dec.expr, context)?;
                 let cast_type = TypeCheckType::as_type(Rc::clone(&variable_assignment_dec.t));
                 if !TypeCheckType::sequiv(&cast_type, &value_type, context) {
                     // Not the same type, error
@@ -492,15 +499,17 @@ impl<'a> TypeCheckType<'a> {
                         ErrorLevel::TypeError,
                     ));
                 } else {
+                    let type_val =
+                        TypeCheckType::from_expr(&variable_assignment_dec.expr, context)?;
                     context.set_value(
                         Rc::clone(&variable_assignment_dec.name),
-                        Rc::clone(&variable_assignment_dec.expr),
+                        SymbTabObj::Variable(type_val),
                     );
 
                     cast_type
                 }
             }
-            Expr::VariableAssign(variable_assign) => {
+            Expr::VariableAssign(_variable_assign) => {
                 // TODO: add variable assign to type checker
                 panic!("Inference for variable assign not implemented yet");
             }
@@ -539,8 +548,7 @@ impl<'a> TypeCheckType<'a> {
             }
             Expr::RefID(ref_namespace) => {
                 let val = context.get_variable(Rc::clone(&ref_namespace.value))?;
-                let val = val.unwrap_expr();
-                TypeCheckType::from_expr(val, context)?
+                val.clone().unwrap_type_owned()
             }
             _ => panic!("Type expression inference not implemented yet"),
         })
@@ -579,7 +587,7 @@ impl<'a> Return<'a> {
                         ErrorDisplayType::Info,
                     ),
                     ErrorAnnotation::new(
-                        Some(format!("found return type `{}`...", returned_type)),
+                        Some(format!("found return type `{}`", returned_type)),
                         returned_type.pos,
                         ErrorDisplayType::Error,
                     ),
@@ -604,23 +612,18 @@ impl<'a> Return<'a> {
             Error::new(
                 "mismatched return type".to_string(),
                 ErrorType::TypeMismatch,
-                self.expression.pos(),
+                self.pos,
                 ErrorDisplayType::Error,
                 vec![
                     ErrorAnnotation::new(
-                        Some(format!("return type `{}` found here...", value)),
+                        Some(format!("return type `{}` found here", value)),
                         value.pos,
                         ErrorDisplayType::Info,
                     ),
                     ErrorAnnotation::new(
-                        Some(format!("but found `{}` instead", returned_type)),
-                        returned_type.pos,
-                        ErrorDisplayType::Error,
-                    ),
-                    ErrorAnnotation::new(
-                        Some("value is returned here".to_string()),
+                        Some(format!("`{}` is returned here", returned_type)),
                         self.pos,
-                        ErrorDisplayType::Info,
+                        ErrorDisplayType::Error,
                     ),
                 ],
                 true,
@@ -732,14 +735,55 @@ impl<'a> TypeCheck<'a> for Block<'a> {
     }
 }
 
+impl<'a> FunctionDefine<'a> {
+    fn as_fn_type(&self) -> Result<TypeCheckType<'a>, ErrorOrVec<'a>> {
+        let mut positional = Vec::new();
+        for argument in &self.arguments.positional {
+            positional.push((argument.0, TypeCheckType::as_type(Rc::clone(&argument.1))))
+        }
+
+        Ok(TypeCheckType {
+            value: TypeCheckTypeType::FunctionSig(
+                ArgumentsTypeCheck {
+                    positional,
+                    pos: self.arguments.pos,
+                },
+                Box::new(TypeCheckType::as_type(Rc::clone(&self.return_type))),
+            ),
+            pos: helpers::Pos::new(
+                self.arguments.pos.s,
+                if self.return_type.deref().inferred {
+                    self.return_type.pos.e
+                } else {
+                    self.arguments.pos.e
+                },
+                self.arguments.pos.filename,
+            ),
+            inferred: false,
+        })
+    }
+}
+
 impl<'a> TypeCheck<'a> for FunctionDefine<'a> {
     fn type_check<'b>(
         &self,
         _return_type: Option<Cow<'a, TypeCheckType<'a>>>,
         context: &'b mut TypeCheckSymbTab<'a>,
     ) -> Result<Cow<'a, TypeCheckType<'a>>, ErrorOrVec<'a>> {
+        for argument in &self.arguments.positional {
+            context.set_value(
+                Namespace::from_name_id(argument.0),
+                SymbTabObj::Variable(TypeCheckType::as_type(Rc::clone(&argument.1))),
+            )
+        }
+        context.set_value(
+            Namespace::from_name_id(*self.name.deref()),
+            SymbTabObj::Function(self.as_fn_type()?),
+        );
         (&self.block as &dyn TypeCheck).type_check(
-            Some(Cow::Owned(TypeCheckType::as_type(self.return_type.clone()))),
+            Some(Cow::Owned(TypeCheckType::as_type(Rc::clone(
+                &self.return_type,
+            )))),
             context,
         )
     }
@@ -807,17 +851,17 @@ impl<'a> TypeCheckSymbTab<'a> {
         }
     }
 
-    fn set_value(&mut self, namespace: Rc<Namespace<'a>>, value: Rc<SymbTabObj<'a>>) {
+    fn set_value(&mut self, namespace: Rc<Namespace<'a>>, value: SymbTabObj<'a>) {
         self.items.insert(namespace, value);
     }
 
     fn get_function(
         &self,
         namespace: Rc<Namespace<'a>>,
-    ) -> Result<Rc<SymbTabObj<'a>>, ErrorOrVec<'a>> {
+    ) -> Result<&SymbTabObj<'a>, ErrorOrVec<'a>> {
         match self.items.get(&namespace) {
             Some(val) => match val.deref() {
-                SymbTabObj::Function(_) => return Ok(Rc::clone(val)),
+                SymbTabObj::Function(_) => return Ok(val),
                 other => {
                     return Err(ErrorOrVec::Error(
                         Error::new(
@@ -855,10 +899,10 @@ impl<'a> TypeCheckSymbTab<'a> {
         ))
     }
 
-    fn get_type(&self, namespace: Rc<Namespace<'a>>) -> Result<Rc<SymbTabObj<'a>>, ErrorOrVec<'a>> {
+    fn get_type(&self, namespace: Rc<Namespace<'a>>) -> Result<&SymbTabObj<'a>, ErrorOrVec<'a>> {
         match self.items.get(&namespace) {
             Some(val) => match val.deref() {
-                SymbTabObj::CustomType(_) => return Ok(Rc::clone(val)),
+                SymbTabObj::CustomType(_) => return Ok(val),
                 other => {
                     return Err(ErrorOrVec::Error(
                         Error::new(
@@ -899,13 +943,13 @@ impl<'a> TypeCheckSymbTab<'a> {
     fn get_basic_type(
         &self,
         namespace: Rc<Namespace<'a>>,
-    ) -> Result<Rc<SymbTabObj<'a>>, ErrorOrVec<'a>> {
+    ) -> Result<&SymbTabObj<'a>, ErrorOrVec<'a>> {
         let mut type_val = self.get_type(namespace)?;
         while let SymbTabObj::CustomType(TypeCheckType {
             value: TypeCheckTypeType::CustomType(name),
             pos: _,
             inferred: _,
-        }) = type_val.deref()
+        }) = type_val
         {
             type_val = self.get_type(Rc::clone(name))?;
         }
@@ -915,10 +959,10 @@ impl<'a> TypeCheckSymbTab<'a> {
     fn get_variable(
         &self,
         namespace: Rc<Namespace<'a>>,
-    ) -> Result<Rc<SymbTabObj<'a>>, ErrorOrVec<'a>> {
+    ) -> Result<&SymbTabObj<'a>, ErrorOrVec<'a>> {
         match self.items.get(&namespace) {
             Some(val) => match val.deref() {
-                SymbTabObj::Variable(_) => return Ok(Rc::clone(val)),
+                SymbTabObj::Variable(_) => return Ok(val),
                 other => {
                     return Err(ErrorOrVec::Error(
                         Error::new(

@@ -1024,7 +1024,7 @@ impl<'a> Logger<'a> {
         }
         for error in errors {
             eprintln!(
-                "{}{}{}{}{}: {}{}{}\n",
+                "{}{}{}{}{}: {}{}{}",
                 self.indentation,
                 color::BOLD,
                 message_type.get_color(),

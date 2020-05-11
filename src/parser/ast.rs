@@ -73,7 +73,7 @@ pub struct Prefix<'a> {
 
 // NODES ---------------------------------------
 
-#[derive(Debug, Eq, Clone)]
+#[derive(Debug, Eq, Clone, Copy)]
 /// Name ID node
 pub struct NameID<'a> {
     pub value: &'a str,
@@ -98,7 +98,7 @@ impl<'a> PartialEq for NameID<'a> {
 /// x = 10;
 pub struct VariableAssign<'a> {
     pub name: Rc<Namespace<'a>>,
-    pub expr: Rc<Expr<'a>>,
+    pub expr: Box<Expr<'a>>,
     pub pos: helpers::Pos<'a>,
 }
 
@@ -119,7 +119,7 @@ pub struct TypeAssign<'a> {
 pub struct VariableAssignDeclaration<'a> {
     pub t: Rc<Type<'a>>,
     pub name: Rc<Namespace<'a>>,
-    pub expr: Rc<SymbTabObj<'a>>,
+    pub expr: Box<Expr<'a>>,
     pub pos: helpers::Pos<'a>,
 }
 
@@ -164,7 +164,7 @@ pub struct FunctionDefine<'a> {
     pub return_type: Rc<Type<'a>>,
     pub arguments: Arguments<'a>,
     pub block: Block<'a>,
-    pub name: NameID<'a>,
+    pub name: Rc<NameID<'a>>,
     pub pos: helpers::Pos<'a>,
 }
 
@@ -176,7 +176,7 @@ pub struct ArgumentsRun<'a> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Return<'a> {
-    pub expression: Rc<Expr<'a>>,
+    pub expression: Box<Expr<'a>>,
     pub pos: helpers::Pos<'a>,
 }
 
@@ -190,7 +190,7 @@ pub struct FunctionCall<'a> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ExpressionStatement<'a> {
-    pub expression: Rc<Expr<'a>>,
+    pub expression: Box<Expr<'a>>,
     pub pos: helpers::Pos<'a>,
 }
 
@@ -273,11 +273,11 @@ impl<'a> fmt::Display for Namespace<'a> {
 }
 
 impl<'a> Namespace<'a> {
-    pub fn from_name_id(value: NameID<'a>) -> Namespace<'a> {
-        Namespace {
+    pub fn from_name_id(value: NameID<'a>) -> Rc<Namespace<'a>> {
+        Rc::new(Namespace {
             pos: value.pos,
             scopes: vec![value],
-        }
+        })
     }
 }
 

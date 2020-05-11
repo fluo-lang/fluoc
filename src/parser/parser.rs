@@ -423,7 +423,7 @@ impl<'a> Parser<'a> {
             return_type: Rc::new(return_type),
             arguments,
             block,
-            name: id,
+            name: Rc::new(id),
             pos: self.position(position),
         }))
     }
@@ -437,7 +437,7 @@ impl<'a> Parser<'a> {
         self.next(lexer::TokenType::SEMI, position, false)?;
 
         Ok(ast::Statement::Return(ast::Return {
-            expression: Rc::new(expr),
+            expression: Box::new(expr),
             pos: self.position(position),
         }))
     }
@@ -451,7 +451,7 @@ impl<'a> Parser<'a> {
 
         Ok(ast::Statement::ExpressionStatement(
             ast::ExpressionStatement {
-                expression: Rc::new(expr),
+                expression: Box::new(expr),
                 pos: self.position(position),
             },
         ))
@@ -518,7 +518,7 @@ impl<'a> Parser<'a> {
             ast::VariableAssignDeclaration {
                 t: Rc::new(var_type),
                 name: Rc::new(namespace),
-                expr: Rc::new(SymbTabObj::Variable(expr)),
+                expr: Box::new(expr),
                 pos: self.position(position),
             },
         ))
@@ -557,7 +557,7 @@ impl<'a> Parser<'a> {
 
         Ok(ast::Expr::VariableAssign(ast::VariableAssign {
             name: Rc::new(namespace),
-            expr: Rc::new(expr),
+            expr: Box::new(expr),
             pos: self.position(position),
         }))
     }
@@ -798,7 +798,6 @@ impl<'a> Parser<'a> {
 
     /// Parse ref identifier (i.e. variable refrence (not &))
     fn ref_id(&mut self) -> Result<ast::RefID<'a>, Error<'a>> {
-        let position = self.token_pos;
         let value = self.namespace()?;
         Ok(ast::RefID {
             pos: value.pos,
