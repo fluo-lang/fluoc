@@ -588,13 +588,8 @@ impl<'a> Return<'a> {
                     ),
                     ErrorAnnotation::new(
                         Some(format!("found return type `{}`", returned_type)),
-                        returned_type.pos,
-                        ErrorDisplayType::Error,
-                    ),
-                    ErrorAnnotation::new(
-                        Some("value is returned here".to_string()),
                         self.pos,
-                        ErrorDisplayType::Info,
+                        ErrorDisplayType::Error,
                     ),
                 ],
                 true,

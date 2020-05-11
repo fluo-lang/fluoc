@@ -263,7 +263,7 @@ impl<'a> Logger<'a> {
             ln,
             max_line_size + self.indentation.len() * 2,
             "|",
-            Style::new(Some(Color::BLUE), Some(Font::BOLD)),
+            Style::new(Some(Color::LINENO_COLOR), Some(Font::BOLD)),
         );
 
         let mut vertical_annotations: Vec<(&usize, &ErrorAnnotation)> =
@@ -292,7 +292,7 @@ impl<'a> Logger<'a> {
             ln,
             max_line_size + self.indentation.len() * 2,
             "|",
-            Style::new(Some(Color::BLUE), Some(Font::BOLD)),
+            Style::new(Some(Color::LINENO_COLOR), Some(Font::BOLD)),
         )
     }
 
@@ -301,7 +301,7 @@ impl<'a> Logger<'a> {
             ln - 1,
             self.indentation.len() + max_line_size + 1 - line_no.to_string().len(),
             &format!("{}", line_no),
-            Style::new(Some(Color::BLUE), Some(Font::BOLD)),
+            Style::new(Some(Color::LINENO_COLOR), Some(Font::BOLD)),
         );
     }
 
@@ -968,7 +968,7 @@ impl<'a> Logger<'a> {
             writer_pos.0 - 1,
             writer_pos.1 + max_line_size + self.indentation.len(),
             "--> ",
-            Style::new(Some(Color::BLUE), Some(Font::BOLD)),
+            Style::new(Some(Color::LINENO_COLOR), Some(Font::BOLD)),
         );
         self.buffer.writeln(
             writer_pos.0 - 1,

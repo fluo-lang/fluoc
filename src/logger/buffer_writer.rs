@@ -8,6 +8,8 @@ pub enum Color {
     MAGENTA,
     CYAN,
     WHITE,
+    GRAY,
+    LINENO_COLOR,
 }
 
 pub mod color {
@@ -22,6 +24,8 @@ pub mod color {
     pub const WHITE: &str = "\x1b[37m";
     pub const UNDERLINE: &str = "\x1b[4m";
     pub const RESET: &str = "\x1b[0m";
+    pub const GRAY: &str = "\x1b[30;1m";
+    pub const LINENO_COLOR: &str = BLUE;
 }
 
 impl Color {
@@ -35,6 +39,8 @@ impl Color {
             Color::MAGENTA => color::MAGENTA,
             Color::CYAN => color::CYAN,
             Color::WHITE => color::WHITE,
+            Color::GRAY => color::GRAY,
+            Color::LINENO_COLOR => color::LINENO_COLOR,
         }
     }
 }
