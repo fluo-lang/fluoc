@@ -273,7 +273,7 @@ impl<'a> Logger<'a> {
 
         for (ann_ln, annotation) in vertical_annotations {
             if if end { ann_ln + 1 } else { *ann_ln } > lineno
-                && lineno > (annotation.position_rel.0).0
+                && lineno >= (annotation.position_rel.0).0
             {
                 self.buffer.writel(
                     ln,
@@ -544,7 +544,7 @@ impl<'a> Logger<'a> {
                 line_len = max(line_len, p);
             }
 
-            for (vertical_pos, annotation) in &annotation_pos {
+            for (idx, (vertical_pos, annotation)) in annotation_pos.iter().enumerate() {
                 // Draw lines of code
                 for lineno in (annotation.position_rel.0).0..=(annotation.position_rel.1).0 {
                     writer_pos.0 = start_line + line_offset + 1;
@@ -583,7 +583,6 @@ impl<'a> Logger<'a> {
                             //    |       ^^^ Error    ------------
                             //    |           that     |     | other error
                             //    |       overflows    | other error that goes over but its fine
-
                             *writer_pos = self.add_pipe(
                                 writer_pos.0 - 1,
                                 max_line_size,
@@ -591,6 +590,18 @@ impl<'a> Logger<'a> {
                                 lineno,
                                 false,
                             );
+
+                            let before_multiline: bool = if idx != 0 {
+                                match annotation_pos.get(idx - 1) {
+                                    Some(value) if self.is_multiline(value.1) => {
+                                        writer_pos.0 -= 2;
+                                        true
+                                    }
+                                    None | Some(_) => false,
+                                }
+                            } else {
+                                false
+                            };
                             *writer_pos = self.buffer.writel(
                                 if prev_line_2 == lineno {
                                     writer_pos.0 - 1
@@ -671,13 +682,19 @@ impl<'a> Logger<'a> {
                                     2usize
                                 } else {
                                     self.add_pipe(
+                                        start_line + line_offset + vertical_pos + 1,
+                                        max_line_size,
+                                        &vertical_annotations,
+                                        lineno,
+                                        false,
+                                    );
+                                    self.add_pipe(
                                         start_line + line_offset + vertical_pos + 2,
                                         max_line_size,
                                         &vertical_annotations,
                                         lineno,
                                         false,
                                     );
-                                    //self.add_pipe(start_line+line_offset+1, max_line_size);
                                     *vertical_pos + 3
                                 };
                             }
@@ -700,9 +717,9 @@ impl<'a> Logger<'a> {
                                 vertical_annotations.remove(&lineno);
                             } else if lineno == (annotation.position_rel.0).0 {
                                 if vertical_pos == &0 {
+                                    writer_pos.0 = start_line + line_offset + 1;
                                     // Start of multiline
                                     if (annotation.position_rel.0).1 > 0 {
-                                        writer_pos.0 = start_line + line_offset + 1;
                                         *writer_pos = self.add_pipe(
                                             writer_pos.0 - 1,
                                             max_line_size,
@@ -789,7 +806,6 @@ impl<'a> Logger<'a> {
                                     }
                                 } else {
                                     // Start of multiline
-                                    writer_pos.0 = start_line + line_offset + 1;
                                     for _ in 0..*vertical_pos {
                                         *writer_pos = self.add_pipe(
                                             writer_pos.0 - 1,

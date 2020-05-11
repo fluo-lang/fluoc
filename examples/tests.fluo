@@ -1,7 +1,3 @@
-def multiply_by_2(val: int) {
-    return val;
-}
-
-def entry() -> int {
-    return multiply_by_2(10);
+def multiply_by_2(val: int, val1: str) {
+    return val1;
 }
