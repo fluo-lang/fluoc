@@ -88,6 +88,43 @@ impl ErrorDisplayType {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+/// For incremental error reporting so we don't have weird unnecessary errors caused by another error.
+/// I.e. so we don't' have a undefined variable error because of a type error in the declaration.
+pub enum ErrorLevel {
+    NoneExistentValue = 0,
+    TypeError = 1,
+}
+
+#[derive(Debug, Clone)]
+pub enum ErrorOrVec<'a> {
+    Error(Error<'a>, ErrorLevel),
+    ErrorVec(Vec<(Error<'a>, ErrorLevel)>),
+}
+
+impl<'a> ErrorOrVec<'a> {
+    pub fn unwrap_error(self) -> (Error<'a>, ErrorLevel) {
+        match self {
+            ErrorOrVec::Error(e, level) => (e, level),
+            ErrorOrVec::ErrorVec(_) => panic!("Tried to unwrap ErrorVec value"),
+        }
+    }
+
+    pub fn unwrap_vec(self) -> Vec<(Error<'a>, ErrorLevel)> {
+        match self {
+            ErrorOrVec::Error(_, _) => panic!("Tried to unwrap Error value"),
+            ErrorOrVec::ErrorVec(e) => e,
+        }
+    }
+
+    pub fn as_vec(self) -> Vec<(Error<'a>, ErrorLevel)> {
+        match self {
+            ErrorOrVec::Error(e, level) => vec![(e, level)],
+            ErrorOrVec::ErrorVec(e) => e,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 /// Underlines and such
 pub struct ErrorAnnotation<'a> {
@@ -591,17 +628,14 @@ impl<'a> Logger<'a> {
                                 false,
                             );
 
-                            let before_multiline: bool = if idx != 0 {
+                            if idx != 0 {
                                 match annotation_pos.get(idx - 1) {
                                     Some(value) if self.is_multiline(value.1) => {
                                         writer_pos.0 -= 2;
-                                        true
                                     }
-                                    None | Some(_) => false,
+                                    None | Some(_) => {},
                                 }
-                            } else {
-                                false
-                            };
+                            }
                             *writer_pos = self.buffer.writel(
                                 if prev_line_2 == lineno {
                                     writer_pos.0 - 1

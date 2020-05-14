@@ -2,6 +2,7 @@ use crate::logger::logger::Error;
 use crate::parser::parser;
 use crate::parser::parser::Parser;
 use crate::typecheck::ast_typecheck;
+use crate::helpers;
 
 /// Typecheck object
 pub struct TypeCheckModule<'a> {
@@ -29,8 +30,8 @@ impl<'a> TypeCheckModule<'a> {
         let mut errors = Vec::new();
 
         // Do type checking
-        for node in &self.parser.ast.as_ref().unwrap().nodes {
-            match (node as &dyn ast_typecheck::TypeCheck).type_check(None, &mut self.symtab) {
+        for node in &mut self.parser.ast.as_mut().unwrap().nodes {
+            match (node as &mut dyn ast_typecheck::TypeCheck).type_check(None, &mut self.symtab) {
                 Ok(_) => {}
                 Err(e) => {
                     errors.append(&mut e.as_vec());
@@ -39,16 +40,7 @@ impl<'a> TypeCheckModule<'a> {
         }
 
         if !errors.is_empty() {
-            // The different errors to have different priorities
-            // We want to show the errors with the highest priority
-            // Show all of the errors that have the the same priority
-            let max_error_priority = errors.iter().max_by_key(|x| x.1 as usize).unwrap().1 as usize;
-            let errors_priority = errors
-                .into_iter()
-                .filter(|error| error.1 as usize == max_error_priority)
-                .map(|error| error.0)
-                .collect();
-            Err(errors_priority)
+            Err(helpers::get_high_priority(errors))
         } else {
             Ok(())
         }

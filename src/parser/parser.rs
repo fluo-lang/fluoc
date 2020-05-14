@@ -338,7 +338,7 @@ impl<'a> Parser<'a> {
 
     fn parse_arguments(&mut self) -> Result<ast::Arguments<'a>, Error<'a>> {
         let position = self.token_pos;
-        let mut positional_args: Vec<(ast::NameID, Rc<ast::Type>)> = Vec::new();
+        let mut positional_args: Vec<(ast::NameID, ast::TypeCheckOrType)> = Vec::new();
 
         loop {
             if self.peek().token == lexer::TokenType::RP {
@@ -352,7 +352,7 @@ impl<'a> Parser<'a> {
 
             let arg_type = self.type_expr()?;
 
-            positional_args.push((id, Rc::new(arg_type)));
+            positional_args.push((id, ast::TypeCheckOrType::Type(Rc::new(arg_type))));
             if self.peek().token == lexer::TokenType::COMMA {
                 self.forward();
             } else {
@@ -379,7 +379,7 @@ impl<'a> Parser<'a> {
         self.next(lexer::TokenType::SEMI, position, false)?;
 
         Ok(Statement::TypeAssign(ast::TypeAssign {
-            value: Rc::new(value),
+            value: ast::TypeCheckOrType::Type(Rc::new(value)),
             name: Rc::new(name),
             pos: self.position(position),
         }))
@@ -420,7 +420,7 @@ impl<'a> Parser<'a> {
             }
         };
         Ok(ast::Statement::FunctionDefine(ast::FunctionDefine {
-            return_type: Rc::new(return_type),
+            return_type: ast::TypeCheckOrType::Type(Rc::new(return_type)),
             arguments,
             block,
             name: Rc::new(id),
@@ -516,7 +516,7 @@ impl<'a> Parser<'a> {
 
         Ok(ast::Expr::VariableAssignDeclaration(
             ast::VariableAssignDeclaration {
-                t: Rc::new(var_type),
+                t: ast::TypeCheckOrType::Type(Rc::new(var_type)),
                 name: Rc::new(namespace),
                 expr: Box::new(expr),
                 pos: self.position(position),
@@ -538,7 +538,7 @@ impl<'a> Parser<'a> {
 
         Ok(ast::Statement::VariableDeclaration(
             ast::VariableDeclaration {
-                t: Rc::new(var_type),
+                t: ast::TypeCheckOrType::Type(Rc::new(var_type)),
                 name: Rc::new(namespace),
                 pos: self.position(position),
             },

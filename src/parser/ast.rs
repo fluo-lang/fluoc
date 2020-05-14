@@ -1,6 +1,6 @@
 use crate::helpers;
 use crate::lexer::Token;
-use crate::typecheck::ast_typecheck::SymbTabObj;
+use crate::typecheck::ast_typecheck::TypeCheckType;
 use std::fmt;
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
@@ -108,7 +108,7 @@ pub struct VariableAssign<'a> {
 /// type km = int;
 pub struct TypeAssign<'a> {
     pub name: Rc<Namespace<'a>>,
-    pub value: Rc<Type<'a>>,
+    pub value: TypeCheckOrType<'a>,
     pub pos: helpers::Pos<'a>,
 }
 
@@ -117,7 +117,7 @@ pub struct TypeAssign<'a> {
 ///
 /// let x: int = 10;
 pub struct VariableAssignDeclaration<'a> {
-    pub t: Rc<Type<'a>>,
+    pub t: TypeCheckOrType<'a>,
     pub name: Rc<Namespace<'a>>,
     pub expr: Box<Expr<'a>>,
     pub pos: helpers::Pos<'a>,
@@ -128,7 +128,7 @@ pub struct VariableAssignDeclaration<'a> {
 ///
 /// let x: int;
 pub struct VariableDeclaration<'a> {
-    pub t: Rc<Type<'a>>,
+    pub t: TypeCheckOrType<'a>,
     pub name: Rc<Namespace<'a>>,
     pub pos: helpers::Pos<'a>,
 }
@@ -136,7 +136,7 @@ pub struct VariableDeclaration<'a> {
 #[derive(Debug, Clone, PartialEq)]
 /// Arguments for function
 pub struct Arguments<'a> {
-    pub positional: Vec<(NameID<'a>, Rc<Type<'a>>)>,
+    pub positional: Vec<(NameID<'a>, TypeCheckOrType<'a>)>,
     pub pos: helpers::Pos<'a>, // TODO: Add more types of arguments
 }
 
@@ -161,7 +161,7 @@ impl<'a> Block<'a> {
 #[derive(Debug, Clone, PartialEq)]
 /// Function definition
 pub struct FunctionDefine<'a> {
-    pub return_type: Rc<Type<'a>>,
+    pub return_type: TypeCheckOrType<'a>,
     pub arguments: Arguments<'a>,
     pub block: Block<'a>,
     pub name: Rc<NameID<'a>>,
@@ -192,6 +192,49 @@ pub struct FunctionCall<'a> {
 pub struct ExpressionStatement<'a> {
     pub expression: Box<Expr<'a>>,
     pub pos: helpers::Pos<'a>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+/// TypecheckType or TypeType
+pub enum TypeCheckOrType<'a> {
+    Type(Rc<Type<'a>>),
+    TypeCheckType(TypeCheckType<'a>)
+}
+
+impl<'a> TypeCheckOrType<'a> {
+    pub fn unwrap_type(&self) -> Rc<Type<'a>> {
+        match self {
+            TypeCheckOrType::Type(val) => Rc::clone(val),
+            TypeCheckOrType::TypeCheckType(_) => panic!("TypeCheckType failed to unwrap on type")
+        }
+    }
+
+    pub fn unwrap_type_check(self) -> TypeCheckType<'a> {
+        match self {
+            TypeCheckOrType::Type(_) => panic!("TypeCheckType failed to unwrap on type"),
+            TypeCheckOrType::TypeCheckType(val) => val
+        }
+    }
+
+    pub fn unwrap_type_check_ref<'b>(&'b self) -> &TypeCheckType<'a> {
+        match self {
+            TypeCheckOrType::Type(_) => panic!("TypeCheckType failed to unwrap on type"),
+            TypeCheckOrType::TypeCheckType(val) => val
+        }
+    }
+
+    pub fn as_typecheck_type<'b>(_self: std::borrow::Cow<'b, Self>) -> TypeCheckType<'a> {
+        match _self {
+            std::borrow::Cow::Borrowed(value) => match value {
+                TypeCheckOrType::Type(val) => TypeCheckType::as_type(Rc::clone(&val)),
+                TypeCheckOrType::TypeCheckType(val) => val.clone()
+            }
+            std::borrow::Cow::Owned(value) => match value {
+                TypeCheckOrType::Type(val) => TypeCheckType::as_type(Rc::clone(&val)),
+                TypeCheckOrType::TypeCheckType(val) => val
+            }
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Clone)]

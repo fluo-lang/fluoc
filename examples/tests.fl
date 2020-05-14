@@ -1,0 +1,8 @@
+def add(left: int, right: int) -> int {
+    return left + right;
+}
+
+def main() -> int {
+    let x: int = add(5, 6);
+    return 0;
+}

@@ -1,5 +1,7 @@
 use crate::helpers;
-use crate::logger::logger::{Error, ErrorAnnotation, ErrorDisplayType, ErrorType};
+use crate::logger::logger::{
+    Error, ErrorAnnotation, ErrorDisplayType, ErrorLevel, ErrorOrVec, ErrorType,
+};
 use crate::parser::ast::*;
 
 use std::borrow::Cow;
@@ -13,14 +15,6 @@ pub enum SymbTabObj<'a> {
     CustomType(TypeCheckType<'a>),
     Function(TypeCheckType<'a>),
     Variable(TypeCheckType<'a>),
-}
-
-#[derive(Debug, Clone, Copy)]
-/// For incremental error reporting so we don't have weird unnecessary errors caused by another error.
-/// I.e. so we don't' have a undefined variable error because of a type error in the declaration.
-pub enum ErrorLevel {
-    NoneExistentValue = 0,
-    TypeError = 1,
 }
 
 impl<'a> SymbTabObj<'a> {
@@ -49,35 +43,6 @@ impl<'a> fmt::Display for SymbTabObj<'a> {
             SymbTabObj::Variable(_) => "variable",
         };
         write!(f, "{}", representation)
-    }
-}
-
-#[derive(Debug, Clone)]
-pub enum ErrorOrVec<'a> {
-    Error(Error<'a>, ErrorLevel),
-    ErrorVec(Vec<(Error<'a>, ErrorLevel)>),
-}
-
-impl<'a> ErrorOrVec<'a> {
-    pub fn unwrap_error(self) -> (Error<'a>, ErrorLevel) {
-        match self {
-            ErrorOrVec::Error(e, level) => (e, level),
-            ErrorOrVec::ErrorVec(_) => panic!("Tried to unwrap ErrorVec value"),
-        }
-    }
-
-    pub fn unwrap_vec(self) -> Vec<(Error<'a>, ErrorLevel)> {
-        match self {
-            ErrorOrVec::Error(_, _) => panic!("Tried to unwrap Error value"),
-            ErrorOrVec::ErrorVec(e) => e,
-        }
-    }
-
-    pub fn as_vec(self) -> Vec<(Error<'a>, ErrorLevel)> {
-        match self {
-            ErrorOrVec::Error(e, level) => vec![(e, level)],
-            ErrorOrVec::ErrorVec(e) => e,
-        }
     }
 }
 
@@ -168,7 +133,7 @@ impl<'a> TypeCheckTypeType<'a> {
 
 #[derive(Debug, Clone)]
 pub struct TypeCheckType<'a> {
-    value: TypeCheckTypeType<'a>,
+    pub value: TypeCheckTypeType<'a>,
     pos: helpers::Pos<'a>,
     inferred: bool,
 }
@@ -217,7 +182,7 @@ impl<'a> TypeCheckType<'a> {
         }
     }
 
-    fn cast_to_basic<'b>(
+    pub fn cast_to_basic<'b>(
         &'b self,
         context: &'b TypeCheckSymbTab<'a>,
     ) -> Result<&'static str, ErrorOrVec<'a>> {
@@ -330,7 +295,7 @@ impl<'a> TypeCheckType<'a> {
             .collect::<Result<(), ErrorOrVec>>()
     }
 
-    fn as_type(val: Rc<Type<'a>>) -> TypeCheckType<'a> {
+    pub fn as_type(val: Rc<Type<'a>>) -> TypeCheckType<'a> {
         if let Ok(_) = val.value.is_basic_type() {
             TypeCheckType {
                 pos: val.pos,
@@ -473,7 +438,7 @@ impl<'a> TypeCheckType<'a> {
             }
             Expr::VariableAssignDeclaration(variable_assignment_dec) => {
                 let value_type = TypeCheckType::from_expr(&variable_assignment_dec.expr, context)?;
-                let cast_type = TypeCheckType::as_type(Rc::clone(&variable_assignment_dec.t));
+                let cast_type = TypeCheckType::as_type((&variable_assignment_dec.t).unwrap_type());
                 if !TypeCheckType::sequiv(&cast_type, &value_type, context) {
                     // Not the same type, error
                     return Err(ErrorOrVec::Error(
@@ -557,7 +522,7 @@ impl<'a> TypeCheckType<'a> {
 
 pub trait TypeCheck<'a>: std::fmt::Debug {
     fn type_check<'b>(
-        &self,
+        &mut self,
         _return_type: Option<Cow<'a, TypeCheckType<'a>>>,
         _context: &'b mut TypeCheckSymbTab<'a>,
     ) -> Result<Cow<'a, TypeCheckType<'a>>, ErrorOrVec<'a>> {
@@ -630,7 +595,7 @@ impl<'a> Return<'a> {
 
 impl<'a> TypeCheck<'a> for Return<'a> {
     fn type_check<'b>(
-        &self,
+        &mut self,
         return_type: Option<Cow<'a, TypeCheckType<'a>>>,
         context: &'b mut TypeCheckSymbTab<'a>,
     ) -> Result<Cow<'a, TypeCheckType<'a>>, ErrorOrVec<'a>> {
@@ -685,14 +650,14 @@ impl<'a> TypeCheck<'a> for Return<'a> {
 
 impl<'a> TypeCheck<'a> for Block<'a> {
     fn type_check<'b>(
-        &self,
+        &mut self,
         return_type: Option<Cow<'a, TypeCheckType<'a>>>,
         context: &'b mut TypeCheckSymbTab<'a>,
     ) -> Result<Cow<'a, TypeCheckType<'a>>, ErrorOrVec<'a>> {
         let mut errors: Vec<(Error, ErrorLevel)> = Vec::new();
         let mut ret_types: Vec<&Expr> = Vec::new();
 
-        for node in &self.nodes {
+        for node in &mut self.nodes {
             match node.type_check(return_type.clone(), context) {
                 Ok(_) => {}
                 Err(e) => {
@@ -717,38 +682,82 @@ impl<'a> TypeCheck<'a> for Block<'a> {
             TypeCheckType::all_same_type(&ret_types[..], context)?;
             Ok(Cow::Owned(ret_types.into_iter().nth(0).unwrap()))
         } else {
-            Ok(Cow::Owned(TypeCheckType {
-                value: TypeCheckTypeType::TupleType(UnionType {
-                    types: Vec::new(),
+            match return_type {
+                Some(value) if value.is_tuple_empty() => Ok(Cow::Owned(TypeCheckType {
+                    value: TypeCheckTypeType::TupleType(UnionType {
+                        types: Vec::new(),
+                        pos: self.pos,
+                        inferred: false,
+                    }),
                     pos: self.pos,
                     inferred: false,
-                }),
-                pos: self.pos,
-                inferred: false,
-            }))
+                })),
+                Some(other) => {
+                    // Error, not the right return type
+                    // Found `()` expected `other`
+                    Err(ErrorOrVec::Error(
+                        Error::new(
+                            "mismatched return type".to_string(),
+                            ErrorType::TypeMismatch,
+                            other.pos,
+                            ErrorDisplayType::Error,
+                            vec![
+                                ErrorAnnotation::new(
+                                    Some("return type found here".to_string()),
+                                    other.pos,
+                                    ErrorDisplayType::Error,
+                                ),
+                                ErrorAnnotation::new(
+                                    Some("but `()` implicitly returned".to_string()),
+                                    self.pos,
+                                    ErrorDisplayType::Info,
+                                ),
+                            ],
+                            true,
+                        ),
+                        ErrorLevel::TypeError,
+                    ))
+                }
+                None => Ok(Cow::Owned(TypeCheckType {
+                    value: TypeCheckTypeType::TupleType(UnionType {
+                        types: Vec::new(),
+                        pos: self.pos,
+                        inferred: false,
+                    }),
+                    pos: self.pos,
+                    inferred: false,
+                })),
+            }
         }
     }
 }
 
 impl<'a> FunctionDefine<'a> {
-    fn as_fn_type(&self) -> Result<TypeCheckType<'a>, ErrorOrVec<'a>> {
+    fn as_fn_type(&mut self) -> Result<TypeCheckType<'a>, ErrorOrVec<'a>> {
         let mut positional = Vec::new();
-        for argument in &self.arguments.positional {
-            positional.push((argument.0, TypeCheckType::as_type(Rc::clone(&argument.1))))
+        for idx in 0..self.arguments.positional.len() {
+            self.arguments.positional[idx] = (
+                self.arguments.positional[idx].0,
+                TypeCheckOrType::TypeCheckType(TypeCheckOrType::as_typecheck_type(Cow::Owned(
+                    self.arguments.positional[idx].1.clone(),
+                ))),
+            );
         }
-
+        for argument in &self.arguments.positional {
+            positional.push((argument.0, (argument.1.clone()).unwrap_type_check()))
+        }
         Ok(TypeCheckType {
             value: TypeCheckTypeType::FunctionSig(
                 ArgumentsTypeCheck {
                     positional,
                     pos: self.arguments.pos,
                 },
-                Box::new(TypeCheckType::as_type(Rc::clone(&self.return_type))),
+                Box::new(self.return_type.clone().unwrap_type_check()),
             ),
             pos: helpers::Pos::new(
                 self.arguments.pos.s,
-                if self.return_type.deref().inferred {
-                    self.return_type.pos.e
+                if self.return_type.unwrap_type_check_ref().inferred {
+                    self.return_type.unwrap_type_check_ref().pos.e
                 } else {
                     self.arguments.pos.e
                 },
@@ -761,24 +770,33 @@ impl<'a> FunctionDefine<'a> {
 
 impl<'a> TypeCheck<'a> for FunctionDefine<'a> {
     fn type_check<'b>(
-        &self,
+        &mut self,
         _return_type: Option<Cow<'a, TypeCheckType<'a>>>,
         context: &'b mut TypeCheckSymbTab<'a>,
     ) -> Result<Cow<'a, TypeCheckType<'a>>, ErrorOrVec<'a>> {
+        for idx in 0..self.arguments.positional.len() {
+            self.arguments.positional[idx] = (
+                self.arguments.positional[idx].0,
+                TypeCheckOrType::TypeCheckType(TypeCheckType::as_type(
+                    (&self.arguments.positional[idx].1).unwrap_type(),
+                )),
+            );
+        }
         for argument in &self.arguments.positional {
             context.set_value(
                 Namespace::from_name_id(argument.0),
-                SymbTabObj::Variable(TypeCheckType::as_type(Rc::clone(&argument.1))),
+                SymbTabObj::Variable((argument.1.clone()).unwrap_type_check()),
             )
         }
+        self.return_type = TypeCheckOrType::TypeCheckType(TypeCheckType::as_type(
+            self.return_type.unwrap_type(),
+        ));
         context.set_value(
             Namespace::from_name_id(*self.name.deref()),
             SymbTabObj::Function(self.as_fn_type()?),
         );
-        (&self.block as &dyn TypeCheck).type_check(
-            Some(Cow::Owned(TypeCheckType::as_type(Rc::clone(
-                &self.return_type,
-            )))),
+        (&mut self.block as &mut dyn TypeCheck).type_check(
+            Some(Cow::Owned(TypeCheckOrType::as_typecheck_type(Cow::Borrowed(&self.return_type)))),
             context,
         )
     }
@@ -786,7 +804,7 @@ impl<'a> TypeCheck<'a> for FunctionDefine<'a> {
 
 impl<'a> TypeCheck<'a> for ExpressionStatement<'a> {
     fn type_check<'b>(
-        &self,
+        &mut self,
         _return_type: Option<Cow<'a, TypeCheckType<'a>>>,
         context: &'b mut TypeCheckSymbTab<'a>,
     ) -> Result<Cow<'a, TypeCheckType<'a>>, ErrorOrVec<'a>> {
@@ -799,19 +817,19 @@ impl<'a> TypeCheck<'a> for ExpressionStatement<'a> {
 
 impl<'a> TypeCheck<'a> for Statement<'a> {
     fn type_check<'b>(
-        &self,
+        &mut self,
         return_type: Option<Cow<'a, TypeCheckType<'a>>>,
         context: &'b mut TypeCheckSymbTab<'a>,
     ) -> Result<Cow<'a, TypeCheckType<'a>>, ErrorOrVec<'a>> {
-        match &self {
+        match self {
             Statement::Return(statement) => {
-                (statement as &dyn TypeCheck).type_check(return_type, context)
+                (statement as &mut dyn TypeCheck).type_check(return_type, context)
             }
             Statement::FunctionDefine(statement) => {
-                (statement as &dyn TypeCheck).type_check(return_type, context)
+                (statement as &mut dyn TypeCheck).type_check(return_type, context)
             }
             Statement::ExpressionStatement(statement) => {
-                (statement as &dyn TypeCheck).type_check(return_type, context)
+                (statement as &mut dyn TypeCheck).type_check(return_type, context)
             }
             _ => panic!(format!(
                 "Type_check not implemented for statement `{}`",
@@ -822,7 +840,7 @@ impl<'a> TypeCheck<'a> for Statement<'a> {
 }
 
 impl<'a> TypeType<'a> {
-    fn is_basic_type(&self) -> Result<&'static str, ()> {
+    pub fn is_basic_type(&self) -> Result<&'static str, ()> {
         match &self {
             TypeType::Type(value) => {
                 if let Some(val) = value.scopes.get(0) {
