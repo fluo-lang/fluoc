@@ -7,10 +7,10 @@
 ```rust
 def fizzbuzz(value: int) {
     match loop 1..value {
-        %% 15       -> print("Fizzbuzz");
-        %% 3        -> print("Fizz");
-        %% 5        -> print("Fizz");
-        _           -> print(_);
+        %% 15 -> print("Fizzbuzz");
+        %% 3  -> print("Fizz");
+        %% 5  -> print("Fizz");
+        _     -> print(_);
     }
 }
 
