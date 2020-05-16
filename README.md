@@ -21,7 +21,7 @@ def entry() {
 ```
 
 ```rust
-def fib(value: int) -> int {
+def fib(n: int) -> int {
     if n <= 1 { 
         return 1;
     }

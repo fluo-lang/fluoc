@@ -1,9 +1,7 @@
-def add(left: int, right: int) -> int {
-    let x: int = left;
-    return x;
+def fib(n: int) -> int {
+    return fib(n - 1) + fib(n - 2);
 }
 
-def main() -> int {
-    let y: int = add(let x: int = 102, let z: int = add(x, x));
-    return 0;
+def entry() {
+    fib(46);
 }
