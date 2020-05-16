@@ -1,10 +1,40 @@
-use crate::logger::logger::{Error, ErrorAnnotation, ErrorType, ErrorDisplayType, ErrorOrVec};
-use crate::helpers;
+use crate::logger::logger::Error;
 use crate::parser::ast;
-use crate::typecheck::{ ast_typecheck, typecheck };
+use crate::typecheck::{ast_typecheck, typecheck};
+use std::ops::Deref;
 use std::rc::Rc;
 
-use inkwell::{builder, context, module, types};
+use inkwell::types::BasicType;
+use inkwell::values::BasicValue;
+use inkwell::{builder, context, module, types, values};
+
+use std::collections::HashMap;
+use std::convert::TryInto;
+
+#[derive(Clone)]
+struct CodeGenSymbTab<'a> {
+    items: HashMap<Rc<ast::Namespace<'a>>, values::BasicValueEnum<'a>>,
+}
+
+impl<'a> CodeGenSymbTab<'a> {
+    fn new() -> CodeGenSymbTab<'a> {
+        CodeGenSymbTab {
+            items: HashMap::new(),
+        }
+    }
+
+    fn clear(&mut self) {
+        self.items.clear();
+    }
+
+    fn insert(&mut self, name: Rc<ast::Namespace<'a>>, value: values::BasicValueEnum<'a>) {
+        self.items.insert(name, value);
+    }
+
+    fn get(&mut self, name: Rc<ast::Namespace<'a>>) -> values::BasicValueEnum<'a> {
+        *self.items.get(&name).unwrap()
+    }
+}
 
 /// Module object
 ///
@@ -12,8 +42,9 @@ use inkwell::{builder, context, module, types};
 pub struct CodeGenModule<'a> {
     pub module: module::Module<'a>,
     pub context: &'a context::Context,
-    pub builder: builder::Builder<'a>,
     pub typecheck: typecheck::TypeCheckModule<'a>,
+    builder: builder::Builder<'a>,
+    symbtab: CodeGenSymbTab<'a>,
 }
 
 impl<'a> CodeGenModule<'a> {
@@ -23,7 +54,6 @@ impl<'a> CodeGenModule<'a> {
     /// * `filename` - the filename of the file to read
     pub fn new(
         module: module::Module<'a>,
-        builder: builder::Builder<'a>,
         context: &'a context::Context,
         filename: &'a str,
         file_contents: &'a str,
@@ -32,8 +62,9 @@ impl<'a> CodeGenModule<'a> {
         CodeGenModule {
             module,
             context,
-            builder,
             typecheck,
+            builder: context.create_builder(),
+            symbtab: CodeGenSymbTab::new(),
         }
     }
 
@@ -42,56 +73,180 @@ impl<'a> CodeGenModule<'a> {
 
         let mut statements = None;
         std::mem::swap(&mut self.typecheck.parser.ast, &mut statements);
-        let mut errors = Vec::new();
-        
-        for statement in statements.unwrap().nodes {
-            match self.gen_stmt(statement) {
-                Ok(_) => {},
-                Err(e) => {
-                    errors.append(&mut e.as_vec());
-                }
-            }
+        let statements = statements.unwrap();
+        for statement in &statements.nodes {
+            self.gen_stmt_pass_1(statement)
         }
 
-        if !errors.is_empty() {
-            Err(helpers::get_high_priority(errors))
-        } else {
-            Ok(())
+        for statement in &statements.nodes {
+            self.gen_stmt_pass_2(statement)
+        }
+
+        println!("{}", self.module.print_to_string().to_string());
+        Ok(())
+    }
+
+    fn gen_stmt_pass_1(&mut self, statement: &ast::Statement<'a>) {
+        match statement {
+            ast::Statement::FunctionDefine(func_def) => self.gen_function_prototype(func_def),
+            _ => {}
         }
     }
 
-    fn gen_stmt(&mut self, statement: ast::Statement) -> Result<(), ErrorOrVec<'a>> {
+    fn gen_stmt_pass_2(&mut self, statement: &ast::Statement<'a>) {
+        match statement {
+            ast::Statement::FunctionDefine(func_def) => self.gen_function_define(
+                func_def,
+                self.module.get_function(&func_def.name.value[..]).unwrap(),
+            ),
+            _ => {}
+        }
+    }
+
+    fn gen_inner_stmt(&mut self, statement: &ast::Statement<'a>) {
         match statement {
             ast::Statement::ExpressionStatement(expr_stmt) => {
-                panic!("statement codegen not implemented for expr_stmt")
+                self.eval_expr(&expr_stmt.expression);
             }
-            ast::Statement::FunctionDefine(func_def) => self.gen_function_define(func_def),
-            ast::Statement::Return(ret) => panic!("statement codegen not implemented for return"),
+            ast::Statement::Return(ret) => self.gen_return(ret),
             ast::Statement::TypeAssign(type_assign) => {
                 panic!("statement codegen not implemented for type_assign")
             }
             ast::Statement::VariableDeclaration(var_dec) => {
                 panic!("statement codegen not implemented for variable_dec")
             }
-            ast::Statement::Empty(_) => Ok(()),
+            _ => {}
+        };
+    }
+
+    fn eval_expr(&mut self, expr: &ast::Expr<'a>) -> values::BasicValueEnum<'a> {
+        match expr {
+            ast::Expr::VariableAssignDeclaration(variable_assign_dec) => {
+                self.gen_variable_assignment_dec(variable_assign_dec)
+            }
+            ast::Expr::RefID(ref_id) => self.symbtab.get(Rc::clone(&ref_id.value)),
+            ast::Expr::Literal(lit) => self.eval_literal(lit),
+            ast::Expr::FunctionCall(func_call) => self.eval_func_call(func_call),
+            _ => panic!("{:?} not implemented yet", expr.to_str()),
         }
     }
 
-    fn gen_function_define(&mut self, func_def: ast::FunctionDefine) -> Result<(), ErrorOrVec<'a>> {
-        let ret_type = self.get_type(func_def.return_type.unwrap_type_check())?;
-        Ok(())
+    fn eval_func_call(&mut self, func_call: &ast::FunctionCall<'a>) -> values::BasicValueEnum<'a> {
+        let arguments: Vec<values::BasicValueEnum<'a>> = func_call
+            .arguments
+            .positional
+            .iter()
+            .map(|argument| self.eval_expr(argument))
+            .collect();
+        let str_val = func_call.name.to_string();
+        self.builder
+            .build_call(
+                self.module.get_function(&str_val[..]).unwrap(),
+                &arguments[..],
+                &str_val[..],
+            )
+            .try_as_basic_value()
+            .left()
+            .unwrap()
     }
 
-    fn get_type(&mut self, type_ast: ast_typecheck::TypeCheckType) -> Result<types::BasicTypeEnum<'a>, ErrorOrVec<'a>> {
-        match type_ast.value {
+    fn eval_literal(&mut self, literal: &ast::Literal<'a>) -> values::BasicValueEnum<'a> {
+        match self.get_type(&literal.type_val.as_ref().unwrap()) {
+            int_val if int_val.is_int_type() => std::convert::From::from(
+                int_val.into_int_type().const_int(
+                    literal
+                        .value
+                        .parse::<u64>()
+                        .expect(&format!("Cannot convert `{}` to int", literal.value)[..]),
+                    false,
+                ),
+            ),
+            _ => panic!("literal {:?} not implemented yet", literal),
+        }
+    }
+
+    fn gen_variable_assignment_dec(
+        &mut self,
+        variable_assign_dec: &ast::VariableAssignDeclaration<'a>,
+    ) -> values::BasicValueEnum<'a> {
+        let assigned_type = self.get_type(variable_assign_dec.t.unwrap_type_check_ref());
+        let expr_alloca = self.builder.build_alloca(
+            assigned_type,
+            &variable_assign_dec.name.deref().to_string()[..],
+        );
+        let assigned_val = self.eval_expr(&variable_assign_dec.expr);
+        self.builder.build_store(expr_alloca, assigned_val);
+        self.symbtab.insert(
+            Rc::clone(&variable_assign_dec.name),
+            expr_alloca.as_basic_value_enum(),
+        );
+        expr_alloca.as_basic_value_enum()
+    }
+
+    fn gen_function_prototype(&mut self, func_def: &ast::FunctionDefine) {
+        let func_name = &func_def.name.value[..];
+        let return_type = self.get_type(func_def.return_type.unwrap_type_check_ref());
+        let fn_type = return_type.fn_type(
+            &func_def
+                .arguments
+                .positional
+                .iter()
+                .map(|arg| self.get_type(arg.1.unwrap_type_check_ref()))
+                .collect::<Vec<types::BasicTypeEnum>>()[..],
+            false,
+        );
+
+        self.module.add_function(func_name, fn_type, None); // TODO: make public and private linkage types
+    }
+
+    fn gen_function_define(
+        &mut self,
+        func_def: &ast::FunctionDefine<'a>,
+        func_val: values::FunctionValue,
+    ) {
+        self.symbtab.clear();
+
+        let entry_bb = self.context.append_basic_block(func_val, "entry");
+        let builder = self.context.create_builder();
+        builder.position_at_end(entry_bb);
+
+        for (idx, (argument, type_val)) in func_def.arguments.positional.iter().enumerate() {
+            let arg_type = self.get_type(type_val.unwrap_type_check_ref());
+            let argument_alloca = builder.build_alloca(arg_type, &argument.value[..]);
+            builder.build_store(
+                argument_alloca,
+                func_val.get_nth_param(idx.try_into().unwrap()).unwrap(),
+            );
+
+            self.symbtab.insert(
+                Rc::new(argument.into_namespace()),
+                argument_alloca.as_basic_value_enum(),
+            );
+        }
+
+        self.builder = builder;
+        for statement in &func_def.block.nodes {
+            self.gen_inner_stmt(statement);
+        }
+    }
+
+    fn gen_return(&mut self, ret: &ast::Return<'a>) {
+        let ret_val = self.eval_expr(&ret.expression);
+        self.builder.build_return(Some(&ret_val));
+    }
+
+    fn get_type(&mut self, type_ast: &ast_typecheck::TypeCheckType) -> types::BasicTypeEnum<'a> {
+        match &type_ast.value {
             ast_typecheck::TypeCheckTypeType::SingleType(value) => {
                 match value.value.is_basic_type() {
                     Ok(basic_type) => match basic_type {
-                        "int" => Ok(types::BasicTypeEnum::IntType(self.context.i32_type())),
+                        "int" => types::BasicTypeEnum::IntType(self.context.i32_type()),
                         "str" => panic!("str type not implemented yet!"),
                         val => panic!("`{}` type not implemented yet!", val),
+                    },
+                    Err(_) => {
+                        panic!("Tried to get basic type from SingleType, but its not a basic type",)
                     }
-                    Err(_) => panic!("Tried to get basic type from SingleType, but its not a basic type")
                 }
             }
             ast_typecheck::TypeCheckTypeType::CustomType(_) => {
@@ -101,7 +256,6 @@ impl<'a> CodeGenModule<'a> {
                 panic!("Array type not implemented for codegen yet!");
             }
             ast_typecheck::TypeCheckTypeType::TupleType(_) => {
-                println!("{:?}", type_ast);
                 panic!("Tuples not implemented for codegen yet!");
             }
             ast_typecheck::TypeCheckTypeType::FunctionSig(_, _) => {

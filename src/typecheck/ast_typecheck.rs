@@ -329,7 +329,7 @@ impl<'a> TypeCheckType<'a> {
         }
     }
 
-    fn construct_basic(type_name: &'a str, pos: helpers::Pos<'a>) -> TypeCheckType<'a> {
+    pub fn construct_basic(type_name: &'a str, pos: helpers::Pos<'a>) -> TypeCheckType<'a> {
         TypeCheckType {
             value: TypeCheckTypeType::SingleType(Rc::new(Type {
                 value: TypeType::Type(Rc::new(Namespace {
@@ -348,7 +348,7 @@ impl<'a> TypeCheckType<'a> {
     }
 
     fn from_expr<'b>(
-        val: &Expr<'a>,
+        val: &mut Expr<'a>,
         context: &'b mut TypeCheckSymbTab<'a>,
     ) -> Result<TypeCheckType<'a>, ErrorOrVec<'a>> {
         Ok(match val {
@@ -358,24 +358,21 @@ impl<'a> TypeCheckType<'a> {
                     pos: tuple_val.pos,
                     types: tuple_val
                         .values
-                        .iter()
+                        .iter_mut()
                         .map(|x| TypeCheckType::from_expr(x, context))
                         .collect::<Result<Vec<TypeCheckType>, _>>()?,
                     inferred: false,
                 }),
                 inferred: false,
             },
-            Expr::StringLiteral(string_val) => {
-                TypeCheckType::construct_basic("str", string_val.pos)
-            }
-            Expr::Integer(int_val) => TypeCheckType::construct_basic("int", int_val.pos),
+            Expr::Literal(lit) => lit.type_val.clone().unwrap(),
             Expr::FunctionCall(func_call) => {
                 // Validate function call
                 let func_call_arg_types = func_call
                     .arguments
                     .positional
-                    .iter()
-                    .map(|argument| TypeCheckType::from_expr(&argument, context))
+                    .iter_mut()
+                    .map(|mut argument| TypeCheckType::from_expr(&mut argument, context))
                     .collect::<Result<Vec<TypeCheckType>, _>>()?;
                 let func = context.get_function(Rc::clone(&func_call.name))?;
                 let func_arg_types: Vec<&TypeCheckType> = func
@@ -437,50 +434,54 @@ impl<'a> TypeCheckType<'a> {
                 func.unwrap_type().value.clone().unwrap_func_return()
             }
             Expr::VariableAssignDeclaration(variable_assignment_dec) => {
-                let value_type = TypeCheckType::from_expr(&variable_assignment_dec.expr, context)?;
-                let cast_type = TypeCheckType::as_type((&variable_assignment_dec.t).unwrap_type());
-                if !TypeCheckType::sequiv(&cast_type, &value_type, context) {
-                    // Not the same type, error
-                    return Err(ErrorOrVec::Error(
-                        Error::new(
-                            "cannot cast value to specified type annotation".to_string(),
-                            ErrorType::TypeMismatch,
-                            cast_type.pos,
-                            ErrorDisplayType::Error,
-                            vec![
-                                ErrorAnnotation::new(
-                                    Some(format!("value has type `{}`", value_type)),
-                                    value_type.pos,
-                                    ErrorDisplayType::Info,
-                                ),
-                                ErrorAnnotation::new(
-                                    Some(format!("type annotation has type `{}`", cast_type)),
-                                    cast_type.pos,
-                                    ErrorDisplayType::Info,
-                                ),
-                            ],
-                            true,
-                        ),
-                        ErrorLevel::TypeError,
-                    ));
-                } else {
-                    let type_val =
-                        TypeCheckType::from_expr(&variable_assignment_dec.expr, context)?;
-                    context.set_value(
-                        Rc::clone(&variable_assignment_dec.name),
-                        SymbTabObj::Variable(type_val),
-                    );
+                let value_type =
+                    TypeCheckType::from_expr(&mut *variable_assignment_dec.expr, context)?;
+                let cast_type =
+                    TypeCheckOrType::as_typecheck_type(Cow::Borrowed(&variable_assignment_dec.t));
+                variable_assignment_dec.t =
+                    if !TypeCheckType::sequiv(&cast_type, &value_type, context) {
+                        // Not the same type, error
+                        return Err(ErrorOrVec::Error(
+                            Error::new(
+                                "cannot cast value to specified type annotation".to_string(),
+                                ErrorType::TypeMismatch,
+                                cast_type.pos,
+                                ErrorDisplayType::Error,
+                                vec![
+                                    ErrorAnnotation::new(
+                                        Some(format!("value has type `{}`", value_type)),
+                                        value_type.pos,
+                                        ErrorDisplayType::Info,
+                                    ),
+                                    ErrorAnnotation::new(
+                                        Some(format!("type annotation has type `{}`", cast_type)),
+                                        cast_type.pos,
+                                        ErrorDisplayType::Info,
+                                    ),
+                                ],
+                                true,
+                            ),
+                            ErrorLevel::TypeError,
+                        ));
+                    } else {
+                        let type_val =
+                            TypeCheckType::from_expr(&mut variable_assignment_dec.expr, context)?;
+                        context.set_value(
+                            Rc::clone(&variable_assignment_dec.name),
+                            SymbTabObj::Variable(type_val),
+                        );
 
-                    cast_type
-                }
+                        TypeCheckOrType::TypeCheckType(cast_type)
+                    };
+                variable_assignment_dec.t.unwrap_type_check_ref().clone()
             }
             Expr::VariableAssign(_variable_assign) => {
                 // TODO: add variable assign to type checker
                 panic!("Inference for variable assign not implemented yet");
             }
             Expr::Infix(infix) => {
-                let left_type = TypeCheckType::from_expr(&*infix.left, context)?;
-                let right_type = TypeCheckType::from_expr(&*infix.right, context)?;
+                let left_type = TypeCheckType::from_expr(&mut *infix.left, context)?;
+                let right_type = TypeCheckType::from_expr(&mut *infix.right, context)?;
 
                 // TODO: check if the types can be casted to on another
                 if TypeCheckType::sequiv(&left_type, &right_type, context) {
@@ -599,7 +600,7 @@ impl<'a> TypeCheck<'a> for Return<'a> {
         return_type: Option<Cow<'a, TypeCheckType<'a>>>,
         context: &'b mut TypeCheckSymbTab<'a>,
     ) -> Result<Cow<'a, TypeCheckType<'a>>, ErrorOrVec<'a>> {
-        let returned_type = TypeCheckType::from_expr(&self.expression, context)?;
+        let returned_type = TypeCheckType::from_expr(&mut self.expression, context)?;
         match return_type {
             Some(return_type_some) if return_type_some.is_tuple_empty() => {
                 // The block returns (), so we can implicitly do this during codegen. This is the negate case for below.
@@ -610,21 +611,25 @@ impl<'a> TypeCheck<'a> for Return<'a> {
                 } = &returned_type
                 {
                     if !tuple_returned_contents.types.is_empty() && return_type_some.inferred {
-                        Err(self
-                            .construct_implicit_err(return_type_some.into_owned(), returned_type))
+                        return Err(self
+                            .construct_implicit_err(return_type_some.into_owned(), returned_type));
                     } else if !tuple_returned_contents.types.is_empty()
                         && !return_type_some.inferred
                     {
-                        Err(self.construct_err(return_type_some.into_owned(), returned_type))
+                        return Err(
+                            self.construct_err(return_type_some.into_owned(), returned_type)
+                        );
                     } else {
                         Ok(return_type_some)
                     }
                 } else {
                     if return_type_some.inferred {
-                        Err(self
-                            .construct_implicit_err(return_type_some.into_owned(), returned_type))
+                        return Err(self
+                            .construct_implicit_err(return_type_some.into_owned(), returned_type));
                     } else {
-                        Err(self.construct_err(return_type_some.into_owned(), returned_type))
+                        return Err(
+                            self.construct_err(return_type_some.into_owned(), returned_type)
+                        );
                     }
                 }
             }
@@ -634,13 +639,13 @@ impl<'a> TypeCheck<'a> for Return<'a> {
                     // Same type
                     Ok(value)
                 } else {
-                    Err(self.construct_err(value.into_owned(), returned_type))
+                    return Err(self.construct_err(value.into_owned(), returned_type));
                 }
             }
             None => {
                 // No required return type (i.e. in outer scope)
                 Ok(Cow::Owned(TypeCheckType::from_expr(
-                    &self.expression,
+                    &mut self.expression,
                     context,
                 )?))
             }
@@ -655,10 +660,12 @@ impl<'a> TypeCheck<'a> for Block<'a> {
         context: &'b mut TypeCheckSymbTab<'a>,
     ) -> Result<Cow<'a, TypeCheckType<'a>>, ErrorOrVec<'a>> {
         let mut errors: Vec<(Error, ErrorLevel)> = Vec::new();
-        let mut ret_types: Vec<&Expr> = Vec::new();
+        let mut ret_types: Vec<&mut Expr> = Vec::new();
+
+        let mut context = context.clone();
 
         for node in &mut self.nodes {
-            match node.type_check(return_type.clone(), context) {
+            match node.type_check(return_type.clone(), &mut context) {
                 Ok(_) => {}
                 Err(e) => {
                     errors.append(&mut e.as_vec());
@@ -676,10 +683,10 @@ impl<'a> TypeCheck<'a> for Block<'a> {
 
         if !ret_types.is_empty() {
             let ret_types = ret_types
-                .iter()
-                .map(|expr| Ok(TypeCheckType::from_expr(&expr, context)?))
+                .iter_mut()
+                .map(|expr| Ok(TypeCheckType::from_expr(expr, &mut context)?))
                 .collect::<Result<Vec<TypeCheckType<'a>>, ErrorOrVec>>()?;
-            TypeCheckType::all_same_type(&ret_types[..], context)?;
+            TypeCheckType::all_same_type(&ret_types[..], &mut context)?;
             Ok(Cow::Owned(ret_types.into_iter().nth(0).unwrap()))
         } else {
             match return_type {
@@ -788,15 +795,16 @@ impl<'a> TypeCheck<'a> for FunctionDefine<'a> {
                 SymbTabObj::Variable((argument.1.clone()).unwrap_type_check()),
             )
         }
-        self.return_type = TypeCheckOrType::TypeCheckType(TypeCheckType::as_type(
-            self.return_type.unwrap_type(),
-        ));
+        self.return_type =
+            TypeCheckOrType::TypeCheckType(TypeCheckType::as_type(self.return_type.unwrap_type()));
         context.set_value(
             Namespace::from_name_id(*self.name.deref()),
             SymbTabObj::Function(self.as_fn_type()?),
         );
         (&mut self.block as &mut dyn TypeCheck).type_check(
-            Some(Cow::Owned(TypeCheckOrType::as_typecheck_type(Cow::Borrowed(&self.return_type)))),
+            Some(Cow::Owned(TypeCheckOrType::as_typecheck_type(
+                Cow::Borrowed(&self.return_type),
+            ))),
             context,
         )
     }
@@ -808,10 +816,8 @@ impl<'a> TypeCheck<'a> for ExpressionStatement<'a> {
         _return_type: Option<Cow<'a, TypeCheckType<'a>>>,
         context: &'b mut TypeCheckSymbTab<'a>,
     ) -> Result<Cow<'a, TypeCheckType<'a>>, ErrorOrVec<'a>> {
-        Ok(Cow::Owned(TypeCheckType::from_expr(
-            &self.expression,
-            context,
-        )?))
+        let type_val = TypeCheckType::from_expr(&mut self.expression, context)?;
+        Ok(Cow::Owned(type_val))
     }
 }
 

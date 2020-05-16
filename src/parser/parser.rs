@@ -4,7 +4,7 @@ use crate::lexer;
 use crate::logger::logger::{Error, ErrorAnnotation, ErrorDisplayType, ErrorType, Logger};
 use crate::parser::ast;
 use crate::parser::ast::{Expr, Scope, Statement};
-use crate::typecheck::ast_typecheck::SymbTabObj;
+use crate::typecheck::ast_typecheck::TypeCheckType;
 
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -558,6 +558,7 @@ impl<'a> Parser<'a> {
         Ok(ast::Expr::VariableAssign(ast::VariableAssign {
             name: Rc::new(namespace),
             expr: Box::new(expr),
+            type_val: None,
             pos: self.position(position),
         }))
     }
@@ -659,6 +660,7 @@ impl<'a> Parser<'a> {
             left: Box::new(left),
             operator,
             right: Box::new(self.expr(binding_power)?),
+            type_val: None,
             pos: self.position(position),
         }))
     }
@@ -672,6 +674,7 @@ impl<'a> Parser<'a> {
             return Ok(Expr::Prefix(ast::Prefix {
                 operator: prefix,
                 val: Box::new(item),
+                type_val: None,
                 pos: self.position(position),
             }));
         }
@@ -721,8 +724,9 @@ impl<'a> Parser<'a> {
 
         let int = self.forward();
         if let lexer::TokenType::NUMBER(value) = &int.token {
-            Ok(ast::Expr::Integer(ast::Integer {
+            Ok(ast::Expr::Literal(ast::Literal {
                 value,
+                type_val: Some(TypeCheckType::construct_basic("int", int.pos)),
                 pos: int.pos,
             }))
         } else {
@@ -737,8 +741,9 @@ impl<'a> Parser<'a> {
 
         let string = self.forward();
         if let lexer::TokenType::STRING(value) = &string.token {
-            Ok(ast::Expr::StringLiteral(ast::StringLiteral {
+            Ok(ast::Expr::Literal(ast::Literal {
                 value,
+                type_val: Some(TypeCheckType::construct_basic("str", string.pos)),
                 pos: string.pos,
             }))
         } else {
@@ -801,6 +806,7 @@ impl<'a> Parser<'a> {
         let value = self.namespace()?;
         Ok(ast::RefID {
             pos: value.pos,
+            type_val: None,
             value: Rc::new(value),
         })
     }
@@ -833,6 +839,7 @@ impl<'a> Parser<'a> {
 
         Ok(ast::Tuple {
             values,
+            type_val: None,
             pos: self.position(position),
         })
     }
@@ -955,6 +962,7 @@ impl<'a> Parser<'a> {
 
         Ok(ast::DollarID {
             value: Rc::new(id),
+            type_val: None,
             pos: self.position(position),
         })
     }

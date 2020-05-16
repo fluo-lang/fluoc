@@ -24,7 +24,6 @@ impl<'a> Master<'a> {
     pub fn add_file(&mut self, filename: &'a str, file_contents: &'a str) {
         let mut code_gen_mod = CodeGenModule::new(
             self.context.create_module(filename),
-            self.context.create_builder(),
             self.context,
             filename,
             file_contents,

@@ -15,9 +15,9 @@ pub struct Empty<'a> {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-/// Integer node
-pub struct Integer<'a> {
+pub struct Literal<'a> {
     pub value: &'a str,
+    pub type_val: Option<TypeCheckType<'a>>,
     pub pos: helpers::Pos<'a>,
 }
 
@@ -25,13 +25,7 @@ pub struct Integer<'a> {
 /// Tuple node
 pub struct Tuple<'a> {
     pub values: Vec<Expr<'a>>,
-    pub pos: helpers::Pos<'a>,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-/// String literal node
-pub struct StringLiteral<'a> {
-    pub value: &'a str,
+    pub type_val: Option<TypeCheckType<'a>>,
     pub pos: helpers::Pos<'a>,
 }
 
@@ -39,6 +33,7 @@ pub struct StringLiteral<'a> {
 /// Dollar sign id (i.e. `$myvar`) node
 pub struct DollarID<'a> {
     pub value: Rc<Namespace<'a>>,
+    pub type_val: Option<TypeCheckType<'a>>,
     pub pos: helpers::Pos<'a>,
 }
 
@@ -46,6 +41,7 @@ pub struct DollarID<'a> {
 /// Reference ID (i.e. pass by value) node
 pub struct RefID<'a> {
     pub value: Rc<Namespace<'a>>,
+    pub type_val: Option<TypeCheckType<'a>>,
     pub pos: helpers::Pos<'a>,
 }
 
@@ -53,6 +49,7 @@ pub struct RefID<'a> {
 /// Reference (i.e. pass by reference) node
 pub struct Reference<'a> {
     pub value: RefID<'a>,
+    pub type_val: Option<TypeCheckType<'a>>,
     pub pos: helpers::Pos<'a>,
 }
 
@@ -61,6 +58,7 @@ pub struct Infix<'a> {
     pub left: Box<Expr<'a>>,
     pub right: Box<Expr<'a>>,
     pub operator: Token<'a>,
+    pub type_val: Option<TypeCheckType<'a>>,
     pub pos: helpers::Pos<'a>,
 }
 
@@ -68,6 +66,7 @@ pub struct Infix<'a> {
 pub struct Prefix<'a> {
     pub val: Box<Expr<'a>>,
     pub operator: Token<'a>,
+    pub type_val: Option<TypeCheckType<'a>>,
     pub pos: helpers::Pos<'a>,
 }
 
@@ -92,6 +91,15 @@ impl<'a> PartialEq for NameID<'a> {
     }
 }
 
+impl<'a> NameID<'a> {
+    pub fn into_namespace(self) -> Namespace<'a> {
+        Namespace {
+            scopes: vec![self],
+            pos: self.pos,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 /// Variable Assign i.e.:
 ///
@@ -99,6 +107,7 @@ impl<'a> PartialEq for NameID<'a> {
 pub struct VariableAssign<'a> {
     pub name: Rc<Namespace<'a>>,
     pub expr: Box<Expr<'a>>,
+    pub type_val: Option<TypeCheckType<'a>>,
     pub pos: helpers::Pos<'a>,
 }
 
@@ -198,28 +207,28 @@ pub struct ExpressionStatement<'a> {
 /// TypecheckType or TypeType
 pub enum TypeCheckOrType<'a> {
     Type(Rc<Type<'a>>),
-    TypeCheckType(TypeCheckType<'a>)
+    TypeCheckType(TypeCheckType<'a>),
 }
 
 impl<'a> TypeCheckOrType<'a> {
     pub fn unwrap_type(&self) -> Rc<Type<'a>> {
         match self {
             TypeCheckOrType::Type(val) => Rc::clone(val),
-            TypeCheckOrType::TypeCheckType(_) => panic!("TypeCheckType failed to unwrap on type")
+            TypeCheckOrType::TypeCheckType(_) => panic!("TypeCheckType failed to unwrap on type"),
         }
     }
 
     pub fn unwrap_type_check(self) -> TypeCheckType<'a> {
         match self {
             TypeCheckOrType::Type(_) => panic!("TypeCheckType failed to unwrap on type"),
-            TypeCheckOrType::TypeCheckType(val) => val
+            TypeCheckOrType::TypeCheckType(val) => val,
         }
     }
 
     pub fn unwrap_type_check_ref<'b>(&'b self) -> &TypeCheckType<'a> {
         match self {
             TypeCheckOrType::Type(_) => panic!("TypeCheckType failed to unwrap on type"),
-            TypeCheckOrType::TypeCheckType(val) => val
+            TypeCheckOrType::TypeCheckType(val) => val,
         }
     }
 
@@ -227,12 +236,12 @@ impl<'a> TypeCheckOrType<'a> {
         match _self {
             std::borrow::Cow::Borrowed(value) => match value {
                 TypeCheckOrType::Type(val) => TypeCheckType::as_type(Rc::clone(&val)),
-                TypeCheckOrType::TypeCheckType(val) => val.clone()
-            }
+                TypeCheckOrType::TypeCheckType(val) => val.clone(),
+            },
             std::borrow::Cow::Owned(value) => match value {
                 TypeCheckOrType::Type(val) => TypeCheckType::as_type(Rc::clone(&val)),
-                TypeCheckOrType::TypeCheckType(val) => val
-            }
+                TypeCheckOrType::TypeCheckType(val) => val,
+            },
         }
     }
 }
@@ -349,7 +358,6 @@ impl PartialEq for Scope {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Node<'a> {
-    Integer(Integer<'a>),
     RefID(RefID<'a>),
     Reference(Reference<'a>),
     NameID(NameID<'a>),
@@ -370,7 +378,7 @@ pub enum Node<'a> {
     VariableDeclaration(VariableDeclaration<'a>),
     FunctionDefine(FunctionDefine<'a>),
 
-    StringLiteral(StringLiteral<'a>),
+    Literal(Literal<'a>),
     DollarID(DollarID<'a>),
     Nodes(Nodes<'a>),
     Return(Return<'a>),
@@ -447,7 +455,7 @@ impl<'a> Statement<'a> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr<'a> {
-    Integer(Integer<'a>),
+    Literal(Literal<'a>),
 
     RefID(RefID<'a>),
     Reference(Reference<'a>),
@@ -457,8 +465,6 @@ pub enum Expr<'a> {
 
     Infix(Infix<'a>),
     Prefix(Prefix<'a>),
-
-    StringLiteral(StringLiteral<'a>),
     Tuple(Tuple<'a>),
 
     DollarID(DollarID<'a>),
@@ -471,14 +477,13 @@ pub enum Expr<'a> {
 impl<'a> Expr<'a> {
     pub fn pos(&self) -> helpers::Pos<'a> {
         match &self {
-            Expr::Integer(val) => val.pos,
+            Expr::Literal(val) => val.pos,
             Expr::RefID(val) => val.pos,
             Expr::DollarID(val) => val.pos,
             Expr::Reference(val) => val.pos,
             Expr::VariableAssign(val) => val.pos,
             Expr::VariableAssignDeclaration(val) => val.pos,
             Expr::FunctionCall(val) => val.pos,
-            Expr::StringLiteral(val) => val.pos,
             Expr::Tuple(val) => val.pos,
 
             Expr::Infix(val) => val.pos,
@@ -489,16 +494,34 @@ impl<'a> Expr<'a> {
         }
     }
 
+    pub fn type_val(&self) -> helpers::Pos<'a> {
+        match &self {
+            Expr::Literal(type_val) => type_val.pos,
+            Expr::RefID(type_val) => type_val.pos,
+            Expr::DollarID(type_val) => type_val.pos,
+            Expr::Reference(type_val) => type_val.pos,
+            Expr::VariableAssign(type_val) => type_val.pos,
+            Expr::VariableAssignDeclaration(type_val) => type_val.pos,
+            Expr::FunctionCall(type_val) => type_val.pos,
+            Expr::Tuple(type_val) => type_val.pos,
+
+            Expr::Infix(type_val) => type_val.pos,
+            Expr::Prefix(type_val) => type_val.pos,
+
+            Expr::Empty(type_val) => type_val.pos,
+            Expr::FunctionDefine(type_val) => type_val.pos,
+        }
+    }
+
     pub fn to_str(&'a self) -> &'a str {
         match self {
-            Expr::Integer(_) => "integer",
+            Expr::Literal(_) => "literal",
             Expr::RefID(_) => "ID",
             Expr::DollarID(_) => "dollar sign ID",
             Expr::Reference(_) => "refrence",
             Expr::VariableAssign(_) => "variable assign",
             Expr::VariableAssignDeclaration(_) => "variable assignment declaration",
             Expr::FunctionCall(_) => "function call",
-            Expr::StringLiteral(_) => "string literal",
             Expr::Tuple(_) => "tuple",
 
             Expr::Infix(_) => "infix",
