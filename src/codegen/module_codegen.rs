@@ -127,8 +127,21 @@ impl<'a> CodeGenModule<'a> {
             ast::Expr::RefID(ref_id) => self.symbtab.get(Rc::clone(&ref_id.value)),
             ast::Expr::Literal(lit) => self.eval_literal(lit),
             ast::Expr::FunctionCall(func_call) => self.eval_func_call(func_call),
+            ast::Expr::Tuple(tuple) => self.eval_tuple(tuple),
             _ => panic!("{:?} not implemented yet", expr.to_str()),
         }
+    }
+
+    fn eval_tuple(&mut self, tuple: &ast::Tuple<'a>) -> values::BasicValueEnum<'a> {
+        let values: Vec<values::BasicValueEnum> = tuple
+            .values
+            .iter()
+            .map(|value| self.eval_expr(value))
+            .collect();
+        self.get_type(tuple.type_val.as_ref().unwrap())
+            .into_struct_type()
+            .const_named_struct(&values[..])
+            .into()
     }
 
     fn eval_func_call(&mut self, func_call: &ast::FunctionCall<'a>) -> values::BasicValueEnum<'a> {
@@ -240,7 +253,7 @@ impl<'a> CodeGenModule<'a> {
             ast_typecheck::TypeCheckTypeType::SingleType(value) => {
                 match value.value.is_basic_type() {
                     Ok(basic_type) => match basic_type {
-                        "int" => types::BasicTypeEnum::IntType(self.context.i32_type()),
+                        "int" => self.context.i32_type().into(),
                         "str" => panic!("str type not implemented yet!"),
                         val => panic!("`{}` type not implemented yet!", val),
                     },
@@ -255,8 +268,13 @@ impl<'a> CodeGenModule<'a> {
             ast_typecheck::TypeCheckTypeType::ArrayType(_, _) => {
                 panic!("Array type not implemented for codegen yet!");
             }
-            ast_typecheck::TypeCheckTypeType::TupleType(_) => {
-                panic!("Tuples not implemented for codegen yet!");
+            ast_typecheck::TypeCheckTypeType::TupleType(tuple_union) => {
+                let item_types: Vec<types::BasicTypeEnum> = tuple_union
+                    .types
+                    .iter()
+                    .map(|type_val| self.get_type(type_val))
+                    .collect();
+                self.context.struct_type(&item_types[..], false).into()
             }
             ast_typecheck::TypeCheckTypeType::FunctionSig(_, _) => {
                 panic!("Function pointers not implemented for codegen yet!");

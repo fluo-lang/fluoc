@@ -53,7 +53,7 @@ pub struct TypeCheckSymbTab<'a> {
 
 #[derive(Debug, Clone)]
 pub struct UnionType<'a> {
-    types: Vec<TypeCheckType<'a>>,
+    pub types: Vec<TypeCheckType<'a>>,
     pos: helpers::Pos<'a>,
     inferred: bool,
 }
@@ -168,6 +168,28 @@ impl<'a> TypeCheckType<'a> {
             (Ok(left_ok), Ok(right_ok)) => return left_ok == right_ok,
             _ => {}
         }
+        if left.is_tuple() && right.is_tuple() {
+            match (left, right) {
+                (
+                    TypeCheckType {
+                        value: TypeCheckTypeType::TupleType(left_contents),
+                        pos: _,
+                        inferred: _,
+                    },
+                    TypeCheckType {
+                        value: TypeCheckTypeType::TupleType(right_contents),
+                        pos: _,
+                        inferred: _,
+                    },
+                ) if left_contents.types.len() == right_contents.types.len() => {
+                    return left_contents.types.iter().zip(&right_contents.types).all(
+                        |(left_val, right_val)| TypeCheckType::sequiv(left_val, right_val, context),
+                    )
+                }
+                _ => {}
+            }
+        }
+
         false
     }
 
@@ -178,6 +200,17 @@ impl<'a> TypeCheckType<'a> {
                 pos: _,
                 inferred: _,
             } if tuple_contents.types.is_empty() => true,
+            _ => false,
+        }
+    }
+
+    fn is_tuple(&self) -> bool {
+        match self {
+            TypeCheckType {
+                value: TypeCheckTypeType::TupleType(_),
+                pos: _,
+                inferred: _,
+            } => true,
             _ => false,
         }
     }
@@ -307,7 +340,7 @@ impl<'a> TypeCheckType<'a> {
                 value: TypeCheckTypeType::TupleType(UnionType {
                     types: types
                         .into_iter()
-                        .map(|x| TypeCheckType::as_type(Rc::clone(x)))
+                        .map(|x| TypeCheckType::as_type(Rc::clone(&x)))
                         .collect::<Vec<TypeCheckType>>(),
                     pos: val.pos,
                     inferred: val.inferred,
@@ -352,19 +385,22 @@ impl<'a> TypeCheckType<'a> {
         context: &'b mut TypeCheckSymbTab<'a>,
     ) -> Result<TypeCheckType<'a>, ErrorOrVec<'a>> {
         Ok(match val {
-            Expr::Tuple(tuple_val) => TypeCheckType {
-                pos: tuple_val.pos,
-                value: TypeCheckTypeType::TupleType(UnionType {
+            Expr::Tuple(tuple_val) => {
+                tuple_val.type_val = Some(TypeCheckType {
                     pos: tuple_val.pos,
-                    types: tuple_val
-                        .values
-                        .iter_mut()
-                        .map(|x| TypeCheckType::from_expr(x, context))
-                        .collect::<Result<Vec<TypeCheckType>, _>>()?,
+                    value: TypeCheckTypeType::TupleType(UnionType {
+                        pos: tuple_val.pos,
+                        types: tuple_val
+                            .values
+                            .iter_mut()
+                            .map(|x| TypeCheckType::from_expr(x, context))
+                            .collect::<Result<Vec<TypeCheckType>, _>>()?,
+                        inferred: false,
+                    }),
                     inferred: false,
-                }),
-                inferred: false,
-            },
+                });
+                tuple_val.type_val.clone().unwrap()
+            }
             Expr::Literal(lit) => lit.type_val.clone().unwrap(),
             Expr::FunctionCall(func_call) => {
                 // Validate function call
@@ -653,6 +689,28 @@ impl<'a> TypeCheck<'a> for Return<'a> {
     }
 }
 
+impl<'a> Block<'a> {
+    fn insert_implicit_return(&mut self) {
+        // Push implicit return to variable
+        self.nodes.push(Statement::Return(Return {
+            expression: Box::new(Expr::Tuple(Tuple {
+                values: Vec::new(),
+                type_val: Some(TypeCheckType {
+                    value: TypeCheckTypeType::TupleType(UnionType {
+                        types: Vec::new(),
+                        pos: self.pos,
+                        inferred: false,
+                    }),
+                    pos: self.pos,
+                    inferred: false,
+                }),
+                pos: self.pos,
+            })),
+            pos: self.pos,
+        }));
+    }
+}
+
 impl<'a> TypeCheck<'a> for Block<'a> {
     fn type_check<'b>(
         &mut self,
@@ -690,15 +748,18 @@ impl<'a> TypeCheck<'a> for Block<'a> {
             Ok(Cow::Owned(ret_types.into_iter().nth(0).unwrap()))
         } else {
             match return_type {
-                Some(value) if value.is_tuple_empty() => Ok(Cow::Owned(TypeCheckType {
-                    value: TypeCheckTypeType::TupleType(UnionType {
-                        types: Vec::new(),
+                Some(value) if value.is_tuple_empty() => {
+                    self.insert_implicit_return();
+                    Ok(Cow::Owned(TypeCheckType {
+                        value: TypeCheckTypeType::TupleType(UnionType {
+                            types: Vec::new(),
+                            pos: self.pos,
+                            inferred: false,
+                        }),
                         pos: self.pos,
                         inferred: false,
-                    }),
-                    pos: self.pos,
-                    inferred: false,
-                })),
+                    }))
+                }
                 Some(other) => {
                     // Error, not the right return type
                     // Found `()` expected `other`
@@ -725,15 +786,18 @@ impl<'a> TypeCheck<'a> for Block<'a> {
                         ErrorLevel::TypeError,
                     ))
                 }
-                None => Ok(Cow::Owned(TypeCheckType {
-                    value: TypeCheckTypeType::TupleType(UnionType {
-                        types: Vec::new(),
+                None => {
+                    self.insert_implicit_return();
+                    Ok(Cow::Owned(TypeCheckType {
+                        value: TypeCheckTypeType::TupleType(UnionType {
+                            types: Vec::new(),
+                            pos: self.pos,
+                            inferred: false,
+                        }),
                         pos: self.pos,
                         inferred: false,
-                    }),
-                    pos: self.pos,
-                    inferred: false,
-                })),
+                    }))
+                }
             }
         }
     }
