@@ -1,6 +1,4 @@
 
 def main() {
-    let y: int;
-    y = 19;
-    let x: int = y;
+    let x: int = y::awd;
 }

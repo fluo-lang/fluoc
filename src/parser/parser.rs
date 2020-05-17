@@ -235,7 +235,6 @@ impl<'a> Parser<'a> {
                                 ast_list.push(ast_production);
                                 break;
                             } else {
-                                println!("{:?}", ast_production.pos());
                                 errors.push(Error::new(
                                     "unexpected statement in outer scope".to_string(),
                                     ErrorType::Syntax,
@@ -805,8 +804,6 @@ impl<'a> Parser<'a> {
             }
 
             self.next(lexer::TokenType::DOUBLECOLON, position, false)?;
-
-            println!("{:?}", self.peek());
 
             match self.name_id() {
                 Ok(id) => {
