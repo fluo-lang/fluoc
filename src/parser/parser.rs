@@ -52,7 +52,7 @@ pub struct Parser<'a> {
     /// Abstract syntax tree
     pub ast: Option<ast::Block<'a>>,
     pub modules: HashMap<ast::Namespace<'a>, CodeGenModule<'a>>,
-    statements: [fn(&mut Self) -> Result<Statement<'a>, Error<'a>>; 5],
+    statements: [fn(&mut Self) -> Result<Statement<'a>, Error<'a>>; 6],
     prefix_op: HashMap<lexer::TokenType<'a>, Prec>,
     infix_op: HashMap<lexer::TokenType<'a>, Prec>,
     tokens: Vec<lexer::Token<'a>>,
@@ -75,6 +75,7 @@ impl<'a> Parser<'a> {
             modules: HashMap::new(),
             statements: [
                 Parser::function_define,
+                Parser::import,
                 Parser::expression_statement,
                 Parser::return_statement,
                 Parser::variable_declaration,
@@ -381,6 +382,20 @@ impl<'a> Parser<'a> {
         Ok(Statement::TypeAssign(ast::TypeAssign {
             value: ast::TypeCheckOrType::Type(Rc::new(value)),
             name: Rc::new(name),
+            pos: self.position(position),
+        }))
+    }
+
+    fn import(&mut self) -> Result<Statement<'a>, Error<'a>> {
+        let position = self.token_pos;
+        self.next(lexer::TokenType::IMPORT, position, true)?;
+
+        let namespace = self.namespace()?;
+
+        self.next(lexer::TokenType::SEMI, position, false)?;
+
+        Ok(Statement::Import(ast::Import {
+            namespace,
             pos: self.position(position),
         }))
     }
@@ -775,6 +790,8 @@ impl<'a> Parser<'a> {
             }
 
             self.next(lexer::TokenType::DOUBLECOLON, position, false)?;
+
+            println!("{:?}", self.peek());
 
             match self.name_id() {
                 Ok(id) => {

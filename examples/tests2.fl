@@ -1,5 +1,5 @@
 
-
+public
 def test(val: int) -> int {
     return val;
 }

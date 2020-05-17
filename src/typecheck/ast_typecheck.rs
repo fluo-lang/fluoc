@@ -108,7 +108,7 @@ impl<'a> PartialEq for ArgumentsTypeCheck<'a> {
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum TypeCheckTypeType<'a> {
-    FunctionSig(ArgumentsTypeCheck<'a>, Box<TypeCheckType<'a>>),
+    FunctionSig(ArgumentsTypeCheck<'a>, Box<TypeCheckType<'a>>, Visibility),
     SingleType(Rc<Type<'a>>),
     TupleType(UnionType<'a>),
     ArrayType(Box<TypeCheckType<'a>>, Box<TypeCheckType<'a>>),
@@ -118,14 +118,16 @@ pub enum TypeCheckTypeType<'a> {
 impl<'a> TypeCheckTypeType<'a> {
     fn unwrap_func_return(self) -> TypeCheckType<'a> {
         match self {
-            TypeCheckTypeType::FunctionSig(_, ret_type) => *ret_type,
+            TypeCheckTypeType::FunctionSig(_, ret_type, _) => *ret_type,
             _ => panic!("Tried to unwrap func return from type check type"),
         }
     }
 
-    fn unwrap_func(&self) -> (&ArgumentsTypeCheck<'a>, &TypeCheckType<'a>) {
+    fn unwrap_func(&self) -> (&ArgumentsTypeCheck<'a>, &TypeCheckType<'a>, Visibility) {
         match self {
-            TypeCheckTypeType::FunctionSig(arguments, ret_type) => (arguments, ret_type),
+            TypeCheckTypeType::FunctionSig(arguments, ret_type, visibility) => {
+                (arguments, ret_type, *visibility)
+            }
             _ => panic!("Tried to unwrap func from type check type"),
         }
     }
@@ -147,8 +149,8 @@ impl<'a> PartialEq for TypeCheckType<'a> {
 impl<'a> fmt::Display for TypeCheckType<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let rep = match &self.value {
-            TypeCheckTypeType::FunctionSig(arguments, return_type) => {
-                format!("({}) -> {}", arguments, return_type)
+            TypeCheckTypeType::FunctionSig(arguments, return_type, visibility) => {
+                format!("{} ({}) -> {}", visibility, arguments, return_type)
             }
             TypeCheckTypeType::SingleType(type_val) => format!("{}", type_val),
             TypeCheckTypeType::TupleType(types) => format!("({})", types),
@@ -220,7 +222,7 @@ impl<'a> TypeCheckType<'a> {
         context: &'b TypeCheckSymbTab<'a>,
     ) -> Result<&'static str, ErrorOrVec<'a>> {
         match &self.value {
-            TypeCheckTypeType::FunctionSig(_, _) => Err(ErrorOrVec::Error(
+            TypeCheckTypeType::FunctionSig(_, _, _) => Err(ErrorOrVec::Error(
                 Error::new(
                     "cannot cast to primitive".to_string(),
                     ErrorType::TypeCastError,
@@ -824,6 +826,7 @@ impl<'a> FunctionDefine<'a> {
                     pos: self.arguments.pos,
                 },
                 Box::new(self.return_type.clone().unwrap_type_check()),
+                self.visibility,
             ),
             pos: helpers::Pos::new(
                 self.arguments.pos.s,
@@ -901,10 +904,10 @@ impl<'a> TypeCheck<'a> for Statement<'a> {
             Statement::ExpressionStatement(statement) => {
                 (statement as &mut dyn TypeCheck).type_check(return_type, context)
             }
-            _ => panic!(format!(
+            _ => panic!(
                 "Type_check not implemented for statement `{}`",
                 &self.to_string()
-            )),
+            ),
         }
     }
 }

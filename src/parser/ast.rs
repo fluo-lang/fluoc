@@ -24,6 +24,12 @@ pub struct Literal<'a> {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct Import<'a> {
+    pub namespace: Namespace<'a>,
+    pub pos: helpers::Pos<'a>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 /// Tuple node
 pub struct Tuple<'a> {
     pub values: Vec<Expr<'a>>,
@@ -169,10 +175,23 @@ impl<'a> Block<'a> {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Visibility {
     Public,
     Private,
+}
+
+impl fmt::Display for Visibility {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Visibility::Public => "public",
+                Visibility::Private => "private",
+            }
+        )
+    }
 }
 
 impl Visibility {
@@ -379,8 +398,11 @@ pub enum Node<'a> {
     RefID(RefID<'a>),
     Reference(Reference<'a>),
     NameID(NameID<'a>),
+
     VariableAssign(VariableAssign<'a>),
     VariableAssignDeclaration(VariableAssignDeclaration<'a>),
+    VariableDeclaration(VariableDeclaration<'a>),
+
     TypeAssign(TypeAssign<'a>),
 
     Type(Type<'a>),
@@ -393,8 +415,11 @@ pub enum Node<'a> {
     Tuple(Tuple<'a>),
 
     ExpressionStatement(ExpressionStatement<'a>),
-    VariableDeclaration(VariableDeclaration<'a>),
+
     FunctionDefine(FunctionDefine<'a>),
+    FunctionCall(FunctionCall<'a>),
+
+    Import(Import<'a>),
 
     Literal(Literal<'a>),
     DollarID(DollarID<'a>),
@@ -411,6 +436,7 @@ pub enum Statement<'a> {
     FunctionDefine(FunctionDefine<'a>),
     Return(Return<'a>),
     TypeAssign(TypeAssign<'a>),
+    Import(Import<'a>),
 
     Empty(Empty<'a>),
 }
@@ -423,6 +449,7 @@ impl<'a> Statement<'a> {
             Statement::FunctionDefine(val) => val.pos,
             Statement::Return(val) => val.pos,
             Statement::TypeAssign(val) => val.pos,
+            Statement::Import(val) => val.pos,
 
             Statement::Empty(val) => val.pos,
         }
@@ -435,6 +462,7 @@ impl<'a> Statement<'a> {
             Statement::FunctionDefine(val) => {
                 format!("function define {{\n{}}}", val.block.to_string())
             }
+            Statement::Import(_) => "import".to_string(),
             Statement::Return(_) => "return statement".to_string(),
             Statement::TypeAssign(_) => "type assignment".to_string(),
 
@@ -453,6 +481,7 @@ impl<'a> Statement<'a> {
             Statement::FunctionDefine(_) => &Scope::All,
             Statement::Return(_) => &Scope::Block,
             Statement::TypeAssign(_) => &Scope::All,
+            Statement::Import(_) => &Scope::Outer,
 
             Statement::Empty(_) => &Scope::All,
         }
@@ -465,6 +494,7 @@ impl<'a> Statement<'a> {
             Statement::FunctionDefine(val) => Node::FunctionDefine(val),
             Statement::Return(val) => Node::Return(val),
             Statement::TypeAssign(val) => Node::TypeAssign(val),
+            Statement::Import(val) => Node::Import(val),
 
             Statement::Empty(val) => Node::Empty(val),
         }

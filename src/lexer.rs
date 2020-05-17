@@ -319,7 +319,10 @@ impl<'a> Lexer<'a> {
             '?' => Ok(TokenType::QUESTION),
             ',' => Ok(TokenType::COMMA),
             ':' => match self.peek_char() {
-                ':' => Ok(TokenType::DOUBLECOLON),
+                ':' => {
+                    self.bump();
+                    Ok(TokenType::DOUBLECOLON)
+                }
                 _ => Ok(TokenType::COLON),
             },
 
@@ -441,6 +444,7 @@ impl<'a> Lexer<'a> {
             "as" => Ok(TokenType::AS),
             "type" => Ok(TokenType::TYPE),
             "public" => Ok(TokenType::PUBLIC),
+            "import" => Ok(TokenType::IMPORT),
             _ => Ok(TokenType::IDENTIFIER(id.1)),
         }
     }

@@ -1,6 +1,6 @@
 
-import tests2;
+import tests2::test;
 
 def main() {
-    let x: int = tests2::test(10);
+    let x: int = test(10);
 }

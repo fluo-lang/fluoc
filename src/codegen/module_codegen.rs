@@ -277,7 +277,7 @@ impl<'a> CodeGenModule<'a> {
                     .collect();
                 self.context.struct_type(&item_types[..], false).into()
             }
-            ast_typecheck::TypeCheckTypeType::FunctionSig(_, _) => {
+            ast_typecheck::TypeCheckTypeType::FunctionSig(_, _, _) => {
                 panic!("Function pointers not implemented for codegen yet!");
             }
         }
