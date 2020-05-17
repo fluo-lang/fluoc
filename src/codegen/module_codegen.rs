@@ -209,7 +209,8 @@ impl<'a> CodeGenModule<'a> {
             false,
         );
 
-        self.module.add_function(func_name, fn_type, None); // TODO: make public and private linkage types
+        let function = self.module.add_function(func_name, fn_type, None);
+        function.set_linkage(func_def.visibility.get_linkage());
     }
 
     fn gen_function_define(

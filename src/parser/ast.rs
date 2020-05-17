@@ -1,6 +1,8 @@
 use crate::helpers;
 use crate::lexer::Token;
 use crate::typecheck::ast_typecheck::TypeCheckType;
+
+use inkwell::module::Linkage;
 use std::fmt;
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
@@ -168,12 +170,28 @@ impl<'a> Block<'a> {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub enum Visibility {
+    Public,
+    Private,
+}
+
+impl Visibility {
+    pub fn get_linkage(&self) -> Linkage {
+        match self {
+            Visibility::Private => Linkage::Private,
+            Visibility::Public => Linkage::External,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 /// Function definition
 pub struct FunctionDefine<'a> {
     pub return_type: TypeCheckOrType<'a>,
     pub arguments: Arguments<'a>,
     pub block: Block<'a>,
     pub name: Rc<NameID<'a>>,
+    pub visibility: Visibility,
     pub pos: helpers::Pos<'a>,
 }
 

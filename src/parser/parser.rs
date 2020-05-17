@@ -388,6 +388,14 @@ impl<'a> Parser<'a> {
     /// Parse function definition
     fn function_define(&mut self) -> Result<Statement<'a>, Error<'a>> {
         let position = self.token_pos;
+
+        let visibility = if self.peek().token == lexer::TokenType::PUBLIC {
+            self.forward();
+            ast::Visibility::Public
+        } else {
+            ast::Visibility::Private
+        };
+
         self.next(lexer::TokenType::DEF, position, true)?;
         let id = self.name_id()?;
 
@@ -423,6 +431,7 @@ impl<'a> Parser<'a> {
             return_type: ast::TypeCheckOrType::Type(Rc::new(return_type)),
             arguments,
             block,
+            visibility,
             name: Rc::new(id),
             pos: self.position(position),
         }))
