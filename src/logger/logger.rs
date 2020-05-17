@@ -16,6 +16,7 @@ pub enum ErrorType {
     TypeMismatch,
     UndefinedSymbol,
     TypeCastError,
+    PossibleUninitVal,
 }
 
 impl ErrorType {
@@ -31,6 +32,7 @@ impl ErrorType {
             ErrorType::TypeMismatch => "type_mismatch",
             ErrorType::UndefinedSymbol => "undefined_symbol",
             ErrorType::TypeCastError => "type_case",
+            ErrorType::PossibleUninitVal => "possible_initialized",
         }
     }
 }
@@ -633,7 +635,7 @@ impl<'a> Logger<'a> {
                                     Some(value) if self.is_multiline(value.1) => {
                                         writer_pos.0 -= 2;
                                     }
-                                    None | Some(_) => {},
+                                    None | Some(_) => {}
                                 }
                             }
                             *writer_pos = self.buffer.writel(

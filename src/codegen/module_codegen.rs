@@ -113,7 +113,7 @@ impl<'a> CodeGenModule<'a> {
                 panic!("statement codegen not implemented for type_assign")
             }
             ast::Statement::VariableDeclaration(var_dec) => {
-                panic!("statement codegen not implemented for variable_dec")
+                self.gen_variable_dec(var_dec);
             }
             _ => {}
         };
@@ -122,7 +122,10 @@ impl<'a> CodeGenModule<'a> {
     fn eval_expr(&mut self, expr: &ast::Expr<'a>) -> values::BasicValueEnum<'a> {
         match expr {
             ast::Expr::VariableAssignDeclaration(variable_assign_dec) => {
-                self.gen_variable_assignment_dec(variable_assign_dec)
+                self.eval_variable_assignment_dec(variable_assign_dec)
+            }
+            ast::Expr::VariableAssign(variable_assign) => {
+                self.eval_variable_assign(variable_assign)
             }
             ast::Expr::RefID(ref_id) => self.symbtab.get(Rc::clone(&ref_id.value)),
             ast::Expr::Literal(lit) => self.eval_literal(lit),
@@ -163,6 +166,21 @@ impl<'a> CodeGenModule<'a> {
             .unwrap()
     }
 
+    fn eval_variable_assign(
+        &mut self,
+        var_assign: &ast::VariableAssign<'a>,
+    ) -> values::BasicValueEnum<'a> {
+        let addr = self
+            .symbtab
+            .get(Rc::clone(&var_assign.name))
+            .into_pointer_value();
+        let evaled_expr = self.eval_expr(&var_assign.expr);
+        self.builder.build_store(addr, evaled_expr);
+        self.symbtab
+            .insert(Rc::clone(&var_assign.name), addr.as_basic_value_enum());
+        addr.as_basic_value_enum()
+    }
+
     fn eval_literal(&mut self, literal: &ast::Literal<'a>) -> values::BasicValueEnum<'a> {
         match self.get_type(&literal.type_val.as_ref().unwrap()) {
             int_val if int_val.is_int_type() => std::convert::From::from(
@@ -178,7 +196,7 @@ impl<'a> CodeGenModule<'a> {
         }
     }
 
-    fn gen_variable_assignment_dec(
+    fn eval_variable_assignment_dec(
         &mut self,
         variable_assign_dec: &ast::VariableAssignDeclaration<'a>,
     ) -> values::BasicValueEnum<'a> {
@@ -194,6 +212,15 @@ impl<'a> CodeGenModule<'a> {
             expr_alloca.as_basic_value_enum(),
         );
         expr_alloca.as_basic_value_enum()
+    }
+
+    fn gen_variable_dec(&mut self, var_dec: &ast::VariableDeclaration<'a>) {
+        let var_type = self.get_type(var_dec.t.unwrap_type_check_ref());
+        let var_addr = self
+            .builder
+            .build_alloca(var_type, &var_dec.name.deref().to_string()[..]);
+        self.symbtab
+            .insert(Rc::clone(&var_dec.name), std::convert::From::from(var_addr));
     }
 
     fn gen_function_prototype(&mut self, func_def: &ast::FunctionDefine) {
@@ -279,6 +306,9 @@ impl<'a> CodeGenModule<'a> {
             }
             ast_typecheck::TypeCheckTypeType::FunctionSig(_, _, _) => {
                 panic!("Function pointers not implemented for codegen yet!");
+            }
+            ast_typecheck::TypeCheckTypeType::Placeholder => {
+                panic!("Tried to turn placeholder value into llvm type")
             }
         }
     }

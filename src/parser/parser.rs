@@ -52,7 +52,7 @@ pub struct Parser<'a> {
     /// Abstract syntax tree
     pub ast: Option<ast::Block<'a>>,
     pub modules: HashMap<ast::Namespace<'a>, CodeGenModule<'a>>,
-    statements: [fn(&mut Self) -> Result<Statement<'a>, Error<'a>>; 6],
+    statements: [fn(&mut Self) -> Result<Statement<'a>, Error<'a>>; 7],
     prefix_op: HashMap<lexer::TokenType<'a>, Prec>,
     infix_op: HashMap<lexer::TokenType<'a>, Prec>,
     tokens: Vec<lexer::Token<'a>>,
@@ -74,6 +74,7 @@ impl<'a> Parser<'a> {
             ast: None,
             modules: HashMap::new(),
             statements: [
+                Parser::unit,
                 Parser::function_define,
                 Parser::import,
                 Parser::expression_statement,
@@ -274,12 +275,9 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse basic block
-    pub fn block(&mut self) -> Result<ast::Block<'a>, Error<'a>> {
+    pub fn block(&mut self, scope: Scope) -> Result<ast::Block<'a>, Error<'a>> {
         let position = self.token_pos;
         self.next(lexer::TokenType::LCP, position, false)?;
-
-        // Set our scope to inside a block
-        let scope = Scope::Block;
 
         let mut ast_list: Vec<Statement> = Vec::new();
         loop {
@@ -386,6 +384,20 @@ impl<'a> Parser<'a> {
         }))
     }
 
+    fn unit(&mut self) -> Result<Statement<'a>, Error<'a>> {
+        let position = self.token_pos;
+        self.next(lexer::TokenType::UNIT, position, true)?;
+        let name = self.namespace()?;
+        let block = self.block(Scope::Outer)?;
+
+        Ok(Statement::Unit(ast::Unit {
+            name,
+            block,
+            pos: self.position(position),
+        }))
+    }
+
+    /// Imports
     fn import(&mut self) -> Result<Statement<'a>, Error<'a>> {
         let position = self.token_pos;
         self.next(lexer::TokenType::IMPORT, position, true)?;
@@ -424,10 +436,10 @@ impl<'a> Parser<'a> {
         let return_type: ast::Type = if self.peek().token == lexer::TokenType::ARROW {
             self.forward();
             let temp = self.type_expr()?;
-            block = self.block()?;
+            block = self.block(Scope::Block)?;
             temp
         } else if {
-            block = self.block()?;
+            block = self.block(Scope::Block)?;
             true
         } {
             ast::Type {
@@ -452,6 +464,7 @@ impl<'a> Parser<'a> {
         }))
     }
 
+    /// Return statement
     fn return_statement(&mut self) -> Result<Statement<'a>, Error<'a>> {
         let position = self.token_pos;
 
@@ -481,6 +494,7 @@ impl<'a> Parser<'a> {
         ))
     }
 
+    /// Arguments of function call
     fn arguments_call(&mut self) -> Result<ast::ArgumentsRun<'a>, Error<'a>> {
         let position = self.token_pos;
         let mut positional_args: Vec<Expr> = Vec::new();
@@ -507,6 +521,7 @@ impl<'a> Parser<'a> {
         })
     }
 
+    /// Function calls
     fn function_call(&mut self) -> Result<Expr<'a>, Error<'a>> {
         let position = self.token_pos;
 

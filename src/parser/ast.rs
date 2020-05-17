@@ -151,6 +151,13 @@ pub struct VariableDeclaration<'a> {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct Unit<'a> {
+    pub name: Namespace<'a>,
+    pub pos: helpers::Pos<'a>,
+    pub block: Block<'a>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 /// Arguments for function
 pub struct Arguments<'a> {
     pub positional: Vec<(NameID<'a>, TypeCheckOrType<'a>)>,
@@ -419,6 +426,8 @@ pub enum Node<'a> {
     FunctionDefine(FunctionDefine<'a>),
     FunctionCall(FunctionCall<'a>),
 
+    Unit(Unit<'a>),
+
     Import(Import<'a>),
 
     Literal(Literal<'a>),
@@ -435,6 +444,7 @@ pub enum Statement<'a> {
     VariableDeclaration(VariableDeclaration<'a>),
     FunctionDefine(FunctionDefine<'a>),
     Return(Return<'a>),
+    Unit(Unit<'a>),
     TypeAssign(TypeAssign<'a>),
     Import(Import<'a>),
 
@@ -448,6 +458,7 @@ impl<'a> Statement<'a> {
             Statement::VariableDeclaration(val) => val.pos,
             Statement::FunctionDefine(val) => val.pos,
             Statement::Return(val) => val.pos,
+            Statement::Unit(val) => val.pos,
             Statement::TypeAssign(val) => val.pos,
             Statement::Import(val) => val.pos,
 
@@ -462,6 +473,7 @@ impl<'a> Statement<'a> {
             Statement::FunctionDefine(val) => {
                 format!("function define {{\n{}}}", val.block.to_string())
             }
+            Statement::Unit(_) => "unit".to_string(),
             Statement::Import(_) => "import".to_string(),
             Statement::Return(_) => "return statement".to_string(),
             Statement::TypeAssign(_) => "type assignment".to_string(),
@@ -481,6 +493,7 @@ impl<'a> Statement<'a> {
             Statement::FunctionDefine(_) => &Scope::All,
             Statement::Return(_) => &Scope::Block,
             Statement::TypeAssign(_) => &Scope::All,
+            Statement::Unit(_) => &Scope::Outer,
             Statement::Import(_) => &Scope::Outer,
 
             Statement::Empty(_) => &Scope::All,
@@ -495,6 +508,7 @@ impl<'a> Statement<'a> {
             Statement::Return(val) => Node::Return(val),
             Statement::TypeAssign(val) => Node::TypeAssign(val),
             Statement::Import(val) => Node::Import(val),
+            Statement::Unit(val) => Node::Unit(val),
 
             Statement::Empty(val) => Node::Empty(val),
         }

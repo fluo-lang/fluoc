@@ -18,6 +18,7 @@ pub enum TokenType<'a> {
     AS,
     TYPE,
     PUBLIC,
+    UNIT,
 
     IDENTIFIER(&'a str),
     NUMBER(&'a str),
@@ -93,6 +94,8 @@ impl<'a> fmt::Display for Token<'a> {
             TokenType::PATTERN => "keyword `pattern`".to_string(),
             TokenType::TYPE => "keyword `type`".to_string(),
             TokenType::PUBLIC => "keyword `public`".to_string(),
+            TokenType::UNIT => "keyword `unit`".to_string(),
+
             TokenType::AS => "operator `as`".to_string(),
             TokenType::DIV => "operator `/`".to_string(),
             TokenType::MOD => "operator `%`".to_string(),
@@ -150,7 +153,7 @@ fn get_tok_length(tok: &TokenType) -> usize {
 
         TokenType::IMPORT | TokenType::RETURN | TokenType::PUBLIC => 6,
 
-        TokenType::IMPL | TokenType::TYPE => 4,
+        TokenType::IMPL | TokenType::TYPE | TokenType::UNIT => 4,
 
         TokenType::LET | TokenType::DEF => 3,
 
@@ -445,6 +448,7 @@ impl<'a> Lexer<'a> {
             "type" => Ok(TokenType::TYPE),
             "public" => Ok(TokenType::PUBLIC),
             "import" => Ok(TokenType::IMPORT),
+            "unit" => Ok(TokenType::UNIT),
             _ => Ok(TokenType::IDENTIFIER(id.1)),
         }
     }
