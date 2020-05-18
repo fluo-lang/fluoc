@@ -216,7 +216,7 @@ pub struct FunctionDefine<'a> {
     pub return_type: TypeCheckOrType<'a>,
     pub arguments: Arguments<'a>,
     pub block: Block<'a>,
-    pub name: Rc<NameID<'a>>,
+    pub name: NameID<'a>,
     pub visibility: Visibility,
     pub pos: helpers::Pos<'a>,
 }
@@ -279,11 +279,11 @@ impl<'a> TypeCheckOrType<'a> {
     pub fn as_typecheck_type<'b>(_self: std::borrow::Cow<'b, Self>) -> TypeCheckType<'a> {
         match _self {
             std::borrow::Cow::Borrowed(value) => match value {
-                TypeCheckOrType::Type(val) => TypeCheckType::as_type(Rc::clone(&val)),
+                TypeCheckOrType::Type(val) => TypeCheckType::from_type(Rc::clone(&val)),
                 TypeCheckOrType::TypeCheckType(val) => val.clone(),
             },
             std::borrow::Cow::Owned(value) => match value {
-                TypeCheckOrType::Type(val) => TypeCheckType::as_type(Rc::clone(&val)),
+                TypeCheckOrType::Type(val) => TypeCheckType::from_type(Rc::clone(&val)),
                 TypeCheckOrType::TypeCheckType(val) => val,
             },
         }

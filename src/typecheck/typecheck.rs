@@ -1,8 +1,8 @@
+use crate::helpers;
 use crate::logger::logger::Error;
 use crate::parser::parser;
 use crate::parser::parser::Parser;
 use crate::typecheck::ast_typecheck;
-use crate::helpers;
 
 /// Typecheck object
 pub struct TypeCheckModule<'a> {
@@ -27,22 +27,12 @@ impl<'a> TypeCheckModule<'a> {
     pub fn type_check(&mut self) -> Result<(), Vec<Error<'a>>> {
         self.parser.parse()?;
 
-        let mut errors = Vec::new();
-
         // Do type checking
-        for node in &mut self.parser.ast.as_mut().unwrap().nodes {
-            match (node as &mut dyn ast_typecheck::TypeCheck).type_check(None, &mut self.symtab) {
-                Ok(_) => {}
-                Err(e) => {
-                    errors.append(&mut e.as_vec());
-                }
-            }
-        }
-
-        if !errors.is_empty() {
-            Err(helpers::get_high_priority(errors))
-        } else {
-            Ok(())
+        match (self.parser.ast.as_mut().unwrap() as &mut dyn ast_typecheck::TypeCheck)
+            .type_check(None, &mut self.symtab)
+        {
+            Ok(_) => Ok(()),
+            Err(e) => Err(helpers::get_high_priority(e.as_vec())),
         }
     }
 }

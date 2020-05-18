@@ -1,4 +1,10 @@
 
-def main() {
-    let x: int = y::awd;
+def hello(val: int) -> int {
+    main();
+    return val;
+}
+
+def main() -> (int,) {
+    let x: int = hello(10);
+    return (x,);
 }

@@ -22,7 +22,7 @@ impl<'a> SymbTabObj<'a> {
         match self {
             SymbTabObj::Variable(expr, safe) => (expr, safe),
             _ => panic!(
-                "Tried to unwrap varialbe from symbtab object, got `{:?}`",
+                "Tried to unwrap variable from symbtab object, got `{:?}`",
                 self
             ),
         }
@@ -31,10 +31,7 @@ impl<'a> SymbTabObj<'a> {
     fn unwrap_type(self) -> TypeCheckType<'a> {
         match self {
             SymbTabObj::CustomType(val) => val,
-            _ => panic!(
-                "Tried to unwrap varialbe from symbtab object, got `{:?}`",
-                self
-            ),
+            _ => panic!("Tried to unwrap type from symbtab object, got `{:?}`", self),
         }
     }
 
@@ -42,7 +39,7 @@ impl<'a> SymbTabObj<'a> {
         match self {
             SymbTabObj::Function(val) => val,
             _ => panic!(
-                "Tried to unwrap varialbe from symbtab object, got `{:?}`",
+                "Tried to unwrap function from symbtab object, got `{:?}`",
                 self
             ),
         }
@@ -52,7 +49,7 @@ impl<'a> SymbTabObj<'a> {
         match self {
             SymbTabObj::Variable(expr, safe) => (expr, *safe),
             _ => panic!(
-                "Tried to unwrap varialbe from symbtab object, got `{:?}`",
+                "Tried to unwrap variable from symbtab object, got `{:?}`",
                 self
             ),
         }
@@ -60,10 +57,7 @@ impl<'a> SymbTabObj<'a> {
     fn unwrap_type_ref(&self) -> &TypeCheckType<'a> {
         match self {
             SymbTabObj::CustomType(val) => val,
-            _ => panic!(
-                "Tried to unwrap varialbe from symbtab object, got `{:?}`",
-                self
-            ),
+            _ => panic!("Tried to unwrap type from symbtab object, got `{:?}`", self),
         }
     }
 
@@ -92,6 +86,17 @@ impl<'a> fmt::Display for SymbTabObj<'a> {
 #[derive(Clone)]
 pub struct TypeCheckSymbTab<'a> {
     items: HashMap<Rc<Namespace<'a>>, SymbTabObj<'a>>,
+    curr_prefix: Vec<NameID<'a>>, // Current Namespace to push
+}
+
+impl<'a> fmt::Display for TypeCheckSymbTab<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut val = String::new();
+        for (key, value) in self.items.iter() {
+            val += &format!("{}: {}\n", key, value)[..];
+        }
+        write!(f, "{}", val)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -378,7 +383,7 @@ impl<'a> TypeCheckType<'a> {
             .collect::<Result<(), ErrorOrVec>>()
     }
 
-    pub fn as_type(val: Rc<Type<'a>>) -> TypeCheckType<'a> {
+    pub fn from_type(val: Rc<Type<'a>>) -> TypeCheckType<'a> {
         if let Ok(_) = val.value.is_basic_type() {
             TypeCheckType {
                 pos: val.pos,
@@ -390,7 +395,7 @@ impl<'a> TypeCheckType<'a> {
                 value: TypeCheckTypeType::TupleType(UnionType {
                     types: types
                         .into_iter()
-                        .map(|x| TypeCheckType::as_type(Rc::clone(&x)))
+                        .map(|x| TypeCheckType::from_type(Rc::clone(&x)))
                         .collect::<Vec<TypeCheckType>>(),
                     pos: val.pos,
                     inferred: val.inferred,
@@ -453,6 +458,7 @@ impl<'a> TypeCheckType<'a> {
             }
             Expr::Literal(lit) => lit.type_val.clone().unwrap(),
             Expr::FunctionCall(func_call) => {
+                println!("{}", context);
                 // Validate function call
                 let func_call_arg_types = func_call
                     .arguments
@@ -462,7 +468,7 @@ impl<'a> TypeCheckType<'a> {
                     .collect::<Result<Vec<TypeCheckType>, _>>()?;
                 let func = context.get_function(Rc::clone(&func_call.name))?;
                 let func_arg_types: Vec<&TypeCheckType> = func
-                    .unwrap_type_ref()
+                    .unwrap_function_ref()
                     .value
                     .unwrap_func()
                     .0
@@ -517,7 +523,10 @@ impl<'a> TypeCheckType<'a> {
                     }
                 }
 
-                func.unwrap_type_ref().value.clone().unwrap_func_return()
+                func.unwrap_function_ref()
+                    .value
+                    .clone()
+                    .unwrap_func_return()
             }
             Expr::VariableAssignDeclaration(variable_assignment_dec) => {
                 let value_type =
@@ -834,10 +843,16 @@ impl<'a> TypeCheck<'a> for Block<'a> {
         let mut errors: Vec<(Error, ErrorLevel)> = Vec::new();
         let mut ret_types: Vec<&mut Expr> = Vec::new();
 
-        let mut context = context.clone();
+        for node in &mut self.nodes {
+            // First pass
+            match node {
+                Statement::FunctionDefine(func_def) => func_def.generate_proto(context),
+                _ => {}
+            }
+        }
 
         for node in &mut self.nodes {
-            match node.type_check(return_type.clone(), &mut context) {
+            match node.type_check(return_type.clone(), context) {
                 Ok(_) => {}
                 Err(e) => {
                     errors.append(&mut e.as_vec());
@@ -856,9 +871,9 @@ impl<'a> TypeCheck<'a> for Block<'a> {
         if !ret_types.is_empty() {
             let ret_types = ret_types
                 .iter_mut()
-                .map(|expr| Ok(TypeCheckType::from_expr(expr, &mut context)?))
+                .map(|expr| Ok(TypeCheckType::from_expr(expr, context)?))
                 .collect::<Result<Vec<TypeCheckType<'a>>, ErrorOrVec>>()?;
-            TypeCheckType::all_same_type(&ret_types[..], &mut context)?;
+            TypeCheckType::all_same_type(&ret_types[..], context)?;
             Ok(Cow::Owned(ret_types.into_iter().nth(0).unwrap()))
         } else {
             match return_type {
@@ -918,39 +933,47 @@ impl<'a> TypeCheck<'a> for Block<'a> {
 }
 
 impl<'a> FunctionDefine<'a> {
-    fn as_fn_type(&mut self) -> Result<TypeCheckType<'a>, ErrorOrVec<'a>> {
+    fn generate_proto<'b>(&mut self, context: &'b mut TypeCheckSymbTab<'a>) {
         let mut positional = Vec::new();
         for idx in 0..self.arguments.positional.len() {
             self.arguments.positional[idx] = (
                 self.arguments.positional[idx].0,
-                TypeCheckOrType::TypeCheckType(TypeCheckOrType::as_typecheck_type(Cow::Owned(
-                    self.arguments.positional[idx].1.clone(),
-                ))),
+                TypeCheckOrType::TypeCheckType(TypeCheckType::from_type(
+                    (&self.arguments.positional[idx].1).unwrap_type(),
+                )),
             );
         }
         for argument in &self.arguments.positional {
             positional.push((argument.0, (argument.1.clone()).unwrap_type_check()))
         }
-        Ok(TypeCheckType {
-            value: TypeCheckTypeType::FunctionSig(
-                ArgumentsTypeCheck {
-                    positional,
-                    pos: self.arguments.pos,
-                },
-                Box::new(self.return_type.clone().unwrap_type_check()),
-                self.visibility,
-            ),
-            pos: helpers::Pos::new(
-                self.arguments.pos.s,
-                if self.return_type.unwrap_type_check_ref().inferred {
-                    self.return_type.unwrap_type_check_ref().pos.e
-                } else {
-                    self.arguments.pos.e
-                },
-                self.arguments.pos.filename,
-            ),
-            inferred: false,
-        })
+
+        self.return_type = TypeCheckOrType::TypeCheckType(TypeCheckType::from_type(
+            self.return_type.unwrap_type(),
+        ));
+
+        context.set_value(
+            Rc::new(self.name.into_namespace()),
+            SymbTabObj::Function(TypeCheckType {
+                value: TypeCheckTypeType::FunctionSig(
+                    ArgumentsTypeCheck {
+                        positional,
+                        pos: self.arguments.pos,
+                    },
+                    Box::new(self.return_type.clone().unwrap_type_check()),
+                    self.visibility,
+                ),
+                pos: helpers::Pos::new(
+                    self.arguments.pos.s,
+                    if self.return_type.unwrap_type_check_ref().inferred {
+                        self.return_type.unwrap_type_check_ref().pos.e
+                    } else {
+                        self.arguments.pos.e
+                    },
+                    self.arguments.pos.filename,
+                ),
+                inferred: false,
+            }),
+        );
     }
 }
 
@@ -960,14 +983,7 @@ impl<'a> TypeCheck<'a> for FunctionDefine<'a> {
         _return_type: Option<Cow<'a, TypeCheckType<'a>>>,
         context: &'b mut TypeCheckSymbTab<'a>,
     ) -> Result<Cow<'a, TypeCheckType<'a>>, ErrorOrVec<'a>> {
-        for idx in 0..self.arguments.positional.len() {
-            self.arguments.positional[idx] = (
-                self.arguments.positional[idx].0,
-                TypeCheckOrType::TypeCheckType(TypeCheckType::as_type(
-                    (&self.arguments.positional[idx].1).unwrap_type(),
-                )),
-            );
-        }
+        let mut context = context.clone();
         for argument in &self.arguments.positional {
             context.set_value(
                 Namespace::from_name_id(argument.0),
@@ -975,17 +991,11 @@ impl<'a> TypeCheck<'a> for FunctionDefine<'a> {
             )
         }
 
-        self.return_type =
-            TypeCheckOrType::TypeCheckType(TypeCheckType::as_type(self.return_type.unwrap_type()));
-        context.set_value(
-            Namespace::from_name_id(*self.name.deref()),
-            SymbTabObj::Function(self.as_fn_type()?),
-        );
         (&mut self.block as &mut dyn TypeCheck).type_check(
             Some(Cow::Owned(TypeCheckOrType::as_typecheck_type(
                 Cow::Borrowed(&self.return_type),
             ))),
-            context,
+            &mut context,
         )
     }
 }
@@ -1007,6 +1017,7 @@ impl<'a> TypeCheck<'a> for Unit<'a> {
         _return_type: Option<Cow<'a, TypeCheckType<'a>>>,
         context: &'b mut TypeCheckSymbTab<'a>,
     ) -> Result<Cow<'a, TypeCheckType<'a>>, ErrorOrVec<'a>> {
+        (&mut self.block as &mut dyn TypeCheck).type_check(None, context)?;
         // Unit returns nothing
         Ok(Cow::Owned(TypeCheckType {
             value: TypeCheckTypeType::Placeholder,
@@ -1022,7 +1033,7 @@ impl<'a> TypeCheck<'a> for VariableDeclaration<'a> {
         return_type: Option<Cow<'a, TypeCheckType<'a>>>,
         context: &'b mut TypeCheckSymbTab<'a>,
     ) -> Result<Cow<'a, TypeCheckType<'a>>, ErrorOrVec<'a>> {
-        let type_val = TypeCheckType::as_type(self.t.unwrap_type());
+        let type_val = TypeCheckType::from_type(self.t.unwrap_type());
         context.set_value(
             Rc::clone(&self.name),
             SymbTabObj::Variable(type_val.clone(), false),
@@ -1085,6 +1096,7 @@ impl<'a> TypeCheckSymbTab<'a> {
     pub fn new() -> TypeCheckSymbTab<'a> {
         TypeCheckSymbTab {
             items: HashMap::new(),
+            curr_prefix: Vec::new(),
         }
     }
 

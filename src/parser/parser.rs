@@ -458,7 +458,7 @@ impl<'a> Parser<'a> {
             arguments,
             block,
             visibility,
-            name: Rc::new(id),
+            name: id,
             pos: self.position(position),
         }))
     }
