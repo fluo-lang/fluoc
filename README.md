@@ -1,4 +1,12 @@
-# Fluo
+<h1 align=center>
+    Fluo
+    <br>
+    <img src="https://img.shields.io/github/workflow/status/fluo-lang/fluo/build-test-bench"></img>
+    <img src="https://sloc.xyz/github/fluo-lang/fluo"></img>
+</h1>
+
+<br>
+<br>
 
 > "Simplicity is the ultimate sophistication."
 > <br>
