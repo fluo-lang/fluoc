@@ -89,6 +89,7 @@ impl<'a> CodeGenModule<'a> {
     fn gen_stmt_pass_1(&mut self, statement: &ast::Statement<'a>) {
         match statement {
             ast::Statement::FunctionDefine(func_def) => self.gen_function_prototype(func_def),
+            ast::Statement::Unit(unit) => self.get_unit_proto(unit),
             _ => {}
         }
     }
@@ -97,8 +98,11 @@ impl<'a> CodeGenModule<'a> {
         match statement {
             ast::Statement::FunctionDefine(func_def) => self.gen_function_define(
                 func_def,
-                self.module.get_function(&func_def.name.value[..]).unwrap(),
+                self.module
+                    .get_function(&func_def.name.to_string()[..])
+                    .unwrap(),
             ),
+            ast::Statement::Unit(unit) => self.get_unit(unit),
             _ => {}
         }
     }
@@ -109,7 +113,7 @@ impl<'a> CodeGenModule<'a> {
                 self.eval_expr(&expr_stmt.expression);
             }
             ast::Statement::Return(ret) => self.gen_return(ret),
-            ast::Statement::TypeAssign(type_assign) => {
+            ast::Statement::TypeAssign(_type_assign) => {
                 panic!("statement codegen not implemented for type_assign")
             }
             ast::Statement::VariableDeclaration(var_dec) => {
@@ -223,8 +227,20 @@ impl<'a> CodeGenModule<'a> {
             .insert(Rc::clone(&var_dec.name), std::convert::From::from(var_addr));
     }
 
+    fn get_unit_proto(&mut self, unit: &ast::Unit<'a>) {
+        for node in &unit.block.nodes {
+            self.gen_stmt_pass_1(node);
+        }
+    }
+
+    fn get_unit(&mut self, unit: &ast::Unit<'a>) {
+        for node in &unit.block.nodes {
+            self.gen_stmt_pass_2(node);
+        }
+    }
+
     fn gen_function_prototype(&mut self, func_def: &ast::FunctionDefine) {
-        let func_name = &func_def.name.value[..];
+        let func_name = &func_def.name.to_string()[..];
         let return_type = self.get_type(func_def.return_type.unwrap_type_check_ref());
         let fn_type = return_type.fn_type(
             &func_def

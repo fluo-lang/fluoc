@@ -94,8 +94,10 @@ impl ErrorDisplayType {
 /// For incremental error reporting so we don't have weird unnecessary errors caused by another error.
 /// I.e. so we don't' have a undefined variable error because of a type error in the declaration.
 pub enum ErrorLevel {
-    NoneExistentValue = 0,
-    TypeError = 1,
+    NonExistentVar = 0,
+    NonExistentFunc = 1,
+    NonExistentType = 2,
+    TypeError = 3,
 }
 
 #[derive(Debug, Clone)]
@@ -302,7 +304,7 @@ impl<'a> Logger<'a> {
             ln,
             max_line_size + self.indentation.len() * 2,
             "|",
-            Style::new(Some(Color::LINENO_COLOR), Some(Font::BOLD)),
+            Style::new(Some(Color::LINENOCOLOR), Some(Font::BOLD)),
         );
 
         let mut vertical_annotations: Vec<(&usize, &ErrorAnnotation)> =
@@ -331,7 +333,7 @@ impl<'a> Logger<'a> {
             ln,
             max_line_size + self.indentation.len() * 2,
             "|",
-            Style::new(Some(Color::LINENO_COLOR), Some(Font::BOLD)),
+            Style::new(Some(Color::LINENOCOLOR), Some(Font::BOLD)),
         )
     }
 
@@ -340,7 +342,7 @@ impl<'a> Logger<'a> {
             ln - 1,
             self.indentation.len() + max_line_size + 1 - line_no.to_string().len(),
             &format!("{}", line_no),
-            Style::new(Some(Color::LINENO_COLOR), Some(Font::BOLD)),
+            Style::new(Some(Color::LINENOCOLOR), Some(Font::BOLD)),
         );
     }
 
@@ -1004,7 +1006,7 @@ impl<'a> Logger<'a> {
             writer_pos.0 - 1,
             writer_pos.1 + max_line_size + self.indentation.len(),
             "--> ",
-            Style::new(Some(Color::LINENO_COLOR), Some(Font::BOLD)),
+            Style::new(Some(Color::LINENOCOLOR), Some(Font::BOLD)),
         );
         self.buffer.writeln(
             writer_pos.0 - 1,

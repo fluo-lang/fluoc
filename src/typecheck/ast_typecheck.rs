@@ -18,33 +18,6 @@ pub enum SymbTabObj<'a> {
 }
 
 impl<'a> SymbTabObj<'a> {
-    fn unwrap_variable(self) -> (TypeCheckType<'a>, bool) {
-        match self {
-            SymbTabObj::Variable(expr, safe) => (expr, safe),
-            _ => panic!(
-                "Tried to unwrap variable from symbtab object, got `{:?}`",
-                self
-            ),
-        }
-    }
-
-    fn unwrap_type(self) -> TypeCheckType<'a> {
-        match self {
-            SymbTabObj::CustomType(val) => val,
-            _ => panic!("Tried to unwrap type from symbtab object, got `{:?}`", self),
-        }
-    }
-
-    fn unwrap_function(self) -> TypeCheckType<'a> {
-        match self {
-            SymbTabObj::Function(val) => val,
-            _ => panic!(
-                "Tried to unwrap function from symbtab object, got `{:?}`",
-                self
-            ),
-        }
-    }
-
     fn unwrap_variable_ref(&self) -> (&TypeCheckType<'a>, bool) {
         match self {
             SymbTabObj::Variable(expr, safe) => (expr, *safe),
@@ -119,16 +92,6 @@ impl<'a> fmt::Display for UnionType<'a> {
             final_string.push(type_val.to_string());
         }
         write!(f, "{}", final_string.join(", "))
-    }
-}
-
-impl<'a> UnionType<'a> {
-    fn to_tuple_type(self) -> TypeCheckType<'a> {
-        TypeCheckType {
-            pos: self.pos,
-            value: TypeCheckTypeType::TupleType(self),
-            inferred: false,
-        }
     }
 }
 
@@ -458,7 +421,6 @@ impl<'a> TypeCheckType<'a> {
             }
             Expr::Literal(lit) => lit.type_val.clone().unwrap(),
             Expr::FunctionCall(func_call) => {
-                println!("{}", context);
                 // Validate function call
                 let func_call_arg_types = func_call
                     .arguments
@@ -951,8 +913,10 @@ impl<'a> FunctionDefine<'a> {
             self.return_type.unwrap_type(),
         ));
 
+        self.name = self.name.prepend_namespace(context.curr_prefix.clone());
+
         context.set_value(
-            Rc::new(self.name.into_namespace()),
+            Rc::new(self.name.clone()),
             SymbTabObj::Function(TypeCheckType {
                 value: TypeCheckTypeType::FunctionSig(
                     ArgumentsTypeCheck {
@@ -1017,6 +981,7 @@ impl<'a> TypeCheck<'a> for Unit<'a> {
         _return_type: Option<Cow<'a, TypeCheckType<'a>>>,
         context: &'b mut TypeCheckSymbTab<'a>,
     ) -> Result<Cow<'a, TypeCheckType<'a>>, ErrorOrVec<'a>> {
+        context.curr_prefix.append(self.name.as_vec_nameid());
         (&mut self.block as &mut dyn TypeCheck).type_check(None, context)?;
         // Unit returns nothing
         Ok(Cow::Owned(TypeCheckType {
@@ -1030,7 +995,7 @@ impl<'a> TypeCheck<'a> for Unit<'a> {
 impl<'a> TypeCheck<'a> for VariableDeclaration<'a> {
     fn type_check<'b>(
         &mut self,
-        return_type: Option<Cow<'a, TypeCheckType<'a>>>,
+        _return_type: Option<Cow<'a, TypeCheckType<'a>>>,
         context: &'b mut TypeCheckSymbTab<'a>,
     ) -> Result<Cow<'a, TypeCheckType<'a>>, ErrorOrVec<'a>> {
         let type_val = TypeCheckType::from_type(self.t.unwrap_type());
@@ -1099,7 +1064,6 @@ impl<'a> TypeCheckSymbTab<'a> {
             curr_prefix: Vec::new(),
         }
     }
-
     fn set_value(&mut self, namespace: Rc<Namespace<'a>>, value: SymbTabObj<'a>) {
         self.items.insert(namespace, value);
     }
@@ -1144,7 +1108,7 @@ impl<'a> TypeCheckSymbTab<'a> {
                 )],
                 true,
             ),
-            ErrorLevel::NoneExistentValue,
+            ErrorLevel::NonExistentFunc,
         ))
     }
 
@@ -1185,7 +1149,7 @@ impl<'a> TypeCheckSymbTab<'a> {
                 )],
                 true,
             ),
-            ErrorLevel::NoneExistentValue,
+            ErrorLevel::NonExistentType,
         ))
     }
 
@@ -1245,7 +1209,7 @@ impl<'a> TypeCheckSymbTab<'a> {
                 )],
                 true,
             ),
-            ErrorLevel::NoneExistentValue,
+            ErrorLevel::NonExistentVar,
         ))
     }
 }

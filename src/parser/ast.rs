@@ -216,7 +216,7 @@ pub struct FunctionDefine<'a> {
     pub return_type: TypeCheckOrType<'a>,
     pub arguments: Arguments<'a>,
     pub block: Block<'a>,
-    pub name: NameID<'a>,
+    pub name: Namespace<'a>,
     pub visibility: Visibility,
     pub pos: helpers::Pos<'a>,
 }
@@ -374,6 +374,16 @@ impl<'a> Namespace<'a> {
             pos: value.pos,
             scopes: vec![value],
         })
+    }
+
+    pub fn as_vec_nameid(&mut self) -> &mut Vec<NameID<'a>> {
+        &mut self.scopes
+    }
+
+    pub fn prepend_namespace(&mut self, mut other: Vec<NameID<'a>>) -> Namespace<'a> {
+        std::mem::swap(&mut self.scopes, &mut other); // Put into other
+        self.scopes.append(&mut other); // Append self.scopes
+        self.clone()
     }
 }
 

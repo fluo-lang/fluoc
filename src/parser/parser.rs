@@ -423,7 +423,7 @@ impl<'a> Parser<'a> {
         };
 
         self.next(lexer::TokenType::DEF, position, true)?;
-        let id = self.name_id()?;
+        let name = self.namespace()?;
 
         self.next(lexer::TokenType::LP, position, false)?;
 
@@ -458,7 +458,7 @@ impl<'a> Parser<'a> {
             arguments,
             block,
             visibility,
-            name: id,
+            name,
             pos: self.position(position),
         }))
     }

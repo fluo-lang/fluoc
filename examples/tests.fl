@@ -1,10 +1,12 @@
 
-def hello(val: int) -> int {
-    main();
-    return val;
+
+unit test {
+    def hello(val: int) -> int {
+        return val;
+    }
 }
 
 def main() -> (int,) {
-    let x: int = hello(10);
+    let x: int = test::hello(10);
     return (x,);
 }
