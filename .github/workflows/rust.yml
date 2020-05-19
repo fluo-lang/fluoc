@@ -1,4 +1,4 @@
-name: Build, test, and benchmark on ubuntu-latest
+name: build-test-bench
 
 on:
   push:
