@@ -6,7 +6,9 @@ use crate::parser::ast;
 use crate::parser::ast::{Expr, Scope, Statement};
 use crate::typecheck::ast_typecheck::TypeCheckType;
 
+use std::cell::RefCell;
 use std::collections::HashMap;
+use std::path;
 use std::rc::Rc;
 
 macro_rules! ignore_or_return {
@@ -51,28 +53,26 @@ pub struct Parser<'a> {
     pub lexer: lexer::Lexer<'a>,
     /// Abstract syntax tree
     pub ast: Option<ast::Block<'a>>,
-    pub modules: HashMap<ast::Namespace<'a>, CodeGenModule<'a>>,
     statements: [fn(&mut Self) -> Result<Statement<'a>, Error<'a>>; 7],
     prefix_op: HashMap<lexer::TokenType<'a>, Prec>,
     infix_op: HashMap<lexer::TokenType<'a>, Prec>,
     tokens: Vec<lexer::Token<'a>>,
+    logger: Rc<RefCell<Logger<'a>>>,
     token_pos: usize,
 }
 
 impl<'a> Parser<'a> {
     /// Return a new parser object.
-    ///
-    /// Arguments
-    ///
-    /// * `l`: lexer to use
-    /// * `log`: logger to use
-    pub fn new(filename: &'a str, file_contents: &'a str) -> Parser<'a> {
+    pub fn new(
+        filename: &'a str,
+        file_contents: &'a str,
+        logger: Rc<RefCell<Logger<'a>>>,
+    ) -> Parser<'a> {
         let l = lexer::Lexer::new(filename, file_contents);
 
         Parser {
             lexer: l,
             ast: None,
-            modules: HashMap::new(),
             statements: [
                 Parser::unit,
                 Parser::function_define,
@@ -85,6 +85,7 @@ impl<'a> Parser<'a> {
             prefix_op: HashMap::new(),
             infix_op: HashMap::new(),
             tokens: Vec::new(),
+            logger,
             token_pos: 0,
         }
     }
@@ -396,19 +397,86 @@ impl<'a> Parser<'a> {
         }))
     }
 
+    fn import_file(&mut self, name: &mut ast::Namespace<'a>) -> Result<Statement<'a>, Error<'a>> {
+        let mut scopes = Vec::new();
+        std::mem::swap(&mut scopes, &mut name.scopes);
+
+        let mut import_path = path::PathBuf::new();
+        import_path.push(self.lexer.filename);
+        import_path = import_path
+            .canonicalize()
+            .unwrap()
+            .parent()
+            .expect("No parent to path")
+            .to_path_buf();
+
+        let mut last_idx: usize = 0;
+        for (idx, op) in scopes.iter().enumerate() {
+            if import_path.join(format!("{}.fl", op.value)).is_file() {
+                import_path.push(format!("{}.fl", op.value));
+                // We've reached a file, break
+                last_idx = idx + 1;
+                break;
+            } else if import_path.join(op.value).is_dir() {
+                // We've reached a directory
+                import_path.push(op.value);
+            } else {
+                // Its not a file or directory, break
+                last_idx = idx + 1;
+                break;
+            }
+        }
+
+        let last = scopes.drain(0..last_idx).into_iter().last().unwrap();
+
+        import_path = import_path
+            .canonicalize()
+            .unwrap()
+            .strip_prefix(
+                std::env::current_dir()
+                    .unwrap()
+                    .canonicalize()
+                    .expect("failed to canonicalize path"),
+            )
+            .unwrap()
+            .to_path_buf();
+
+        if scopes.is_empty() && import_path.is_file() {
+            // We can leak because the memory is going to live for most the the program anyways
+            let imported_filename: &'static str =
+                Box::leak(import_path.to_string_lossy().into_owned().into_boxed_str());
+            let file_contents = helpers::read_file_leak(imported_filename);
+            self.logger
+                .borrow_mut()
+                .add_file(imported_filename, file_contents);
+            let mut parser = Parser::new(imported_filename, file_contents, Rc::clone(&self.logger));
+            parser.initialize_expr();
+            match parser.parse() {
+                Ok(_) => {}
+                Err(e) => return Err(e.into_iter().nth(0).unwrap()),
+            }
+            Ok(Statement::Unit(ast::Unit {
+                pos: last.pos,
+                name: last.into_namespace(),
+                block: parser.ast.unwrap(),
+            }))
+        } else {
+            Ok(Statement::Empty(ast::Empty {
+                pos: helpers::Pos::new(0, 0, self.lexer.filename),
+            }))
+        }
+    }
+
     /// Imports
     fn import(&mut self) -> Result<Statement<'a>, Error<'a>> {
         let position = self.token_pos;
         self.next(lexer::TokenType::IMPORT, position, true)?;
 
-        let namespace = self.namespace()?;
+        let mut namespace = self.namespace()?;
 
         self.next(lexer::TokenType::SEMI, position, false)?;
 
-        Ok(Statement::Import(ast::Import {
-            namespace,
-            pos: self.position(position),
-        }))
+        self.import_file(&mut namespace)
     }
 
     /// Parse function definition

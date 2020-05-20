@@ -1,8 +1,11 @@
 use crate::helpers;
-use crate::logger::logger::Error;
+use crate::logger::logger::{Error, Logger};
 use crate::parser::parser;
 use crate::parser::parser::Parser;
 use crate::typecheck::ast_typecheck;
+
+use std::cell::RefCell;
+use std::rc::Rc;
 
 /// Typecheck object
 pub struct TypeCheckModule<'a> {
@@ -15,8 +18,12 @@ impl<'a> TypeCheckModule<'a> {
     ///
     /// Arguments
     /// * `filename` - the filename of the file to read
-    pub fn new(filename: &'a str, file_contents: &'a str) -> TypeCheckModule<'a> {
-        let mut p = parser::Parser::new(filename, file_contents);
+    pub fn new(
+        filename: &'a str,
+        file_contents: &'a str,
+        logger: Rc<RefCell<Logger<'a>>>,
+    ) -> TypeCheckModule<'a> {
+        let mut p = parser::Parser::new(filename, file_contents, logger);
         p.initialize_expr();
         TypeCheckModule {
             parser: p,

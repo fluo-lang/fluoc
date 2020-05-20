@@ -1,6 +1,7 @@
 use crate::logger::buffer_writer::color;
 use crate::logger::logger::{Error, ErrorLevel};
 use std::fs;
+use std::path::PathBuf;
 use std::process;
 
 pub fn read_file(filename: &str) -> String {
@@ -59,4 +60,8 @@ pub fn get_high_priority<'a>(errors: Vec<(Error<'a>, ErrorLevel)>) -> Vec<Error<
         .filter(|error| error.1 as usize == max_error_priority)
         .map(|error| error.0)
         .collect()
+}
+
+pub fn read_file_leak(filename: &str) -> &'static str {
+    Box::leak(read_file(filename).into_boxed_str())
 }

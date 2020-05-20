@@ -1,12 +1,7 @@
 
+import tests2;
 
-unit test {
-    def hello(val: int) -> int {
-        return val;
-    }
-}
-
-def main() -> (int,) {
-    let x: int = test::hello(10);
+def main() -> ((int,),) {
+    let x: (int,) = tests2::test(10);
     return (x,);
 }

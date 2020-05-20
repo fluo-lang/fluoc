@@ -260,7 +260,6 @@ impl<'a> Logger<'a> {
     fn get_lineno(&mut self, pos: usize, filename: &'a str) -> (usize, usize) {
         let mut lineno = 1;
         let mut relative_pos = 1;
-
         for c in (&self.filename_contents[filename][..pos]).chars() {
             relative_pos += 1;
             if c == '\n' {
@@ -429,8 +428,8 @@ impl<'a> Logger<'a> {
         annotation: &&ErrorAnnotation<'a>,
         max_line_size: usize,
         span_thickness: usize,
-        lineno: usize,
-        prev_line: &mut usize,
+        lineno: (usize, &'a str),
+        prev_line: &mut (usize, Option<&'a str>),
         printed_lines: &mut HashMap<&'a str, HashSet<usize>>,
         first: bool,
         line_offset: &mut usize,
@@ -441,31 +440,24 @@ impl<'a> Logger<'a> {
             writer_pos.0 - 1,
             max_line_size,
             &vertical_annotations,
-            lineno,
+            lineno.0,
             true,
         );
 
         writer_pos.1 += 1; // add two proceeding spaces
-        let line = self.get_line_string(lineno, annotation.position.filename); // get line of code
+        let line = self.get_line_string(lineno.0, annotation.position.filename); // get line of code
 
-        // Add line of code to buffer
-        *writer_pos = self.buffer.writel(
-            writer_pos.0 - 1,
-            writer_pos.1 + span_thickness,
-            &line,
-            Style::new(None, None),
-        );
-        self.add_pipe(
-            writer_pos.0 - 1,
-            max_line_size,
-            &vertical_annotations,
-            lineno,
-            false,
-        );
-        self.insert_lineno(writer_pos.0, max_line_size, lineno); // insert line number on the left of pipe
-
-        // Add dots if we are not displaying lines continually
-        if !first && ((lineno - *prev_line) > 1) {
+        if !first && (Some(lineno.1) != prev_line.1) {
+            // Add a line arrow if its a different file
+            self.add_filename_pos(
+                lineno.1,
+                &annotation.position_rel,
+                max_line_size,
+                &mut (writer_pos.0 - 1, max_line_size + self.indentation.len() - 2),
+            );
+            writer_pos.0 = self.add_pipe_pure(writer_pos.0, max_line_size).0;
+        } else if !first && ((lineno.0 - prev_line.0) > 1) {
+            // Add dots if we are not displaying lines continually
             self.buffer.writel(
                 writer_pos.0 - 2,
                 max_line_size + self.indentation.len() - 1,
@@ -480,6 +472,23 @@ impl<'a> Logger<'a> {
             );
         }
 
+        // Add line of code to buffer
+        *writer_pos = self.buffer.writel(
+            writer_pos.0 - 1,
+            writer_pos.1 + span_thickness,
+            &line,
+            Style::new(None, None),
+        );
+        self.add_pipe(
+            writer_pos.0 - 1,
+            max_line_size,
+            &vertical_annotations,
+            lineno.0,
+            false,
+        );
+
+        self.insert_lineno(writer_pos.0, max_line_size, lineno.0); // insert line number on the left of pipe
+
         *line_offset += 1;
 
         // remember we did this, so we don't need to do it again
@@ -487,15 +496,15 @@ impl<'a> Logger<'a> {
             printed_lines
                 .get_mut(annotation.position.filename)
                 .unwrap()
-                .insert(lineno);
+                .insert(lineno.0);
         } else {
             let mut lines: HashSet<usize> = HashSet::new();
-            lines.insert(lineno);
+            lines.insert(lineno.0);
             printed_lines.insert(annotation.position.filename, lines);
         }
 
         // Store previous line
-        *prev_line = lineno;
+        *prev_line = (lineno.0, Some(lineno.1));
     }
 
     fn format_line(
@@ -528,7 +537,7 @@ impl<'a> Logger<'a> {
         annotations_by_line.push(temp.clone());
         temp.clear();
         let mut line_offset: usize = 0;
-        let mut prev_line: usize = 0;
+        let mut prev_line: (usize, Option<&str>) = (0, None);
         let mut prev_line_2: usize = 0;
         let mut first = true;
         let mut vertical_annotations: HashMap<usize, ErrorAnnotation> = HashMap::new(); // for last part of multi-line block annotation
@@ -603,7 +612,7 @@ impl<'a> Logger<'a> {
                             annotation,
                             max_line_size,
                             span_thickness,
-                            lineno,
+                            (lineno, annotation.position.filename),
                             &mut prev_line,
                             &mut printed_lines,
                             first,
@@ -946,7 +955,6 @@ impl<'a> Logger<'a> {
         }
         if !vertical_annotations.is_empty() {
             // Fill in last multiline annotations
-
             let mut vertical_annotations_sorted: Vec<(usize, ErrorAnnotation)> =
                 vertical_annotations.clone().into_iter().collect();
             vertical_annotations_sorted.sort_by_key(|a| a.0);
@@ -958,7 +966,7 @@ impl<'a> Logger<'a> {
                     &&annotation,
                     max_line_size,
                     span_thickness,
-                    lineno,
+                    (lineno, annotation.position.filename),
                     &mut prev_line,
                     &mut printed_lines,
                     first,
@@ -1020,7 +1028,7 @@ impl<'a> Logger<'a> {
         (annotation.position_rel.0).0 != (annotation.position_rel.1).0
     }
 
-    fn get_code(&mut self, mut annotations: Vec<ErrorAnnotation<'a>>, err_pos: Pos) {
+    fn get_code(&mut self, mut annotations: Vec<ErrorAnnotation<'a>>) {
         let first = annotations.first().unwrap();
         let max_line_size: usize = self.get_max_line_size(&annotations);
 
@@ -1029,8 +1037,8 @@ impl<'a> Logger<'a> {
         let mut span_thickness: usize = 0;
 
         position = (
-            self.get_lineno(err_pos.s, first.position.filename),
-            self.get_lineno(err_pos.e, first.position.filename),
+            self.get_lineno(first.position.s, first.position.filename),
+            self.get_lineno(first.position.e, first.position.filename),
         );
 
         // Add filename + position annotation
@@ -1088,7 +1096,7 @@ impl<'a> Logger<'a> {
                 error.message,
                 color::RESET
             );
-            self.get_code(error.annotations, error.position);
+            self.get_code(error.annotations);
             eprintln!("{}", self.buffer.render());
             self.buffer.reset();
         }

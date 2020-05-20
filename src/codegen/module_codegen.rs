@@ -1,4 +1,4 @@
-use crate::logger::logger::Error;
+use crate::logger::logger::{Error, Logger};
 use crate::parser::ast;
 use crate::typecheck::{ast_typecheck, typecheck};
 use std::ops::Deref;
@@ -8,6 +8,7 @@ use inkwell::types::BasicType;
 use inkwell::values::BasicValue;
 use inkwell::{builder, context, module, types, values};
 
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::convert::TryInto;
 
@@ -57,8 +58,9 @@ impl<'a> CodeGenModule<'a> {
         context: &'a context::Context,
         filename: &'a str,
         file_contents: &'a str,
+        logger: Rc<RefCell<Logger<'a>>>,
     ) -> CodeGenModule<'a> {
-        let typecheck = typecheck::TypeCheckModule::new(filename, file_contents);
+        let typecheck = typecheck::TypeCheckModule::new(filename, file_contents, logger);
         CodeGenModule {
             module,
             context,
