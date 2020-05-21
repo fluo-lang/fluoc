@@ -1,7 +1,6 @@
 use crate::logger::buffer_writer::color;
 use crate::logger::logger::{Error, ErrorLevel};
 use std::fs;
-use std::path::PathBuf;
 use std::process;
 
 pub fn read_file(filename: &str) -> String {

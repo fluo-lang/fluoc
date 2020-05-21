@@ -13,6 +13,7 @@
                     "build",
                     "--bin=bin",
                     "--package=fluo",
+                    "--release",
                 ],
                 "filter": {
                     "name": "bin",

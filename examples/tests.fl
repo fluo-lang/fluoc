@@ -1,7 +1,7 @@
 
 import tests2;
 
-def main() -> ((int,),) {
-    let x: (int,) = tests2::test(10);
-    return (x,);
+def main() {
+    let x: int = tests2::hello();
+    return ();
 }

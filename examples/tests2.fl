@@ -1,4 +1,5 @@
 
-def test(val: int) -> (int,) {
-    return (val,);
+public
+def hello() -> int {
+    return 10;
 }

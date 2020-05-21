@@ -1,4 +1,3 @@
-use crate::codegen::module_codegen::CodeGenModule;
 use crate::helpers;
 use crate::lexer;
 use crate::logger::logger::{Error, ErrorAnnotation, ErrorDisplayType, ErrorType, Logger};
@@ -461,9 +460,7 @@ impl<'a> Parser<'a> {
                 block: parser.ast.unwrap(),
             }))
         } else {
-            Ok(Statement::Empty(ast::Empty {
-                pos: helpers::Pos::new(0, 0, self.lexer.filename),
-            }))
+            panic!("This type of import is not implemented yet");
         }
     }
 

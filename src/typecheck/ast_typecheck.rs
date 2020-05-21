@@ -13,7 +13,7 @@ use std::rc::Rc;
 #[derive(Debug, Clone, PartialEq)]
 pub enum SymbTabObj<'a> {
     CustomType(TypeCheckType<'a>),
-    Function(TypeCheckType<'a>),
+    Function(TypeCheckType<'a>, helpers::Pos<'a>),
     Variable(TypeCheckType<'a>, bool),
 }
 
@@ -34,9 +34,9 @@ impl<'a> SymbTabObj<'a> {
         }
     }
 
-    fn unwrap_function_ref(&self) -> &TypeCheckType<'a> {
+    fn unwrap_function_ref(&self) -> (&TypeCheckType<'a>, helpers::Pos<'a>) {
         match self {
-            SymbTabObj::Function(val) => val,
+            SymbTabObj::Function(val, pos) => (val, *pos),
             _ => panic!(
                 "Tried to unwrap varialbe from symbtab object, got `{:?}`",
                 self
@@ -49,7 +49,7 @@ impl<'a> fmt::Display for SymbTabObj<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let representation = match self {
             SymbTabObj::CustomType(_) => "custom type",
-            SymbTabObj::Function(_) => "function",
+            SymbTabObj::Function(_, _) => "function",
             SymbTabObj::Variable(_, _) => "variable",
         };
         write!(f, "{}", representation)
@@ -428,9 +428,38 @@ impl<'a> TypeCheckType<'a> {
                     .iter_mut()
                     .map(|mut argument| TypeCheckType::from_expr(&mut argument, context))
                     .collect::<Result<Vec<TypeCheckType>, _>>()?;
-                let func = context.get_function(Rc::clone(&func_call.name))?;
+                let func = context
+                    .get_function(Rc::clone(&func_call.name))?
+                    .unwrap_function_ref();
+                if func.0.value.unwrap_func().2 == Visibility::Private
+                    && func.0.pos.filename != func_call.pos.filename
+                {
+                    // Private function and not from the same file
+                    return Err(ErrorOrVec::Error(
+                        Error::new(
+                            "use of private function".to_string(),
+                            ErrorType::VisibilityError,
+                            func_call.pos,
+                            ErrorDisplayType::Error,
+                            vec![
+                                ErrorAnnotation::new(
+                                    Some(format!("function `{}` defined here", func_call.name)),
+                                    func.1,
+                                    ErrorDisplayType::Info,
+                                ),
+                                ErrorAnnotation::new(
+                                    Some("function used here".to_string()),
+                                    func_call.pos,
+                                    ErrorDisplayType::Error,
+                                ),
+                            ],
+                            true,
+                        ),
+                        ErrorLevel::TypeError,
+                    ));
+                };
                 let func_arg_types: Vec<&TypeCheckType> = func
-                    .unwrap_function_ref()
+                    .0
                     .value
                     .unwrap_func()
                     .0
@@ -485,10 +514,7 @@ impl<'a> TypeCheckType<'a> {
                     }
                 }
 
-                func.unwrap_function_ref()
-                    .value
-                    .clone()
-                    .unwrap_func_return()
+                func.0.value.clone().unwrap_func_return()
             }
             Expr::VariableAssignDeclaration(variable_assignment_dec) => {
                 let value_type =
@@ -917,26 +943,29 @@ impl<'a> FunctionDefine<'a> {
 
         context.set_value(
             Rc::new(self.name.clone()),
-            SymbTabObj::Function(TypeCheckType {
-                value: TypeCheckTypeType::FunctionSig(
-                    ArgumentsTypeCheck {
-                        positional,
-                        pos: self.arguments.pos,
-                    },
-                    Box::new(self.return_type.clone().unwrap_type_check()),
-                    self.visibility,
-                ),
-                pos: helpers::Pos::new(
-                    self.arguments.pos.s,
-                    if self.return_type.unwrap_type_check_ref().inferred {
-                        self.return_type.unwrap_type_check_ref().pos.e
-                    } else {
-                        self.arguments.pos.e
-                    },
-                    self.arguments.pos.filename,
-                ),
-                inferred: false,
-            }),
+            SymbTabObj::Function(
+                TypeCheckType {
+                    value: TypeCheckTypeType::FunctionSig(
+                        ArgumentsTypeCheck {
+                            positional,
+                            pos: self.arguments.pos,
+                        },
+                        Box::new(self.return_type.clone().unwrap_type_check()),
+                        self.visibility,
+                    ),
+                    pos: helpers::Pos::new(
+                        self.arguments.pos.s,
+                        if self.return_type.unwrap_type_check_ref().inferred {
+                            self.return_type.unwrap_type_check_ref().pos.e
+                        } else {
+                            self.arguments.pos.e
+                        },
+                        self.arguments.pos.filename,
+                    ),
+                    inferred: false,
+                },
+                self.pos,
+            ),
         );
     }
 }
@@ -1074,7 +1103,7 @@ impl<'a> TypeCheckSymbTab<'a> {
     ) -> Result<&SymbTabObj<'a>, ErrorOrVec<'a>> {
         match self.items.get(&namespace) {
             Some(val) => match val.deref() {
-                SymbTabObj::Function(_) => return Ok(val),
+                SymbTabObj::Function(_, _) => return Ok(val),
                 other => {
                     return Err(ErrorOrVec::Error(
                         Error::new(

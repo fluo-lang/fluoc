@@ -335,18 +335,21 @@ impl<'a> Lexer<'a> {
                 Ok(TokenType::EOF)
             }
 
-            unknown => Err(Error::new(
-                format!("Unknown character `{}`", unknown.to_string()),
-                ErrorType::UnknownCharacter,
-                helpers::Pos {
+            unknown => {
+                let pos = helpers::Pos {
                     s: self.position - 1,
                     e: self.position,
                     filename: self.filename,
-                },
-                ErrorDisplayType::Error,
-                Vec::new(),
-                true,
-            )),
+                };
+                Err(Error::new(
+                    format!("Unknown character `{}`", unknown.to_string()),
+                    ErrorType::UnknownCharacter,
+                    pos,
+                    ErrorDisplayType::Error,
+                    vec![ErrorAnnotation::new(None, pos, ErrorDisplayType::Error)],
+                    true,
+                ))
+            }
         };
 
         token_kind
