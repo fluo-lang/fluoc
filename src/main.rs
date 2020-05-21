@@ -16,11 +16,13 @@ use logger::buffer_writer::{Color, Font};
 
 use std::backtrace;
 use std::panic;
+use std::time::Instant;
 
 fn main() {
+    let start = Instant::now();
     panic::set_hook(Box::new(|value| {
         let bt = backtrace::Backtrace::force_capture();
-        println!("{}\n{}.\n{}This is likely a problem with the fluo compiler and not your code. Please report the issue to the fluo github.{}", bt, value, Color::RED.to_string(), Font::RESET.to_string());
+        eprintln!("{}\n{}.\n{}This is likely a problem with the fluo compiler and not your code. Please report the issue to the fluo github.{}", bt, value, Color::RED.to_string(), Font::RESET.to_string());
     }));
     let yaml = load_yaml!("cli.yml");
     let matches = App::from_yaml(yaml).get_matches();
@@ -32,4 +34,5 @@ fn main() {
 
     let mut master = master::Master::new(&context);
     master.add_file(filename, &contents[..]);
+    println!("All done in {}ms!", start.elapsed().as_millis());
 }

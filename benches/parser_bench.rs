@@ -1,8 +1,12 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use lib::logger;
 use lib::parser;
+use std::cell::RefCell;
+use std::rc::Rc;
 
 #[allow(unused_must_use)]
 fn criterion_benchmark(c: &mut Criterion) {
+    let logger = Rc::new(RefCell::new(logger::logger::Logger::new()));
     c.bench_function("parser simple", |b| {
         b.iter(|| {
             let mut my_parser = parser::parser::Parser::new(
@@ -29,6 +33,7 @@ def other() {
     hi(10, 102, _qwertyuiopasdfghjklzxcvbnm+"other hi", x);	
 }
 "#),
+                Rc::clone(&logger),
             );
             my_parser.initialize_expr();
             my_parser.parse();
