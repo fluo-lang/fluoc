@@ -15,6 +15,7 @@ path = "src/main.rs"
 [dependencies]
 clap = {version = "2.33.0", features = ["yaml"]}
 inkwell = { git = "https://github.com/TheDan64/inkwell", branch = "llvm10-0" }
+shellexpand = "1.1.1"
 
 [dev-dependencies]
 criterion = "0.3"
@@ -22,7 +23,3 @@ criterion = "0.3"
 [[bench]]
 name = "parser_bench"
 harness = false
-
-[profile.dev]
-lto = false
-opt-level = 0

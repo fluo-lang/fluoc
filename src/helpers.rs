@@ -1,28 +1,5 @@
-use crate::logger::buffer_writer::color;
 use crate::logger::logger::{Error, ErrorLevel};
-use std::fs;
 use std::path;
-use std::process;
-
-pub fn read_file(filename: &path::Path) -> String {
-    let f = fs::read_to_string(filename);
-    match f {
-        Ok(file_cont) => file_cont,
-        Err(e) => {
-            eprintln!(
-                "{}{}Fluo: Fatal Error{}{}: {}: `{}`{}",
-                color::RED,
-                color::BOLD,
-                color::RESET,
-                color::BOLD,
-                e,
-                filename.display(),
-                color::RESET
-            );
-            process::exit(1);
-        }
-    }
-}
 
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 /// Position helper struct
@@ -60,26 +37,4 @@ pub fn get_high_priority<'a>(errors: Vec<(Error<'a>, ErrorLevel)>) -> Vec<Error<
         .filter(|error| error.1 as usize == max_error_priority)
         .map(|error| error.0)
         .collect()
-}
-
-pub fn read_file_leak(filename: &path::Path) -> &'static str {
-    Box::leak(read_file(filename).into_boxed_str())
-}
-
-pub fn canonicalize_file<'a>(file_path: &'a path::Path) -> path::PathBuf {
-    match file_path.canonicalize() {
-        Ok(val) => val,
-        Err(e) => {
-            eprintln!(
-                "{}{}Fluo: Fatal Error{}{}: {}{}",
-                color::RED,
-                color::BOLD,
-                color::RESET,
-                color::BOLD,
-                e,
-                color::RESET
-            );
-            process::exit(1);
-        }
-    }
 }

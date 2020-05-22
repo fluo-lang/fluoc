@@ -3,6 +3,7 @@ use crate::lexer;
 use crate::logger::logger::{Error, ErrorAnnotation, ErrorDisplayType, ErrorType, Logger};
 use crate::parser::ast;
 use crate::parser::ast::{Expr, Scope, Statement};
+use crate::paths;
 use crate::typecheck::ast_typecheck::TypeCheckType;
 
 use std::cell::RefCell;
@@ -431,9 +432,7 @@ impl<'a> Parser<'a> {
         import_path = import_path
             .canonicalize()
             .unwrap()
-            .strip_prefix(helpers::canonicalize_file(
-                &std::env::current_dir().unwrap(),
-            ))
+            .strip_prefix(paths::canonicalize_file(&std::env::current_dir().unwrap()))
             .unwrap()
             .to_path_buf();
 
@@ -442,7 +441,7 @@ impl<'a> Parser<'a> {
             let imported_filename: &'static path::Path = path::Path::new(Box::leak(
                 import_path.to_string_lossy().into_owned().into_boxed_str(),
             ));
-            let file_contents = helpers::read_file_leak(imported_filename);
+            let file_contents = paths::read_file_leak(imported_filename);
             self.logger
                 .borrow_mut()
                 .add_file(imported_filename, file_contents);

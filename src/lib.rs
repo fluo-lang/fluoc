@@ -4,4 +4,5 @@ pub mod helpers;
 pub mod lexer;
 pub mod logger;
 pub mod parser;
+pub mod paths;
 pub mod typecheck;
