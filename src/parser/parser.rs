@@ -1,3 +1,4 @@
+#![feature(concat_idents)]
 use crate::helpers;
 use crate::lexer;
 use crate::logger::logger::{Error, ErrorAnnotation, ErrorDisplayType, ErrorType, Logger};
@@ -1065,5 +1066,245 @@ impl<'a> Parser<'a> {
             type_val: None,
             pos: self.position(position),
         })
+    }
+}
+
+#[cfg(test)]
+pub mod parser_tests {
+    use super::*;
+    use crate::helpers::Pos;
+    use crate::parser::ast::*;
+    const filename: &str = "a_really_long_parser_filename_for_this_test.fl";
+    macro_rules! parser_test {
+        ($code: expr, $function: expr, $expected: expr, $name: ident) => {
+            #[test]
+            fn $name() -> Result<(), Error<'static>> {
+                let logger = Rc::new(RefCell::new(Logger::new()));
+                let mut parser = Parser::new(path::Path::new(filename), $code, logger);
+                parser.initialize_expr();
+                parser.fill_token_stream()?;
+                assert_eq!($expected, $function(&mut parser)?);
+                Ok(())
+            }
+        };
+    }
+
+    parser_test!(
+        "$heloa1234_123",
+        Parser::dollar_id,
+        DollarID {
+            value: Rc::new(Namespace {
+                scopes: vec![NameID {
+                    value: "heloa1234_12",
+                    pos: Pos {
+                        s: 2,
+                        e: 14,
+                        filename: path::Path::new(filename)
+                    }
+                }],
+                pos: Pos {
+                    s: 2,
+                    e: 14,
+                    filename: path::Path::new(filename)
+                }
+            }),
+            type_val: None,
+            pos: Pos {
+                s: 0,
+                e: 14,
+                filename: path::Path::new(filename)
+            }
+        },
+        dollar_id
+    );
+
+    parser_test!(
+        "$heloa1234_123",
+        Parser::dollar_expr,
+        Expr::DollarID(DollarID {
+            value: Rc::new(Namespace {
+                scopes: vec![NameID {
+                    value: "heloa1234_12",
+                    pos: Pos {
+                        s: 2,
+                        e: 14,
+                        filename: path::Path::new(filename)
+                    }
+                }],
+                pos: Pos {
+                    s: 2,
+                    e: 14,
+                    filename: path::Path::new(filename)
+                }
+            }),
+            type_val: None,
+            pos: Pos {
+                s: 0,
+                e: 14,
+                filename: path::Path::new(filename)
+            }
+        }),
+        dollar_expr
+    );
+
+    parser_test!(
+        "(int, int, str)",
+        Parser::tuple_type,
+        Type {
+            value: TypeType::Tuple(vec![
+                Rc::new(Type {
+                    value: TypeType::Type(Rc::new(Namespace {
+                        scopes: vec![NameID {
+                            value: "int",
+                            pos: Pos {
+                                s: 1,
+                                e: 4,
+                                filename: path::Path::new(
+                                    "a_really_long_parser_filename_for_this_test.fl"
+                                )
+                            }
+                        }],
+                        pos: Pos {
+                            s: 1,
+                            e: 4,
+                            filename: path::Path::new(
+                                "a_really_long_parser_filename_for_this_test.fl"
+                            )
+                        }
+                    })),
+                    inferred: false,
+                    pos: Pos {
+                        s: 1,
+                        e: 4,
+                        filename: path::Path::new("a_really_long_parser_filename_for_this_test.fl")
+                    }
+                }),
+                Rc::new(Type {
+                    value: TypeType::Type(Rc::new(Namespace {
+                        scopes: vec![NameID {
+                            value: "int",
+                            pos: Pos {
+                                s: 6,
+                                e: 9,
+                                filename: path::Path::new(
+                                    "a_really_long_parser_filename_for_this_test.fl"
+                                )
+                            }
+                        }],
+                        pos: Pos {
+                            s: 6,
+                            e: 9,
+                            filename: path::Path::new(
+                                "a_really_long_parser_filename_for_this_test.fl"
+                            )
+                        }
+                    })),
+                    inferred: false,
+                    pos: Pos {
+                        s: 6,
+                        e: 9,
+                        filename: path::Path::new("a_really_long_parser_filename_for_this_test.fl")
+                    }
+                }),
+                Rc::new(Type {
+                    value: TypeType::Type(Rc::new(Namespace {
+                        scopes: vec![NameID {
+                            value: "str",
+                            pos: Pos {
+                                s: 11,
+                                e: 14,
+                                filename: path::Path::new(
+                                    "a_really_long_parser_filename_for_this_test.fl"
+                                )
+                            }
+                        }],
+                        pos: Pos {
+                            s: 11,
+                            e: 14,
+                            filename: path::Path::new(
+                                "a_really_long_parser_filename_for_this_test.fl"
+                            )
+                        }
+                    })),
+                    inferred: false,
+                    pos: Pos {
+                        s: 11,
+                        e: 14,
+                        filename: path::Path::new("a_really_long_parser_filename_for_this_test.fl")
+                    }
+                })
+            ]),
+            inferred: false,
+            pos: Pos {
+                s: 0,
+                e: 15,
+                filename: path::Path::new("a_really_long_parser_filename_for_this_test.fl")
+            }
+        },
+        tuple_type_3
+    );
+
+    parser_test!(
+        "(int,)",
+        Parser::tuple_type,
+        Type {
+            value: TypeType::Tuple(vec![Rc::new(Type {
+                value: TypeType::Type(Rc::new(Namespace {
+                    scopes: vec![NameID {
+                        value: "int",
+                        pos: Pos {
+                            s: 1,
+                            e: 4,
+                            filename: path::Path::new(
+                                "a_really_long_parser_filename_for_this_test.fl"
+                            )
+                        }
+                    }],
+                    pos: Pos {
+                        s: 1,
+                        e: 4,
+                        filename: path::Path::new("a_really_long_parser_filename_for_this_test.fl")
+                    }
+                })),
+                inferred: false,
+                pos: Pos {
+                    s: 1,
+                    e: 4,
+                    filename: path::Path::new("a_really_long_parser_filename_for_this_test.fl")
+                }
+            }),]),
+            inferred: false,
+            pos: Pos {
+                s: 0,
+                e: 6,
+                filename: path::Path::new("a_really_long_parser_filename_for_this_test.fl")
+            }
+        },
+        tuple_type_2
+    );
+
+    parser_test!(
+        "()",
+        Parser::tuple_type,
+        Type {
+            value: TypeType::Tuple(Vec::new()),
+            inferred: false,
+            pos: Pos {
+                s: 0,
+                e: 2,
+                filename: path::Path::new("a_really_long_parser_filename_for_this_test.fl")
+            }
+        },
+        tuple_type_1
+    );
+
+    fn print_vals() {
+        // Utility function for printing ast's
+        let logger = Rc::new(RefCell::new(Logger::new()));
+        let mut parser = Parser::new(path::Path::new(filename), "()", logger);
+        parser.initialize_expr();
+        parser.fill_token_stream();
+        println!("{:?}", parser.tuple_type());
+        panic!("awd");
     }
 }
