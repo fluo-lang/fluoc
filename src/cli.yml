@@ -6,6 +6,11 @@ args:
         help: Fluo file with entry point
         required: true
         index: 1
+    - output:
+        help: Output object file, by default `./out.o`
+        short: o
+        long: output
+        takes_value: true
     - debug:
         short: d
         multiple: false

@@ -5,6 +5,7 @@ use crate::parser::parser::Parser;
 use crate::typecheck::ast_typecheck;
 
 use std::cell::RefCell;
+use std::path;
 use std::rc::Rc;
 
 /// Typecheck object
@@ -19,7 +20,7 @@ impl<'a> TypeCheckModule<'a> {
     /// Arguments
     /// * `filename` - the filename of the file to read
     pub fn new(
-        filename: &'a str,
+        filename: &'a path::Path,
         file_contents: &'a str,
         logger: Rc<RefCell<Logger<'a>>>,
     ) -> TypeCheckModule<'a> {

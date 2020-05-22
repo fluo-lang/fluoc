@@ -1,6 +1,8 @@
 use crate::helpers;
 use crate::logger::logger::{Error, ErrorAnnotation, ErrorDisplayType, ErrorType};
+
 use std::fmt;
+use std::path;
 
 /// EOF Character
 const EOF_CHAR: char = '\0';
@@ -64,7 +66,7 @@ impl fmt::Display for TokenType<'_> {
                 "{}",
                 Token {
                     token: **other,
-                    pos: helpers::Pos::new(0, 0, "")
+                    pos: helpers::Pos::new(0, 0, path::Path::new(""))
                 }
             ),
         };
@@ -208,7 +210,7 @@ pub fn is_whitespace(c: char) -> bool {
 #[derive(Debug, Clone)]
 /// Lexer object
 pub struct Lexer<'a> {
-    pub filename: &'a str,
+    pub filename: &'a path::Path,
     pub file_contents: &'a str,
     file_iter: std::iter::Peekable<std::str::Chars<'a>>,
     pub position: usize,
@@ -226,7 +228,7 @@ impl<'a> Lexer<'a> {
     ///
     /// Arguments
     /// * `filename` - the filename of the file to read
-    pub fn new(filename: &'a str, file_contents: &'a str) -> Lexer<'a> {
+    pub fn new(filename: &'a path::Path, file_contents: &'a str) -> Lexer<'a> {
         Lexer {
             filename,
             file_contents,

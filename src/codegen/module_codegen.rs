@@ -11,6 +11,7 @@ use inkwell::{builder, context, module, types, values};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::convert::TryInto;
+use std::path;
 
 #[derive(Clone)]
 struct CodeGenSymbTab<'a> {
@@ -46,6 +47,7 @@ pub struct CodeGenModule<'a> {
     pub typecheck: typecheck::TypeCheckModule<'a>,
     builder: builder::Builder<'a>,
     symbtab: CodeGenSymbTab<'a>,
+    pub output_file: &'a path::Path,
 }
 
 impl<'a> CodeGenModule<'a> {
@@ -56,9 +58,10 @@ impl<'a> CodeGenModule<'a> {
     pub fn new(
         module: module::Module<'a>,
         context: &'a context::Context,
-        filename: &'a str,
+        filename: &'a path::Path,
         file_contents: &'a str,
         logger: Rc<RefCell<Logger<'a>>>,
+        output_file: &'a path::Path,
     ) -> CodeGenModule<'a> {
         let typecheck = typecheck::TypeCheckModule::new(filename, file_contents, logger);
         CodeGenModule {
@@ -67,6 +70,7 @@ impl<'a> CodeGenModule<'a> {
             typecheck,
             builder: context.create_builder(),
             symbtab: CodeGenSymbTab::new(),
+            output_file,
         }
     }
 

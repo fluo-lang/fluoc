@@ -1,6 +1,7 @@
 
 import tests2;
 
+public
 def main() {
     let x: int = tests2::hello();
     return ();

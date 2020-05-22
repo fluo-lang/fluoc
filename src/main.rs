@@ -16,23 +16,36 @@ use logger::buffer_writer::{Color, Font};
 
 use std::backtrace;
 use std::panic;
+use std::path;
 use std::time::Instant;
 
 fn main() {
     let start = Instant::now();
     panic::set_hook(Box::new(|value| {
         let bt = backtrace::Backtrace::force_capture();
-        eprintln!("{}\n{}.\n{}This is likely a problem with the fluo compiler and not your code. Please report the issue to the fluo github.{}", bt, value, Color::RED.to_string(), Font::RESET.to_string());
+        eprintln!(
+            "{}\n{}.\n{}This is likely a problem with the fluo compiler and not your code. Please report the issue to the fluo github: https://github.com/fluo-lang/fluo{}", 
+            bt, 
+            value, 
+            Color::RED.to_string(), 
+            Font::RESET.to_string()
+        );
     }));
     let yaml = load_yaml!("cli.yml");
     let matches = App::from_yaml(yaml).get_matches();
 
-    let filename = matches.value_of("entry").unwrap();
+    let filename =
+        helpers::canonicalize_file(path::Path::new(matches.value_of("entry").unwrap()));
+
     let context = Context::create();
 
-    let contents = helpers::read_file(filename);
+    let contents = helpers::read_file(filename.as_path());
 
     let mut master = master::Master::new(&context);
-    master.add_file(filename, &contents[..]);
+    master.generate_file(
+        filename.as_path(),
+        &contents[..],
+        path::Path::new(matches.value_of("output").unwrap_or("out.o")),
+    );
     println!("All done in {}ms!", start.elapsed().as_millis());
 }

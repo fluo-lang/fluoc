@@ -63,7 +63,7 @@ pub struct Parser<'a> {
 impl<'a> Parser<'a> {
     /// Return a new parser object.
     pub fn new(
-        filename: &'a str,
+        filename: &'a path::Path,
         file_contents: &'a str,
         logger: Rc<RefCell<Logger<'a>>>,
     ) -> Parser<'a> {
@@ -431,19 +431,17 @@ impl<'a> Parser<'a> {
         import_path = import_path
             .canonicalize()
             .unwrap()
-            .strip_prefix(
-                std::env::current_dir()
-                    .unwrap()
-                    .canonicalize()
-                    .expect("failed to canonicalize path"),
-            )
+            .strip_prefix(helpers::canonicalize_file(
+                &std::env::current_dir().unwrap(),
+            ))
             .unwrap()
             .to_path_buf();
 
         if scopes.is_empty() && import_path.is_file() {
             // We can leak because the memory is going to live for most the the program anyways
-            let imported_filename: &'static str =
-                Box::leak(import_path.to_string_lossy().into_owned().into_boxed_str());
+            let imported_filename: &'static path::Path = path::Path::new(Box::leak(
+                import_path.to_string_lossy().into_owned().into_boxed_str(),
+            ));
             let file_contents = helpers::read_file_leak(imported_filename);
             self.logger
                 .borrow_mut()

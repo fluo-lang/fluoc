@@ -1,7 +1,9 @@
 use crate::helpers::Pos;
 use crate::logger::buffer_writer::{color, Buffer, Color, Font, Style};
+
 use std::cmp::{max, Reverse};
 use std::collections::{hash_map::Entry, HashMap, HashSet};
+use std::path;
 
 #[derive(Debug, Clone, Copy)]
 /// An error type, i.e `Syntax` error or `UnexpectedToken` error
@@ -227,7 +229,7 @@ pub struct Logger<'a> {
     /// Vector of errors
     errors: Vec<Error<'a>>,
     /// Filename + file contents the logger serves
-    pub filename_contents: HashMap<&'a str, &'a str>,
+    pub filename_contents: HashMap<&'a path::Path, &'a str>,
     /// Amount of indentation used for error
     indentation: String,
     /// Buffer object
@@ -250,7 +252,7 @@ impl<'a> Logger<'a> {
     ///
     /// * `filename`: filename of the file
     /// * `file_contents`: contents of the file
-    pub fn add_file(&mut self, filename: &'a str, file_contents: &'a str) {
+    pub fn add_file(&mut self, filename: &'a path::Path, file_contents: &'a str) {
         self.filename_contents.insert(filename, file_contents);
     }
 
@@ -259,7 +261,7 @@ impl<'a> Logger<'a> {
         self.errors.push(error);
     }
 
-    fn get_lineno(&mut self, pos: usize, filename: &'a str) -> (usize, usize) {
+    fn get_lineno(&mut self, pos: usize, filename: &'a path::Path) -> (usize, usize) {
         let mut lineno = 1;
         let mut relative_pos = 1;
         for c in (&self.filename_contents[filename][..pos]).chars() {
@@ -347,7 +349,7 @@ impl<'a> Logger<'a> {
         );
     }
 
-    fn get_line_string(&mut self, ln: usize, filename: &'a str) -> String {
+    fn get_line_string(&mut self, ln: usize, filename: &'a path::Path) -> String {
         self.filename_contents[filename]
             .split('\n')
             .nth(ln - 1)
@@ -430,9 +432,9 @@ impl<'a> Logger<'a> {
         annotation: &&ErrorAnnotation<'a>,
         max_line_size: usize,
         span_thickness: usize,
-        lineno: (usize, &'a str),
-        prev_line: &mut (usize, Option<&'a str>),
-        printed_lines: &mut HashMap<&'a str, HashSet<usize>>,
+        lineno: (usize, &'a path::Path),
+        prev_line: &mut (usize, Option<&'a path::Path>),
+        printed_lines: &mut HashMap<&'a path::Path, HashSet<usize>>,
         first: bool,
         line_offset: &mut usize,
         vertical_annotations: &HashMap<usize, ErrorAnnotation<'a>>,
@@ -516,7 +518,7 @@ impl<'a> Logger<'a> {
         span_thickness: usize,
         max_line_size: usize,
     ) {
-        let mut printed_lines: HashMap<&str, HashSet<usize>> = HashMap::new();
+        let mut printed_lines: HashMap<&path::Path, HashSet<usize>> = HashMap::new();
         let start_line = writer_pos.0 + 1;
         let mut annotations_by_line: Vec<Vec<ErrorAnnotation>> = Vec::new();
         let mut temp: Vec<ErrorAnnotation> = Vec::new();
@@ -539,7 +541,7 @@ impl<'a> Logger<'a> {
         annotations_by_line.push(temp.clone());
         temp.clear();
         let mut line_offset: usize = 0;
-        let mut prev_line: (usize, Option<&str>) = (0, None);
+        let mut prev_line: (usize, Option<&path::Path>) = (0, None);
         let mut prev_line_2: usize = 0;
         let mut first = true;
         let mut vertical_annotations: HashMap<usize, ErrorAnnotation> = HashMap::new(); // for last part of multi-line block annotation
@@ -1019,7 +1021,7 @@ impl<'a> Logger<'a> {
 
     fn add_filename_pos(
         &mut self,
-        filename: &'a str,
+        filename: &'a path::Path,
         position: &((usize, usize), (usize, usize)),
         max_line_size: usize,
         writer_pos: &mut (usize, usize),
@@ -1039,7 +1041,12 @@ impl<'a> Logger<'a> {
         self.buffer.writeln(
             writer_pos.0 - 1,
             writer_pos.1 - 1,
-            &format!("{}:{}:{}", &filename, (position.0).0, (position.0).1),
+            &format!(
+                "{}:{}:{}",
+                &filename.display(),
+                (position.0).0,
+                (position.0).1
+            ),
             Style::new(None, None),
         )
     }
@@ -1053,12 +1060,6 @@ impl<'a> Logger<'a> {
         let max_line_size: usize = self.get_max_line_size(&annotations);
 
         let mut writer_pos: (usize, usize) = (1, 1);
-        let position;
-
-        position = (
-            self.get_lineno(error.position.s, error.position.filename),
-            self.get_lineno(error.position.e, error.position.filename),
-        );
 
         for mut annotation in &mut annotations {
             annotation.position_rel = (
@@ -1067,7 +1068,8 @@ impl<'a> Logger<'a> {
             );
         }
 
-        let mut annotations_filtered: HashMap<&str, (usize, Vec<ErrorAnnotation>)> = HashMap::new(); // Usize is span thickness
+        let mut annotations_filtered: HashMap<&path::Path, (usize, Vec<ErrorAnnotation>)> =
+            HashMap::new(); // Usize is span thickness
 
         // Filter so that each annotation in each file is together
         for annotation in annotations.into_iter() {
