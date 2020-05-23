@@ -926,7 +926,13 @@ impl<'a> Parser<'a> {
                 }
                 items
             }
-            Err(_) => Vec::new(),
+            Err(_) => {
+                // Optional trailing comma
+                if let lexer::TokenType::COMMA = self.peek().token {
+                    self.forward();
+                };
+                Vec::new()
+            }
         };
         self.next(lexer::TokenType::RP, position, false)?;
 
@@ -1007,7 +1013,13 @@ impl<'a> Parser<'a> {
                 }
                 items
             }
-            Err(_) => Vec::new(),
+            Err(_) => {
+                // Optional trailing comma
+                if let lexer::TokenType::COMMA = self.peek().token {
+                    self.forward();
+                };
+                Vec::new()
+            }
         };
         self.next(lexer::TokenType::RP, position, false)?;
 
@@ -1221,7 +1233,7 @@ pub mod parser_tests {
                 filename: path::Path::new(FILENAME)
             }
         },
-        tuple_type_3
+        tuple_type_4
     );
 
     parser_test!(
@@ -1258,7 +1270,7 @@ pub mod parser_tests {
                 filename: path::Path::new(FILENAME)
             }
         },
-        tuple_type_2
+        tuple_type_3
     );
 
     parser_test!(
@@ -1276,13 +1288,153 @@ pub mod parser_tests {
         tuple_type_1
     );
 
+    parser_test!(
+        "(,)",
+        Parser::tuple_type,
+        Type {
+            value: TypeType::Tuple(Vec::new()),
+            inferred: false,
+            pos: Pos {
+                s: 0,
+                e: 3,
+                filename: path::Path::new(FILENAME)
+            }
+        },
+        tuple_type_2
+    );
+
+    parser_test!(
+        "awd::a12_12a::aw::qwertyuiop1",
+        Parser::namespace_type,
+        Type {
+            value: TypeType::Type(Rc::new(Namespace {
+                scopes: vec![
+                    NameID {
+                        value: "awd",
+                        pos: Pos {
+                            s: 0,
+                            e: 3,
+                            filename: path::Path::new(FILENAME)
+                        }
+                    },
+                    NameID {
+                        value: "a12_12a",
+                        pos: Pos {
+                            s: 5,
+                            e: 12,
+                            filename: path::Path::new(FILENAME)
+                        }
+                    },
+                    NameID {
+                        value: "aw",
+                        pos: Pos {
+                            s: 14,
+                            e: 16,
+                            filename: path::Path::new(FILENAME)
+                        }
+                    },
+                    NameID {
+                        value: "qwertyuiop",
+                        pos: Pos {
+                            s: 19,
+                            e: 29,
+                            filename: path::Path::new(FILENAME)
+                        }
+                    }
+                ],
+                pos: Pos {
+                    s: 0,
+                    e: 29,
+                    filename: path::Path::new(FILENAME)
+                }
+            })),
+            inferred: false,
+            pos: Pos {
+                s: 0,
+                e: 29,
+                filename: path::Path::new(FILENAME)
+            }
+        },
+        namespace_type_1
+    );
+
+    parser_test!(
+        "awd::a12_12a",
+        Parser::namespace_type,
+        Type {
+            value: TypeType::Type(Rc::new(Namespace {
+                scopes: vec![
+                    NameID {
+                        value: "awd",
+                        pos: Pos {
+                            s: 0,
+                            e: 3,
+                            filename: path::Path::new(FILENAME)
+                        }
+                    },
+                    NameID {
+                        value: "a12_12",
+                        pos: Pos {
+                            s: 6,
+                            e: 12,
+                            filename: path::Path::new(FILENAME)
+                        }
+                    }
+                ],
+                pos: Pos {
+                    s: 0,
+                    e: 12,
+                    filename: path::Path::new(FILENAME)
+                }
+            })),
+            inferred: false,
+            pos: Pos {
+                s: 0,
+                e: 12,
+                filename: path::Path::new(FILENAME)
+            }
+        },
+        namespace_type_2
+    );
+
+    parser_test!(
+        "()",
+        Parser::tuple,
+        Tuple {
+            values: Vec::new(),
+            type_val: None,
+            pos: Pos {
+                s: 0,
+                e: 2,
+                filename: path::Path::new(FILENAME)
+            }
+        },
+        tuple_1
+    );
+
+    parser_test!(
+        "(,)",
+        Parser::tuple,
+        Tuple {
+            values: Vec::new(),
+            type_val: None,
+            pos: Pos {
+                s: 0,
+                e: 3,
+                filename: path::Path::new(FILENAME)
+            }
+        },
+        tuple_2
+    );
+
+    //#[test]
     fn print_vals() {
         // Utility function for printing ast's
         let logger = Rc::new(RefCell::new(Logger::new()));
         let mut parser = Parser::new(path::Path::new(FILENAME), "()", logger);
         parser.initialize_expr();
         parser.fill_token_stream();
-        println!("{:?}", parser.tuple_type());
+        println!("{:?}", parser.tuple());
         panic!("awd");
     }
 }
