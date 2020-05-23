@@ -7,6 +7,7 @@ pub mod master;
 pub mod parser;
 pub mod typecheck;
 pub mod paths;
+pub mod core;
 
 #[macro_use]
 extern crate clap;

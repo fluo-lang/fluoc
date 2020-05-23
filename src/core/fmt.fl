@@ -1,0 +1,5 @@
+-- Placeholder value for function signature
+public
+def print_i32(val: int) -> int {
+    return 0;
+}

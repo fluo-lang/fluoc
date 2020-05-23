@@ -404,12 +404,7 @@ impl<'a> Parser<'a> {
 
         let mut import_path = path::PathBuf::new();
         import_path.push(self.lexer.filename);
-        import_path = import_path
-            .canonicalize()
-            .unwrap()
-            .parent()
-            .expect("No parent to path")
-            .to_path_buf();
+        import_path = paths::get_parent(paths::canonicalize_file(&import_path));
 
         let mut last_idx: usize = 0;
         for (idx, op) in scopes.iter().enumerate() {
@@ -430,9 +425,7 @@ impl<'a> Parser<'a> {
 
         let last = scopes.drain(0..last_idx).into_iter().last().unwrap();
 
-        import_path = import_path
-            .canonicalize()
-            .unwrap()
+        import_path = paths::canonicalize_file(&import_path)
             .strip_prefix(paths::canonicalize_file(&std::env::current_dir().unwrap()))
             .unwrap()
             .to_path_buf();

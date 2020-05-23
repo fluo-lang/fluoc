@@ -1,3 +1,4 @@
+use crate::core::generate_symbtab;
 use crate::helpers;
 use crate::logger::logger::{Error, Logger};
 use crate::parser::parser;
@@ -23,13 +24,19 @@ impl<'a> TypeCheckModule<'a> {
         filename: &'a path::Path,
         file_contents: &'a str,
         logger: Rc<RefCell<Logger<'a>>>,
-    ) -> TypeCheckModule<'a> {
+        first: bool,
+    ) -> Result<TypeCheckModule<'a>, Vec<Error<'a>>> {
+        let new_ref = Rc::clone(&logger);
         let mut p = parser::Parser::new(filename, file_contents, logger);
         p.initialize_expr();
-        TypeCheckModule {
+        Ok(TypeCheckModule {
             parser: p,
-            symtab: ast_typecheck::TypeCheckSymbTab::new(),
-        }
+            symtab: if first {
+                generate_symbtab(new_ref)?
+            } else {
+                ast_typecheck::TypeCheckSymbTab::new()
+            },
+        })
     }
 
     pub fn type_check(&mut self) -> Result<(), Vec<Error<'a>>> {
@@ -40,6 +47,18 @@ impl<'a> TypeCheckModule<'a> {
             .type_check(None, &mut self.symtab)
         {
             Ok(_) => Ok(()),
+            Err(e) => Err(helpers::get_high_priority(e.as_vec())),
+        }
+    }
+
+    pub fn get_symbols(mut self) -> Result<ast_typecheck::TypeCheckSymbTab<'a>, Vec<Error<'a>>> {
+        self.parser.parse()?;
+
+        // Do type checking
+        match (self.parser.ast.as_mut().unwrap() as &mut dyn ast_typecheck::TypeCheck)
+            .type_check(None, &mut self.symtab)
+        {
+            Ok(_) => Ok(self.symtab), // Return symbol table here
             Err(e) => Err(helpers::get_high_priority(e.as_vec())),
         }
     }

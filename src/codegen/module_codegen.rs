@@ -14,7 +14,7 @@ use std::convert::TryInto;
 use std::path;
 
 #[derive(Clone)]
-struct CodeGenSymbTab<'a> {
+pub struct CodeGenSymbTab<'a> {
     items: HashMap<Rc<ast::Namespace<'a>>, values::BasicValueEnum<'a>>,
 }
 
@@ -45,8 +45,8 @@ pub struct CodeGenModule<'a> {
     pub module: module::Module<'a>,
     pub context: &'a context::Context,
     pub typecheck: typecheck::TypeCheckModule<'a>,
-    builder: builder::Builder<'a>,
-    symbtab: CodeGenSymbTab<'a>,
+    pub builder: builder::Builder<'a>,
+    pub symbtab: CodeGenSymbTab<'a>,
     pub output_file: &'a path::Path,
 }
 
@@ -62,20 +62,22 @@ impl<'a> CodeGenModule<'a> {
         file_contents: &'a str,
         logger: Rc<RefCell<Logger<'a>>>,
         output_file: &'a path::Path,
-    ) -> CodeGenModule<'a> {
-        let typecheck = typecheck::TypeCheckModule::new(filename, file_contents, logger);
-        CodeGenModule {
+    ) -> Result<CodeGenModule<'a>, Vec<Error<'a>>> {
+        let typecheck = typecheck::TypeCheckModule::new(filename, file_contents, logger, true);
+        Ok(CodeGenModule {
             module,
             context,
-            typecheck,
+            typecheck: typecheck?,
             builder: context.create_builder(),
             symbtab: CodeGenSymbTab::new(),
             output_file,
-        }
+        })
     }
 
     pub fn generate(&mut self) -> Result<(), Vec<Error<'a>>> {
         self.typecheck.type_check()?;
+
+        self.generate_std();
 
         let mut statements = None;
         std::mem::swap(&mut self.typecheck.parser.ast, &mut statements);
@@ -304,7 +306,7 @@ impl<'a> CodeGenModule<'a> {
                 match value.value.is_basic_type() {
                     Ok(basic_type) => match basic_type {
                         "int" => self.context.i32_type().into(),
-                        "str" => panic!("str type not implemented yet!"),
+                        "str" => self.context.i8_type().array_type(10).into(),
                         val => panic!("`{}` type not implemented yet!", val),
                     },
                     Err(_) => {

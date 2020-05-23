@@ -1,5 +1,10 @@
+use crate::logger;
 use crate::logger::logger::{Error, ErrorLevel};
+
+use std::cell::RefCell;
 use std::path;
+use std::process;
+use std::rc::Rc;
 
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 /// Position helper struct
@@ -37,4 +42,20 @@ pub fn get_high_priority<'a>(errors: Vec<(Error<'a>, ErrorLevel)>) -> Vec<Error<
         .filter(|error| error.1 as usize == max_error_priority)
         .map(|error| error.0)
         .collect()
+}
+
+pub fn error_or_other<'a, T>(
+    value: Result<T, Vec<Error<'a>>>,
+    logger: Rc<RefCell<logger::logger::Logger<'a>>>,
+) -> T {
+    match value {
+        Ok(val) => val,
+        Err(errors) => {
+            for error in errors {
+                logger.as_ref().borrow_mut().error(error);
+            }
+            logger.as_ref().borrow_mut().raise();
+            process::exit(1);
+        }
+    }
 }

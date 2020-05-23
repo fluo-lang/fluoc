@@ -2,7 +2,8 @@
 import tests2;
 
 public
-def main() {
-    let x: int = tests2::hello();
-    return ();
+def entry() -> int {
+    let x: int = 123;
+    print_i32(x);
+    return 0;
 }

@@ -1,5 +1,6 @@
 // For benchmarks
 pub mod codegen;
+pub mod core;
 pub mod helpers;
 pub mod lexer;
 pub mod logger;

@@ -5,7 +5,6 @@ use crate::logger;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::path;
-use std::process;
 use std::rc::Rc;
 
 use inkwell::context::Context;
@@ -38,29 +37,23 @@ impl<'a> Master<'a> {
             .context
             .create_module(filename.to_str().expect("Filename specified is not valid"));
         self.init_passes(&module);
-        let mut code_gen_mod = CodeGenModule::new(
-            module,
-            self.context,
-            &filename,
-            file_contents,
+        let mut code_gen_mod = helpers::error_or_other(
+            CodeGenModule::new(
+                module,
+                self.context,
+                &filename,
+                file_contents,
+                Rc::clone(&self.logger),
+                output_file,
+            ),
             Rc::clone(&self.logger),
-            output_file,
         );
 
         self.logger
             .as_ref()
             .borrow_mut()
             .add_file(&filename, code_gen_mod.typecheck.parser.lexer.file_contents);
-        match code_gen_mod.generate() {
-            Ok(_) => {}
-            Err(errors) => {
-                for error in errors {
-                    self.logger.as_ref().borrow_mut().error(error);
-                }
-                self.logger.as_ref().borrow_mut().raise();
-                process::exit(1);
-            }
-        };
+        helpers::error_or_other(code_gen_mod.generate(), Rc::clone(&self.logger));
         self.modules.insert(&filename, code_gen_mod);
 
         self.write_obj_file(&filename);

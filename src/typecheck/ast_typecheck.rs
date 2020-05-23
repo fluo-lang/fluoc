@@ -122,7 +122,7 @@ pub enum TypeCheckTypeType<'a> {
     FunctionSig(ArgumentsTypeCheck<'a>, Box<TypeCheckType<'a>>, Visibility),
     SingleType(Rc<Type<'a>>),
     TupleType(UnionType<'a>),
-    ArrayType(Box<TypeCheckType<'a>>, Box<TypeCheckType<'a>>),
+    ArrayType(Box<TypeCheckType<'a>>, usize), // Length
     CustomType(Rc<Namespace<'a>>),
     Placeholder, // For things with no return type, most statements
 }
@@ -1093,7 +1093,7 @@ impl<'a> TypeCheckSymbTab<'a> {
             curr_prefix: Vec::new(),
         }
     }
-    fn set_value(&mut self, namespace: Rc<Namespace<'a>>, value: SymbTabObj<'a>) {
+    pub fn set_value(&mut self, namespace: Rc<Namespace<'a>>, value: SymbTabObj<'a>) {
         self.items.insert(namespace, value);
     }
 

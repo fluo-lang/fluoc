@@ -25,6 +25,13 @@ pub fn canonicalize_file<'a>(file_path: &'a path::Path) -> path::PathBuf {
     }
 }
 
+pub fn get_parent(file_path: path::PathBuf) -> path::PathBuf {
+    match (&file_path).parent() {
+        Some(val) => val.to_path_buf(),
+        None => file_error("Unable to get parent", file_path.display()),
+    }
+}
+
 pub fn path_to_str<'a>(file_path: &'a path::Path) -> &'a str {
     match file_path.to_str() {
         Some(val) => val,
