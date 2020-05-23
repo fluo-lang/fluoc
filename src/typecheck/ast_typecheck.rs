@@ -1,3 +1,4 @@
+use crate::core;
 use crate::helpers;
 use crate::logger::logger::{
     Error, ErrorAnnotation, ErrorDisplayType, ErrorLevel, ErrorOrVec, ErrorType,
@@ -840,6 +841,20 @@ impl<'a> TypeCheck<'a> for Block<'a> {
         }
 
         for node in &mut self.nodes {
+            if let Statement::Unit(_) = node {
+                node.type_check(
+                    return_type.clone(),
+                    &mut match core::generate_symbtab() {
+                        Ok(val) => val,
+                        Err(e) => {
+                            return Err(ErrorOrVec::ErrorVec(
+                                e.into_iter().map(|x| (x, ErrorLevel::CoreError)).collect(),
+                            ))
+                        }
+                    },
+                )?;
+                continue;
+            };
             match node.type_check(return_type.clone(), context) {
                 Ok(_) => {}
                 Err(e) => {

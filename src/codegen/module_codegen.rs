@@ -139,7 +139,12 @@ impl<'a> CodeGenModule<'a> {
             ast::Expr::VariableAssign(variable_assign) => {
                 self.eval_variable_assign(variable_assign)
             }
-            ast::Expr::RefID(ref_id) => self.symbtab.get(Rc::clone(&ref_id.value)),
+            ast::Expr::RefID(ref_id) => self.builder.build_load(
+                self.symbtab
+                    .get(Rc::clone(&ref_id.value))
+                    .into_pointer_value(),
+                "temp",
+            ),
             ast::Expr::Literal(lit) => self.eval_literal(lit),
             ast::Expr::FunctionCall(func_call) => self.eval_func_call(func_call),
             ast::Expr::Tuple(tuple) => self.eval_tuple(tuple),

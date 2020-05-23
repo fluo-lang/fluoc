@@ -1,5 +1,7 @@
 
 public
 def hello() -> int {
+    print_i32(1000);
+    another_test();
     return 10;
 }

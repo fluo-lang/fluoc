@@ -4,6 +4,12 @@ import tests2;
 public
 def entry() -> int {
     let x: int = 123;
+    tests2::hello();
     print_i32(x);
     return 0;
+}
+
+public
+def another_test() -> int {
+    return 100;
 }

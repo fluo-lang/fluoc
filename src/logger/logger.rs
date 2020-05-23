@@ -102,6 +102,7 @@ pub enum ErrorLevel {
     NonExistentFunc = 1,
     NonExistentType = 2,
     TypeError = 3,
+    CoreError = 4,
 }
 
 #[derive(Debug, Clone)]

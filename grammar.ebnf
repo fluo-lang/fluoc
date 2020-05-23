@@ -8,20 +8,20 @@ Block := (
          )+;
 
 VariableAssignment := "let", NameID, "=", Expression, ";";
-VariableAssignmentDeclaration := "let", NameID, ":", TypeID, "=", Expression, ";";
-VariableDeclaration := "let", NameID, ":", TypeID, ";";
-FunctionDefine := "func", ID, "(", FunctionArgs, ")", "->", TypeExpr, "{", Block, "}";
+VariableAssignmentDeclaration := "let", NameID, ":", Type, "=", Expression, ";";
+VariableDeclaration := "let", NameID, ":", Type, ";";
+FunctionDefine := "def", NameID, "(", FunctionArgs, ")", "->", Type, "{", Block, "}";
 ExpressionStatement := Expression, ";";
 
 FunctionArgs := {Posarg, ","}; (* {OptionalPosArg ","} {Kwarg ","} last comma is optional *)
+
+NameID := ID;
 
 (* OptionalPosArg := ID, "?";
 
 Kwarg := ID, "=", Expression; *)
 
-TypeExpr := ;
-
-Posarg := NameID, ":", TypeID;
+Posarg := NameID, ":", Type;
 
 Tuple := "(", {Expression, ","}, ")"
       | "(", ",", ")"
@@ -33,3 +33,10 @@ Factor := Item | "-", Factor;
 Item := Integer | Float | Tuple | ID | "(", Expression, ")";
 
 FunctionCall := ID, "(", {Expresion, ","}+, ")";
+
+Type := NamespaceType | TupleType;
+
+TupleType := "(", TupleItems, [","], ")" ;
+TupleItems := {TupleItems, "," Type};
+
+ 

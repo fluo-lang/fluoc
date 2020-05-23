@@ -12,3 +12,4 @@ Cargo.lock
 # Fluo output object file
 out.o
 a.out
+tests.ll

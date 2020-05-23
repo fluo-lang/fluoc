@@ -26,13 +26,12 @@ impl<'a> TypeCheckModule<'a> {
         logger: Rc<RefCell<Logger<'a>>>,
         first: bool,
     ) -> Result<TypeCheckModule<'a>, Vec<Error<'a>>> {
-        let new_ref = Rc::clone(&logger);
         let mut p = parser::Parser::new(filename, file_contents, logger);
         p.initialize_expr();
         Ok(TypeCheckModule {
             parser: p,
             symtab: if first {
-                generate_symbtab(new_ref)?
+                generate_symbtab()?
             } else {
                 ast_typecheck::TypeCheckSymbTab::new()
             },

@@ -9,10 +9,11 @@ use std::env::current_exe;
 use std::ffi::OsStr;
 use std::fs;
 use std::rc::Rc;
+use std::sync::Mutex;
 
-pub fn generate_symbtab<'a>(
-    logger: Rc<RefCell<logger::Logger<'a>>>,
-) -> Result<ast_typecheck::TypeCheckSymbTab<'a>, Vec<logger::Error<'a>>> {
+// Generate core modules
+pub fn generate_symbtab<'a>() -> Result<ast_typecheck::TypeCheckSymbTab<'a>, Vec<logger::Error<'a>>>
+{
     let mut core_path = match current_exe() {
         Ok(val) => val,
         Err(e) => paths::file_error(e, "fluo core lib"),
@@ -49,6 +50,8 @@ pub fn generate_symbtab<'a>(
 
     let file_contents = Box::leak(contents.into_boxed_str());
     let core_path_ref = Box::leak(core_path.into_boxed_path());
+
+    let logger = Rc::new(RefCell::new(logger::Logger::new()));
 
     logger.borrow_mut().add_file(core_path_ref, file_contents);
 

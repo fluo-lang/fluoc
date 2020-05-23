@@ -182,6 +182,25 @@ impl<'a> Block<'a> {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct Units<'a> {
+    pub units: Vec<Unit<'a>>,
+    pub pos: helpers::Pos<'a>,
+}
+
+impl<'a> Units<'a> {
+    pub fn into_block(self) -> Block<'a> {
+        Block {
+            nodes: self.units.into_iter().map(|x| Statement::Unit(x)).collect(),
+            pos: self.pos,
+        }
+    }
+
+    pub fn into_statements(self) -> Vec<Statement<'a>> {
+        self.units.into_iter().map(|x| Statement::Unit(x)).collect()
+    }
+}
+
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Visibility {
     Public,
@@ -446,6 +465,7 @@ pub enum Node<'a> {
     Return(Return<'a>),
 
     Empty(Empty<'a>),
+    Units(Units<'a>),
 }
 
 #[derive(Debug, Clone, PartialEq)]

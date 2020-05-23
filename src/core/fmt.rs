@@ -19,10 +19,10 @@ impl<'a> module_codegen::CodeGenModule<'a> {
     }
 
     fn generate_print_i32(&mut self) {
-        let i32_type_pointer = self.context.i32_type().ptr_type(AddressSpace::Generic);
+        let i32_type = self.context.i32_type();
         let empty_tuple = self.context.struct_type(&[], false);
 
-        let fn_type = empty_tuple.fn_type(&[i32_type_pointer.into()], false);
+        let fn_type = empty_tuple.fn_type(&[i32_type.into()], false);
         let fn_addr = self.module.add_function("print_i32", fn_type, None);
 
         let entry_block = self.context.append_basic_block(fn_addr, "entry");
@@ -30,10 +30,6 @@ impl<'a> module_codegen::CodeGenModule<'a> {
         self.builder.position_at_end(entry_block);
 
         let format = self.builder.build_global_string_ptr("%i\n", "format");
-        let val_alloca = self.builder.build_load(
-            fn_addr.get_nth_param(0).unwrap().into_pointer_value(),
-            "temp1",
-        );
 
         self.builder.build_call(
             self.module
@@ -41,7 +37,7 @@ impl<'a> module_codegen::CodeGenModule<'a> {
                 .expect("There is no printf defined??"),
             &[
                 inkwell::values::BasicValueEnum::PointerValue(format.as_pointer_value()),
-                val_alloca,
+                fn_addr.get_nth_param(0).unwrap().into_int_value().into(),
             ],
             "temp2",
         );
