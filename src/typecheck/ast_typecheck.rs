@@ -8,6 +8,7 @@ use crate::parser::ast::*;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt;
+use std::iter::Extend;
 use std::ops::Deref;
 use std::rc::Rc;
 
@@ -59,7 +60,7 @@ impl<'a> fmt::Display for SymbTabObj<'a> {
 
 #[derive(Clone)]
 pub struct TypeCheckSymbTab<'a> {
-    items: HashMap<Rc<Namespace<'a>>, SymbTabObj<'a>>,
+    pub items: HashMap<Rc<Namespace<'a>>, SymbTabObj<'a>>,
     curr_prefix: Vec<NameID<'a>>, // Current Namespace to push
 }
 
@@ -429,9 +430,13 @@ impl<'a> TypeCheckType<'a> {
                     .iter_mut()
                     .map(|mut argument| TypeCheckType::from_expr(&mut argument, context))
                     .collect::<Result<Vec<TypeCheckType>, _>>()?;
-                let func = context
-                    .get_function(Rc::clone(&func_call.name))?
-                    .unwrap_function_ref();
+
+                // Name of function gotten and function signature
+                let func_union_namespace = context.get_function(Rc::clone(&func_call.name))?;
+                let func = func_union_namespace.0.unwrap_function_ref();
+
+                func_call.name = func_union_namespace.1;
+
                 if func.0.value.unwrap_func().2 == Visibility::Private
                     && func.0.pos.filename != func_call.pos.filename
                 {
@@ -842,17 +847,23 @@ impl<'a> TypeCheck<'a> for Block<'a> {
 
         for node in &mut self.nodes {
             if let Statement::Unit(_) = node {
-                node.type_check(
-                    return_type.clone(),
-                    &mut match core::generate_symbtab() {
-                        Ok(val) => val,
-                        Err(e) => {
-                            return Err(ErrorOrVec::ErrorVec(
-                                e.into_iter().map(|x| (x, ErrorLevel::CoreError)).collect(),
-                            ))
-                        }
-                    },
-                )?;
+                let mut std_lib = match core::generate_symbtab() {
+                    Ok(val) => val,
+                    Err(e) => {
+                        return Err(ErrorOrVec::ErrorVec(
+                            e.into_iter().map(|x| (x, ErrorLevel::CoreError)).collect(),
+                        ))
+                    }
+                };
+                match node.type_check(return_type.clone(), &mut std_lib) {
+                    Ok(_) => {}
+                    Err(e) => {
+                        errors.append(&mut e.as_vec());
+                    }
+                };
+
+                context.items.extend(std_lib.items);
+
                 continue;
             };
             match node.type_check(return_type.clone(), context) {
@@ -1027,6 +1038,7 @@ impl<'a> TypeCheck<'a> for Unit<'a> {
     ) -> Result<Cow<'a, TypeCheckType<'a>>, ErrorOrVec<'a>> {
         context.curr_prefix.append(self.name.as_vec_nameid());
         (&mut self.block as &mut dyn TypeCheck).type_check(None, context)?;
+
         // Unit returns nothing
         Ok(Cow::Owned(TypeCheckType {
             value: TypeCheckTypeType::Placeholder,
@@ -1115,11 +1127,27 @@ impl<'a> TypeCheckSymbTab<'a> {
     fn get_function(
         &self,
         namespace: Rc<Namespace<'a>>,
-    ) -> Result<&SymbTabObj<'a>, ErrorOrVec<'a>> {
+    ) -> Result<(&SymbTabObj<'a>, Rc<Namespace<'a>>), ErrorOrVec<'a>> {
+        // Namespace of std
         match self.items.get(&namespace) {
             Some(val) => match val.deref() {
-                SymbTabObj::Function(_, _) => return Ok(val),
+                SymbTabObj::Function(_, _) => return Ok((val, namespace)),
+                _ => {}
+            },
+            None => {}
+        }
+
+        // Try other namespace
+        let other = namespace
+            .as_ref()
+            .clone()
+            .prepend_namespace(self.curr_prefix.clone());
+
+        match self.items.get(&other) {
+            Some(val) => match val.deref() {
+                SymbTabObj::Function(_, _) => return Ok((val, Rc::new(other))),
                 other => {
+                    // Cannot get function with and without current prefix
                     return Err(ErrorOrVec::Error(
                         Error::new(
                             format!("`{}` is not a function", namespace),

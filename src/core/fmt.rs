@@ -9,6 +9,7 @@ impl<'a> module_codegen::CodeGenModule<'a> {
     }
 
     fn generate_printf(&mut self) {
+        // C printf - NOT for external use, only for use by the builtins
         let i32_type = self.context.i32_type();
         let i8_type = self.context.i8_type();
 
@@ -19,6 +20,7 @@ impl<'a> module_codegen::CodeGenModule<'a> {
     }
 
     fn generate_print_i32(&mut self) {
+        // print_i32 ( int ) -> ()
         let i32_type = self.context.i32_type();
         let empty_tuple = self.context.struct_type(&[], false);
 

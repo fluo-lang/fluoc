@@ -2,6 +2,7 @@
 public
 def hello() -> int {
     print_i32(1000);
-    another_test();
+    let val: int = hello();
+    print_i32(val);
     return 10;
 }

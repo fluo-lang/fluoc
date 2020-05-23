@@ -5,7 +5,6 @@ public
 def entry() -> int {
     let x: int = 123;
     tests2::hello();
-    print_i32(x);
     return 0;
 }
 

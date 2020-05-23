@@ -9,7 +9,6 @@ use std::env::current_exe;
 use std::ffi::OsStr;
 use std::fs;
 use std::rc::Rc;
-use std::sync::Mutex;
 
 // Generate core modules
 pub fn generate_symbtab<'a>() -> Result<ast_typecheck::TypeCheckSymbTab<'a>, Vec<logger::Error<'a>>>
