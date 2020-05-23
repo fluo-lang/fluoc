@@ -1,7 +1,7 @@
 <h1 align=center>
     Fluo
     <br>
-    <a href="https://github.com/fluo-lang/fluo/actions"><img src="https://img.shields.io/github/workflow/status/fluo-lang/fluo/build-test-bench"></img></a>
+    <a href="https://github.com/fluo-lang/fluo/actions"><img src="https://img.shields.io/github/workflow/status/fluo-lang/fluo/build-test-bench?style=for-the-badge" height=23px></img></a>
 </h1>
 
 <br>
