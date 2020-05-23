@@ -1,4 +1,3 @@
-#![feature(concat_idents)]
 use crate::helpers;
 use crate::lexer;
 use crate::logger::logger::{Error, ErrorAnnotation, ErrorDisplayType, ErrorType, Logger};
@@ -1067,13 +1066,13 @@ pub mod parser_tests {
     use super::*;
     use crate::helpers::Pos;
     use crate::parser::ast::*;
-    const filename: &str = "a_really_long_parser_filename_for_this_test.fl";
+    const FILENAME: &str = "a_really_long_parser_filename_for_this_test.fl";
     macro_rules! parser_test {
         ($code: expr, $function: expr, $expected: expr, $name: ident) => {
             #[test]
             fn $name() -> Result<(), Error<'static>> {
                 let logger = Rc::new(RefCell::new(Logger::new()));
-                let mut parser = Parser::new(path::Path::new(filename), $code, logger);
+                let mut parser = Parser::new(path::Path::new(FILENAME), $code, logger);
                 parser.initialize_expr();
                 parser.fill_token_stream()?;
                 assert_eq!($expected, $function(&mut parser)?);
@@ -1092,20 +1091,20 @@ pub mod parser_tests {
                     pos: Pos {
                         s: 2,
                         e: 14,
-                        filename: path::Path::new(filename)
+                        filename: path::Path::new(FILENAME)
                     }
                 }],
                 pos: Pos {
                     s: 2,
                     e: 14,
-                    filename: path::Path::new(filename)
+                    filename: path::Path::new(FILENAME)
                 }
             }),
             type_val: None,
             pos: Pos {
                 s: 0,
                 e: 14,
-                filename: path::Path::new(filename)
+                filename: path::Path::new(FILENAME)
             }
         },
         dollar_id
@@ -1121,20 +1120,20 @@ pub mod parser_tests {
                     pos: Pos {
                         s: 2,
                         e: 14,
-                        filename: path::Path::new(filename)
+                        filename: path::Path::new(FILENAME)
                     }
                 }],
                 pos: Pos {
                     s: 2,
                     e: 14,
-                    filename: path::Path::new(filename)
+                    filename: path::Path::new(FILENAME)
                 }
             }),
             type_val: None,
             pos: Pos {
                 s: 0,
                 e: 14,
-                filename: path::Path::new(filename)
+                filename: path::Path::new(FILENAME)
             }
         }),
         dollar_expr
@@ -1152,24 +1151,20 @@ pub mod parser_tests {
                             pos: Pos {
                                 s: 1,
                                 e: 4,
-                                filename: path::Path::new(
-                                    "a_really_long_parser_filename_for_this_test.fl"
-                                )
+                                filename: path::Path::new(FILENAME)
                             }
                         }],
                         pos: Pos {
                             s: 1,
                             e: 4,
-                            filename: path::Path::new(
-                                "a_really_long_parser_filename_for_this_test.fl"
-                            )
+                            filename: path::Path::new(FILENAME)
                         }
                     })),
                     inferred: false,
                     pos: Pos {
                         s: 1,
                         e: 4,
-                        filename: path::Path::new("a_really_long_parser_filename_for_this_test.fl")
+                        filename: path::Path::new(FILENAME)
                     }
                 }),
                 Rc::new(Type {
@@ -1179,24 +1174,20 @@ pub mod parser_tests {
                             pos: Pos {
                                 s: 6,
                                 e: 9,
-                                filename: path::Path::new(
-                                    "a_really_long_parser_filename_for_this_test.fl"
-                                )
+                                filename: path::Path::new(FILENAME)
                             }
                         }],
                         pos: Pos {
                             s: 6,
                             e: 9,
-                            filename: path::Path::new(
-                                "a_really_long_parser_filename_for_this_test.fl"
-                            )
+                            filename: path::Path::new(FILENAME)
                         }
                     })),
                     inferred: false,
                     pos: Pos {
                         s: 6,
                         e: 9,
-                        filename: path::Path::new("a_really_long_parser_filename_for_this_test.fl")
+                        filename: path::Path::new(FILENAME)
                     }
                 }),
                 Rc::new(Type {
@@ -1206,24 +1197,20 @@ pub mod parser_tests {
                             pos: Pos {
                                 s: 11,
                                 e: 14,
-                                filename: path::Path::new(
-                                    "a_really_long_parser_filename_for_this_test.fl"
-                                )
+                                filename: path::Path::new(FILENAME)
                             }
                         }],
                         pos: Pos {
                             s: 11,
                             e: 14,
-                            filename: path::Path::new(
-                                "a_really_long_parser_filename_for_this_test.fl"
-                            )
+                            filename: path::Path::new(FILENAME)
                         }
                     })),
                     inferred: false,
                     pos: Pos {
                         s: 11,
                         e: 14,
-                        filename: path::Path::new("a_really_long_parser_filename_for_this_test.fl")
+                        filename: path::Path::new(FILENAME)
                     }
                 })
             ]),
@@ -1231,7 +1218,7 @@ pub mod parser_tests {
             pos: Pos {
                 s: 0,
                 e: 15,
-                filename: path::Path::new("a_really_long_parser_filename_for_this_test.fl")
+                filename: path::Path::new(FILENAME)
             }
         },
         tuple_type_3
@@ -1248,29 +1235,27 @@ pub mod parser_tests {
                         pos: Pos {
                             s: 1,
                             e: 4,
-                            filename: path::Path::new(
-                                "a_really_long_parser_filename_for_this_test.fl"
-                            )
+                            filename: path::Path::new(FILENAME)
                         }
                     }],
                     pos: Pos {
                         s: 1,
                         e: 4,
-                        filename: path::Path::new("a_really_long_parser_filename_for_this_test.fl")
+                        filename: path::Path::new(FILENAME)
                     }
                 })),
                 inferred: false,
                 pos: Pos {
                     s: 1,
                     e: 4,
-                    filename: path::Path::new("a_really_long_parser_filename_for_this_test.fl")
+                    filename: path::Path::new(FILENAME)
                 }
             }),]),
             inferred: false,
             pos: Pos {
                 s: 0,
                 e: 6,
-                filename: path::Path::new("a_really_long_parser_filename_for_this_test.fl")
+                filename: path::Path::new(FILENAME)
             }
         },
         tuple_type_2
@@ -1285,7 +1270,7 @@ pub mod parser_tests {
             pos: Pos {
                 s: 0,
                 e: 2,
-                filename: path::Path::new("a_really_long_parser_filename_for_this_test.fl")
+                filename: path::Path::new(FILENAME)
             }
         },
         tuple_type_1
@@ -1294,7 +1279,7 @@ pub mod parser_tests {
     fn print_vals() {
         // Utility function for printing ast's
         let logger = Rc::new(RefCell::new(Logger::new()));
-        let mut parser = Parser::new(path::Path::new(filename), "()", logger);
+        let mut parser = Parser::new(path::Path::new(FILENAME), "()", logger);
         parser.initialize_expr();
         parser.fill_token_stream();
         println!("{:?}", parser.tuple_type());
