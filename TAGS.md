@@ -8,8 +8,9 @@
 | `[Documentation]`  | Changes to documentation (readme, etc.)                                                              |
 | `[Misc]`           | Miscellaneous changes (i.e. `.gitignore`, `grammar.ebnf`, other things that don't fit anywhere else) |
 | `[Format]`         | Changes in formatting (i.e. using an auto formatter)                                                 |
-| `[Parser]`         | Changes **specifically** to the parser                                                               |
-| `[Lexer]`          | Changes **specifically** to the lexer                                                                |
-| `[Codegen]`        | Changes **specifically** to the codegen stage (llvm)                                                 |
-| `[Logger]`         | Changes **specifically** to the logger and error reporting                                           |
-| `[Typecheck]`      | Changes **specifically** to the type checker                                                         |
+| `[Parser]`         | Changes to the parser                                                                                |
+| `[Lexer]`          | Changes to the lexer                                                                                 |
+| `[Codegen]`        | Changes to the codegen stage (llvm)                                                                  |
+| `[Logger]`         | Changes to the logger and error reporting                                                            |
+| `[Typecheck]`      | Changes to the type checker                                                                          |
+| `[Core]`           | Changes to the core lib (i.e. `print_i32`, etc.)                                                     |
