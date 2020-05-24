@@ -6,6 +6,7 @@ use std::rc::Rc;
 
 use inkwell::types::BasicType;
 use inkwell::values::BasicValue;
+use inkwell::AddressSpace;
 use inkwell::{builder, context, module, types, values};
 
 use std::cell::RefCell;
@@ -98,6 +99,7 @@ impl<'a> CodeGenModule<'a> {
         match statement {
             ast::Statement::FunctionDefine(func_def) => self.gen_function_prototype(func_def),
             ast::Statement::Unit(unit) => self.get_unit_proto(unit),
+            ast::Statement::TypeAssign(type_assign) => self.gen_type_assign(type_assign),
             _ => {}
         }
     }
@@ -229,6 +231,10 @@ impl<'a> CodeGenModule<'a> {
             expr_alloca.as_basic_value_enum(),
         );
         expr_alloca.as_basic_value_enum()
+    }
+
+    fn gen_type_assign(&mut self, type_assign: &ast::TypeAssign<'a>) {
+        panic!("Type assign not implemented for codgen")
     }
 
     fn gen_variable_dec(&mut self, var_dec: &ast::VariableDeclaration<'a>) {

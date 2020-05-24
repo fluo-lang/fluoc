@@ -180,9 +180,13 @@ impl<'a> fmt::Display for TypeCheckType<'a> {
 
 impl<'a> TypeCheckType<'a> {
     /// Check for equivalence of types
-    fn sequiv<'b>(left: &Self, right: &Self, context: &'b TypeCheckSymbTab<'a>) -> bool {
+    fn sequiv<'b>(
+        left: &Self,
+        right: &Self,
+        context: &'b TypeCheckSymbTab<'a>,
+    ) -> Result<bool, ErrorOrVec<'a>> {
         match (left.cast_to_basic(context), right.cast_to_basic(context)) {
-            (Ok(left_ok), Ok(right_ok)) => return left_ok == right_ok,
+            (Ok(left_ok), Ok(right_ok)) => return Ok(left_ok == right_ok),
             _ => {}
         }
         if left.is_tuple() && right.is_tuple() {
@@ -199,15 +203,21 @@ impl<'a> TypeCheckType<'a> {
                         inferred: _,
                     },
                 ) if left_contents.types.len() == right_contents.types.len() => {
-                    return left_contents.types.iter().zip(&right_contents.types).all(
-                        |(left_val, right_val)| TypeCheckType::sequiv(left_val, right_val, context),
-                    )
+                    return Ok(left_contents
+                        .types
+                        .iter()
+                        .zip(&right_contents.types)
+                        .map(|(left_val, right_val)| {
+                            TypeCheckType::sequiv(left_val, right_val, context)
+                        })
+                        .collect::<Result<Vec<_>, _>>()? // Check if all values are ok
+                        .iter()
+                        .all(|x| *x)); // All values *are* ok, check if they are all true
                 }
                 _ => {}
             }
         }
-
-        false
+        Ok(false)
     }
 
     fn is_tuple_empty(&self) -> bool {
@@ -318,7 +328,7 @@ impl<'a> TypeCheckType<'a> {
         types
             .windows(2)
             .map(|w| {
-                if TypeCheckType::sequiv(&w[0], &w[1], context) {
+                if TypeCheckType::sequiv(&w[0], &w[1], context)? {
                     Ok(())
                 } else {
                     return Err(ErrorOrVec::Error(
@@ -476,7 +486,7 @@ impl<'a> TypeCheckType<'a> {
 
                 for (real_type, call_type) in func_arg_types.iter().zip(&func_call_arg_types) {
                     // Check if called argument type matches with expected type
-                    if !TypeCheckType::sequiv(real_type, call_type, context) {
+                    if !TypeCheckType::sequiv(real_type, call_type, context)? {
                         return Err(ErrorOrVec::Error(
                             Error::new(
                                 "type mismatch between function and function call".to_string(),
@@ -527,8 +537,9 @@ impl<'a> TypeCheckType<'a> {
                     TypeCheckType::from_expr(&mut *variable_assignment_dec.expr, context)?;
                 let cast_type =
                     TypeCheckOrType::as_typecheck_type(Cow::Borrowed(&variable_assignment_dec.t));
+
                 variable_assignment_dec.t =
-                    if !TypeCheckType::sequiv(&cast_type, &value_type, context) {
+                    if !TypeCheckType::sequiv(&cast_type, &value_type, context)? {
                         // Not the same type, error
                         return Err(ErrorOrVec::Error(
                             Error::new(
@@ -538,13 +549,13 @@ impl<'a> TypeCheckType<'a> {
                                 ErrorDisplayType::Error,
                                 vec![
                                     ErrorAnnotation::new(
-                                        Some(format!("value has type `{}`", value_type)),
-                                        value_type.pos,
-                                        ErrorDisplayType::Info,
-                                    ),
-                                    ErrorAnnotation::new(
                                         Some(format!("type annotation has type `{}`", cast_type)),
                                         cast_type.pos,
+                                        ErrorDisplayType::Error,
+                                    ),
+                                    ErrorAnnotation::new(
+                                        Some(format!("value has type `{}`", value_type)),
+                                        value_type.pos,
                                         ErrorDisplayType::Info,
                                     ),
                                 ],
@@ -572,7 +583,7 @@ impl<'a> TypeCheckType<'a> {
                     .0
                     .clone();
                 variable_assign.type_val =
-                    if !TypeCheckType::sequiv(&cast_type, &value_type, context) {
+                    if !TypeCheckType::sequiv(&cast_type, &value_type, context)? {
                         // Not the same type, error
                         return Err(ErrorOrVec::Error(
                             Error::new(
@@ -582,13 +593,13 @@ impl<'a> TypeCheckType<'a> {
                                 ErrorDisplayType::Error,
                                 vec![
                                     ErrorAnnotation::new(
-                                        Some(format!("value has type `{}`", value_type)),
-                                        value_type.pos,
+                                        Some(format!("type annotation has type `{}`", cast_type)),
+                                        cast_type.pos,
                                         ErrorDisplayType::Info,
                                     ),
                                     ErrorAnnotation::new(
-                                        Some(format!("type annotation has type `{}`", cast_type)),
-                                        cast_type.pos,
+                                        Some(format!("value has type `{}`", value_type)),
+                                        value_type.pos,
                                         ErrorDisplayType::Info,
                                     ),
                                 ],
@@ -613,7 +624,7 @@ impl<'a> TypeCheckType<'a> {
                 let right_type = TypeCheckType::from_expr(&mut *infix.right, context)?;
 
                 // TODO: check if the types can be casted to on another
-                if TypeCheckType::sequiv(&left_type, &right_type, context) {
+                if TypeCheckType::sequiv(&left_type, &right_type, context)? {
                     // Same type
                     left_type
                 } else {
@@ -788,7 +799,7 @@ impl<'a> TypeCheck<'a> for Return<'a> {
             }
             Some(value) => {
                 // Make sure returns are of the same type or can be casted
-                if TypeCheckType::sequiv(&returned_type, &value, context) {
+                if TypeCheckType::sequiv(&returned_type, &value, context)? {
                     // Same type
                     Ok(value)
                 } else {
@@ -1038,6 +1049,7 @@ impl<'a> TypeCheck<'a> for Unit<'a> {
     ) -> Result<Cow<'a, TypeCheckType<'a>>, ErrorOrVec<'a>> {
         context.curr_prefix.append(self.name.as_vec_nameid());
         (&mut self.block as &mut dyn TypeCheck).type_check(None, context)?;
+        context.curr_prefix.pop();
 
         // Unit returns nothing
         Ok(Cow::Owned(TypeCheckType {
@@ -1061,7 +1073,41 @@ impl<'a> TypeCheck<'a> for VariableDeclaration<'a> {
         );
         self.t = TypeCheckOrType::TypeCheckType(type_val);
 
-        Ok(Cow::Owned(self.t.clone().unwrap_type_check()))
+        Ok(Cow::Owned(TypeCheckType {
+            value: TypeCheckTypeType::Placeholder,
+            pos: self.pos,
+            inferred: true,
+        }))
+    }
+}
+
+impl<'a> TypeCheck<'a> for TypeAssign<'a> {
+    fn type_check<'b>(
+        &mut self,
+        _return_type: Option<Cow<'a, TypeCheckType<'a>>>,
+        context: &'b mut TypeCheckSymbTab<'a>,
+    ) -> Result<Cow<'a, TypeCheckType<'a>>, ErrorOrVec<'a>> {
+        self.name = Rc::new(
+            self.name
+                .as_ref()
+                .clone()
+                .prepend_namespace(context.curr_prefix.clone()),
+        );
+        self.value = TypeCheckOrType::TypeCheckType(TypeCheckType::from_type(Rc::clone(
+            &self.value.unwrap_type(),
+        )));
+
+        context.set_value(
+            Rc::clone(&self.name),
+            SymbTabObj::CustomType(self.value.unwrap_type_check_ref().clone()),
+        );
+
+        // Returns nothing
+        Ok(Cow::Owned(TypeCheckType {
+            value: TypeCheckTypeType::Placeholder,
+            pos: self.pos,
+            inferred: true,
+        }))
     }
 }
 
@@ -1085,6 +1131,9 @@ impl<'a> TypeCheck<'a> for Statement<'a> {
                 (statement as &mut dyn TypeCheck).type_check(return_type, context)
             }
             Statement::Unit(statement) => {
+                (statement as &mut dyn TypeCheck).type_check(return_type, context)
+            }
+            Statement::TypeAssign(statement) => {
                 (statement as &mut dyn TypeCheck).type_check(return_type, context)
             }
             _ => panic!(
@@ -1229,7 +1278,12 @@ impl<'a> TypeCheckSymbTab<'a> {
         &self,
         namespace: Rc<Namespace<'a>>,
     ) -> Result<&SymbTabObj<'a>, ErrorOrVec<'a>> {
-        let mut type_val = self.get_type(namespace)?;
+        let mut type_val = self.get_type(Rc::new(
+            namespace
+                .as_ref()
+                .clone()
+                .prepend_namespace(self.curr_prefix.clone()),
+        ))?;
         while let SymbTabObj::CustomType(TypeCheckType {
             value: TypeCheckTypeType::CustomType(name),
             pos: _,
