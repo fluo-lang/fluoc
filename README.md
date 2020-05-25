@@ -1,7 +1,9 @@
 <h1 align=center>
     Fluo
     <br>
-    <a href="https://github.com/fluo-lang/fluo/actions"><img src="https://img.shields.io/github/workflow/status/fluo-lang/fluo/build-test-bench?style=for-the-badge" height=23px></img></a>
+    <a href="https://github.com/fluo-lang/fluo/actions"><img src="https://img.shields.io/github/workflow/status/fluo-lang/fluo/build-test-bench?style=for-the-badge" height=24px></img></a>
+    <a href="https://trello.com/b/5gxtFXun/fluo"><img src="https://img.shields.io/badge/trello-here-000000FF?style=for-the-badge" height=24px></img></a>
+    
 </h1>
 
 <br>
@@ -39,8 +41,7 @@ def entry() {
     print(fib(46));
 }
 ```
-
-[Trello](https://trello.com/b/5gxtFXun/fluo)
+<br>
 
 # Installation
 
@@ -65,7 +66,7 @@ Make sure you're in the fluo directory:
 cd fluo
 ```
 
-Fluo generates the file but you need to link it:
+Fluo generates object files and you need to link them (this will change):
 ```bash
 cargo run examples/tests.fl
 gcc out.o -no-pie  # -no-pie because we don't like eating pie... or 3.1415
