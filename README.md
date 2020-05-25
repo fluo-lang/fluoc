@@ -42,9 +42,9 @@ def entry() {
 
 [Trello](https://trello.com/b/5gxtFXun/fluo)
 
-# Usage
+# Installation
 
-1. [Install LLVM](https://github.com/fluo-lang/fluo#Installing%20LLVM)
+1. [Install LLVM](https://github.com/fluo-lang/fluo#installing-llvm)
 
 2. Install cargo and switch to nightly branch:
    ```bash
@@ -52,14 +52,25 @@ def entry() {
    rustup default nightly
    ```
 
-3. Create an object file and link it (`clang` works as well):
+3. Clone this repo:
    ```bash
-   cargo run examples/tests.fl
-   gcc out.o -no-pie
-   ./a.out
+   git clone git@github.com:fluo-lang/fluo.git
    ```
 
 4. There is no step 4
+
+# Usage
+Make sure you're in the fluo directory:
+```bash
+cd fluo
+```
+
+Fluo generates the file but you need to link it:
+```bash
+cargo run examples/tests.fl
+gcc out.o -no-pie  # -no-pie because we don't like eating pie... or 3.1415
+./a.out
+```
 
 # Installing LLVM
 Currently, you will need to install LLVM on your own. In the future, this will change
