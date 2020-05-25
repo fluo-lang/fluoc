@@ -41,3 +41,34 @@ def entry() {
 ```
 
 [Trello](https://trello.com/b/5gxtFXun/fluo)
+
+# Usage
+
+1. [Install LLVM](https://github.com/fluo-lang/fluo#Installing%20LLVM)
+
+2. Install cargo and switch to nightly branch:
+   ```bash
+   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+   rustup default nightly
+   ```
+
+3. Create an object file and link it (`clang` works as well):
+   ```bash
+   cargo run examples/tests.fl
+   gcc out.o -no-pie
+   ./a.out
+   ```
+
+4. There is no step 4
+
+# Installing LLVM
+Currently, you will need to install LLVM on your own. In the future, this will change
+
+| Operating System                              | Install Command                                                                                                    |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| Mac OS                                        | `brew install llvm`                                                                                                |
+| Debian Method One (Recommended)               | `bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)"`                                                              |
+| Debian Method Two (If the above doesn't work) | `apt install llvm-10`                                                                                              |
+| Arch                                          | [AUR](https://www.archlinux.org/packages/extra/x86_64/llvm/)                                                       |
+| Windows + Other                               | [Prebuilt Binaries](https://releases.llvm.org/download.html#10.0.0), make sure to set proper environment variables |
+
