@@ -1,0 +1,19 @@
+
+-- Generic print with static dispatch
+syntax print -> statement {  -- Print is a statement
+    parse {
+        "print" "(" value: $expr ")"
+    }
+
+    eval {
+        if $value is int {
+            `print_int($value);`
+        } else {
+            raise "Invalid print type $value.type";
+        }
+    }
+}
+
+def entry() {
+    print(10);
+}

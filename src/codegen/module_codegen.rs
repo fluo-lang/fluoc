@@ -233,9 +233,7 @@ impl<'a> CodeGenModule<'a> {
         expr_alloca.as_basic_value_enum()
     }
 
-    fn gen_type_assign(&mut self, type_assign: &ast::TypeAssign<'a>) {
-        panic!("Type assign not implemented for codgen")
-    }
+    fn gen_type_assign(&mut self, type_assign: &ast::TypeAssign<'a>) {}
 
     fn gen_variable_dec(&mut self, var_dec: &ast::VariableDeclaration<'a>) {
         let var_type = self.get_type(var_dec.t.unwrap_type_check_ref());

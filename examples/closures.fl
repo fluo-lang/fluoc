@@ -1,0 +1,9 @@
+
+-- Return closure that returns int
+def make_closure(closure: () -> int) -> () -> int {
+    return closure;
+}
+
+def main() -> {
+    let x: int = make_closure(() -> int { return 10; })();
+}

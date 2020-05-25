@@ -1,5 +1,5 @@
 -- Placeholder value for function signature
 public
-def print_i32(val: int) -> () {
+def print_int(val: int) -> () {
     return ();
 }

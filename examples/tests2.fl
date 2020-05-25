@@ -1,8 +1,8 @@
 
 public
 def hello() -> int {
-    print_i32(1000);
+    print_int(1000);
     let val: int = hello();
-    print_i32(val);
+    print_int(val);
     return 10;
 }
