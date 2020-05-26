@@ -1,6 +1,7 @@
 use crate::helpers;
 use crate::lexer::Token;
-use crate::typecheck::ast_typecheck::TypeCheckType;
+use crate::logger::logger::ErrorOrVec;
+use crate::typecheck::ast_typecheck::{TypeCheckSymbTab, TypeCheckType};
 
 use inkwell::module::Linkage;
 use std::fmt;
@@ -295,15 +296,18 @@ impl<'a> TypeCheckOrType<'a> {
         }
     }
 
-    pub fn as_typecheck_type<'b>(_self: std::borrow::Cow<'b, Self>) -> TypeCheckType<'a> {
+    pub fn as_typecheck_type<'b, 'c>(
+        _self: std::borrow::Cow<'b, Self>,
+        context: &'c mut TypeCheckSymbTab<'a>,
+    ) -> Result<TypeCheckType<'a>, ErrorOrVec<'a>> {
         match _self {
             std::borrow::Cow::Borrowed(value) => match value {
-                TypeCheckOrType::Type(val) => TypeCheckType::from_type(Rc::clone(&val)),
-                TypeCheckOrType::TypeCheckType(val) => val.clone(),
+                TypeCheckOrType::Type(val) => TypeCheckType::from_type(Rc::clone(&val), context),
+                TypeCheckOrType::TypeCheckType(val) => Ok(val.clone()),
             },
             std::borrow::Cow::Owned(value) => match value {
-                TypeCheckOrType::Type(val) => TypeCheckType::from_type(Rc::clone(&val)),
-                TypeCheckOrType::TypeCheckType(val) => val,
+                TypeCheckOrType::Type(val) => TypeCheckType::from_type(Rc::clone(&val), context),
+                TypeCheckOrType::TypeCheckType(val) => Ok(val),
             },
         }
     }

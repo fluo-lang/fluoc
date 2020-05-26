@@ -323,8 +323,8 @@ impl<'a> CodeGenModule<'a> {
                     }
                 }
             }
-            ast_typecheck::TypeCheckTypeType::CustomType(_) => {
-                panic!("Custom types not implemented for codegen yet!");
+            ast_typecheck::TypeCheckTypeType::CustomType(_, value) => {
+                self.get_type(&*(value.as_ref().unwrap()))
             }
             ast_typecheck::TypeCheckTypeType::ArrayType(_, _) => {
                 panic!("Array type not implemented for codegen yet!");

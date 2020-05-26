@@ -125,8 +125,8 @@ pub enum TypeCheckTypeType<'a> {
     SingleType(Rc<Type<'a>>),
     TupleType(UnionType<'a>),
     ArrayType(Box<TypeCheckType<'a>>, usize), // Length
-    CustomType(Rc<Namespace<'a>>),
-    Placeholder, // For things with no return type, most statements
+    CustomType(Rc<Namespace<'a>>, Option<Box<TypeCheckType<'a>>>), // Single Type
+    Placeholder,                              // For things with no return type, most statements
 }
 
 impl<'a> TypeCheckTypeType<'a> {
@@ -171,7 +171,7 @@ impl<'a> fmt::Display for TypeCheckType<'a> {
             TypeCheckTypeType::ArrayType(elements_types, length_type) => {
                 format!("[{}; {}]", *elements_types, *length_type)
             }
-            TypeCheckTypeType::CustomType(namespace) => format!("{}", namespace),
+            TypeCheckTypeType::CustomType(namespace, _) => format!("{}", namespace),
             TypeCheckTypeType::Placeholder => panic!("Tried to print placeholder value"),
         };
         write!(f, "{}", rep)
@@ -311,7 +311,7 @@ impl<'a> TypeCheckType<'a> {
                 ),
                 ErrorLevel::TypeError,
             )),
-            TypeCheckTypeType::CustomType(name_type) => {
+            TypeCheckTypeType::CustomType(name_type, _) => {
                 let val = context.get_basic_type(Rc::clone(name_type))?;
                 val.unwrap_type_ref().cast_to_basic(context)
             }
@@ -358,32 +358,43 @@ impl<'a> TypeCheckType<'a> {
             .collect::<Result<(), ErrorOrVec>>()
     }
 
-    pub fn from_type(val: Rc<Type<'a>>) -> TypeCheckType<'a> {
+    pub fn from_type<'b>(
+        val: Rc<Type<'a>>,
+        context: &'b mut TypeCheckSymbTab<'a>,
+    ) -> Result<TypeCheckType<'a>, ErrorOrVec<'a>> {
         if let Ok(_) = val.value.is_basic_type() {
-            TypeCheckType {
+            Ok(TypeCheckType {
                 pos: val.pos,
                 inferred: val.inferred,
                 value: TypeCheckTypeType::SingleType(val),
-            }
+            })
         } else if let TypeType::Tuple(types) = &val.value {
-            TypeCheckType {
+            Ok(TypeCheckType {
                 value: TypeCheckTypeType::TupleType(UnionType {
                     types: types
                         .into_iter()
-                        .map(|x| TypeCheckType::from_type(Rc::clone(&x)))
-                        .collect::<Vec<TypeCheckType>>(),
+                        .map(|x| TypeCheckType::from_type(Rc::clone(&x), context))
+                        .collect::<Result<Vec<TypeCheckType>, _>>()?,
                     pos: val.pos,
                     inferred: val.inferred,
                 }),
                 pos: val.pos,
                 inferred: val.inferred,
-            }
+            })
         } else if let TypeType::Type(other) = &val.value {
-            TypeCheckType {
-                value: TypeCheckTypeType::CustomType(Rc::clone(other)),
+            Ok(TypeCheckType {
+                value: TypeCheckTypeType::CustomType(
+                    Rc::clone(other),
+                    Some(Box::new(
+                        context
+                            .get_basic_type(Rc::clone(&other))?
+                            .unwrap_type_ref()
+                            .clone(),
+                    )),
+                ),
                 pos: val.pos,
                 inferred: val.inferred,
-            }
+            })
         } else {
             panic!(format!(
                 "Unknown type {:?} tried to convert to type check type",
@@ -535,8 +546,10 @@ impl<'a> TypeCheckType<'a> {
             Expr::VariableAssignDeclaration(variable_assignment_dec) => {
                 let value_type =
                     TypeCheckType::from_expr(&mut *variable_assignment_dec.expr, context)?;
-                let cast_type =
-                    TypeCheckOrType::as_typecheck_type(Cow::Borrowed(&variable_assignment_dec.t));
+                let cast_type = TypeCheckOrType::as_typecheck_type(
+                    Cow::Borrowed(&variable_assignment_dec.t),
+                    context,
+                )?;
 
                 variable_assignment_dec.t =
                     if !TypeCheckType::sequiv(&cast_type, &value_type, context)? {
@@ -851,32 +864,34 @@ impl<'a> TypeCheck<'a> for Block<'a> {
         for node in &mut self.nodes {
             // First pass
             match node {
-                Statement::FunctionDefine(func_def) => func_def.generate_proto(context),
+                Statement::FunctionDefine(func_def) => func_def.generate_proto(context)?,
+                Statement::Unit(_) => {
+                    let mut std_lib = match core::generate_symbtab() {
+                        Ok(val) => val,
+                        Err(e) => {
+                            return Err(ErrorOrVec::ErrorVec(
+                                e.into_iter().map(|x| (x, ErrorLevel::CoreError)).collect(),
+                            ))
+                        }
+                    };
+
+                    match node.type_check(return_type.clone(), &mut std_lib) {
+                        Ok(_) => {}
+                        Err(e) => {
+                            errors.append(&mut e.as_vec());
+                        }
+                    };
+
+                    context.items.extend(std_lib.items);
+                }
                 _ => {}
             }
         }
 
         for node in &mut self.nodes {
             if let Statement::Unit(_) = node {
-                let mut std_lib = match core::generate_symbtab() {
-                    Ok(val) => val,
-                    Err(e) => {
-                        return Err(ErrorOrVec::ErrorVec(
-                            e.into_iter().map(|x| (x, ErrorLevel::CoreError)).collect(),
-                        ))
-                    }
-                };
-                match node.type_check(return_type.clone(), &mut std_lib) {
-                    Ok(_) => {}
-                    Err(e) => {
-                        errors.append(&mut e.as_vec());
-                    }
-                };
-
-                context.items.extend(std_lib.items);
-
                 continue;
-            };
+            }
             match node.type_check(return_type.clone(), context) {
                 Ok(_) => {}
                 Err(e) => {
@@ -958,23 +973,29 @@ impl<'a> TypeCheck<'a> for Block<'a> {
 }
 
 impl<'a> FunctionDefine<'a> {
-    fn generate_proto<'b>(&mut self, context: &'b mut TypeCheckSymbTab<'a>) {
+    fn generate_proto<'b>(
+        &mut self,
+        context: &'b mut TypeCheckSymbTab<'a>,
+    ) -> Result<(), ErrorOrVec<'a>> {
         let mut positional = Vec::new();
         for idx in 0..self.arguments.positional.len() {
             self.arguments.positional[idx] = (
                 self.arguments.positional[idx].0,
                 TypeCheckOrType::TypeCheckType(TypeCheckType::from_type(
                     (&self.arguments.positional[idx].1).unwrap_type(),
-                )),
+                    context,
+                )?),
             );
         }
+
         for argument in &self.arguments.positional {
             positional.push((argument.0, (argument.1.clone()).unwrap_type_check()))
         }
 
         self.return_type = TypeCheckOrType::TypeCheckType(TypeCheckType::from_type(
             self.return_type.unwrap_type(),
-        ));
+            context,
+        )?);
 
         self.name = self.name.prepend_namespace(context.curr_prefix.clone());
 
@@ -1004,6 +1025,8 @@ impl<'a> FunctionDefine<'a> {
                 self.pos,
             ),
         );
+
+        Ok(())
     }
 }
 
@@ -1024,7 +1047,8 @@ impl<'a> TypeCheck<'a> for FunctionDefine<'a> {
         (&mut self.block as &mut dyn TypeCheck).type_check(
             Some(Cow::Owned(TypeCheckOrType::as_typecheck_type(
                 Cow::Borrowed(&self.return_type),
-            ))),
+                &mut context,
+            )?)),
             &mut context,
         )
     }
@@ -1066,7 +1090,7 @@ impl<'a> TypeCheck<'a> for VariableDeclaration<'a> {
         _return_type: Option<Cow<'a, TypeCheckType<'a>>>,
         context: &'b mut TypeCheckSymbTab<'a>,
     ) -> Result<Cow<'a, TypeCheckType<'a>>, ErrorOrVec<'a>> {
-        let type_val = TypeCheckType::from_type(self.t.unwrap_type());
+        let type_val = TypeCheckType::from_type(self.t.unwrap_type(), context)?;
         context.set_value(
             Rc::clone(&self.name),
             SymbTabObj::Variable(type_val.clone(), false),
@@ -1093,9 +1117,11 @@ impl<'a> TypeCheck<'a> for TypeAssign<'a> {
                 .clone()
                 .prepend_namespace(context.curr_prefix.clone()),
         );
-        self.value = TypeCheckOrType::TypeCheckType(TypeCheckType::from_type(Rc::clone(
-            &self.value.unwrap_type(),
-        )));
+
+        self.value = TypeCheckOrType::TypeCheckType(TypeCheckType::from_type(
+            Rc::clone(&self.value.unwrap_type()),
+            context,
+        )?);
 
         context.set_value(
             Rc::clone(&self.name),
@@ -1257,6 +1283,7 @@ impl<'a> TypeCheckSymbTab<'a> {
             },
             None => {}
         }
+
         Err(ErrorOrVec::Error(
             Error::new(
                 "type does not exist".to_string(),
@@ -1285,7 +1312,7 @@ impl<'a> TypeCheckSymbTab<'a> {
                 .prepend_namespace(self.curr_prefix.clone()),
         ))?;
         while let SymbTabObj::CustomType(TypeCheckType {
-            value: TypeCheckTypeType::CustomType(name),
+            value: TypeCheckTypeType::CustomType(name, _),
             pos: _,
             inferred: _,
         }) = type_val

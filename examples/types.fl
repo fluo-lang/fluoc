@@ -1,13 +1,7 @@
 unit units {
     type km = int;
 
-    def get_distance() -> km {
-        let my_distance: km = 10;
-        return my_distance;
+    def val() -> km {
+        return 10;
     }
-}
-
-def get_distance() -> units::km {
-    let my_distance: units::km = 10;
-    return my_distance;
 }
