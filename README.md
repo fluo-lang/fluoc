@@ -43,7 +43,7 @@ def entry() {
 ```
 <br>
 
-# Installation
+## Installation
 
 1. [Install LLVM](https://github.com/fluo-lang/fluo#installing-llvm)
 
@@ -60,7 +60,9 @@ def entry() {
 
 4. There is no step 4
 
-# Usage
+<br>
+
+## Usage
 Make sure you're in the fluo directory:
 ```bash
 cd fluo
@@ -73,7 +75,9 @@ gcc out.o -no-pie  # -no-pie because we don't like eating pie... or 3.1415
 ./a.out
 ```
 
-# Installing LLVM
+<br>
+
+## Installing LLVM
 Currently, you will need to install LLVM on your own. In the future, this will change
 
 | Operating System                              | Install Command                                                                                                    |
