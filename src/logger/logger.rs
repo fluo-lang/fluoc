@@ -235,15 +235,17 @@ pub struct Logger<'a> {
     indentation: String,
     /// Buffer object
     buffer: Buffer,
+    verbose: bool
 }
 
 impl<'a> Logger<'a> {
-    pub fn new() -> Logger<'a> {
+    pub fn new(verbose: bool) -> Logger<'a> {
         Logger {
             errors: Vec::new(),
             filename_contents: HashMap::new(),
             indentation: "  ".to_string(),
             buffer: Buffer::new(),
+            verbose
         }
     }
 
@@ -260,6 +262,16 @@ impl<'a> Logger<'a> {
     /// Pushes an error onto the error vector.
     pub fn error(&mut self, error: Error<'a>) {
         self.errors.push(error);
+    }
+
+    pub fn log(&self, logged_val: String) {
+        println!("{}> {}{}{}", color::CYAN, color::GREEN, logged_val, color::RESET);
+    }
+
+    pub fn log_verbose(&self, logged_val: &dyn Fn() -> String) {
+        if self.verbose {
+            println!("{}> {}{}{}", color::CYAN, color::GREEN, logged_val(), color::RESET);
+        }
     }
 
     fn get_lineno(&mut self, pos: usize, filename: &'a path::Path) -> (usize, usize) {

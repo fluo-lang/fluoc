@@ -6,6 +6,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::path;
 use std::rc::Rc;
+use std::time::Instant;
 
 use inkwell::context::Context;
 use inkwell::module;
@@ -14,16 +15,16 @@ use inkwell::targets::{InitializationConfig, Target, TargetMachine};
 
 pub struct Master<'a> {
     context: &'a Context,
-    logger: Rc<RefCell<logger::logger::Logger<'a>>>,
+    pub logger: Rc<RefCell<logger::logger::Logger<'a>>>,
     modules: HashMap<&'a path::Path, CodeGenModule<'a>>,
 }
 
 impl<'a> Master<'a> {
-    pub fn new(context: &'a Context) -> Master<'a> {
+    pub fn new(context: &'a Context, verbose: bool) -> Master<'a> {
         Master {
             context,
             modules: HashMap::new(),
-            logger: Rc::new(RefCell::new(logger::logger::Logger::new())),
+            logger: Rc::new(RefCell::new(logger::logger::Logger::new(verbose))),
         }
     }
 
@@ -36,6 +37,7 @@ impl<'a> Master<'a> {
         let module = self
             .context
             .create_module(filename.to_str().expect("Filename specified is not valid"));
+        
         self.init_passes(&module);
         let mut code_gen_mod = helpers::error_or_other(
             CodeGenModule::new(
@@ -53,9 +55,10 @@ impl<'a> Master<'a> {
             .as_ref()
             .borrow_mut()
             .add_file(&filename, code_gen_mod.typecheck.parser.lexer.file_contents);
+
         helpers::error_or_other(code_gen_mod.generate(), Rc::clone(&self.logger));
         self.modules.insert(&filename, code_gen_mod);
-
+        
         self.write_obj_file(&filename);
     }
 
@@ -77,6 +80,7 @@ impl<'a> Master<'a> {
 
     fn write_obj_file(&self, filename: &'a path::Path) {
         let module = self.modules.get(filename).unwrap();
+
         Target::initialize_native(&InitializationConfig::default())
             .expect("Failed to initialize native target");
         let default_triple = TargetMachine::get_default_triple();
@@ -93,6 +97,7 @@ impl<'a> Master<'a> {
             )
             .unwrap();
 
+        let write_obj_start = Instant::now();
         target_machine
             .write_to_file(
                 &module.module,
@@ -100,5 +105,6 @@ impl<'a> Master<'a> {
                 &path::Path::new(module.output_file),
             )
             .expect("Error writing object");
+        self.logger.borrow().log_verbose(&|| format!("Object file written in {}ms!", write_obj_start.elapsed().as_millis())); // Lazily run it so no impact on performance
     }
 }

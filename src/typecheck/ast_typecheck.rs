@@ -1149,7 +1149,7 @@ impl<'a> TypeCheck<'a> for TypeAssign<'a> {
     fn type_check<'b>(
         &mut self,
         _return_type: Option<Cow<'a, TypeCheckType<'a>>>,
-        context: &'b mut TypeCheckSymbTab<'a>,
+        _context: &'b mut TypeCheckSymbTab<'a>,
     ) -> Result<Cow<'a, TypeCheckType<'a>>, ErrorOrVec<'a>> {
         // Returns nothing
         Ok(Cow::Owned(TypeCheckType {

@@ -8,7 +8,7 @@ use std::rc::Rc;
 
 #[allow(unused_must_use)]
 fn criterion_benchmark(c: &mut Criterion) {
-    let logger = Rc::new(RefCell::new(logger::logger::Logger::new()));
+    let logger = Rc::new(RefCell::new(logger::logger::Logger::new(true)));
     c.bench_function("parser simple", |b| {
         b.iter(|| {
             let mut my_parser = parser::parser::Parser::new(

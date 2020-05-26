@@ -24,7 +24,7 @@ use std::path;
 use std::time::Instant;
 
 fn main() {
-    let start = Instant::now();
+    let master_start = Instant::now();
     panic::set_hook(Box::new(|value| {
         let bt = backtrace::Backtrace::force_capture();
         eprintln!(
@@ -41,14 +41,17 @@ fn main() {
     let filename = paths::process_str(matches.value_of("entry").unwrap());
 
     let context = Context::create();
-
+    
+    let read_file_start = Instant::now();
     let contents = paths::read_file(filename.as_path());
+    let mut master = master::Master::new(&context, matches.is_present("verbose"));
+    master.logger.borrow().log_verbose(&|| format!("Read file {} done in {}µs!", filename.display(), read_file_start.elapsed().as_micros())); // Lazily run it so no impact on performance
 
-    let mut master = master::Master::new(&context);
     master.generate_file(
         filename.as_path(),
         &contents[..],
         path::Path::new(matches.value_of("output").unwrap_or("out.o")),
     );
-    println!("All done in {}ms!", start.elapsed().as_millis());
+
+    master.logger.borrow().log(format!("All done in {}ms!", master_start.elapsed().as_millis()));
 }

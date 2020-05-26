@@ -57,7 +57,7 @@ pub struct Parser<'a> {
     prefix_op: HashMap<lexer::TokenType<'a>, Prec>,
     infix_op: HashMap<lexer::TokenType<'a>, Prec>,
     tokens: Vec<lexer::Token<'a>>,
-    logger: Rc<RefCell<Logger<'a>>>,
+    pub logger: Rc<RefCell<Logger<'a>>>,
     token_pos: usize,
 }
 
@@ -214,6 +214,7 @@ impl<'a> Parser<'a> {
         if let Err(e) = self.fill_token_stream() {
             return Err(vec![e]);
         }
+        
 
         let position = self.token_pos;
 
@@ -1083,7 +1084,7 @@ pub mod parser_tests {
         ($code: expr, $function: expr, $expected: expr, $name: ident) => {
             #[test]
             fn $name() -> Result<(), Error<'static>> {
-                let logger = Rc::new(RefCell::new(Logger::new()));
+                let logger = Rc::new(RefCell::new(Logger::new(true)));
                 let mut parser = Parser::new(path::Path::new(FILENAME), $code, logger);
                 parser.initialize_expr();
                 parser.fill_token_stream()?;
@@ -1430,7 +1431,7 @@ pub mod parser_tests {
     //#[test]
     fn print_vals() {
         // Utility function for printing ast's
-        let logger = Rc::new(RefCell::new(Logger::new()));
+        let logger = Rc::new(RefCell::new(Logger::new(true)));
         let mut parser = Parser::new(path::Path::new(FILENAME), "()", logger);
         parser.initialize_expr();
         parser.fill_token_stream();

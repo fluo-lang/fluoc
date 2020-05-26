@@ -11,13 +11,9 @@ args:
         short: o
         long: output
         takes_value: true
-    - debug:
-        short: d
-        multiple: false
-        help: Debug mode
     - verbose:
-        short: -v
+        short: v
         help: Verbose mode
     - version:
-        short: -V
+        short: V
         help: Print version

@@ -50,7 +50,7 @@ pub fn generate_symbtab<'a>() -> Result<ast_typecheck::TypeCheckSymbTab<'a>, Vec
     let file_contents = Box::leak(contents.into_boxed_str());
     let core_path_ref = Box::leak(core_path.into_boxed_path());
 
-    let logger = Rc::new(RefCell::new(logger::Logger::new()));
+    let logger = Rc::new(RefCell::new(logger::Logger::new(true))); // The logger for the core is always verbose in the event of an error
 
     logger.borrow_mut().add_file(core_path_ref, file_contents);
 

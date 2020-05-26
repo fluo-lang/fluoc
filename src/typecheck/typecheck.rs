@@ -8,6 +8,7 @@ use crate::typecheck::ast_typecheck;
 use std::cell::RefCell;
 use std::path;
 use std::rc::Rc;
+use std::time::Instant;
 
 /// Typecheck object
 pub struct TypeCheckModule<'a> {
@@ -39,13 +40,20 @@ impl<'a> TypeCheckModule<'a> {
     }
 
     pub fn type_check(&mut self) -> Result<(), Vec<Error<'a>>> {
+        let parser_start = Instant::now();
         self.parser.parse()?;
-
+        self.parser.logger.borrow().log_verbose(&|| format!("Parsed and lexed in {}µs!", parser_start.elapsed().as_micros())); // Lazily run it so no impact on performance
+        
+        let typecheck_start = Instant::now();
+        
         // Do type checking
         match (self.parser.ast.as_mut().unwrap() as &mut dyn ast_typecheck::TypeCheck)
             .type_check(None, &mut self.symtab)
         {
-            Ok(_) => Ok(()),
+            Ok(_) => {
+                self.parser.logger.borrow().log_verbose(&|| format!("Typechecked in {}µs!", typecheck_start.elapsed().as_micros())); // Lazily run it so no impact on performance 
+                Ok(()) 
+            },
             Err(e) => Err(helpers::get_high_priority(e.as_vec())),
         }
     }

@@ -1,8 +1,6 @@
 use crate::logger::logger::{Error, Logger};
 use crate::parser::ast;
 use crate::typecheck::{ast_typecheck, typecheck};
-use std::ops::Deref;
-use std::rc::Rc;
 
 use inkwell::types::BasicType;
 use inkwell::values::BasicValue;
@@ -12,6 +10,9 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::path;
+use std::ops::Deref;
+use std::rc::Rc;
+use std::time::Instant;
 
 #[derive(Clone)]
 pub struct CodeGenSymbTab<'a> {
@@ -77,6 +78,7 @@ impl<'a> CodeGenModule<'a> {
     pub fn generate(&mut self) -> Result<(), Vec<Error<'a>>> {
         self.typecheck.type_check()?;
 
+        let gen_start = Instant::now();
         self.generate_std();
 
         let mut statements = None;
@@ -90,7 +92,9 @@ impl<'a> CodeGenModule<'a> {
             self.gen_stmt_pass_2(statement)
         }
 
-        println!("{}", self.module.print_to_string().to_string());
+        //println!("{}", self.module.print_to_string().to_string());
+        self.typecheck.parser.logger.borrow().log_verbose(&|| format!("LLVM IR generated in {}µs!", gen_start.elapsed().as_micros())); // Lazily run it so no impact on performance
+
         Ok(())
     }
 
@@ -98,7 +102,6 @@ impl<'a> CodeGenModule<'a> {
         match statement {
             ast::Statement::FunctionDefine(func_def) => self.gen_function_prototype(func_def),
             ast::Statement::Unit(unit) => self.get_unit_proto(unit),
-            ast::Statement::TypeAssign(type_assign) => self.gen_type_assign(type_assign),
             _ => {}
         }
     }
@@ -231,8 +234,6 @@ impl<'a> CodeGenModule<'a> {
         );
         expr_alloca.as_basic_value_enum()
     }
-
-    fn gen_type_assign(&mut self, type_assign: &ast::TypeAssign<'a>) {}
 
     fn gen_variable_dec(&mut self, var_dec: &ast::VariableDeclaration<'a>) {
         let var_type = self.get_type(var_dec.t.unwrap_type_check_ref());
