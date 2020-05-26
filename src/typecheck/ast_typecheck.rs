@@ -884,6 +884,9 @@ impl<'a> TypeCheck<'a> for Block<'a> {
 
                     context.items.extend(std_lib.items);
                 }
+                Statement::TypeAssign(type_assign) => {
+                    type_assign.type_check(return_type.clone(), context)?;
+                }
                 _ => {}
             }
         }
@@ -1105,7 +1108,7 @@ impl<'a> TypeCheck<'a> for VariableDeclaration<'a> {
     }
 }
 
-impl<'a> TypeCheck<'a> for TypeAssign<'a> {
+impl <'a> TypeAssign<'a> {
     fn type_check<'b>(
         &mut self,
         _return_type: Option<Cow<'a, TypeCheckType<'a>>>,
@@ -1128,6 +1131,21 @@ impl<'a> TypeCheck<'a> for TypeAssign<'a> {
             SymbTabObj::CustomType(self.value.unwrap_type_check_ref().clone()),
         );
 
+        // Returns nothing
+        Ok(Cow::Owned(TypeCheckType {
+            value: TypeCheckTypeType::Placeholder,
+            pos: self.pos,
+            inferred: true,
+        }))
+    }
+}
+
+impl<'a> TypeCheck<'a> for TypeAssign<'a> {
+    fn type_check<'b>(
+        &mut self,
+        _return_type: Option<Cow<'a, TypeCheckType<'a>>>,
+        context: &'b mut TypeCheckSymbTab<'a>,
+    ) -> Result<Cow<'a, TypeCheckType<'a>>, ErrorOrVec<'a>> {
         // Returns nothing
         Ok(Cow::Owned(TypeCheckType {
             value: TypeCheckTypeType::Placeholder,
