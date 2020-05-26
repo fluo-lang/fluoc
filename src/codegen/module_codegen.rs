@@ -6,7 +6,6 @@ use std::rc::Rc;
 
 use inkwell::types::BasicType;
 use inkwell::values::BasicValue;
-use inkwell::AddressSpace;
 use inkwell::{builder, context, module, types, values};
 
 use std::cell::RefCell;

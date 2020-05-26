@@ -361,6 +361,7 @@ impl<'a> TypeCheckType<'a> {
     pub fn from_type<'b>(
         val: Rc<Type<'a>>,
         context: &'b mut TypeCheckSymbTab<'a>,
+        is_none: bool // Special case on whether to eval the custom type into a basic type or not
     ) -> Result<TypeCheckType<'a>, ErrorOrVec<'a>> {
         if let Ok(_) = val.value.is_basic_type() {
             Ok(TypeCheckType {
@@ -373,7 +374,7 @@ impl<'a> TypeCheckType<'a> {
                 value: TypeCheckTypeType::TupleType(UnionType {
                     types: types
                         .into_iter()
-                        .map(|x| TypeCheckType::from_type(Rc::clone(&x), context))
+                        .map(|x| TypeCheckType::from_type(Rc::clone(&x), context, is_none))
                         .collect::<Result<Vec<TypeCheckType>, _>>()?,
                     pos: val.pos,
                     inferred: val.inferred,
@@ -385,12 +386,12 @@ impl<'a> TypeCheckType<'a> {
             Ok(TypeCheckType {
                 value: TypeCheckTypeType::CustomType(
                     Rc::clone(other),
-                    Some(Box::new(
+                    if is_none { None } else { Some(Box::new(
                         context
                             .get_basic_type(Rc::clone(&other))?
                             .unwrap_type_ref()
                             .clone(),
-                    )),
+                    ))},
                 ),
                 pos: val.pos,
                 inferred: val.inferred,
@@ -987,6 +988,7 @@ impl<'a> FunctionDefine<'a> {
                 TypeCheckOrType::TypeCheckType(TypeCheckType::from_type(
                     (&self.arguments.positional[idx].1).unwrap_type(),
                     context,
+                    false
                 )?),
             );
         }
@@ -998,6 +1000,7 @@ impl<'a> FunctionDefine<'a> {
         self.return_type = TypeCheckOrType::TypeCheckType(TypeCheckType::from_type(
             self.return_type.unwrap_type(),
             context,
+            false
         )?);
 
         self.name = self.name.prepend_namespace(context.curr_prefix.clone());
@@ -1040,6 +1043,7 @@ impl<'a> TypeCheck<'a> for FunctionDefine<'a> {
         context: &'b mut TypeCheckSymbTab<'a>,
     ) -> Result<Cow<'a, TypeCheckType<'a>>, ErrorOrVec<'a>> {
         let mut context = context.clone();
+        
         for argument in &self.arguments.positional {
             context.set_value(
                 Namespace::from_name_id(argument.0),
@@ -1093,7 +1097,7 @@ impl<'a> TypeCheck<'a> for VariableDeclaration<'a> {
         _return_type: Option<Cow<'a, TypeCheckType<'a>>>,
         context: &'b mut TypeCheckSymbTab<'a>,
     ) -> Result<Cow<'a, TypeCheckType<'a>>, ErrorOrVec<'a>> {
-        let type_val = TypeCheckType::from_type(self.t.unwrap_type(), context)?;
+        let type_val = TypeCheckType::from_type(self.t.unwrap_type(), context, false)?;
         context.set_value(
             Rc::clone(&self.name),
             SymbTabObj::Variable(type_val.clone(), false),
@@ -1124,6 +1128,7 @@ impl <'a> TypeAssign<'a> {
         self.value = TypeCheckOrType::TypeCheckType(TypeCheckType::from_type(
             Rc::clone(&self.value.unwrap_type()),
             context,
+            true
         )?);
 
         context.set_value(
@@ -1278,7 +1283,22 @@ impl<'a> TypeCheckSymbTab<'a> {
     }
 
     fn get_type(&self, namespace: Rc<Namespace<'a>>) -> Result<&SymbTabObj<'a>, ErrorOrVec<'a>> {
+        // Namespace of std
         match self.items.get(&namespace) {
+            Some(val) => match val.deref() {
+                SymbTabObj::CustomType(_) => return Ok(val),
+                _ => {}
+            },
+            None => {}
+        }
+
+        // Try other namespace
+        let other = namespace
+            .as_ref()
+            .clone()
+            .prepend_namespace(self.curr_prefix.clone());
+        
+        match self.items.get(&other) {
             Some(val) => match val.deref() {
                 SymbTabObj::CustomType(_) => return Ok(val),
                 other => {
@@ -1323,11 +1343,8 @@ impl<'a> TypeCheckSymbTab<'a> {
         &self,
         namespace: Rc<Namespace<'a>>,
     ) -> Result<&SymbTabObj<'a>, ErrorOrVec<'a>> {
-        let mut type_val = self.get_type(Rc::new(
-            namespace
-                .as_ref()
-                .clone()
-                .prepend_namespace(self.curr_prefix.clone()),
+        let mut type_val = self.get_type(Rc::clone(
+            &namespace
         ))?;
         while let SymbTabObj::CustomType(TypeCheckType {
             value: TypeCheckTypeType::CustomType(name, _),

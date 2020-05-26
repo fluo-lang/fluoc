@@ -302,11 +302,11 @@ impl<'a> TypeCheckOrType<'a> {
     ) -> Result<TypeCheckType<'a>, ErrorOrVec<'a>> {
         match _self {
             std::borrow::Cow::Borrowed(value) => match value {
-                TypeCheckOrType::Type(val) => TypeCheckType::from_type(Rc::clone(&val), context),
+                TypeCheckOrType::Type(val) => TypeCheckType::from_type(Rc::clone(&val), context, false),
                 TypeCheckOrType::TypeCheckType(val) => Ok(val.clone()),
             },
             std::borrow::Cow::Owned(value) => match value {
-                TypeCheckOrType::Type(val) => TypeCheckType::from_type(Rc::clone(&val), context),
+                TypeCheckOrType::Type(val) => TypeCheckType::from_type(Rc::clone(&val), context, false),
                 TypeCheckOrType::TypeCheckType(val) => Ok(val),
             },
         }
