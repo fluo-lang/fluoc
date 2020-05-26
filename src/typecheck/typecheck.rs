@@ -42,18 +42,28 @@ impl<'a> TypeCheckModule<'a> {
     pub fn type_check(&mut self) -> Result<(), Vec<Error<'a>>> {
         let parser_start = Instant::now();
         self.parser.parse()?;
-        self.parser.logger.borrow().log_verbose(&|| format!("{}: Parsed and lexed", helpers::display_duration(parser_start.elapsed()))); // Lazily run it so no impact on performance
-        
+        self.parser.logger.borrow().log_verbose(&|| {
+            format!(
+                "{}: Parsed and lexed",
+                helpers::display_duration(parser_start.elapsed())
+            )
+        }); // Lazily run it so no impact on performance
+
         let typecheck_start = Instant::now();
-        
+
         // Do type checking
         match (self.parser.ast.as_mut().unwrap() as &mut dyn ast_typecheck::TypeCheck)
             .type_check(None, &mut self.symtab)
         {
             Ok(_) => {
-                self.parser.logger.borrow().log_verbose(&|| format!("{}: Typechecked", helpers::display_duration(typecheck_start.elapsed()))); // Lazily run it so no impact on performance 
-                Ok(()) 
-            },
+                self.parser.logger.borrow().log_verbose(&|| {
+                    format!(
+                        "{}: Typechecked",
+                        helpers::display_duration(typecheck_start.elapsed())
+                    )
+                }); // Lazily run it so no impact on performance
+                Ok(())
+            }
             Err(e) => Err(helpers::get_high_priority(e.as_vec())),
         }
     }

@@ -23,29 +23,12 @@ pub fn generate_symbtab<'a>() -> Result<ast_typecheck::TypeCheckSymbTab<'a>, Vec
 
     core_path.push("src");
     core_path.push("core");
+    core_path.push("core.fl");
 
-    let files: Vec<_> = match fs::read_dir(&core_path) {
-        Ok(val) => val,
-        Err(e) => paths::file_error(e, core_path.display()),
-    }
-    .filter(|x| {
-        x.as_ref()
-            .unwrap()
-            .path()
-            .extension()
-            .unwrap_or(OsStr::new(""))
-            .to_str()
-            .unwrap_or("")
-            == "fl"
-    })
-    .map(|x| x.unwrap().path())
-    .collect();
 
     let mut contents = String::new();
 
-    for filename in files {
-        contents.push_str(&paths::read_file(&filename)[..]);
-    }
+    contents.push_str(&paths::read_file(&core_path)[..]);
 
     let file_contents = Box::leak(contents.into_boxed_str());
     let core_path_ref = Box::leak(core_path.into_boxed_path());

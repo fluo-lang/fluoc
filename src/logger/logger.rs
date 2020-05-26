@@ -235,7 +235,7 @@ pub struct Logger<'a> {
     indentation: String,
     /// Buffer object
     buffer: Buffer,
-    verbose: bool
+    verbose: bool,
 }
 
 impl<'a> Logger<'a> {
@@ -245,7 +245,7 @@ impl<'a> Logger<'a> {
             filename_contents: HashMap::new(),
             indentation: "  ".to_string(),
             buffer: Buffer::new(),
-            verbose
+            verbose,
         }
     }
 
@@ -265,12 +265,24 @@ impl<'a> Logger<'a> {
     }
 
     pub fn log(&self, logged_val: String) {
-        println!("{}> {}{}{}", color::CYAN, color::GREEN, logged_val, color::RESET);
+        println!(
+            "{}> {}{}{}",
+            color::CYAN,
+            color::GREEN,
+            logged_val,
+            color::RESET
+        );
     }
 
     pub fn log_verbose(&self, logged_val: &dyn Fn() -> String) {
         if self.verbose {
-            println!("{}> {}{}{}", color::CYAN, color::GREEN, logged_val(), color::RESET);
+            println!(
+                "{}> {}{}{}",
+                color::CYAN,
+                color::GREEN,
+                logged_val(),
+                color::RESET
+            );
         }
     }
 

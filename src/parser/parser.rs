@@ -53,7 +53,7 @@ pub struct Parser<'a> {
     pub lexer: lexer::Lexer<'a>,
     /// Abstract syntax tree
     pub ast: Option<ast::Block<'a>>,
-    statements: [fn(&mut Self) -> Result<Statement<'a>, Error<'a>>; 7],
+    statements: [fn(&mut Self) -> Result<Statement<'a>, Error<'a>>; 8],
     prefix_op: HashMap<lexer::TokenType<'a>, Prec>,
     infix_op: HashMap<lexer::TokenType<'a>, Prec>,
     tokens: Vec<lexer::Token<'a>>,
@@ -81,6 +81,7 @@ impl<'a> Parser<'a> {
                 Parser::return_statement,
                 Parser::variable_declaration,
                 Parser::type_assign,
+                Parser::compiler_tag,
             ],
             prefix_op: HashMap::new(),
             infix_op: HashMap::new(),
@@ -214,7 +215,6 @@ impl<'a> Parser<'a> {
         if let Err(e) = self.fill_token_stream() {
             return Err(vec![e]);
         }
-        
 
         let position = self.token_pos;
 
@@ -269,6 +269,7 @@ impl<'a> Parser<'a> {
         }
         let block = ast::Block {
             nodes: ast_list,
+            tags: Vec::new(),
             pos: self.position(position),
         };
         self.ast = Some(block);
@@ -332,6 +333,7 @@ impl<'a> Parser<'a> {
 
         Ok(ast::Block {
             nodes: ast_list,
+            tags: Vec::new(),
             pos: self.position(position),
         })
     }
@@ -465,6 +467,23 @@ impl<'a> Parser<'a> {
         self.next(lexer::TokenType::SEMI, position, false)?;
 
         self.import_file(&mut namespace)
+    }
+
+    fn compiler_tag(&mut self) -> Result<Statement<'a>, Error<'a>> {
+        let position = self.token_pos;
+
+        self.next(lexer::TokenType::AT, position, true)?;
+        self.next(lexer::TokenType::LB, position, false)?;
+
+        // For now, tags can only be ids
+        let id = self.name_id()?;
+
+        self.next(lexer::TokenType::RB, position, false)?;
+
+        Ok(Statement::Tag(ast::Tag {
+            content: id,
+            pos: self.position(position),
+        }))
     }
 
     /// Parse function definition

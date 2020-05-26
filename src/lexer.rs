@@ -22,6 +22,8 @@ pub enum TokenType<'a> {
     PUBLIC,
     UNIT,
 
+    AT,
+
     IDENTIFIER(&'a str),
     NUMBER(&'a str),
 
@@ -38,6 +40,8 @@ pub enum TokenType<'a> {
     RP,
     LCP,
     RCP,
+    LB,
+    RB,
 
     QUESTION,
     DOT,
@@ -106,6 +110,7 @@ impl<'a> fmt::Display for Token<'a> {
             TokenType::SUB => "operator `-`".to_string(),
             TokenType::DMOD => "operator `%%`".to_string(),
             TokenType::DOLLAR => "token `$`".to_string(),
+            TokenType::AT => "token `@`".to_string(),
 
             TokenType::DOUBLECOLON => "token `::`".to_string(),
 
@@ -115,6 +120,8 @@ impl<'a> fmt::Display for Token<'a> {
             TokenType::RP => "token `)`".to_string(),
             TokenType::LCP => "token `{`".to_string(),
             TokenType::RCP => "token `}`".to_string(),
+            TokenType::LB => "token `[`".to_string(),
+            TokenType::RB => "token `]`".to_string(),
 
             TokenType::QUESTION => "token `?`".to_string(),
             TokenType::DOT => "token `.`".to_string(),
@@ -171,12 +178,15 @@ fn get_tok_length(tok: &TokenType) -> usize {
         | TokenType::RP
         | TokenType::LCP
         | TokenType::RCP
+        | TokenType::LB
+        | TokenType::RB
         | TokenType::QUESTION
         | TokenType::DOT
         | TokenType::EQUALS
         | TokenType::SEMI
         | TokenType::COLON
-        | TokenType::DOLLAR => 1,
+        | TokenType::DOLLAR
+        | TokenType::AT => 1,
 
         TokenType::EOF => 0,
     }
@@ -318,6 +328,9 @@ impl<'a> Lexer<'a> {
             ')' => Ok(TokenType::RP),
             '{' => Ok(TokenType::LCP),
             '}' => Ok(TokenType::RCP),
+            '[' => Ok(TokenType::LB),
+            ']' => Ok(TokenType::RB),
+
             '.' => Ok(TokenType::DOT),
             ';' => Ok(TokenType::SEMI),
             '=' => Ok(TokenType::EQUALS),
@@ -330,6 +343,7 @@ impl<'a> Lexer<'a> {
                 }
                 _ => Ok(TokenType::COLON),
             },
+            '@' => Ok(TokenType::AT),
 
             '"' => self.string(),
             EOF_CHAR => {

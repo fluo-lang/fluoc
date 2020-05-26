@@ -65,10 +65,10 @@ pub fn display_duration(duration: std::time::Duration) -> String {
     if time_nano < 1000 {
         format!("{:.2}ns", time_nano)
     } else if time_nano < 1000000 {
-        format!("{:.2}µs", time_nano as f64/1000f64)
+        format!("{:.2}µs", time_nano as f64 / 1000f64)
     } else if time_nano < 1e+9 as u128 {
-        format!("{:.2}ms", time_nano as f64/1000000f64)
+        format!("{:.2}ms", time_nano as f64 / 1000000f64)
     } else {
-        format!("{:.2}s", time_nano as f64/1e+9)
+        format!("{:.2}s", time_nano as f64 / 1e+9)
     }
 }

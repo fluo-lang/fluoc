@@ -17,6 +17,13 @@ pub struct Empty<'a> {
     pub pos: helpers::Pos<'a>,
 }
 
+#[derive(Debug, Clone, PartialEq, Copy)]
+/// Special Compiler Tags
+pub struct Tag<'a> {
+    pub content: NameID<'a>,
+    pub pos: helpers::Pos<'a>,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Literal<'a> {
     pub value: &'a str,
@@ -169,6 +176,7 @@ pub struct Arguments<'a> {
 /// Block of code
 pub struct Block<'a> {
     pub nodes: Vec<Statement<'a>>,
+    pub tags: Vec<Tag<'a>>, // For now, tags are just strings
     pub pos: helpers::Pos<'a>,
 }
 
@@ -193,6 +201,7 @@ impl<'a> Units<'a> {
     pub fn into_block(self) -> Block<'a> {
         Block {
             nodes: self.units.into_iter().map(|x| Statement::Unit(x)).collect(),
+            tags: Vec::new(),
             pos: self.pos,
         }
     }
@@ -302,11 +311,15 @@ impl<'a> TypeCheckOrType<'a> {
     ) -> Result<TypeCheckType<'a>, ErrorOrVec<'a>> {
         match _self {
             std::borrow::Cow::Borrowed(value) => match value {
-                TypeCheckOrType::Type(val) => TypeCheckType::from_type(Rc::clone(&val), context, false),
+                TypeCheckOrType::Type(val) => {
+                    TypeCheckType::from_type(Rc::clone(&val), context, false)
+                }
                 TypeCheckOrType::TypeCheckType(val) => Ok(val.clone()),
             },
             std::borrow::Cow::Owned(value) => match value {
-                TypeCheckOrType::Type(val) => TypeCheckType::from_type(Rc::clone(&val), context, false),
+                TypeCheckOrType::Type(val) => {
+                    TypeCheckType::from_type(Rc::clone(&val), context, false)
+                }
                 TypeCheckOrType::TypeCheckType(val) => Ok(val),
             },
         }
@@ -454,6 +467,8 @@ pub enum Node<'a> {
 
     Tuple(Tuple<'a>),
 
+    Tag(Tag<'a>),
+
     ExpressionStatement(ExpressionStatement<'a>),
 
     FunctionDefine(FunctionDefine<'a>),
@@ -483,6 +498,7 @@ pub enum Statement<'a> {
     Import(Import<'a>),
 
     Empty(Empty<'a>),
+    Tag(Tag<'a>),
 }
 
 impl<'a> Statement<'a> {
@@ -495,6 +511,7 @@ impl<'a> Statement<'a> {
             Statement::Unit(val) => val.pos,
             Statement::TypeAssign(val) => val.pos,
             Statement::Import(val) => val.pos,
+            Statement::Tag(val) => val.pos,
 
             Statement::Empty(val) => val.pos,
         }
@@ -511,6 +528,7 @@ impl<'a> Statement<'a> {
             Statement::Import(_) => "import".to_string(),
             Statement::Return(_) => "return statement".to_string(),
             Statement::TypeAssign(_) => "type assignment".to_string(),
+            Statement::Tag(_) => "compiler tag".to_string(),
 
             Statement::Empty(_) => "empty statement".to_string(),
         }
@@ -529,6 +547,7 @@ impl<'a> Statement<'a> {
             Statement::TypeAssign(_) => &Scope::All,
             Statement::Unit(_) => &Scope::Outer,
             Statement::Import(_) => &Scope::Outer,
+            Statement::Tag(_) => &Scope::All,
 
             Statement::Empty(_) => &Scope::All,
         }
@@ -543,6 +562,7 @@ impl<'a> Statement<'a> {
             Statement::TypeAssign(val) => Node::TypeAssign(val),
             Statement::Import(val) => Node::Import(val),
             Statement::Unit(val) => Node::Unit(val),
+            Statement::Tag(val) => Node::Tag(val),
 
             Statement::Empty(val) => Node::Empty(val),
         }

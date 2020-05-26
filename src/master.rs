@@ -37,7 +37,7 @@ impl<'a> Master<'a> {
         let module = self
             .context
             .create_module(filename.to_str().expect("Filename specified is not valid"));
-        
+
         self.init_passes(&module);
         let mut code_gen_mod = helpers::error_or_other(
             CodeGenModule::new(
@@ -58,7 +58,7 @@ impl<'a> Master<'a> {
 
         helpers::error_or_other(code_gen_mod.generate(), Rc::clone(&self.logger));
         self.modules.insert(&filename, code_gen_mod);
-        
+
         self.write_obj_file(&filename);
     }
 
@@ -105,6 +105,11 @@ impl<'a> Master<'a> {
                 &path::Path::new(module.output_file),
             )
             .expect("Error writing object");
-        self.logger.borrow().log_verbose(&|| format!("{}: Object file written", helpers::display_duration(write_obj_start.elapsed()))); // Lazily run it so no impact on performance
+        self.logger.borrow().log_verbose(&|| {
+            format!(
+                "{}: Object file written",
+                helpers::display_duration(write_obj_start.elapsed())
+            )
+        }); // Lazily run it so no impact on performance
     }
 }

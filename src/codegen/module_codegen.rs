@@ -1,7 +1,7 @@
+use crate::helpers;
 use crate::logger::logger::{Error, Logger};
 use crate::parser::ast;
 use crate::typecheck::{ast_typecheck, typecheck};
-use crate::helpers;
 
 use inkwell::types::BasicType;
 use inkwell::values::BasicValue;
@@ -10,8 +10,8 @@ use inkwell::{builder, context, module, types, values};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::convert::TryInto;
-use std::path;
 use std::ops::Deref;
+use std::path;
 use std::rc::Rc;
 use std::time::Instant;
 
@@ -85,6 +85,7 @@ impl<'a> CodeGenModule<'a> {
         let mut statements = None;
         std::mem::swap(&mut self.typecheck.parser.ast, &mut statements);
         let statements = statements.unwrap();
+        println!("{:#?}", statements.nodes);
         for statement in &statements.nodes {
             self.gen_stmt_pass_1(statement)
         }
@@ -93,8 +94,13 @@ impl<'a> CodeGenModule<'a> {
             self.gen_stmt_pass_2(statement)
         }
 
-        //println!("{}", self.module.print_to_string().to_string());
-        self.typecheck.parser.logger.borrow().log_verbose(&|| format!("{}: LLVM IR generated", helpers::display_duration(gen_start.elapsed()))); // Lazily run it so no impact on performance
+        println!("{}", self.module.print_to_string().to_string());
+        self.typecheck.parser.logger.borrow().log_verbose(&|| {
+            format!(
+                "{}: LLVM IR generated",
+                helpers::display_duration(gen_start.elapsed())
+            )
+        }); // Lazily run it so no impact on performance
 
         Ok(())
     }

@@ -1,8 +1,8 @@
 
 public
 def hello() -> int {
-    print_int(1000);
+    core::print_int(1000);
     let val: int = hello();
-    print_int(val);
+    core::print_int(val);
     return 10;
 }
