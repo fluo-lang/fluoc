@@ -1,6 +1,7 @@
 use crate::logger::logger::{Error, Logger};
 use crate::parser::ast;
 use crate::typecheck::{ast_typecheck, typecheck};
+use crate::helpers;
 
 use inkwell::types::BasicType;
 use inkwell::values::BasicValue;
@@ -93,7 +94,7 @@ impl<'a> CodeGenModule<'a> {
         }
 
         //println!("{}", self.module.print_to_string().to_string());
-        self.typecheck.parser.logger.borrow().log_verbose(&|| format!("LLVM IR generated in {}µs!", gen_start.elapsed().as_micros())); // Lazily run it so no impact on performance
+        self.typecheck.parser.logger.borrow().log_verbose(&|| format!("{}: LLVM IR generated", helpers::display_duration(gen_start.elapsed()))); // Lazily run it so no impact on performance
 
         Ok(())
     }

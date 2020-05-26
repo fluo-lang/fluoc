@@ -45,7 +45,7 @@ fn main() {
     let read_file_start = Instant::now();
     let contents = paths::read_file(filename.as_path());
     let mut master = master::Master::new(&context, matches.is_present("verbose"));
-    master.logger.borrow().log_verbose(&|| format!("Read file {} done in {}µs!", filename.display(), read_file_start.elapsed().as_micros())); // Lazily run it so no impact on performance
+    master.logger.borrow().log_verbose(&|| format!("{}: Read file", helpers::display_duration(read_file_start.elapsed()))); // Lazily run it so no impact on performance
 
     master.generate_file(
         filename.as_path(),
@@ -53,5 +53,5 @@ fn main() {
         path::Path::new(matches.value_of("output").unwrap_or("out.o")),
     );
 
-    master.logger.borrow().log(format!("All done in {}ms!", master_start.elapsed().as_millis()));
+    master.logger.borrow().log(format!("{}: All Done", helpers::display_duration(master_start.elapsed())));
 }

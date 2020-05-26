@@ -105,6 +105,6 @@ impl<'a> Master<'a> {
                 &path::Path::new(module.output_file),
             )
             .expect("Error writing object");
-        self.logger.borrow().log_verbose(&|| format!("Object file written in {}ms!", write_obj_start.elapsed().as_millis())); // Lazily run it so no impact on performance
+        self.logger.borrow().log_verbose(&|| format!("{}: Object file written", helpers::display_duration(write_obj_start.elapsed()))); // Lazily run it so no impact on performance
     }
 }
