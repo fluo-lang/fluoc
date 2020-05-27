@@ -20,6 +20,7 @@ pub enum ErrorType {
     TypeCastError,
     PossibleUninitVal,
     VisibilityError,
+    ImportError,
 }
 
 impl ErrorType {
@@ -37,6 +38,7 @@ impl ErrorType {
             ErrorType::TypeCastError => "type_case",
             ErrorType::PossibleUninitVal => "possible_initialized",
             ErrorType::VisibilityError => "visibility_error",
+            ErrorType::ImportError => "import_error",
         }
     }
 }

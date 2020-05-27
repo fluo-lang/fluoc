@@ -28,8 +28,8 @@ jobs:
     - name: Set rust nightly as default for cargo
       run: rustup default nightly
     - name: Build
-      run: ${{matrix.ENV_VARS}} cargo build --verbose
+      run: ${{matrix.ENV_VARS}} cargo build --verbose --release
     - name: Run tests
       run: ${{matrix.ENV_VARS}} cargo test --verbose
     - name: Run benchmarks
-      run: ${{matrix.ENV_VARS}} cargo bench --verbose
+      run: ${{matrix.ENV_VARS}} cargo bench --verbose --release

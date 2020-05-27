@@ -432,7 +432,23 @@ impl<'a> Parser<'a> {
             .unwrap()
             .to_path_buf();
 
-        if scopes.is_empty() && import_path.is_file() {
+        if !import_path.is_file() {
+            Err(Error::new(
+                "file does not exist".to_string(),
+                ErrorType::ImportError,
+                last.pos,
+                ErrorDisplayType::Error,
+                vec![ErrorAnnotation::new(
+                    Some(format!("file `{}` does not exist", {
+                        import_path.push(format!("{}.fl", last.value));
+                        import_path.display()
+                    })),
+                    last.pos,
+                    ErrorDisplayType::Error,
+                )],
+                true,
+            ))
+        } else if scopes.is_empty() {
             // We can leak because the memory is going to live for most the the program anyways
             let imported_filename: &'static path::Path = path::Path::new(Box::leak(
                 import_path.to_string_lossy().into_owned().into_boxed_str(),
@@ -453,6 +469,7 @@ impl<'a> Parser<'a> {
                 block: parser.ast.unwrap(),
             }))
         } else {
+            println!("{:?}", last);
             panic!("This type of import is not implemented yet");
         }
     }

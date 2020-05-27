@@ -1,10 +1,10 @@
 
-import tests2;
+import awq::hello;
 
 public
 def entry() -> int {
     let x: int = 123;
-    tests2::hello();
+    hello();
     return 0;
 }
 
