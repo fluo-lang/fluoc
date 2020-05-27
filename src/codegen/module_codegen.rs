@@ -93,7 +93,7 @@ impl<'a> CodeGenModule<'a> {
             self.gen_stmt_pass_2(statement)
         }
 
-        //println!("{}", self.module.print_to_string().to_string());
+        println!("{}", self.module.print_to_string().to_string());
         self.typecheck.parser.logger.borrow().log_verbose(&|| {
             format!(
                 "{}: LLVM IR generated",

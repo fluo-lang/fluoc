@@ -78,7 +78,7 @@ gcc out.o -no-pie  # -no-pie because we don't like eating pie... or 3.1415
 <br>
 
 ## Installing LLVM
-Currently, you will need to install LLVM on your own. In the future, this will change
+Currently, you will need to install LLVM on your own. In the future, this will change.
 
 | Operating System                              | Install Command                                                                                                    |
 | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |

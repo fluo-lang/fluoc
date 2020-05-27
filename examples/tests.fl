@@ -1,15 +1,10 @@
 
-import tests2;
-
-public
-def entry() -> int {
-    core::fmt::print_int(123);
-    let x: int = 123;
-    tests2::hello();
-    return 0;
+unit test {
+    import tests2;
 }
 
 public
-def another_test() -> int {
-    return 100;
+def entry() -> int {
+    test::tests2::tests3::hello();
+    return 0;
 }

@@ -561,7 +561,7 @@ impl<'a> Parser<'a> {
         };
 
         self.next(lexer::TokenType::DEF, position, true)?;
-        let name = self.namespace()?;
+        let name = Rc::new(self.namespace()?);
 
         self.next(lexer::TokenType::LP, position, false)?;
 

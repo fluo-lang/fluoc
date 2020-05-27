@@ -910,6 +910,7 @@ impl<'a> TypeCheck<'a> for Block<'a> {
                     unit.block.process_tags()?;
 
                     let mut std_lib = unit.block.get_core()?;
+                    std::mem::swap(&mut std_lib.curr_prefix, &mut context.curr_prefix);
 
                     match node.type_check(None, &mut std_lib) {
                         Ok(_) => Ok(()),
@@ -917,6 +918,7 @@ impl<'a> TypeCheck<'a> for Block<'a> {
                     }?;
 
                     context.items.extend(std_lib.items);
+                    std::mem::swap(&mut std_lib.curr_prefix, &mut context.curr_prefix);
                 }
                 Statement::TypeAssign(type_assign) => {
                     type_assign.type_check(None, context)?;
@@ -1037,10 +1039,8 @@ impl<'a> FunctionDefine<'a> {
             false,
         )?);
 
-        self.name = self.name.prepend_namespace(context.curr_prefix.clone());
-
-        context.set_value(
-            Rc::new(self.name.clone()),
+        self.name = context.set_value(
+            Rc::clone(&self.name),
             SymbTabObj::Function(
                 TypeCheckType {
                     value: TypeCheckTypeType::FunctionSig(
@@ -1082,7 +1082,7 @@ impl<'a> TypeCheck<'a> for FunctionDefine<'a> {
             context.set_value(
                 Namespace::from_name_id(argument.0),
                 SymbTabObj::Variable((argument.1.clone()).unwrap_type_check(), true),
-            )
+            );
         }
 
         (&mut self.block as &mut dyn TypeCheck).type_check(
@@ -1112,7 +1112,7 @@ impl<'a> TypeCheck<'a> for Unit<'a> {
         _return_type: Option<Cow<'a, TypeCheckType<'a>>>,
         context: &'b mut TypeCheckSymbTab<'a>,
     ) -> Result<Cow<'a, TypeCheckType<'a>>, ErrorOrVec<'a>> {
-        context.curr_prefix.append(self.name.as_vec_nameid());
+        context.push_curr_prefix(self.name.as_vec_nameid());
         (&mut self.block as &mut dyn TypeCheck).type_check(None, context)?;
         context.curr_prefix.pop();
 
@@ -1152,11 +1152,9 @@ impl<'a> TypeAssign<'a> {
         _return_type: Option<Cow<'a, TypeCheckType<'a>>>,
         context: &'b mut TypeCheckSymbTab<'a>,
     ) -> Result<Cow<'a, TypeCheckType<'a>>, ErrorOrVec<'a>> {
-        self.name = Rc::new(
-            self.name
-                .as_ref()
-                .clone()
-                .prepend_namespace(context.curr_prefix.clone()),
+        self.name = context.set_value(
+            Rc::clone(&self.name),
+            SymbTabObj::CustomType(self.value.unwrap_type_check_ref().clone()),
         );
 
         self.value = TypeCheckOrType::TypeCheckType(TypeCheckType::from_type(
@@ -1164,11 +1162,6 @@ impl<'a> TypeAssign<'a> {
             context,
             true,
         )?);
-
-        context.set_value(
-            Rc::clone(&self.name),
-            SymbTabObj::CustomType(self.value.unwrap_type_check_ref().clone()),
-        );
 
         // Returns nothing
         Ok(Cow::Owned(TypeCheckType {
@@ -1268,8 +1261,24 @@ impl<'a> TypeCheckSymbTab<'a> {
             curr_prefix: Vec::new(),
         }
     }
-    pub fn set_value(&mut self, namespace: Rc<Namespace<'a>>, value: SymbTabObj<'a>) {
-        self.items.insert(namespace, value);
+    pub fn set_value(
+        &mut self,
+        namespace: Rc<Namespace<'a>>,
+        value: SymbTabObj<'a>,
+    ) -> Rc<Namespace<'a>> {
+        let adjusted_namespace = Rc::new(
+            namespace
+                .as_ref()
+                .clone()
+                .prepend_namespace(self.curr_prefix.clone()),
+        );
+
+        self.items.insert(Rc::clone(&adjusted_namespace), value);
+        Rc::clone(&adjusted_namespace)
+    }
+
+    fn push_curr_prefix(&mut self, prefix: &mut Vec<NameID<'a>>) {
+        self.curr_prefix.append(prefix);
     }
 
     pub fn get_prefix(self, prefix_match: &[NameID]) -> HashMap<Rc<Namespace<'a>>, SymbTabObj<'a>> {
@@ -1322,6 +1331,7 @@ impl<'a> TypeCheckSymbTab<'a> {
             },
             None => {}
         }
+
         Err(ErrorOrVec::Error(
             Error::new(
                 "function does not exist".to_string(),
