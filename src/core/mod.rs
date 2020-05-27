@@ -39,6 +39,5 @@ pub fn generate_symbtab<'a>() -> Result<ast_typecheck::TypeCheckSymbTab<'a>, Vec
         logger,
     );
 
-    let temp = typechecker.get_symbols()?;
-    Ok(temp)
+    typechecker.get_symbols()
 }

@@ -45,6 +45,14 @@ impl<'a> SymbTabObj<'a> {
             ),
         }
     }
+
+    pub fn pos(&self) -> helpers::Pos<'a> {
+        match &self {
+            SymbTabObj::CustomType(val) => val.pos,
+            SymbTabObj::Function(val, _) => val.pos,
+            SymbTabObj::Variable(val, _) => val.pos,
+        }
+    }
 }
 
 impl<'a> fmt::Display for SymbTabObj<'a> {
@@ -856,25 +864,18 @@ impl<'a> Block<'a> {
         }));
     }
 
-    pub fn insert_symbtab<'b>(
-        &mut self,
-        context: &'b mut TypeCheckSymbTab<'a>,
-    ) -> Result<(), ErrorOrVec<'a>> {
+    pub fn get_core<'b>(&mut self) -> Result<TypeCheckSymbTab<'a>, ErrorOrVec<'a>> {
         if !self.tags.iter().any(|&i| i.content.value == "no_core") {
             // Load core module
-            let std_lib = match core::generate_symbtab() {
-                Ok(val) => val,
-                Err(e) => {
-                    return Err(ErrorOrVec::ErrorVec(
-                        e.into_iter().map(|x| (x, ErrorLevel::CoreError)).collect(),
-                    ))
-                }
-            };
-
-            context.items.extend(std_lib.items);
+            match core::generate_symbtab() {
+                Ok(val) => Ok(val),
+                Err(e) => Err(ErrorOrVec::ErrorVec(
+                    e.into_iter().map(|x| (x, ErrorLevel::CoreError)).collect(),
+                )),
+            }
+        } else {
+            Ok(TypeCheckSymbTab::new())
         }
-
-        Ok(())
     }
 
     pub fn process_tags<'b>(&mut self) -> Result<(), ErrorOrVec<'a>> {
@@ -907,13 +908,15 @@ impl<'a> TypeCheck<'a> for Block<'a> {
                 Statement::FunctionDefine(func_def) => func_def.generate_proto(context)?,
                 Statement::Unit(unit) => {
                     unit.block.process_tags()?;
-                    unit.block.insert_symbtab(context)?;
-                    match node.type_check(None, context) {
-                        Ok(_) => {}
-                        Err(e) => {
-                            return Err(e);
-                        }
-                    };
+
+                    let mut std_lib = unit.block.get_core()?;
+
+                    match node.type_check(None, &mut std_lib) {
+                        Ok(_) => Ok(()),
+                        Err(e) => Err(e),
+                    }?;
+
+                    context.items.extend(std_lib.items);
                 }
                 Statement::TypeAssign(type_assign) => {
                     type_assign.type_check(None, context)?;
@@ -926,6 +929,7 @@ impl<'a> TypeCheck<'a> for Block<'a> {
             if let Statement::Unit(_) = node {
                 continue;
             }
+
             match node.type_check(return_type.clone(), context) {
                 Ok(_) => {}
                 Err(e) => {
@@ -1251,6 +1255,12 @@ impl<'a> TypeType<'a> {
     }
 }
 
+impl<'a> Namespace<'a> {
+    fn starts_with(&self, prefix: &[NameID]) -> bool {
+        &self.scopes[..prefix.len()] == &prefix[..]
+    }
+}
+
 impl<'a> TypeCheckSymbTab<'a> {
     pub fn new() -> TypeCheckSymbTab<'a> {
         TypeCheckSymbTab {
@@ -1260,6 +1270,13 @@ impl<'a> TypeCheckSymbTab<'a> {
     }
     pub fn set_value(&mut self, namespace: Rc<Namespace<'a>>, value: SymbTabObj<'a>) {
         self.items.insert(namespace, value);
+    }
+
+    pub fn get_prefix(self, prefix_match: &[NameID]) -> HashMap<Rc<Namespace<'a>>, SymbTabObj<'a>> {
+        self.items
+            .into_iter()
+            .filter(|(key, _)| key.starts_with(prefix_match))
+            .collect()
     }
 
     fn get_function(

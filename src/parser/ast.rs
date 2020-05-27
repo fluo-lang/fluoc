@@ -1,9 +1,10 @@
 use crate::helpers;
 use crate::lexer::Token;
 use crate::logger::logger::ErrorOrVec;
-use crate::typecheck::ast_typecheck::{TypeCheckSymbTab, TypeCheckType};
+use crate::typecheck::ast_typecheck::{SymbTabObj, TypeCheckSymbTab, TypeCheckType};
 
 use inkwell::module::Linkage;
+use std::collections::HashMap;
 use std::fmt;
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};

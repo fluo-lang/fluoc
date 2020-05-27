@@ -1,10 +1,11 @@
 
-import awq::hello;
+import tests2;
 
 public
 def entry() -> int {
+    core::fmt::print_int(123);
     let x: int = 123;
-    hello();
+    tests2::hello();
     return 0;
 }
 

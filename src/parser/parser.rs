@@ -5,6 +5,7 @@ use crate::parser::ast;
 use crate::parser::ast::{Expr, Scope, Statement};
 use crate::paths;
 use crate::typecheck::ast_typecheck::TypeCheckType;
+use crate::typecheck::typecheck;
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -469,8 +470,53 @@ impl<'a> Parser<'a> {
                 block: parser.ast.unwrap(),
             }))
         } else {
-            println!("{:?}", last);
-            panic!("This type of import is not implemented yet");
+            let imported_filename: &'static path::Path = path::Path::new(Box::leak(
+                import_path.to_string_lossy().into_owned().into_boxed_str(),
+            ));
+            let file_contents = paths::read_file_leak(imported_filename);
+            self.logger
+                .borrow_mut()
+                .add_file(imported_filename, file_contents);
+            let mut typechecker = match typecheck::TypeCheckModule::new(
+                imported_filename,
+                file_contents,
+                Rc::clone(&self.logger),
+            ) {
+                Ok(val) => val,
+                Err(e) => return Err(e.into_iter().nth(0).unwrap()),
+            };
+            match typechecker.type_check() {
+                Ok(_) => {}
+                Err(e) => return Err(e.into_iter().nth(0).unwrap()),
+            };
+
+            let objs = typechecker.symtab.get_prefix(&scopes[..]);
+
+            if objs.is_empty() {
+                Err(Error::new(
+                    "value does not exist".to_string(),
+                    ErrorType::ImportError,
+                    name.pos,
+                    ErrorDisplayType::Error,
+                    vec![ErrorAnnotation::new(
+                        Some(format!(
+                            "value `{}` does not exist in file `{}`",
+                            scopes
+                                .into_iter()
+                                .map(|val| val.value)
+                                .collect::<Vec<_>>()
+                                .join("::"),
+                            import_path.display()
+                        )),
+                        last.pos,
+                        ErrorDisplayType::Error,
+                    )],
+                    true,
+                ))
+            } else {
+                panic!("this type of import to implemented yet");
+                //Ok(Statement::SymbolTabInsert(objs))
+            }
         }
     }
 

@@ -1,5 +1,8 @@
 @[no_core]
 unit core {
     @[no_core]
-    import fmt;
+    unit core {
+        @[no_core]
+        import fmt;
+    }
 }

@@ -52,14 +52,10 @@ impl<'a> TypeCheckModule<'a> {
         };
 
         // Load core lib on outer scope
-        match self
-            .parser
-            .ast
-            .as_mut()
-            .unwrap()
-            .insert_symbtab(&mut self.symtab)
-        {
-            Ok(_) => {}
+        match self.parser.ast.as_mut().unwrap().get_core() {
+            Ok(core) => {
+                self.symtab.items.extend(core.items);
+            }
             Err(e) => return Err(helpers::get_high_priority(e.as_vec())),
         };
 
