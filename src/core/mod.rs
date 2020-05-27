@@ -6,8 +6,6 @@ use crate::typecheck::{ast_typecheck, typecheck};
 
 use std::cell::RefCell;
 use std::env::current_exe;
-use std::ffi::OsStr;
-use std::fs;
 use std::rc::Rc;
 
 // Generate core modules
@@ -25,7 +23,6 @@ pub fn generate_symbtab<'a>() -> Result<ast_typecheck::TypeCheckSymbTab<'a>, Vec
     core_path.push("core");
     core_path.push("core.fl");
 
-
     let mut contents = String::new();
 
     contents.push_str(&paths::read_file(&core_path)[..]);
@@ -38,9 +35,10 @@ pub fn generate_symbtab<'a>() -> Result<ast_typecheck::TypeCheckSymbTab<'a>, Vec
     logger.borrow_mut().add_file(core_path_ref, file_contents);
 
     let typechecker = helpers::error_or_other(
-        typecheck::TypeCheckModule::new(core_path_ref, file_contents, Rc::clone(&logger), false),
+        typecheck::TypeCheckModule::new(core_path_ref, file_contents, Rc::clone(&logger)),
         logger,
     );
 
-    typechecker.get_symbols()
+    let temp = typechecker.get_symbols()?;
+    Ok(temp)
 }

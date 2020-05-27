@@ -1,4 +1,3 @@
-use crate::core::generate_symbtab;
 use crate::helpers;
 use crate::logger::logger::{Error, Logger};
 use crate::parser::parser;
@@ -25,17 +24,12 @@ impl<'a> TypeCheckModule<'a> {
         filename: &'a path::Path,
         file_contents: &'a str,
         logger: Rc<RefCell<Logger<'a>>>,
-        first: bool,
     ) -> Result<TypeCheckModule<'a>, Vec<Error<'a>>> {
         let mut p = parser::Parser::new(filename, file_contents, logger);
         p.initialize_expr();
         Ok(TypeCheckModule {
             parser: p,
-            symtab: if first {
-                generate_symbtab()?
-            } else {
-                ast_typecheck::TypeCheckSymbTab::new()
-            },
+            symtab: ast_typecheck::TypeCheckSymbTab::new(),
         })
     }
 
@@ -50,6 +44,24 @@ impl<'a> TypeCheckModule<'a> {
         }); // Lazily run it so no impact on performance
 
         let typecheck_start = Instant::now();
+
+        // Process compiler tags
+        match self.parser.ast.as_mut().unwrap().process_tags() {
+            Ok(_) => {}
+            Err(e) => return Err(helpers::get_high_priority(e.as_vec())),
+        };
+
+        // Load core lib on outer scope
+        match self
+            .parser
+            .ast
+            .as_mut()
+            .unwrap()
+            .insert_symbtab(&mut self.symtab)
+        {
+            Ok(_) => {}
+            Err(e) => return Err(helpers::get_high_priority(e.as_vec())),
+        };
 
         // Do type checking
         match (self.parser.ast.as_mut().unwrap() as &mut dyn ast_typecheck::TypeCheck)

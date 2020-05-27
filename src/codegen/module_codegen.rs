@@ -65,7 +65,7 @@ impl<'a> CodeGenModule<'a> {
         logger: Rc<RefCell<Logger<'a>>>,
         output_file: &'a path::Path,
     ) -> Result<CodeGenModule<'a>, Vec<Error<'a>>> {
-        let typecheck = typecheck::TypeCheckModule::new(filename, file_contents, logger, true);
+        let typecheck = typecheck::TypeCheckModule::new(filename, file_contents, logger);
         Ok(CodeGenModule {
             module,
             context,
@@ -85,7 +85,6 @@ impl<'a> CodeGenModule<'a> {
         let mut statements = None;
         std::mem::swap(&mut self.typecheck.parser.ast, &mut statements);
         let statements = statements.unwrap();
-        println!("{:#?}", statements.nodes);
         for statement in &statements.nodes {
             self.gen_stmt_pass_1(statement)
         }
@@ -94,7 +93,7 @@ impl<'a> CodeGenModule<'a> {
             self.gen_stmt_pass_2(statement)
         }
 
-        println!("{}", self.module.print_to_string().to_string());
+        //println!("{}", self.module.print_to_string().to_string());
         self.typecheck.parser.logger.borrow().log_verbose(&|| {
             format!(
                 "{}: LLVM IR generated",
@@ -183,6 +182,7 @@ impl<'a> CodeGenModule<'a> {
             .map(|argument| self.eval_expr(argument))
             .collect();
         let str_val = func_call.name.to_string();
+
         self.builder
             .build_call(
                 self.module.get_function(&str_val[..]).unwrap(),

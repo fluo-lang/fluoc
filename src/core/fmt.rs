@@ -25,7 +25,9 @@ impl<'a> module_codegen::CodeGenModule<'a> {
         let empty_tuple = self.context.struct_type(&[], false);
 
         let fn_type = empty_tuple.fn_type(&[i32_type.into()], false);
-        let fn_addr = self.module.add_function("print_int", fn_type, None);
+        let fn_addr = self
+            .module
+            .add_function("core::fmt::print_int", fn_type, None);
 
         let entry_block = self.context.append_basic_block(fn_addr, "entry");
 

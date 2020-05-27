@@ -1,5 +1,7 @@
 -- Placeholder value for function signature
+@[no_core]
 public
 def print_int(val: int) -> () {
+    @[no_core]
     return ();
 }

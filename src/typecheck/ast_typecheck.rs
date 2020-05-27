@@ -58,7 +58,7 @@ impl<'a> fmt::Display for SymbTabObj<'a> {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct TypeCheckSymbTab<'a> {
     pub items: HashMap<Rc<Namespace<'a>>, SymbTabObj<'a>>,
     curr_prefix: Vec<NameID<'a>>, // Current Namespace to push
@@ -855,6 +855,41 @@ impl<'a> Block<'a> {
             pos: self.pos,
         }));
     }
+
+    pub fn insert_symbtab<'b>(
+        &mut self,
+        context: &'b mut TypeCheckSymbTab<'a>,
+    ) -> Result<(), ErrorOrVec<'a>> {
+        if !self.tags.iter().any(|&i| i.content.value == "no_core") {
+            // Load core module
+            let std_lib = match core::generate_symbtab() {
+                Ok(val) => val,
+                Err(e) => {
+                    return Err(ErrorOrVec::ErrorVec(
+                        e.into_iter().map(|x| (x, ErrorLevel::CoreError)).collect(),
+                    ))
+                }
+            };
+
+            context.items.extend(std_lib.items);
+        }
+
+        Ok(())
+    }
+
+    pub fn process_tags<'b>(&mut self) -> Result<(), ErrorOrVec<'a>> {
+        for i in 0..self.nodes.len() {
+            match &self.nodes[i] {
+                Statement::Tag(tag) => {
+                    self.tags.push(*tag);
+                    let mut placeholder = Statement::Empty(Empty { pos: self.pos });
+                    std::mem::swap(&mut placeholder, &mut self.nodes[i]); // Replace node with placeholder
+                }
+                _ => {}
+            }
+        }
+        Ok(())
+    }
 }
 
 impl<'a> TypeCheck<'a> for Block<'a> {
@@ -866,45 +901,22 @@ impl<'a> TypeCheck<'a> for Block<'a> {
         let mut errors: Vec<(Error, ErrorLevel)> = Vec::new();
         let mut ret_types: Vec<&mut Expr> = Vec::new();
 
-        for i in 0..self.nodes.len() {
-            match &self.nodes[i] {
-                Statement::Tag(tag) => {
-                    self.tags.push(*tag);
-                    let mut placeholder = Statement::Empty(Empty { pos: self.pos });
-                    std::mem::swap(&mut placeholder, &mut self.nodes[i]); // Replace node with placeholder
-                }
-                _ => {}
-            }
-        }
-
-        for node in &mut self.nodes {
+        for mut node in &mut self.nodes {
             // First pass
-            match node {
+            match &mut node {
                 Statement::FunctionDefine(func_def) => func_def.generate_proto(context)?,
-                Statement::Unit(_) => {
-                    if !self.tags.iter().any(|&i| i.content.value == "no_core") {
-                        // Load core module
-                        let mut std_lib = match core::generate_symbtab() {
-                            Ok(val) => val,
-                            Err(e) => {
-                                return Err(ErrorOrVec::ErrorVec(
-                                    e.into_iter().map(|x| (x, ErrorLevel::CoreError)).collect(),
-                                ))
-                            }
-                        };
-
-                        match node.type_check(return_type.clone(), &mut std_lib) {
-                            Ok(_) => {}
-                            Err(e) => {
-                                errors.append(&mut e.as_vec());
-                            }
-                        };
-
-                        context.items.extend(std_lib.items);
-                    }
+                Statement::Unit(unit) => {
+                    unit.block.process_tags()?;
+                    unit.block.insert_symbtab(context)?;
+                    match node.type_check(None, context) {
+                        Ok(_) => {}
+                        Err(e) => {
+                            return Err(e);
+                        }
+                    };
                 }
                 Statement::TypeAssign(type_assign) => {
-                    type_assign.type_check(return_type.clone(), context)?;
+                    type_assign.type_check(None, context)?;
                 }
                 _ => {}
             }
@@ -1204,6 +1216,11 @@ impl<'a> TypeCheck<'a> for Statement<'a> {
                 (statement as &mut dyn TypeCheck).type_check(return_type, context)
             }
             Statement::Empty(_) => Ok(Cow::Owned(TypeCheckType {
+                value: TypeCheckTypeType::Placeholder,
+                pos: self.pos(),
+                inferred: false,
+            })),
+            Statement::Tag(_) => Ok(Cow::Owned(TypeCheckType {
                 value: TypeCheckTypeType::Placeholder,
                 pos: self.pos(),
                 inferred: false,
