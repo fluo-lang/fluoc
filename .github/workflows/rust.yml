@@ -32,4 +32,4 @@ jobs:
     - name: Run tests
       run: ${{matrix.ENV_VARS}} cargo test --verbose
     - name: Run benchmarks
-      run: ${{matrix.ENV_VARS}} cargo bench --verbose --release
+      run: ${{matrix.ENV_VARS}} cargo bench --verbose
