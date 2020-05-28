@@ -216,7 +216,7 @@ impl<'a> CodeGenModule<'a> {
     }
 
     fn eval_tuple(&mut self, tuple: &ast::Tuple<'a>) -> values::BasicValueEnum<'a> {
-        let values: Vec<values::BasicValueEnum> = tuple
+        let values: Vec<values::BasicValueEnum<'_>> = tuple
             .values
             .iter()
             .map(|value| self.eval_expr(value))
@@ -316,7 +316,7 @@ impl<'a> CodeGenModule<'a> {
         }
     }
 
-    fn gen_function_prototype(&mut self, func_def: &ast::FunctionDefine) {
+    fn gen_function_prototype(&mut self, func_def: &ast::FunctionDefine<'_>) {
         let func_name = &func_def.name.to_string()[..];
         let return_type = self.get_type(func_def.return_type.unwrap_type_check_ref());
         let fn_type = return_type.fn_type(
@@ -325,7 +325,7 @@ impl<'a> CodeGenModule<'a> {
                 .positional
                 .iter()
                 .map(|arg| self.get_type(arg.1.unwrap_type_check_ref()))
-                .collect::<Vec<types::BasicTypeEnum>>()[..],
+                .collect::<Vec<types::BasicTypeEnum<'_>>>()[..],
             false,
         );
 
@@ -336,7 +336,7 @@ impl<'a> CodeGenModule<'a> {
     fn gen_function_define(
         &mut self,
         func_def: &ast::FunctionDefine<'a>,
-        func_val: values::FunctionValue,
+        func_val: values::FunctionValue<'_>,
     ) {
         self.symbtab.clear();
 
@@ -369,7 +369,10 @@ impl<'a> CodeGenModule<'a> {
         self.builder.build_return(Some(&ret_val));
     }
 
-    fn get_type(&mut self, type_ast: &ast_typecheck::TypeCheckType) -> types::BasicTypeEnum<'a> {
+    fn get_type(
+        &mut self,
+        type_ast: &ast_typecheck::TypeCheckType<'_>,
+    ) -> types::BasicTypeEnum<'a> {
         match &type_ast.value {
             ast_typecheck::TypeCheckTypeType::SingleType(value) => {
                 match value.value.is_basic_type() {
@@ -391,7 +394,7 @@ impl<'a> CodeGenModule<'a> {
                 panic!("Array type not implemented for codegen yet!");
             }
             ast_typecheck::TypeCheckTypeType::TupleType(tuple_union) => {
-                let item_types: Vec<types::BasicTypeEnum> = tuple_union
+                let item_types: Vec<types::BasicTypeEnum<'_>> = tuple_union
                     .types
                     .iter()
                     .map(|type_val| self.get_type(type_val))

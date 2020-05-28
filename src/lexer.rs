@@ -153,13 +153,13 @@ impl<'a> fmt::Display for Token<'a> {
 }
 
 impl<'a> PartialEq for Token<'a> {
-    fn eq(&self, other: &Token) -> bool {
+    fn eq(&self, other: &Token<'_>) -> bool {
         self.pos.e == other.pos.e && self.pos.s == other.pos.s && self.token == other.token
     }
 }
 
 /// Get length of token: useful for calculating positions of tokens
-fn get_tok_length(tok: &TokenType) -> usize {
+fn get_tok_length(tok: &TokenType<'_>) -> usize {
     match tok {
         TokenType::STRING(val)
         | TokenType::IDENTIFIER(val)

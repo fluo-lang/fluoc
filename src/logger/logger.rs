@@ -302,7 +302,7 @@ impl<'a> Logger<'a> {
         (lineno, relative_pos)
     }
 
-    fn get_max_line_size(&mut self, errors: &[ErrorAnnotation]) -> usize {
+    fn get_max_line_size(&mut self, errors: &[ErrorAnnotation<'_>]) -> usize {
         let mut max_line_size = 0;
         for error in errors {
             let temp = (error.position_rel.1)
@@ -322,7 +322,7 @@ impl<'a> Logger<'a> {
         &mut self,
         ln: usize,
         max_line_size: usize,
-        vertical_annotations: &HashMap<usize, ErrorAnnotation>,
+        vertical_annotations: &HashMap<usize, ErrorAnnotation<'_>>,
         lineno: usize,
         end: bool,
     ) -> (usize, usize) {
@@ -337,7 +337,7 @@ impl<'a> Logger<'a> {
             Style::new(Some(Color::LINENOCOLOR), Some(Font::BOLD)),
         );
 
-        let mut vertical_annotations: Vec<(&usize, &ErrorAnnotation)> =
+        let mut vertical_annotations: Vec<(&usize, &ErrorAnnotation<'_>)> =
             vertical_annotations.iter().collect();
         vertical_annotations.sort_by_key(|a| Reverse(a.0));
         let mut span_no = 0;
@@ -395,7 +395,7 @@ impl<'a> Logger<'a> {
         (b_start..b_end + extra).contains(&a_start) || (a_start..a_end + extra).contains(&b_start)
     }
 
-    fn overlaps(a1: &ErrorAnnotation, a2: &ErrorAnnotation, padding: usize) -> bool {
+    fn overlaps(a1: &ErrorAnnotation<'_>, a2: &ErrorAnnotation<'_>, padding: usize) -> bool {
         Logger::num_overlap(
             a1.position.s,
             a1.position.e + padding,
@@ -408,10 +408,10 @@ impl<'a> Logger<'a> {
     fn draw_last_multiline(
         &mut self,
         writer_pos: &mut (usize, usize),
-        annotation: &ErrorAnnotation,
+        annotation: &ErrorAnnotation<'_>,
         max_line_size: usize,
         line_offset: &mut usize,
-        vertical_annotations: &HashMap<usize, ErrorAnnotation>,
+        vertical_annotations: &HashMap<usize, ErrorAnnotation<'_>>,
         lineno: usize,
         span_width: usize,
         span_number: usize,
@@ -547,8 +547,8 @@ impl<'a> Logger<'a> {
     ) {
         let mut printed_lines: HashMap<&path::Path, HashSet<usize>> = HashMap::new();
         let start_line = writer_pos.0 + 1;
-        let mut annotations_by_line: Vec<Vec<ErrorAnnotation>> = Vec::new();
-        let mut temp: Vec<ErrorAnnotation> = Vec::new();
+        let mut annotations_by_line: Vec<Vec<ErrorAnnotation<'_>>> = Vec::new();
+        let mut temp: Vec<ErrorAnnotation<'_>> = Vec::new();
         let mut first = true;
 
         annotations.sort_by_key(|x| (x.position_rel.0).0);
@@ -571,7 +571,7 @@ impl<'a> Logger<'a> {
         let mut prev_line: (usize, Option<&path::Path>) = (0, None);
         let mut prev_line_2: usize = 0;
         let mut first = true;
-        let mut vertical_annotations: HashMap<usize, ErrorAnnotation> = HashMap::new(); // for last part of multi-line block annotation
+        let mut vertical_annotations: HashMap<usize, ErrorAnnotation<'_>> = HashMap::new(); // for last part of multi-line block annotation
         let mut span_no = 0;
 
         let first_val = annotations_by_line.first().unwrap().first().unwrap();
@@ -1002,7 +1002,7 @@ impl<'a> Logger<'a> {
         }
         if !vertical_annotations.is_empty() {
             // Fill in last multiline annotations
-            let mut vertical_annotations_sorted: Vec<(usize, ErrorAnnotation)> =
+            let mut vertical_annotations_sorted: Vec<(usize, ErrorAnnotation<'_>)> =
                 vertical_annotations.clone().into_iter().collect();
             vertical_annotations_sorted.sort_by_key(|a| a.0);
             span_no = 0;
@@ -1078,7 +1078,7 @@ impl<'a> Logger<'a> {
         )
     }
 
-    fn is_multiline(&mut self, annotation: &ErrorAnnotation) -> bool {
+    fn is_multiline(&mut self, annotation: &ErrorAnnotation<'_>) -> bool {
         (annotation.position_rel.0).0 != (annotation.position_rel.1).0
     }
 
@@ -1095,7 +1095,7 @@ impl<'a> Logger<'a> {
             );
         }
 
-        let mut annotations_filtered: HashMap<&path::Path, (usize, Vec<ErrorAnnotation>)> =
+        let mut annotations_filtered: HashMap<&path::Path, (usize, Vec<ErrorAnnotation<'_>>)> =
             HashMap::new(); // Usize is span thickness
 
         // Filter so that each annotation in each file is together
@@ -1160,7 +1160,7 @@ impl<'a> Logger<'a> {
     /// Raises all the errors on the error vector.
     /// Note: doesn't exit out of the program.
     pub fn raise(&mut self) {
-        let warnings: Vec<Error> = self
+        let warnings: Vec<Error<'_>> = self
             .errors
             .iter()
             .cloned()
@@ -1175,7 +1175,7 @@ impl<'a> Logger<'a> {
 
         self.raise_type(warnings, ErrorDisplayType::Warning);
 
-        let errors: Vec<Error> = self
+        let errors: Vec<Error<'_>> = self
             .errors
             .iter()
             .cloned()

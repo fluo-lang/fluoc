@@ -1,4 +1,5 @@
 #![feature(backtrace)]
+#![warn(rust_2018_idioms)]
 pub mod codegen;
 pub mod helpers;
 pub mod lexer;
@@ -11,7 +12,6 @@ pub mod core;
 
 #[macro_use]
 extern crate clap;
-extern crate shellexpand;
 
 use clap::App;
 use inkwell::context::Context;

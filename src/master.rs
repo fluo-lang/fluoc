@@ -62,7 +62,7 @@ impl<'a> Master<'a> {
         self.write_obj_file(&filename);
     }
 
-    fn init_passes(&self, module: &module::Module) {
+    fn init_passes(&self, module: &module::Module<'_>) {
         let fpm = PassManager::create(module);
 
         fpm.add_instruction_combining_pass();

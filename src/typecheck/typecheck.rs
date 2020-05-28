@@ -60,7 +60,7 @@ impl<'a> TypeCheckModule<'a> {
         };
 
         // Do type checking
-        match (self.parser.ast.as_mut().unwrap() as &mut dyn ast_typecheck::TypeCheck)
+        match (self.parser.ast.as_mut().unwrap() as &mut dyn ast_typecheck::TypeCheck<'_>)
             .type_check(None, &mut self.symtab)
         {
             Ok(_) => {
@@ -80,7 +80,7 @@ impl<'a> TypeCheckModule<'a> {
         self.parser.parse()?;
 
         // Do type checking
-        match (self.parser.ast.as_mut().unwrap() as &mut dyn ast_typecheck::TypeCheck)
+        match (self.parser.ast.as_mut().unwrap() as &mut dyn ast_typecheck::TypeCheck<'_>)
             .type_check(None, &mut self.symtab)
         {
             Ok(_) => Ok(self.symtab), // Return symbol table here

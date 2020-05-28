@@ -363,7 +363,7 @@ impl<'a> TypeCheckType<'a> {
                     ));
                 }
             })
-            .collect::<Result<(), ErrorOrVec>>()
+            .collect::<Result<(), ErrorOrVec<'_>>>()
     }
 
     pub fn from_type<'b>(
@@ -383,7 +383,7 @@ impl<'a> TypeCheckType<'a> {
                     types: types
                         .into_iter()
                         .map(|x| TypeCheckType::from_type(Rc::clone(&x), context, is_none))
-                        .collect::<Result<Vec<TypeCheckType>, _>>()?,
+                        .collect::<Result<Vec<TypeCheckType<'_>>, _>>()?,
                     pos: val.pos,
                     inferred: val.inferred,
                 }),
@@ -436,8 +436,8 @@ impl<'a> TypeCheckType<'a> {
 
     fn generate_func_type_mismatch(
         func_call: &FunctionCall<'a>,
-        func_arg_types: Vec<&TypeCheckType>,
-        func_call_arg_types: Vec<TypeCheckType>,
+        func_arg_types: Vec<&TypeCheckType<'_>>,
+        func_call_arg_types: Vec<TypeCheckType<'_>>,
     ) -> ErrorOrVec<'a> {
         ErrorOrVec::Error(
             Error::new(
@@ -493,7 +493,7 @@ impl<'a> TypeCheckType<'a> {
                             .values
                             .iter_mut()
                             .map(|x| TypeCheckType::from_expr(x, context))
-                            .collect::<Result<Vec<TypeCheckType>, _>>()?,
+                            .collect::<Result<Vec<TypeCheckType<'_>>, _>>()?,
                         inferred: false,
                     }),
                     inferred: false,
@@ -508,7 +508,7 @@ impl<'a> TypeCheckType<'a> {
                     .positional
                     .iter_mut()
                     .map(|mut argument| TypeCheckType::from_expr(&mut argument, context))
-                    .collect::<Result<Vec<TypeCheckType>, _>>()?;
+                    .collect::<Result<Vec<TypeCheckType<'_>>, _>>()?;
 
                 // Name of function gotten and function signature
                 let func_union_namespace = context.get_function(Rc::clone(&func_call.name))?;
@@ -543,7 +543,7 @@ impl<'a> TypeCheckType<'a> {
                         ErrorLevel::TypeError,
                     ));
                 };
-                let func_arg_types: Vec<&TypeCheckType> = func
+                let func_arg_types: Vec<&TypeCheckType<'_>> = func
                     .0
                     .value
                     .unwrap_func()
@@ -919,8 +919,8 @@ impl<'a> TypeCheck<'a> for Block<'a> {
         return_type: Option<Cow<'a, TypeCheckType<'a>>>,
         context: &'b mut TypeCheckSymbTab<'a>,
     ) -> Result<Cow<'a, TypeCheckType<'a>>, ErrorOrVec<'a>> {
-        let mut errors: Vec<(Error, ErrorLevel)> = Vec::new();
-        let mut ret_types: Vec<&mut Expr> = Vec::new();
+        let mut errors: Vec<(Error<'_>, ErrorLevel)> = Vec::new();
+        let mut ret_types: Vec<&mut Expr<'_>> = Vec::new();
 
         for mut node in &mut self.nodes {
             // First pass
@@ -972,7 +972,7 @@ impl<'a> TypeCheck<'a> for Block<'a> {
             let ret_types = ret_types
                 .iter_mut()
                 .map(|expr| Ok(TypeCheckType::from_expr(expr, context)?))
-                .collect::<Result<Vec<TypeCheckType<'a>>, ErrorOrVec>>()?;
+                .collect::<Result<Vec<TypeCheckType<'a>>, ErrorOrVec<'_>>>()?;
             TypeCheckType::all_same_type(&ret_types[..], context)?;
             Ok(Cow::Owned(ret_types.into_iter().nth(0).unwrap()))
         } else {
@@ -1105,7 +1105,7 @@ impl<'a> TypeCheck<'a> for FunctionDefine<'a> {
             );
         }
 
-        (&mut self.block as &mut dyn TypeCheck).type_check(
+        (&mut self.block as &mut dyn TypeCheck<'_>).type_check(
             Some(Cow::Owned(TypeCheckOrType::as_typecheck_type(
                 Cow::Borrowed(&self.return_type),
                 &mut context,
@@ -1133,7 +1133,7 @@ impl<'a> TypeCheck<'a> for Unit<'a> {
         context: &'b mut TypeCheckSymbTab<'a>,
     ) -> Result<Cow<'a, TypeCheckType<'a>>, ErrorOrVec<'a>> {
         context.push_curr_prefix(self.name.as_vec_nameid());
-        (&mut self.block as &mut dyn TypeCheck).type_check(None, context)?;
+        (&mut self.block as &mut dyn TypeCheck<'_>).type_check(None, context)?;
         context.curr_prefix.pop();
 
         // Unit returns nothing
@@ -1215,22 +1215,22 @@ impl<'a> TypeCheck<'a> for Statement<'a> {
     ) -> Result<Cow<'a, TypeCheckType<'a>>, ErrorOrVec<'a>> {
         match self {
             Statement::Return(statement) => {
-                (statement as &mut dyn TypeCheck).type_check(return_type, context)
+                (statement as &mut dyn TypeCheck<'_>).type_check(return_type, context)
             }
             Statement::FunctionDefine(statement) => {
-                (statement as &mut dyn TypeCheck).type_check(return_type, context)
+                (statement as &mut dyn TypeCheck<'_>).type_check(return_type, context)
             }
             Statement::ExpressionStatement(statement) => {
-                (statement as &mut dyn TypeCheck).type_check(return_type, context)
+                (statement as &mut dyn TypeCheck<'_>).type_check(return_type, context)
             }
             Statement::VariableDeclaration(statement) => {
-                (statement as &mut dyn TypeCheck).type_check(return_type, context)
+                (statement as &mut dyn TypeCheck<'_>).type_check(return_type, context)
             }
             Statement::Unit(statement) => {
-                (statement as &mut dyn TypeCheck).type_check(return_type, context)
+                (statement as &mut dyn TypeCheck<'_>).type_check(return_type, context)
             }
             Statement::TypeAssign(statement) => {
-                (statement as &mut dyn TypeCheck).type_check(return_type, context)
+                (statement as &mut dyn TypeCheck<'_>).type_check(return_type, context)
             }
             Statement::Empty(_) => Ok(Cow::Owned(TypeCheckType {
                 value: TypeCheckTypeType::Placeholder,
@@ -1270,7 +1270,7 @@ impl<'a> TypeType<'a> {
 }
 
 impl<'a> Namespace<'a> {
-    fn starts_with(&self, prefix: &[NameID]) -> bool {
+    fn starts_with(&self, prefix: &[NameID<'_>]) -> bool {
         &self.scopes[..prefix.len()] == &prefix[..]
     }
 }
@@ -1302,7 +1302,10 @@ impl<'a> TypeCheckSymbTab<'a> {
         self.curr_prefix.append(prefix);
     }
 
-    pub fn get_prefix(self, prefix_match: &[NameID]) -> HashMap<Rc<Namespace<'a>>, SymbTabObj<'a>> {
+    pub fn get_prefix(
+        self,
+        prefix_match: &[NameID<'_>],
+    ) -> HashMap<Rc<Namespace<'a>>, SymbTabObj<'a>> {
         self.items
             .into_iter()
             .filter(|(key, _)| key.starts_with(prefix_match))

@@ -23,7 +23,7 @@ pub struct Pos<'a> {
 }
 
 impl<'a> Pos<'a> {
-    pub fn new(s: usize, e: usize, filename: &'a path::Path) -> Pos {
+    pub fn new(s: usize, e: usize, filename: &'a path::Path) -> Pos<'_> {
         Pos { s, e, filename }
     }
 

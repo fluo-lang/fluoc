@@ -120,7 +120,7 @@ impl<'a> Parser<'a> {
     /// Validate next token
     pub fn next(
         &mut self,
-        token_type: lexer::TokenType,
+        token_type: lexer::TokenType<'_>,
         position: usize,
         is_keyword: bool,
     ) -> Result<(), Error<'a>> {
@@ -237,11 +237,11 @@ impl<'a> Parser<'a> {
         // Set our scope to outside
         let scope = Scope::Outer;
 
-        let mut ast_list: Vec<Statement> = Vec::new();
+        let mut ast_list: Vec<Statement<'_>> = Vec::new();
         let next = self.peek();
         if next.token != lexer::TokenType::EOF {
             loop {
-                let mut errors: Vec<Error> = Vec::new();
+                let mut errors: Vec<Error<'_>> = Vec::new();
                 let mut fail = true;
                 for i in 0..self.statements.len() {
                     let statement_ast = self.statements[i](self);
@@ -297,9 +297,9 @@ impl<'a> Parser<'a> {
         let position = self.token_pos;
         self.next(lexer::TokenType::LCP, position, false)?;
 
-        let mut ast_list: Vec<Statement> = Vec::new();
+        let mut ast_list: Vec<Statement<'_>> = Vec::new();
         loop {
-            let mut errors: Vec<Error> = Vec::new();
+            let mut errors: Vec<Error<'_>> = Vec::new();
             let mut fail = true;
             for i in 0..self.statements.len() {
                 let statement_ast = self.statements[i](self);
@@ -356,7 +356,7 @@ impl<'a> Parser<'a> {
 
     fn parse_arguments(&mut self) -> Result<ast::Arguments<'a>, Error<'a>> {
         let position = self.token_pos;
-        let mut positional_args: Vec<(ast::NameID, ast::TypeCheckOrType)> = Vec::new();
+        let mut positional_args: Vec<(ast::NameID<'_>, ast::TypeCheckOrType<'_>)> = Vec::new();
 
         loop {
             if self.peek().token == lexer::TokenType::RP {
@@ -589,7 +589,7 @@ impl<'a> Parser<'a> {
         self.next(lexer::TokenType::RP, position, false)?;
 
         let block;
-        let return_type: ast::Type = if self.peek().token == lexer::TokenType::ARROW {
+        let return_type: ast::Type<'_> = if self.peek().token == lexer::TokenType::ARROW {
             self.forward();
             let temp = self.type_expr()?;
             block = self.block(Scope::Block)?;
@@ -653,7 +653,7 @@ impl<'a> Parser<'a> {
     /// Arguments of function call
     fn arguments_call(&mut self) -> Result<ast::ArgumentsRun<'a>, Error<'a>> {
         let position = self.token_pos;
-        let mut positional_args: Vec<Expr> = Vec::new();
+        let mut positional_args: Vec<Expr<'_>> = Vec::new();
 
         loop {
             if self.peek().token == lexer::TokenType::RP {
@@ -968,7 +968,7 @@ impl<'a> Parser<'a> {
 
     fn namespace(&mut self) -> Result<ast::Namespace<'a>, Error<'a>> {
         let position = self.token_pos;
-        let mut ids: Vec<ast::NameID> = Vec::new();
+        let mut ids: Vec<ast::NameID<'_>> = Vec::new();
         let id = self.name_id()?;
 
         ids.push(id);
@@ -1064,7 +1064,7 @@ impl<'a> Parser<'a> {
     }
 
     fn items(&mut self) -> Result<Vec<Expr<'a>>, Error<'a>> {
-        let mut items: Vec<Expr> = Vec::new();
+        let mut items: Vec<Expr<'_>> = Vec::new();
 
         let expr = self.expr(Prec::LOWEST)?;
         items.push(expr);
@@ -1090,7 +1090,7 @@ impl<'a> Parser<'a> {
     /// Parse type expression
     fn type_expr(&mut self) -> Result<ast::Type<'a>, Error<'a>> {
         let position = self.token_pos;
-        let mut errors: Vec<Error> = Vec::new();
+        let mut errors: Vec<Error<'_>> = Vec::new();
 
         match self.namespace_type() {
             Ok(namespace) => return Ok(namespace),
@@ -1151,7 +1151,7 @@ impl<'a> Parser<'a> {
     }
 
     fn items_type(&mut self) -> Result<Vec<Rc<ast::Type<'a>>>, Error<'a>> {
-        let mut items: Vec<Rc<ast::Type>> = Vec::new();
+        let mut items: Vec<Rc<ast::Type<'_>>> = Vec::new();
 
         let type_type = self.type_expr()?;
         items.push(Rc::new(type_type));

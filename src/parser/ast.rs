@@ -538,7 +538,7 @@ impl<'a> Statement<'a> {
         Statement::get_scope(self) == check_scope
     }
 
-    pub fn get_scope(statement: &Statement) -> &'a Scope {
+    pub fn get_scope(statement: &Statement<'_>) -> &'a Scope {
         match statement {
             Statement::ExpressionStatement(_) => &Scope::Block,
             Statement::VariableDeclaration(_) => &Scope::Block,
