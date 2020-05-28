@@ -3,9 +3,9 @@ use crate::codegen::module_codegen;
 use inkwell::AddressSpace;
 
 impl<'a> module_codegen::CodeGenModule<'a> {
-    pub fn generate_std(&mut self) {
+    pub fn generate_fmt(&mut self) {
         self.generate_printf();
-        self.generate_print_i32();
+        self.generate_print_int();
     }
 
     fn generate_printf(&mut self) {
@@ -19,8 +19,8 @@ impl<'a> module_codegen::CodeGenModule<'a> {
         self.module.add_function("printf", fn_type, None);
     }
 
-    fn generate_print_i32(&mut self) {
-        // print_i32 ( int ) -> ()
+    fn generate_print_int(&mut self) {
+        // print_int ( int ) -> ()
         let i32_type = self.context.i32_type();
         let empty_tuple = self.context.struct_type(&[], false);
 

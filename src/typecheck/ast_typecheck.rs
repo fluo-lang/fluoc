@@ -434,6 +434,51 @@ impl<'a> TypeCheckType<'a> {
         }
     }
 
+    fn generate_func_type_mismatch(
+        func_call: &FunctionCall<'a>,
+        func_arg_types: Vec<&TypeCheckType>,
+        func_call_arg_types: Vec<TypeCheckType>,
+    ) -> ErrorOrVec<'a> {
+        ErrorOrVec::Error(
+            Error::new(
+                "type mismatch between function and function call".to_string(),
+                ErrorType::TypeMismatch,
+                func_call.pos,
+                ErrorDisplayType::Error,
+                vec![
+                    ErrorAnnotation::new(
+                        Some(format!(
+                            "`{}` has arguments of type `{}`",
+                            func_call.name,
+                            func_arg_types
+                                .iter()
+                                .map(|x| x.to_string())
+                                .collect::<Vec<String>>()
+                                .join(", ")
+                        )),
+                        func_call.pos,
+                        ErrorDisplayType::Info,
+                    ),
+                    ErrorAnnotation::new(
+                        Some(format!(
+                            "{} but called with `{}`",
+                            " ".repeat(func_call.name.to_string().chars().count() + 8),
+                            func_call_arg_types
+                                .iter()
+                                .map(|x| x.to_string())
+                                .collect::<Vec<String>>()
+                                .join(", ")
+                        )),
+                        func_call.pos,
+                        ErrorDisplayType::Info,
+                    ),
+                ],
+                true,
+            ),
+            ErrorLevel::TypeError,
+        )
+    }
+
     fn from_expr<'b>(
         val: &mut Expr<'a>,
         context: &'b mut TypeCheckSymbTab<'a>,
@@ -508,48 +553,22 @@ impl<'a> TypeCheckType<'a> {
                     .map(|argument| &argument.1)
                     .collect();
 
+                if func_arg_types.len() != func_call_arg_types.len() {
+                    // Not same length, raise error
+                    return Err(TypeCheckType::generate_func_type_mismatch(
+                        func_call,
+                        func_arg_types,
+                        func_call_arg_types,
+                    ));
+                }
+
                 for (real_type, call_type) in func_arg_types.iter().zip(&func_call_arg_types) {
                     // Check if called argument type matches with expected type
                     if !TypeCheckType::sequiv(real_type, call_type, context)? {
-                        return Err(ErrorOrVec::Error(
-                            Error::new(
-                                "type mismatch between function and function call".to_string(),
-                                ErrorType::TypeMismatch,
-                                func_call.pos,
-                                ErrorDisplayType::Error,
-                                vec![
-                                    ErrorAnnotation::new(
-                                        Some(format!(
-                                            "`{}` has arguments of type `{}`",
-                                            func_call.name,
-                                            func_arg_types
-                                                .iter()
-                                                .map(|x| x.to_string())
-                                                .collect::<Vec<String>>()
-                                                .join(", ")
-                                        )),
-                                        func_call.pos,
-                                        ErrorDisplayType::Info,
-                                    ),
-                                    ErrorAnnotation::new(
-                                        Some(format!(
-                                            "{} but called with `{}`",
-                                            " ".repeat(
-                                                func_call.name.to_string().chars().count() + 8
-                                            ),
-                                            func_call_arg_types
-                                                .iter()
-                                                .map(|x| x.to_string())
-                                                .collect::<Vec<String>>()
-                                                .join(", ")
-                                        )),
-                                        func_call.pos,
-                                        ErrorDisplayType::Info,
-                                    ),
-                                ],
-                                true,
-                            ),
-                            ErrorLevel::TypeError,
+                        return Err(TypeCheckType::generate_func_type_mismatch(
+                            func_call,
+                            func_arg_types,
+                            func_call_arg_types,
                         ));
                     }
                 }
@@ -1238,6 +1257,7 @@ impl<'a> TypeType<'a> {
                     match val.value {
                         "int" => return Ok("int"),
                         "str" => return Ok("str"),
+                        "bool" => return Ok("bool"),
                         _ => {}
                     }
                 };

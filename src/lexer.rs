@@ -52,6 +52,9 @@ pub enum TokenType<'a> {
     SEMI,
     COMMA,
     EOF,
+
+    BOOL(&'a str),
+
     UNKNOWN(&'a str),
     LINECOMMENT(usize),
     BLOCKCOMMENT(usize),
@@ -91,6 +94,15 @@ impl<'a> fmt::Display for Token<'a> {
             TokenType::STRING(val) => format!("string `{}`", val),
             TokenType::IDENTIFIER(val) => format!("identifier `{}`", val),
             TokenType::NUMBER(val) => format!("number `{}`", val),
+
+            TokenType::BOOL(val) => format!(
+                "bool literal `{}`",
+                match *val {
+                    "0" => "false",
+                    "1" => "true",
+                    _ => panic!("Bool was not of 0 or 1"),
+                }
+            ),
 
             TokenType::DEF => "keyword `def`".to_string(),
             TokenType::IMPORT => "keyword `import`".to_string(),
@@ -153,6 +165,12 @@ fn get_tok_length(tok: &TokenType) -> usize {
         | TokenType::IDENTIFIER(val)
         | TokenType::NUMBER(val)
         | TokenType::UNKNOWN(val) => val.chars().count(),
+
+        TokenType::BOOL(val) => match *val {
+            "0" => 5,
+            "1" => 4,
+            _ => panic!("Bool was not of 0 or 1"),
+        },
 
         TokenType::LINECOMMENT(val) | TokenType::BLOCKCOMMENT(val) | TokenType::WHITESPACE(val) => {
             *val
@@ -468,6 +486,8 @@ impl<'a> Lexer<'a> {
             "public" => Ok(TokenType::PUBLIC),
             "import" => Ok(TokenType::IMPORT),
             "unit" => Ok(TokenType::UNIT),
+            "true" => Ok(TokenType::BOOL("1")),
+            "false" => Ok(TokenType::BOOL("0")),
             _ => Ok(TokenType::IDENTIFIER(id.1)),
         }
     }

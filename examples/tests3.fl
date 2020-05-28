@@ -1,7 +1,0 @@
-public
-def hello() -> int {
-    core::fmt::print_int(1000);
-    --let val: int = hello();
-    --core::fmt::print_int(val);
-    return 10;
-}

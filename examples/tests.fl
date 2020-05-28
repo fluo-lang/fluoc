@@ -1,10 +1,6 @@
 
-unit test {
-    import tests2;
-}
-
 public
 def entry() -> int {
-    test::tests2::tests3::hello();
+    let my_bool: bool = false;
     return 0;
 }

@@ -462,7 +462,11 @@ impl<'a> Parser<'a> {
             parser.initialize_expr();
             match parser.parse() {
                 Ok(_) => {}
-                Err(e) => return Err(e.into_iter().nth(0).unwrap()),
+                Err(e) => {
+                    let mut error = e.into_iter().nth(0).unwrap();
+                    error.urgent = true;
+                    return Err(error);
+                }
             }
             Ok(Statement::Unit(ast::Unit {
                 pos: last.pos,
@@ -864,6 +868,7 @@ impl<'a> Parser<'a> {
             Parser::variable_assign_full,
             Parser::ref_expr,
             Parser::tuple_expr,
+            Parser::bool_expr,
         ];
         for expr in exprs.iter() {
             ignore_or_return!(expr(self));
@@ -893,6 +898,23 @@ impl<'a> Parser<'a> {
         ));
         self.set_pos(position);
         temp
+    }
+
+    fn bool_expr(&mut self) -> Result<Expr<'a>, Error<'a>> {
+        let position = self.token_pos;
+
+        let possible_bool = self.forward();
+        if let lexer::TokenType::BOOL(value) = &possible_bool.token {
+            Ok(ast::Expr::Literal(ast::Literal {
+                value,
+                type_val: Some(TypeCheckType::construct_basic("bool", possible_bool.pos)),
+                pos: possible_bool.pos,
+            }))
+        } else {
+            let temp = Err(self.syntax_error(possible_bool, "expected bool", false, false));
+            self.set_pos(position);
+            temp
+        }
     }
 
     fn integer(&mut self) -> Result<Expr<'a>, Error<'a>> {

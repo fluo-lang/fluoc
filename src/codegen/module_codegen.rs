@@ -80,7 +80,8 @@ impl<'a> CodeGenModule<'a> {
         self.typecheck.type_check()?;
 
         let gen_start = Instant::now();
-        self.generate_std();
+        self.generate_fmt();
+        self.generate_op();
 
         let mut statements = None;
         std::mem::swap(&mut self.typecheck.parser.ast, &mut statements);
@@ -158,9 +159,12 @@ impl<'a> CodeGenModule<'a> {
             ast::Expr::Literal(lit) => self.eval_literal(lit),
             ast::Expr::FunctionCall(func_call) => self.eval_func_call(func_call),
             ast::Expr::Tuple(tuple) => self.eval_tuple(tuple),
+            //ast::Expr::Infix(value) => self.eval_infix(value),
             _ => panic!("{:?} not implemented yet", expr.to_str()),
         }
     }
+
+    //fn eval_infix(&mut self, infix: &ast::Infix<'a>) -> values::BasicValueEnum {}
 
     fn eval_tuple(&mut self, tuple: &ast::Tuple<'a>) -> values::BasicValueEnum<'a> {
         let values: Vec<values::BasicValueEnum> = tuple
@@ -323,6 +327,7 @@ impl<'a> CodeGenModule<'a> {
                     Ok(basic_type) => match basic_type {
                         "int" => self.context.i32_type().into(),
                         "str" => self.context.i8_type().array_type(10).into(),
+                        "bool" => self.context.bool_type().into(),
                         val => panic!("`{}` type not implemented yet!", val),
                     },
                     Err(_) => {
