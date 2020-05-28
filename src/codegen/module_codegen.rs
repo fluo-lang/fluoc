@@ -1,4 +1,5 @@
 use crate::helpers;
+use crate::lexer::TokenType;
 use crate::logger::logger::{Error, Logger};
 use crate::parser::ast;
 use crate::typecheck::{ast_typecheck, typecheck};
@@ -159,12 +160,60 @@ impl<'a> CodeGenModule<'a> {
             ast::Expr::Literal(lit) => self.eval_literal(lit),
             ast::Expr::FunctionCall(func_call) => self.eval_func_call(func_call),
             ast::Expr::Tuple(tuple) => self.eval_tuple(tuple),
-            //ast::Expr::Infix(value) => self.eval_infix(value),
+            ast::Expr::Infix(value) => self.eval_infix(value),
             _ => panic!("{:?} not implemented yet", expr.to_str()),
         }
     }
 
-    //fn eval_infix(&mut self, infix: &ast::Infix<'a>) -> values::BasicValueEnum {}
+    fn construct_infix_op(
+        &mut self,
+        func_name: &str,
+        arguments: &[values::BasicValueEnum<'a>],
+    ) -> values::BasicValueEnum<'a> {
+        self.builder
+            .build_call(
+                self.module.get_function(func_name).unwrap(),
+                &arguments[..],
+                func_name,
+            )
+            .try_as_basic_value()
+            .left()
+            .unwrap()
+    }
+
+    fn eval_infix(&mut self, infix: &ast::Infix<'a>) -> values::BasicValueEnum<'a> {
+        match infix.type_val.as_ref().unwrap() {
+            ast_typecheck::TypeCheckType {
+                pos: _,
+                inferred: _,
+                value: ast_typecheck::TypeCheckTypeType::SingleType(val),
+            } => match val.value.is_basic_type() {
+                Ok(basic) => match basic {
+                    "int" => match infix.operator.token {
+                        TokenType::SUB => {
+                            let first = self.eval_expr(&*infix.left);
+                            let second = self.eval_expr(&*infix.right);
+                            self.construct_infix_op("core::op::sub_int", &[first, second])
+                        }
+                        TokenType::ADD => {
+                            let first = self.eval_expr(&*infix.left);
+                            let second = self.eval_expr(&*infix.right);
+                            self.construct_infix_op("core::op::add_int", &[first, second])
+                        }
+                        TokenType::MUL => {
+                            let first = self.eval_expr(&*infix.left);
+                            let second = self.eval_expr(&*infix.right);
+                            self.construct_infix_op("core::op::mul_int", &[first, second])
+                        }
+                        _ => panic!("Infix operator {} not implemented", infix.operator.token),
+                    },
+                    _ => panic!("Operators not implemented for type `{}`", basic),
+                },
+                Err(_) => panic!("Operators not implemented for custom types yet"),
+            },
+            val => panic!("Operators not implemented for type `{:?}`", val),
+        }
+    }
 
     fn eval_tuple(&mut self, tuple: &ast::Tuple<'a>) -> values::BasicValueEnum<'a> {
         let values: Vec<values::BasicValueEnum> = tuple

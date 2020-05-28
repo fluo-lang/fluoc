@@ -1,6 +1,6 @@
 
 public
 def entry() -> int {
-    let my_bool: bool = false;
+    core::fmt::print_int((10+10)*20);
     return 0;
 }

@@ -158,8 +158,8 @@ impl<'a> TypeCheckTypeType<'a> {
 #[derive(Debug, Clone)]
 pub struct TypeCheckType<'a> {
     pub value: TypeCheckTypeType<'a>,
-    pos: helpers::Pos<'a>,
-    inferred: bool,
+    pub pos: helpers::Pos<'a>,
+    pub inferred: bool,
 }
 
 impl<'a> PartialEq for TypeCheckType<'a> {
@@ -671,6 +671,7 @@ impl<'a> TypeCheckType<'a> {
                 // TODO: check if the types can be casted to on another
                 if TypeCheckType::sequiv(&left_type, &right_type, context)? {
                     // Same type
+                    infix.type_val = Some(right_type);
                     left_type
                 } else {
                     return Err(ErrorOrVec::Error(
