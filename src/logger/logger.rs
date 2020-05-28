@@ -188,7 +188,7 @@ pub struct Error<'a> {
     /// Error display mode
     mode: ErrorDisplayType,
     /// Annotations
-    annotations: Vec<ErrorAnnotation<'a>>,
+    pub annotations: Vec<ErrorAnnotation<'a>>,
     /// Urgent error: raise even if another function parses further
     pub urgent: bool,
 }

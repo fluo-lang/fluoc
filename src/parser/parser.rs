@@ -124,11 +124,26 @@ impl<'a> Parser<'a> {
         position: usize,
         is_keyword: bool,
     ) -> Result<(), Error<'a>> {
+        let prev_pos = self.token_pos;
         let t = self.forward();
 
         if t.token != token_type {
             let error = format!("expected {}", token_type);
-            let temp = Err(self.syntax_error(t, &error[..], is_keyword, false));
+            let temp = match token_type {
+                lexer::TokenType::SEMI => {
+                    // Special case for semicolon error
+                    let mut semi_error = self.syntax_error(t, &error[..], is_keyword, false);
+                    let position_s = self.position(prev_pos - 1).s;
+                    semi_error.annotations.push(ErrorAnnotation::new(
+                        Some("did you mean to put a `;` here?".to_string()),
+                        helpers::Pos::new(position_s, position_s + 1, self.lexer.filename),
+                        ErrorDisplayType::Info,
+                    ));
+                    Err(semi_error)
+                }
+                _ => Err(self.syntax_error(t, &error[..], is_keyword, false)),
+            };
+
             self.set_pos(position);
             temp
         } else {
