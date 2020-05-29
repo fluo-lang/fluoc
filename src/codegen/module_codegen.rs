@@ -81,8 +81,6 @@ impl<'a> CodeGenModule<'a> {
         self.typecheck.type_check()?;
 
         let gen_start = Instant::now();
-        self.generate_fmt();
-        self.generate_op();
 
         let mut statements = None;
         std::mem::swap(&mut self.typecheck.parser.ast, &mut statements);
@@ -95,7 +93,7 @@ impl<'a> CodeGenModule<'a> {
             self.gen_stmt_pass_2(statement)
         }
 
-        println!("{}", self.module.print_to_string().to_string());
+        //println!("{}", self.module.print_to_string().to_string());
         self.typecheck.parser.logger.borrow().log_verbose(&|| {
             format!(
                 "{}: LLVM IR generated",
@@ -109,6 +107,7 @@ impl<'a> CodeGenModule<'a> {
     fn gen_stmt_pass_1(&mut self, statement: &ast::Statement<'a>) {
         match statement {
             ast::Statement::FunctionDefine(func_def) => self.gen_function_prototype(func_def),
+            ast::Statement::ExternDef(func_def) => self.gen_extern_function_prototype(func_def),
             ast::Statement::Unit(unit) => self.get_unit_proto(unit),
             _ => {}
         }
@@ -317,6 +316,23 @@ impl<'a> CodeGenModule<'a> {
     }
 
     fn gen_function_prototype(&mut self, func_def: &ast::FunctionDefine<'_>) {
+        let func_name = &func_def.name.to_string()[..];
+        let return_type = self.get_type(func_def.return_type.unwrap_type_check_ref());
+        let fn_type = return_type.fn_type(
+            &func_def
+                .arguments
+                .positional
+                .iter()
+                .map(|arg| self.get_type(arg.1.unwrap_type_check_ref()))
+                .collect::<Vec<types::BasicTypeEnum<'_>>>()[..],
+            false,
+        );
+
+        let function = self.module.add_function(func_name, fn_type, None);
+        function.set_linkage(func_def.visibility.get_linkage());
+    }
+
+    fn gen_extern_function_prototype(&mut self, func_def: &ast::ExternDef<'_>) {
         let func_name = &func_def.name.to_string()[..];
         let return_type = self.get_type(func_def.return_type.unwrap_type_check_ref());
         let fn_type = return_type.fn_type(

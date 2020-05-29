@@ -39,6 +39,10 @@ pub fn path_to_str<'a>(file_path: &'a path::Path) -> &'a str {
     }
 }
 
+pub fn pathbuf_to_string(file_path: path::PathBuf) -> String {
+    file_path.to_str().unwrap().to_string()
+}
+
 pub fn read_file(filename: &path::Path) -> String {
     let f = fs::read_to_string(filename);
     match f {

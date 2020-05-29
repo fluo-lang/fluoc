@@ -1,4 +1,4 @@
-use crate::core;
+use crate::core::core;
 use crate::helpers;
 use crate::logger::logger::{
     Error, ErrorAnnotation, ErrorDisplayType, ErrorLevel, ErrorOrVec, ErrorType,
@@ -40,7 +40,7 @@ impl<'a> SymbTabObj<'a> {
         match self {
             SymbTabObj::Function(val, pos) => (val, *pos),
             _ => panic!(
-                "Tried to unwrap varialbe from symbtab object, got `{:?}`",
+                "Tried to unwrap variable from symbtab object, got `{:?}`",
                 self
             ),
         }
@@ -145,10 +145,17 @@ impl<'a> TypeCheckTypeType<'a> {
         }
     }
 
+    fn get_visibility(&self) -> Visibility {
+        match self {
+            TypeCheckTypeType::FunctionSig(_arguments, _ret_type, visibility) => *visibility,
+            _ => panic!("Tried to get visibility from non-function"),
+        }
+    }
+
     fn unwrap_func(&self) -> (&ArgumentsTypeCheck<'a>, &TypeCheckType<'a>, Visibility) {
         match self {
             TypeCheckTypeType::FunctionSig(arguments, ret_type, visibility) => {
-                (arguments, ret_type, *visibility)
+                (arguments, &*ret_type, *visibility)
             }
             _ => panic!("Tried to unwrap func from type check type"),
         }
@@ -516,7 +523,7 @@ impl<'a> TypeCheckType<'a> {
 
                 func_call.name = func_union_namespace.1;
 
-                if func.0.value.unwrap_func().2 == Visibility::Private
+                if func.0.value.get_visibility() == Visibility::Private
                     && func.0.pos.filename != func_call.pos.filename
                 {
                     // Private function and not from the same file
@@ -884,17 +891,12 @@ impl<'a> Block<'a> {
         }));
     }
 
-    pub fn get_core<'b>(&mut self) -> Result<TypeCheckSymbTab<'a>, ErrorOrVec<'a>> {
+    pub fn get_core<'b>(&mut self) -> Vec<Statement<'a>> {
         if !self.tags.iter().any(|&i| i.content.value == "no_core") {
             // Load core module
-            match core::generate_symbtab() {
-                Ok(val) => Ok(val),
-                Err(e) => Err(ErrorOrVec::ErrorVec(
-                    e.into_iter().map(|x| (x, ErrorLevel::CoreError)).collect(),
-                )),
-            }
+            core::import_core()
         } else {
-            Ok(TypeCheckSymbTab::new())
+            Vec::new()
         }
     }
 
@@ -922,6 +924,15 @@ impl<'a> TypeCheck<'a> for Block<'a> {
         let mut errors: Vec<(Error<'_>, ErrorLevel)> = Vec::new();
         let mut ret_types: Vec<&mut Expr<'_>> = Vec::new();
 
+        for i in 0..self.nodes.len() {
+            let val = &mut self.nodes[i];
+            if let Statement::Unit(unit) = val {
+                if !self.tags.iter().any(|&i| i.content.value == "no_core") {
+                    unit.block.nodes.append(&mut core::import_core());
+                }
+            }
+        }
+
         for mut node in &mut self.nodes {
             // First pass
             match &mut node {
@@ -929,19 +940,22 @@ impl<'a> TypeCheck<'a> for Block<'a> {
                 Statement::Unit(unit) => {
                     unit.block.process_tags()?;
 
-                    let mut std_lib = unit.block.get_core()?;
-                    std::mem::swap(&mut std_lib.curr_prefix, &mut context.curr_prefix);
+                    let mut new_symb = TypeCheckSymbTab::new();
+                    std::mem::swap(&mut new_symb.curr_prefix, &mut context.curr_prefix);
 
-                    match node.type_check(None, &mut std_lib) {
+                    match node.type_check(None, &mut new_symb) {
                         Ok(_) => Ok(()),
                         Err(e) => Err(e),
                     }?;
 
-                    context.items.extend(std_lib.items);
-                    std::mem::swap(&mut std_lib.curr_prefix, &mut context.curr_prefix);
+                    context.items.extend(new_symb.items);
+                    std::mem::swap(&mut new_symb.curr_prefix, &mut context.curr_prefix);
                 }
                 Statement::TypeAssign(type_assign) => {
                     type_assign.type_check(None, context)?;
+                }
+                Statement::ExternDef(extern_def) => {
+                    extern_def.generate_proto(context)?;
                 }
                 _ => {}
             }
@@ -949,6 +963,8 @@ impl<'a> TypeCheck<'a> for Block<'a> {
 
         for node in &mut self.nodes {
             if let Statement::Unit(_) = node {
+                continue;
+            } else if let Statement::ExternDef(_) = node {
                 continue;
             }
 
@@ -1029,6 +1045,64 @@ impl<'a> TypeCheck<'a> for Block<'a> {
                 }
             }
         }
+    }
+}
+
+impl<'a> ExternDef<'a> {
+    fn generate_proto<'b>(
+        &mut self,
+        context: &'b mut TypeCheckSymbTab<'a>,
+    ) -> Result<(), ErrorOrVec<'a>> {
+        let mut positional = Vec::new();
+        for idx in 0..self.arguments.positional.len() {
+            self.arguments.positional[idx] = (
+                self.arguments.positional[idx].0,
+                TypeCheckOrType::TypeCheckType(TypeCheckType::from_type(
+                    (&self.arguments.positional[idx].1).unwrap_type(),
+                    context,
+                    false,
+                )?),
+            );
+        }
+
+        for argument in &self.arguments.positional {
+            positional.push((argument.0, (argument.1.clone()).unwrap_type_check()))
+        }
+
+        self.return_type = TypeCheckOrType::TypeCheckType(TypeCheckType::from_type(
+            self.return_type.unwrap_type(),
+            context,
+            false,
+        )?);
+
+        self.name = context.set_value(
+            Rc::clone(&self.name),
+            SymbTabObj::Function(
+                TypeCheckType {
+                    value: TypeCheckTypeType::FunctionSig(
+                        ArgumentsTypeCheck {
+                            positional,
+                            pos: self.arguments.pos,
+                        },
+                        Box::new(self.return_type.clone().unwrap_type_check()),
+                        self.visibility,
+                    ),
+                    pos: helpers::Pos::new(
+                        self.arguments.pos.s,
+                        if self.return_type.unwrap_type_check_ref().inferred {
+                            self.return_type.unwrap_type_check_ref().pos.e
+                        } else {
+                            self.arguments.pos.e
+                        },
+                        self.arguments.pos.filename,
+                    ),
+                    inferred: false,
+                },
+                self.pos,
+            ),
+        );
+
+        Ok(())
     }
 }
 

@@ -52,12 +52,9 @@ impl<'a> TypeCheckModule<'a> {
         };
 
         // Load core lib on outer scope
-        match self.parser.ast.as_mut().unwrap().get_core() {
-            Ok(core) => {
-                self.symtab.items.extend(core.items);
-            }
-            Err(e) => return Err(helpers::get_high_priority(e.as_vec())),
-        };
+        let parser_ast = self.parser.ast.as_mut().unwrap();
+        let loaded_core = &mut parser_ast.get_core();
+        parser_ast.nodes.append(loaded_core);
 
         // Do type checking
         match (self.parser.ast.as_mut().unwrap() as &mut dyn ast_typecheck::TypeCheck<'_>)

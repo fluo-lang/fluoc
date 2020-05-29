@@ -71,7 +71,6 @@ cd fluo
 Fluo generates object files and you need to link them (this will change):
 ```bash
 cargo run examples/tests.fl
-gcc out.o -no-pie  # -no-pie because we don't like eating pie... or 3.1415
 ./a.out
 ```
 

@@ -13,3 +13,5 @@ Cargo.lock
 out.o
 a.out
 tests.ll
+
+*.o

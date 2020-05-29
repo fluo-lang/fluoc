@@ -251,6 +251,16 @@ pub struct FunctionDefine<'a> {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+/// External function definition
+pub struct ExternDef<'a> {
+    pub return_type: TypeCheckOrType<'a>,
+    pub arguments: Arguments<'a>,
+    pub name: Rc<Namespace<'a>>,
+    pub visibility: Visibility,
+    pub pos: helpers::Pos<'a>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct ArgumentsRun<'a> {
     pub positional: Vec<Expr<'a>>,
     pub pos: helpers::Pos<'a>, // TODO: Add more types of arguments
@@ -474,6 +484,8 @@ pub enum Node<'a> {
     FunctionDefine(FunctionDefine<'a>),
     FunctionCall(FunctionCall<'a>),
 
+    ExternDef(ExternDef<'a>),
+
     Unit(Unit<'a>),
 
     Import(Import<'a>),
@@ -491,7 +503,10 @@ pub enum Node<'a> {
 pub enum Statement<'a> {
     ExpressionStatement(ExpressionStatement<'a>),
     VariableDeclaration(VariableDeclaration<'a>),
+
     FunctionDefine(FunctionDefine<'a>),
+    ExternDef(ExternDef<'a>),
+
     Return(Return<'a>),
     Unit(Unit<'a>),
     TypeAssign(TypeAssign<'a>),
@@ -506,7 +521,10 @@ impl<'a> Statement<'a> {
         match &self {
             Statement::ExpressionStatement(val) => val.pos,
             Statement::VariableDeclaration(val) => val.pos,
+
             Statement::FunctionDefine(val) => val.pos,
+            Statement::ExternDef(val) => val.pos,
+
             Statement::Return(val) => val.pos,
             Statement::Unit(val) => val.pos,
             Statement::TypeAssign(val) => val.pos,
@@ -521,9 +539,12 @@ impl<'a> Statement<'a> {
         match &self {
             Statement::ExpressionStatement(val) => val.expression.to_str().to_string(),
             Statement::VariableDeclaration(_) => "variable declaration".to_string(),
+
             Statement::FunctionDefine(val) => {
                 format!("function define {{\n{}}}", val.block.to_string())
             }
+            Statement::ExternDef(_) => "external function define".to_string(),
+
             Statement::Unit(_) => "unit".to_string(),
             Statement::Import(_) => "import".to_string(),
             Statement::Return(_) => "return statement".to_string(),
@@ -542,7 +563,10 @@ impl<'a> Statement<'a> {
         match statement {
             Statement::ExpressionStatement(_) => &Scope::Block,
             Statement::VariableDeclaration(_) => &Scope::Block,
+
             Statement::FunctionDefine(_) => &Scope::All,
+            Statement::ExternDef(_) => &Scope::All,
+
             Statement::Return(_) => &Scope::Block,
             Statement::TypeAssign(_) => &Scope::All,
             Statement::Unit(_) => &Scope::Outer,
@@ -557,7 +581,10 @@ impl<'a> Statement<'a> {
         match self {
             Statement::ExpressionStatement(val) => Node::ExpressionStatement(val),
             Statement::VariableDeclaration(val) => Node::VariableDeclaration(val),
+
             Statement::FunctionDefine(val) => Node::FunctionDefine(val),
+            Statement::ExternDef(val) => Node::ExternDef(val),
+
             Statement::Return(val) => Node::Return(val),
             Statement::TypeAssign(val) => Node::TypeAssign(val),
             Statement::Import(val) => Node::Import(val),

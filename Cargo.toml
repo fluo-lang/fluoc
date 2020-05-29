@@ -20,6 +20,9 @@ shellexpand = "1.1.1"
 [dev-dependencies]
 criterion = "0.3"
 
+[build-dependencies]
+inkwell = { git = "https://github.com/TheDan64/inkwell", branch = "llvm10-0" }
+
 [[bench]]
 name = "parser_bench"
 harness = false

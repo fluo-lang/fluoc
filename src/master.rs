@@ -1,10 +1,16 @@
 use crate::codegen::module_codegen::CodeGenModule;
 use crate::helpers;
 use crate::logger;
+use crate::logger::buffer_writer::color;
+use crate::paths;
 
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::ffi::OsStr;
+use std::fs;
 use std::path;
+use std::process;
+use std::process::Command;
 use std::rc::Rc;
 use std::time::Instant;
 
@@ -60,6 +66,7 @@ impl<'a> Master<'a> {
         self.modules.insert(&filename, code_gen_mod);
 
         self.write_obj_file(&filename);
+        self.link_objs(&filename);
     }
 
     fn init_passes(&self, module: &module::Module<'_>) {
@@ -111,5 +118,66 @@ impl<'a> Master<'a> {
                 helpers::display_duration(write_obj_start.elapsed())
             )
         }); // Lazily run it so no impact on performance
+    }
+
+    fn link_objs(&self, filename: &'a path::Path) {
+        // DYLD_LIBRARY_PATH="$(rustc --print sysroot)/lib:$DYLD_LIBRARY_PATH" ./a.out
+        let link_start = Instant::now();
+        let module = self.modules.get(filename).unwrap();
+        let mut core_loc = helpers::get_core_loc();
+        core_loc.pop();
+
+        let paths = match fs::read_dir(&core_loc) {
+            Ok(val) => val,
+            Err(e) => paths::file_error(e, core_loc.display()),
+        };
+
+        let mut args = vec![
+            paths::path_to_str(&module.output_file).to_string(),
+            "-e".to_string(),
+            "_entry".to_string(),
+            "-no-pie".to_string(),
+            "-Qunused-arguments".to_string(),
+        ];
+
+        args.append(
+            &mut paths
+                .into_iter()
+                .filter(|val| {
+                    val.is_ok()
+                        && (val
+                            .as_ref()
+                            .unwrap()
+                            .path()
+                            .extension()
+                            .unwrap_or(OsStr::new(""))
+                            == OsStr::new("o"))
+                })
+                .map(|obj_path| paths::pathbuf_to_string(obj_path.unwrap().path()))
+                .collect(),
+        );
+
+        match Command::new("gcc").args(&args[..]).spawn() {
+            Ok(_) => {}
+            Err(e) => {
+                eprintln!("{}Error when linking:{} {}", color::RED, color::RESET, e);
+                process::exit(1);
+            }
+        };
+
+        self.logger.borrow().log_verbose(&|| {
+            format!(
+                "Linker command invoked: {}`gcc {}`",
+                color::RESET,
+                args.join(" ")
+            )
+        });
+
+        self.logger.borrow().log_verbose(&|| {
+            format!(
+                "{}: Objects linked",
+                helpers::display_duration(link_start.elapsed())
+            )
+        });
     }
 }

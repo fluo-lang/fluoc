@@ -1,7 +1,9 @@
 use crate::logger;
 use crate::logger::logger::{Error, ErrorLevel};
+use crate::paths;
 
 use std::cell::RefCell;
+use std::env::current_exe;
 use std::path;
 use std::process;
 use std::rc::Rc;
@@ -71,4 +73,21 @@ pub fn display_duration(duration: std::time::Duration) -> String {
     } else {
         format!("{:.2}s", time_nano as f64 / 1e+9)
     }
+}
+
+pub fn get_core_loc() -> path::PathBuf {
+    let mut core_path = match current_exe() {
+        Ok(val) => val,
+        Err(e) => paths::file_error(e, "fluo core lib"),
+    };
+    core_path.pop();
+    core_path.pop();
+    core_path.pop();
+
+    core_path.push("src");
+    core_path.push("core");
+    core_path.push("core");
+    core_path.push("core.fl");
+
+    core_path
 }

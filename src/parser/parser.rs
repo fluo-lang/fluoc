@@ -54,7 +54,7 @@ pub struct Parser<'a> {
     pub lexer: lexer::Lexer<'a>,
     /// Abstract syntax tree
     pub ast: Option<ast::Block<'a>>,
-    statements: [fn(&mut Self) -> Result<Statement<'a>, Error<'a>>; 8],
+    statements: [fn(&mut Self) -> Result<Statement<'a>, Error<'a>>; 9],
     prefix_op: HashMap<lexer::TokenType<'a>, Prec>,
     infix_op: HashMap<lexer::TokenType<'a>, Prec>,
     tokens: Vec<lexer::Token<'a>>,
@@ -83,6 +83,7 @@ impl<'a> Parser<'a> {
                 Parser::variable_declaration,
                 Parser::type_assign,
                 Parser::compiler_tag,
+                Parser::extern_def,
             ],
             prefix_op: HashMap::new(),
             infix_op: HashMap::new(),
@@ -610,6 +611,7 @@ impl<'a> Parser<'a> {
                 pos: block.pos,
             }
         };
+
         Ok(ast::Statement::FunctionDefine(ast::FunctionDefine {
             return_type: ast::TypeCheckOrType::Type(Rc::new(return_type)),
             arguments,
@@ -618,6 +620,95 @@ impl<'a> Parser<'a> {
             name,
             pos: self.position(position),
         }))
+    }
+
+    fn extern_def(&mut self) -> Result<Statement<'a>, Error<'a>> {
+        let position = self.token_pos;
+
+        let visibility = if self.peek().token == lexer::TokenType::PUBLIC {
+            self.forward();
+            ast::Visibility::Public
+        } else {
+            ast::Visibility::Private
+        };
+
+        self.next(lexer::TokenType::EXTERN, position, true)?;
+
+        self.next(lexer::TokenType::DEF, position, true)?;
+        let name = Rc::new(self.namespace()?);
+
+        self.next(lexer::TokenType::LP, position, false)?;
+
+        let arguments = self.parse_extern_arguments()?;
+
+        self.next(lexer::TokenType::RP, position, false)?;
+
+        let return_type: ast::Type<'_> = if self.peek().token == lexer::TokenType::ARROW {
+            self.forward();
+            self.type_expr()?
+        } else {
+            self.forward();
+            ast::Type {
+                value: ast::TypeType::Tuple(Vec::new()),
+                inferred: true,
+                pos: self.position(position),
+            }
+        };
+
+        self.next(lexer::TokenType::SEMI, position, false)?;
+
+        Ok(ast::Statement::ExternDef(ast::ExternDef {
+            return_type: ast::TypeCheckOrType::Type(Rc::new(return_type)),
+            arguments,
+            visibility,
+            name,
+            pos: self.position(position),
+        }))
+    }
+
+    fn parse_extern_arguments(&mut self) -> Result<ast::Arguments<'a>, Error<'a>> {
+        let position = self.token_pos;
+        let mut positional_args: Vec<(ast::NameID<'_>, ast::TypeCheckOrType<'_>)> = Vec::new();
+
+        loop {
+            if self.peek().token == lexer::TokenType::RP {
+                // No error, we've reached the end
+                break;
+            }
+
+            let position = self.token_pos;
+            let id = self.name_id();
+
+            if let (Ok(id_val), lexer::TokenType::COLON) = (&id, self.peek().token) {
+                // There is a name id, eat it; its optional
+                self.forward();
+
+                let arg_type = self.type_expr()?;
+                positional_args.push((*id_val, ast::TypeCheckOrType::Type(Rc::new(arg_type))));
+            } else {
+                // No name id, its optional so this is fine
+                self.token_pos = position;
+                let arg_type = self.type_expr()?;
+                positional_args.push((
+                    ast::NameID {
+                        value: "none",
+                        pos: self.position(position),
+                    },
+                    ast::TypeCheckOrType::Type(Rc::new(arg_type)),
+                ));
+            }
+
+            if self.peek().token == lexer::TokenType::COMMA {
+                self.forward();
+            } else {
+                break;
+            }
+        }
+
+        Ok(ast::Arguments {
+            positional: positional_args,
+            pos: self.position(position),
+        })
     }
 
     /// Return statement

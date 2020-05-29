@@ -2,6 +2,5 @@
 
 -- Placeholder value for function signature
 public
-def print_int(val: int) -> () {
-    return ();
-}
+extern
+def print_int(val: int) -> ();
