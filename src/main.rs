@@ -16,12 +16,13 @@ extern crate clap;
 use clap::App;
 use inkwell::context::Context;
 
-use logger::buffer_writer::{Color, Font};
+use logger::buffer_writer::{Color, Font, color};
 
 use std::backtrace;
 use std::panic;
 use std::path;
 use std::time::Instant;
+use std::process;
 
 fn main() {
     let master_start = Instant::now();
@@ -37,6 +38,11 @@ fn main() {
     }));
     let yaml = load_yaml!("cli.yml");
     let matches = App::from_yaml(yaml).get_matches();
+
+    if matches.is_present("version") {
+        println!("{}You are using fluo version 0.0.1{}", color::BLUE, color::RESET);
+        process::exit(0);
+    }
 
     let filename = paths::process_str(matches.value_of("entry").unwrap());
 
