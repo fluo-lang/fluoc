@@ -126,6 +126,12 @@ impl<'a> CodeGenModule<'a> {
         }
     }
 
+    fn generate_inner_block(&mut self, block: &ast::Block<'a>) {
+        for stmt in &block.nodes {
+            self.gen_inner_stmt(stmt);
+        }
+    }
+
     fn gen_inner_stmt(&mut self, statement: &ast::Statement<'a>) {
         match statement {
             ast::Statement::ExpressionStatement(expr_stmt) => {
@@ -138,6 +144,7 @@ impl<'a> CodeGenModule<'a> {
             ast::Statement::VariableDeclaration(var_dec) => {
                 self.gen_variable_dec(var_dec);
             }
+            ast::Statement::Conditional(conditional) => self.gen_conditional(conditional),
             _ => {}
         };
     }
@@ -375,15 +382,15 @@ impl<'a> CodeGenModule<'a> {
         }
 
         self.builder = builder;
-        for statement in &func_def.block.nodes {
-            self.gen_inner_stmt(statement);
-        }
+        self.generate_inner_block(&func_def.block);
     }
 
     fn gen_return(&mut self, ret: &ast::Return<'a>) {
         let ret_val = self.eval_expr(&ret.expression);
         self.builder.build_return(Some(&ret_val));
     }
+
+    fn gen_conditional(&mut self, conditional: &ast::Conditional<'a>) {}
 
     fn get_type(
         &mut self,

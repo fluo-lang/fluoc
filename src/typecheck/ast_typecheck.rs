@@ -49,7 +49,7 @@ impl<'a> Nullable<'a> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum SymbTabObj<'a> {
-    CustomType(TypeCheckType<'a>),
+    CustomType(TypeCheckType<'a>, Visibility),
     Function(TypeCheckType<'a>, helpers::Pos<'a>),
     Variable(TypeCheckType<'a>, Nullable<'a>),
 }
@@ -64,9 +64,9 @@ impl<'a> SymbTabObj<'a> {
             ),
         }
     }
-    fn unwrap_type_ref(&self) -> &TypeCheckType<'a> {
+    fn unwrap_type_ref(&self) -> (&TypeCheckType<'a>, Visibility) {
         match self {
-            SymbTabObj::CustomType(val) => val,
+            SymbTabObj::CustomType(val, visibility) => (val, *visibility),
             _ => panic!("Tried to unwrap type from symbtab object, got `{:?}`", self),
         }
     }
@@ -83,7 +83,7 @@ impl<'a> SymbTabObj<'a> {
 
     pub fn pos(&self) -> helpers::Pos<'a> {
         match &self {
-            SymbTabObj::CustomType(val) => val.pos,
+            SymbTabObj::CustomType(val, _) => val.pos,
             SymbTabObj::Function(val, _) => val.pos,
             SymbTabObj::Variable(val, _) => val.pos,
         }
@@ -93,7 +93,7 @@ impl<'a> SymbTabObj<'a> {
 impl<'a> fmt::Display for SymbTabObj<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let representation = match self {
-            SymbTabObj::CustomType(_) => "custom type",
+            SymbTabObj::CustomType(_, _) => "custom type",
             SymbTabObj::Function(_, _) => "function",
             SymbTabObj::Variable(_, _) => "variable",
         };
@@ -191,7 +191,7 @@ impl<'a> TypeCheckTypeType<'a> {
 
     fn get_visibility(&self) -> Visibility {
         match self {
-            TypeCheckTypeType::FunctionSig(_arguments, _ret_type, visibility) => *visibility,
+            TypeCheckTypeType::FunctionSig(_, _, visibility) => *visibility,
             _ => panic!("Tried to get visibility from non-function"),
         }
     }
@@ -372,7 +372,7 @@ impl<'a> TypeCheckType<'a> {
             )),
             TypeCheckTypeType::CustomType(name_type, _) => {
                 let val = context.get_basic_type(Rc::clone(name_type))?;
-                val.unwrap_type_ref().cast_to_basic(context)
+                val.unwrap_type_ref().0.cast_to_basic(context)
             }
             TypeCheckTypeType::Placeholder => {
                 panic!("Tried to cast placeholder to basic type, found placeholder value")
@@ -452,6 +452,7 @@ impl<'a> TypeCheckType<'a> {
                             context
                                 .get_basic_type(Rc::clone(&other))?
                                 .unwrap_type_ref()
+                                .0
                                 .clone(),
                         ))
                     },
@@ -1307,16 +1308,16 @@ impl<'a> TypeAssign<'a> {
         _return_type: Option<Cow<'a, TypeCheckType<'a>>>,
         context: &'b mut TypeCheckSymbTab<'a>,
     ) -> Result<Cow<'a, TypeCheckType<'a>>, ErrorOrVec<'a>> {
-        self.name = context.set_value(
-            Rc::clone(&self.name),
-            SymbTabObj::CustomType(self.value.unwrap_type_check_ref().clone()),
-        );
-
         self.value = TypeCheckOrType::TypeCheckType(TypeCheckType::from_type(
             Rc::clone(&self.value.unwrap_type()),
             context,
             true,
         )?);
+
+        self.name = context.set_value(
+            Rc::clone(&self.name),
+            SymbTabObj::CustomType(self.value.unwrap_type_check_ref().clone(), self.visibility),
+        );
 
         // Returns nothing
         Ok(Cow::Owned(TypeCheckType {
@@ -1722,11 +1723,53 @@ impl<'a> TypeCheckSymbTab<'a> {
         ))
     }
 
+    fn generate_private_type_err(
+        type_used: Rc<Namespace<'a>>,
+        private_type_pos: helpers::Pos<'a>,
+    ) -> ErrorOrVec<'a> {
+        // Private type and not from the same file
+        ErrorOrVec::Error(
+            Error::new(
+                "use of private type".to_string(),
+                ErrorType::VisibilityError,
+                type_used.pos,
+                ErrorDisplayType::Error,
+                vec![
+                    ErrorAnnotation::new(
+                        Some(format!("type `{}` defined here", type_used.to_string())),
+                        private_type_pos,
+                        ErrorDisplayType::Info,
+                    ),
+                    ErrorAnnotation::new(
+                        Some("type used here".to_string()),
+                        type_used.pos,
+                        ErrorDisplayType::Error,
+                    ),
+                ],
+                true,
+            ),
+            ErrorLevel::TypeError,
+        )
+    }
+
     fn get_type(&self, namespace: Rc<Namespace<'a>>) -> Result<&SymbTabObj<'a>, ErrorOrVec<'a>> {
         // Namespace of std
         match self.items.get(&namespace) {
             Some(val) => match val.deref() {
-                SymbTabObj::CustomType(_) => return Ok(val),
+                SymbTabObj::CustomType(typechecktype, visibility) => {
+                    return Ok(
+                        if *visibility == Visibility::Private
+                            && typechecktype.pos.filename != namespace.pos.filename
+                        {
+                            return Err(Self::generate_private_type_err(
+                                Rc::clone(&namespace),
+                                typechecktype.pos,
+                            ));
+                        } else {
+                            val
+                        },
+                    );
+                }
                 _ => {}
             },
             None => {}
@@ -1740,7 +1783,20 @@ impl<'a> TypeCheckSymbTab<'a> {
 
         match self.items.get(&other) {
             Some(val) => match val.deref() {
-                SymbTabObj::CustomType(_) => return Ok(val),
+                SymbTabObj::CustomType(typechecktype, visibility) => {
+                    return Ok(
+                        if *visibility == Visibility::Private
+                            && typechecktype.pos.filename != namespace.pos.filename
+                        {
+                            return Err(Self::generate_private_type_err(
+                                Rc::clone(&namespace),
+                                typechecktype.pos,
+                            ));
+                        } else {
+                            val
+                        },
+                    );
+                }
                 other => {
                     return Err(ErrorOrVec::Error(
                         Error::new(
@@ -1784,11 +1840,14 @@ impl<'a> TypeCheckSymbTab<'a> {
         namespace: Rc<Namespace<'a>>,
     ) -> Result<&SymbTabObj<'a>, ErrorOrVec<'a>> {
         let mut type_val = self.get_type(Rc::clone(&namespace))?;
-        while let SymbTabObj::CustomType(TypeCheckType {
-            value: TypeCheckTypeType::CustomType(name, _),
-            pos: _,
-            inferred: _,
-        }) = type_val
+        while let SymbTabObj::CustomType(
+            TypeCheckType {
+                value: TypeCheckTypeType::CustomType(name, _),
+                pos: _,
+                inferred: _,
+            },
+            _,
+        ) = type_val
         {
             type_val = self.get_type(Rc::clone(name))?;
         }

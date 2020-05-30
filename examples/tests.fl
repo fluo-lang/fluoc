@@ -1,13 +1,15 @@
+import tests2;
+
 public
-def entry() -> int {
-    let x: int;
-    if (false) {
+def entry() -> tests2::value {
+    let x: int = 10;
+    /*if (false) {
         x = 10;
     } else if (false) {
         x = 100;
     } else {
-        --x = 10;
-    }
+        x = 10;
+    }*/
 
     return x;
 }

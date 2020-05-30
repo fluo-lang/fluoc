@@ -134,6 +134,7 @@ pub struct VariableAssign<'a> {
 pub struct TypeAssign<'a> {
     pub name: Rc<Namespace<'a>>,
     pub value: TypeCheckOrType<'a>,
+    pub visibility: Visibility,
     pub pos: helpers::Pos<'a>,
 }
 

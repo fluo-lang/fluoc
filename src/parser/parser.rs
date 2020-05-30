@@ -388,6 +388,13 @@ impl<'a> Parser<'a> {
 
     fn type_assign(&mut self) -> Result<Statement<'a>, Error<'a>> {
         let position = self.token_pos;
+
+        let visibility = if self.peek().token == lexer::TokenType::PUBLIC {
+            self.forward();
+            ast::Visibility::Public
+        } else {
+            ast::Visibility::Private
+        };
         self.next(lexer::TokenType::TYPE, position, true)?;
 
         let name = self.namespace()?;
@@ -401,6 +408,7 @@ impl<'a> Parser<'a> {
         Ok(Statement::TypeAssign(ast::TypeAssign {
             value: ast::TypeCheckOrType::Type(Rc::new(value)),
             name: Rc::new(name),
+            visibility,
             pos: self.position(position),
         }))
     }
