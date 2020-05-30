@@ -1,1 +1,6 @@
 
+
+public
+def hello(awdawfawfg: int) -> int {
+    return awdawfawfg*1023;
+}

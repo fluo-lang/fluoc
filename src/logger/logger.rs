@@ -417,11 +417,11 @@ impl<'a> Logger<'a> {
         span_number: usize,
     ) {
         // Last line of annotation
-        let repeat = span_width + span_number - 1;
+        let repeat = span_width + span_number;
         *writer_pos = self.buffer.writel(
             writer_pos.0 - 1,
-            max_line_size + self.indentation.len() + 3 + span_width - span_number,
-            &format!("|{}", "_".repeat(if repeat == 0 { 1 } else { repeat - 1 })),
+            max_line_size + self.indentation.len() + 4 + span_width - span_number,
+            &format!("|{}", "_".repeat(repeat - 1)),
             Style::new(Some(annotation.mode.get_color_class()), Some(Font::BOLD)),
         );
 
@@ -450,7 +450,14 @@ impl<'a> Logger<'a> {
             lineno,
             false,
         );
-        *line_offset += 1;
+        self.add_pipe(
+            writer_pos.0 - 2,
+            max_line_size,
+            vertical_annotations,
+            lineno,
+            false,
+        );
+        *line_offset += 2;
     }
 
     fn draw_line(
@@ -487,7 +494,9 @@ impl<'a> Logger<'a> {
                 &mut (writer_pos.0 - 1, max_line_size + self.indentation.len() - 2),
             );
             writer_pos.0 = self.add_pipe_pure(writer_pos.0, max_line_size).0;
-        } else if !first && ((lineno.0 - prev_line.0) > 1) {
+        } else if (prev_line.0 < lineno.0 && !first && ((lineno.0 - prev_line.0) > 1))
+            || (prev_line.0 > lineno.0 && !first && ((prev_line.0 - lineno.0) > 1))
+        {
             // Add dots if we are not displaying lines continually
             self.buffer.writel(
                 writer_pos.0 - 2,
@@ -645,7 +654,7 @@ impl<'a> Logger<'a> {
                     writer_pos.0 = start_line + line_offset + 1;
                     writer_pos.1 = 0;
 
-                    // draw line
+                    // Draw line
                     if !(printed_lines.contains_key(annotation.position.filename)
                         && printed_lines
                             .get(annotation.position.filename)
@@ -977,7 +986,11 @@ impl<'a> Logger<'a> {
                                 if first {
                                     first = false;
                                 }
-                                break;
+                                if annotation_pos[idx..].iter().any(|val| {
+                                    (val.1.position_rel.1).0 < (annotation.position_rel.1).0
+                                }) {
+                                    break;
+                                }
                             } else {
                                 // In between multiline annotation
                                 *writer_pos = self.buffer.writech(
@@ -1005,7 +1018,7 @@ impl<'a> Logger<'a> {
             let mut vertical_annotations_sorted: Vec<(usize, ErrorAnnotation<'_>)> =
                 vertical_annotations.clone().into_iter().collect();
             vertical_annotations_sorted.sort_by_key(|a| a.0);
-            span_no = 0;
+            span_no = 1;
             for (lineno, annotation) in vertical_annotations_sorted {
                 writer_pos.0 = start_line + line_offset + 1;
                 self.draw_line(

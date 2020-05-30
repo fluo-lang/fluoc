@@ -173,6 +173,28 @@ pub struct Arguments<'a> {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+/// If/else if conditional branch
+pub struct IfBranch<'a> {
+    pub cond: Expr<'a>,
+    pub block: Block<'a>,
+    pub pos: helpers::Pos<'a>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+/// Else conditional branch
+pub struct ElseBranch<'a> {
+    pub block: Block<'a>,
+    pub pos: helpers::Pos<'a>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Conditional<'a> {
+    pub if_branches: Vec<IfBranch<'a>>,
+    pub else_branch: Option<ElseBranch<'a>>,
+    pub pos: helpers::Pos<'a>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 /// Block of code
 pub struct Block<'a> {
     pub nodes: Vec<Statement<'a>>,
@@ -484,6 +506,8 @@ pub enum Node<'a> {
     FunctionDefine(FunctionDefine<'a>),
     FunctionCall(FunctionCall<'a>),
 
+    Conditional(Conditional<'a>),
+
     ExternDef(ExternDef<'a>),
 
     Unit(Unit<'a>),
@@ -507,6 +531,8 @@ pub enum Statement<'a> {
     FunctionDefine(FunctionDefine<'a>),
     ExternDef(ExternDef<'a>),
 
+    Conditional(Conditional<'a>),
+
     Return(Return<'a>),
     Unit(Unit<'a>),
     TypeAssign(TypeAssign<'a>),
@@ -524,6 +550,8 @@ impl<'a> Statement<'a> {
 
             Statement::FunctionDefine(val) => val.pos,
             Statement::ExternDef(val) => val.pos,
+
+            Statement::Conditional(val) => val.pos,
 
             Statement::Return(val) => val.pos,
             Statement::Unit(val) => val.pos,
@@ -544,6 +572,8 @@ impl<'a> Statement<'a> {
                 format!("function define {{\n{}}}", val.block.to_string())
             }
             Statement::ExternDef(_) => "external function define".to_string(),
+
+            Statement::Conditional(_) => "conditional".to_string(),
 
             Statement::Unit(_) => "unit".to_string(),
             Statement::Import(_) => "import".to_string(),
@@ -567,6 +597,8 @@ impl<'a> Statement<'a> {
             Statement::FunctionDefine(_) => &Scope::All,
             Statement::ExternDef(_) => &Scope::All,
 
+            Statement::Conditional(_) => &Scope::Block,
+
             Statement::Return(_) => &Scope::Block,
             Statement::TypeAssign(_) => &Scope::All,
             Statement::Unit(_) => &Scope::Outer,
@@ -584,6 +616,8 @@ impl<'a> Statement<'a> {
 
             Statement::FunctionDefine(val) => Node::FunctionDefine(val),
             Statement::ExternDef(val) => Node::ExternDef(val),
+
+            Statement::Conditional(val) => Node::Conditional(val),
 
             Statement::Return(val) => Node::Return(val),
             Statement::TypeAssign(val) => Node::TypeAssign(val),

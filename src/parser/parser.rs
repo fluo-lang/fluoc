@@ -54,7 +54,7 @@ pub struct Parser<'a> {
     pub lexer: lexer::Lexer<'a>,
     /// Abstract syntax tree
     pub ast: Option<ast::Block<'a>>,
-    statements: [fn(&mut Self) -> Result<Statement<'a>, Error<'a>>; 9],
+    statements: [fn(&mut Self) -> Result<Statement<'a>, Error<'a>>; 10],
     prefix_op: HashMap<lexer::TokenType<'a>, Prec>,
     infix_op: HashMap<lexer::TokenType<'a>, Prec>,
     tokens: Vec<lexer::Token<'a>>,
@@ -84,6 +84,7 @@ impl<'a> Parser<'a> {
                 Parser::type_assign,
                 Parser::compiler_tag,
                 Parser::extern_def,
+                Parser::conditional,
             ],
             prefix_op: HashMap::new(),
             infix_op: HashMap::new(),
@@ -847,6 +848,83 @@ impl<'a> Parser<'a> {
             type_val: None,
             pos: self.position(position),
         }))
+    }
+
+    fn conditional(&mut self) -> Result<Statement<'a>, Error<'a>> {
+        let position = self.token_pos;
+
+        // Required
+        let mut if_branches = vec![self.if_cond()?];
+
+        loop {
+            match self.else_if_cond() {
+                Ok(val) => if_branches.push(val),
+                Err(_) => break,
+            }
+        }
+
+        // Optional
+        let else_branch = match self.else_cond() {
+            Ok(val) => Some(val),
+            Err(_) => None,
+        };
+
+        Ok(ast::Statement::Conditional(ast::Conditional {
+            if_branches,
+            else_branch,
+            pos: self.position(position),
+        }))
+    }
+
+    fn if_cond(&mut self) -> Result<ast::IfBranch<'a>, Error<'a>> {
+        let position = self.token_pos;
+
+        self.next(lexer::TokenType::IF, position, true)?;
+        self.next(lexer::TokenType::LP, position, false)?;
+
+        let cond = self.expr(Prec::LOWEST)?;
+
+        self.next(lexer::TokenType::RP, position, false)?;
+
+        let block = self.block(Scope::Block)?;
+
+        Ok(ast::IfBranch {
+            cond,
+            block,
+            pos: self.position(position),
+        })
+    }
+
+    fn else_if_cond(&mut self) -> Result<ast::IfBranch<'a>, Error<'a>> {
+        let position = self.token_pos;
+
+        self.next(lexer::TokenType::ELSE, position, true)?;
+        self.next(lexer::TokenType::IF, position, true)?;
+        self.next(lexer::TokenType::LP, position, false)?;
+
+        let cond = self.expr(Prec::LOWEST)?;
+
+        self.next(lexer::TokenType::RP, position, false)?;
+
+        let block = self.block(Scope::Block)?;
+
+        Ok(ast::IfBranch {
+            cond,
+            block,
+            pos: self.position(position),
+        })
+    }
+
+    fn else_cond(&mut self) -> Result<ast::ElseBranch<'a>, Error<'a>> {
+        let position = self.token_pos;
+
+        self.next(lexer::TokenType::ELSE, position, true)?;
+        let block = self.block(Scope::Block)?;
+
+        Ok(ast::ElseBranch {
+            block,
+            pos: self.position(position),
+        })
     }
 
     /// Top level expression

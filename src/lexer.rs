@@ -25,6 +25,9 @@ pub enum TokenType<'a> {
 
     AT,
 
+    IF,
+    ELSE,
+
     IDENTIFIER(&'a str),
     NUMBER(&'a str),
 
@@ -115,6 +118,8 @@ impl<'a> fmt::Display for Token<'a> {
             TokenType::PUBLIC => "keyword `public`".to_string(),
             TokenType::UNIT => "keyword `unit`".to_string(),
             TokenType::EXTERN => "keyword `extern`".to_string(),
+            TokenType::IF => "keyword `if`".to_string(),
+            TokenType::ELSE => "keyword `else`".to_string(),
 
             TokenType::AS => "operator `as`".to_string(),
             TokenType::DIV => "operator `/`".to_string(),
@@ -182,11 +187,15 @@ fn get_tok_length(tok: &TokenType<'_>) -> usize {
 
         TokenType::IMPORT | TokenType::RETURN | TokenType::PUBLIC | TokenType::EXTERN => 6,
 
-        TokenType::IMPL | TokenType::TYPE | TokenType::UNIT => 4,
+        TokenType::IMPL | TokenType::TYPE | TokenType::UNIT | TokenType::ELSE => 4,
 
         TokenType::LET | TokenType::DEF => 3,
 
-        TokenType::ARROW | TokenType::DMOD | TokenType::DOUBLECOLON | TokenType::AS => 2,
+        TokenType::ARROW
+        | TokenType::DMOD
+        | TokenType::DOUBLECOLON
+        | TokenType::AS
+        | TokenType::IF => 2,
 
         TokenType::DIV
         | TokenType::MOD
@@ -491,6 +500,8 @@ impl<'a> Lexer<'a> {
             "true" => Ok(TokenType::BOOL("1")),
             "false" => Ok(TokenType::BOOL("0")),
             "extern" => Ok(TokenType::EXTERN),
+            "if" => Ok(TokenType::IF),
+            "else" => Ok(TokenType::ELSE),
             _ => Ok(TokenType::IDENTIFIER(id.1)),
         }
     }

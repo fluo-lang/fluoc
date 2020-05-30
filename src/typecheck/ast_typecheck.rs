@@ -12,17 +12,52 @@ use std::iter::Extend;
 use std::ops::Deref;
 use std::rc::Rc;
 
+#[derive(Debug, Clone)]
+pub enum Nullable<'a> {
+    Safe,
+    Unsafe(ErrorAnnotation<'a>),
+    ConditionalSafe(ErrorAnnotation<'a>),
+}
+
+impl<'a> PartialEq for Nullable<'a> {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Nullable::Safe, Nullable::Safe) => true,
+            (Nullable::Unsafe(_), Nullable::Unsafe(_)) => true,
+            (Nullable::ConditionalSafe(_), Nullable::ConditionalSafe(_)) => true,
+            _ => false,
+        }
+    }
+}
+
+impl<'a> Nullable<'a> {
+    fn get_error(&self) -> Option<ErrorAnnotation<'a>> {
+        match self {
+            Nullable::ConditionalSafe(val) => Some(val.clone()),
+            Nullable::Safe => None,
+            Nullable::Unsafe(val) => Some(val.clone()),
+        }
+    }
+
+    fn get_safe_cond(&self) -> Option<ErrorAnnotation<'a>> {
+        match self {
+            Nullable::ConditionalSafe(val) => Some(val.clone()),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum SymbTabObj<'a> {
     CustomType(TypeCheckType<'a>),
     Function(TypeCheckType<'a>, helpers::Pos<'a>),
-    Variable(TypeCheckType<'a>, bool),
+    Variable(TypeCheckType<'a>, Nullable<'a>),
 }
 
 impl<'a> SymbTabObj<'a> {
-    fn unwrap_variable_ref(&self) -> (&TypeCheckType<'a>, bool) {
+    fn unwrap_variable_ref(&self) -> (&TypeCheckType<'a>, &Nullable<'a>) {
         match self {
-            SymbTabObj::Variable(expr, safe) => (expr, *safe),
+            SymbTabObj::Variable(expr, safe) => (expr, safe),
             _ => panic!(
                 "Tried to unwrap variable from symbtab object, got `{:?}`",
                 self
@@ -67,9 +102,18 @@ impl<'a> fmt::Display for SymbTabObj<'a> {
 }
 
 #[derive(Clone, Debug)]
+pub enum CurrentContext<'a> {
+    If(helpers::Pos<'a>),
+    Else(helpers::Pos<'a>),
+    Other,
+}
+
+#[derive(Clone, Debug)]
 pub struct TypeCheckSymbTab<'a> {
     pub items: HashMap<Rc<Namespace<'a>>, SymbTabObj<'a>>,
     curr_prefix: Vec<NameID<'a>>, // Current Namespace to push
+    changed_safe: HashMap<Rc<Namespace<'a>>, Nullable<'a>>,
+    conditional_state: CurrentContext<'a>,
 }
 
 impl<'a> fmt::Display for TypeCheckSymbTab<'a> {
@@ -620,7 +664,7 @@ impl<'a> TypeCheckType<'a> {
                             TypeCheckType::from_expr(&mut variable_assignment_dec.expr, context)?;
                         context.set_value(
                             Rc::clone(&variable_assignment_dec.name),
-                            SymbTabObj::Variable(type_val, true),
+                            SymbTabObj::Variable(type_val, Nullable::Safe),
                         );
 
                         TypeCheckOrType::TypeCheckType(cast_type)
@@ -662,10 +706,13 @@ impl<'a> TypeCheckType<'a> {
                     } else {
                         let type_val =
                             TypeCheckType::from_expr(&mut variable_assign.expr, context)?;
+                        let nullable_val = context.get_safe_value(Rc::clone(&variable_assign.name));
                         context.set_value(
                             Rc::clone(&variable_assign.name),
-                            SymbTabObj::Variable(type_val, true), // Value is safe, it's guaranteed to have a value
+                            SymbTabObj::Variable(type_val, nullable_val.clone()), // Value is safe? it's guaranteed to have a value (depending on context)
                         );
+
+                        context.insert_changed_safe(Rc::clone(&variable_assign.name), nullable_val);
 
                         Some(cast_type)
                     };
@@ -708,10 +755,24 @@ impl<'a> TypeCheckType<'a> {
             Expr::RefID(ref_namespace) => {
                 let val = context.get_variable(Rc::clone(&ref_namespace.value))?;
                 let variable = val.unwrap_variable_ref();
-                if variable.1 {
+                if variable.1 == &Nullable::Safe {
                     // Safe value
                     variable.0.clone()
                 } else {
+                    let mut annotations = Vec::new();
+
+                    annotations.push(ErrorAnnotation::new(
+                        Some(format!(
+                            "`{}` used here",
+                            ref_namespace.value.deref().to_string()
+                        )),
+                        ref_namespace.pos,
+                        ErrorDisplayType::Error,
+                    ));
+
+                    if let Some(val) = variable.1.get_error() {
+                        annotations.push(val);
+                    }
                     // Unsafe, possible use of uninitialized value
                     return Err(ErrorOrVec::Error(
                         Error::new(
@@ -719,14 +780,7 @@ impl<'a> TypeCheckType<'a> {
                             ErrorType::PossibleUninitVal,
                             ref_namespace.pos,
                             ErrorDisplayType::Error,
-                            vec![ErrorAnnotation::new(
-                                Some(format!(
-                                    "`{}` used here",
-                                    ref_namespace.value.deref().to_string()
-                                )),
-                                ref_namespace.pos,
-                                ErrorDisplayType::Error,
-                            )],
+                            annotations,
                             true,
                         ),
                         ErrorLevel::TypeError,
@@ -1175,7 +1229,7 @@ impl<'a> TypeCheck<'a> for FunctionDefine<'a> {
         for argument in &self.arguments.positional {
             context.set_value(
                 Namespace::from_name_id(argument.0),
-                SymbTabObj::Variable((argument.1.clone()).unwrap_type_check(), true),
+                SymbTabObj::Variable((argument.1.clone()).unwrap_type_check(), Nullable::Safe),
             );
         }
 
@@ -1228,7 +1282,14 @@ impl<'a> TypeCheck<'a> for VariableDeclaration<'a> {
         let type_val = TypeCheckType::from_type(self.t.unwrap_type(), context, false)?;
         context.set_value(
             Rc::clone(&self.name),
-            SymbTabObj::Variable(type_val.clone(), false),
+            SymbTabObj::Variable(
+                type_val.clone(),
+                Nullable::Unsafe(ErrorAnnotation::new(
+                    Some("value defined here".to_string()),
+                    self.pos,
+                    ErrorDisplayType::Info,
+                )),
+            ),
         );
         self.t = TypeCheckOrType::TypeCheckType(type_val);
 
@@ -1281,6 +1342,141 @@ impl<'a> TypeCheck<'a> for TypeAssign<'a> {
     }
 }
 
+impl<'a> Conditional<'a> {
+    fn generate_bool_err(pos: helpers::Pos<'a>, actual_type: TypeCheckType<'a>) -> ErrorOrVec<'a> {
+        ErrorOrVec::Error(
+            Error::new(
+                "mismatched conditional type".to_string(),
+                ErrorType::TypeMismatch,
+                pos,
+                ErrorDisplayType::Error,
+                vec![
+                    ErrorAnnotation::new(
+                        Some("should be of type `bool`".to_string()),
+                        pos,
+                        ErrorDisplayType::Error,
+                    ),
+                    ErrorAnnotation::new(
+                        Some(format!("{}found `{}`", " ".repeat(12), actual_type)),
+                        pos,
+                        ErrorDisplayType::Error,
+                    ),
+                ],
+                true,
+            ),
+            ErrorLevel::TypeError,
+        )
+    }
+}
+
+impl<'a> TypeCheck<'a> for Conditional<'a> {
+    fn type_check<'b>(
+        &mut self,
+        return_type: Option<Cow<'a, TypeCheckType<'a>>>,
+        context: &'b mut TypeCheckSymbTab<'a>,
+    ) -> Result<Cow<'a, TypeCheckType<'a>>, ErrorOrVec<'a>> {
+        let mut changed_safe_vals = Vec::new();
+
+        for branch in &mut self.if_branches {
+            context.reset_changed_safe();
+            context.conditional_state = CurrentContext::If(branch.pos);
+            branch.block.type_check(None, context)?;
+            let actual_type = TypeCheckType::from_expr(&mut branch.cond, context)?;
+            match actual_type.cast_to_basic(context) {
+                Ok(val) => match val {
+                    "bool" => {}
+                    _ => {
+                        return Err(Conditional::generate_bool_err(
+                            branch.cond.pos(),
+                            actual_type,
+                        ))
+                    }
+                },
+                Err(_) => {
+                    return Err(Conditional::generate_bool_err(
+                        branch.cond.pos(),
+                        actual_type,
+                    ))
+                }
+            }
+            changed_safe_vals.push(context.get_changed_safe());
+        }
+
+        let else_safe_vals = match &mut self.else_branch {
+            Some(branch) => {
+                context.reset_changed_safe();
+                context.conditional_state = CurrentContext::Else(branch.pos);
+                branch.block.type_check(None, context)?;
+                Some(context.get_changed_safe())
+            }
+            None => None,
+        };
+
+        for i in 0..changed_safe_vals.len() {
+            for changed_safe in &changed_safe_vals[i] {
+                match &else_safe_vals {
+                    Some(else_val) => {
+                        if TypeCheckSymbTab::is_safe_cond(else_val, changed_safe.0) {
+                            // Else val contains it, check every other branch
+                            context.set_safe(Rc::clone(changed_safe.0)); // Set it as safe, if its not unset it (ofc)
+                            for i in 1..changed_safe_vals.len() {
+                                let other_branch = &changed_safe_vals[i];
+                                if !TypeCheckSymbTab::is_safe_cond(&other_branch, changed_safe.0) {
+                                    // Branch does not contain value, fail
+                                    context.set_unsafe(
+                                        Rc::clone(changed_safe.0),
+                                        ErrorAnnotation::new(
+                                            Some(format!(
+                                                "consider giving `{}` a value here",
+                                                changed_safe.0.to_string()
+                                            )),
+                                            self.if_branches[i].pos,
+                                            ErrorDisplayType::Info,
+                                        ),
+                                    );
+                                }
+                            }
+                        } else {
+                            context.set_unsafe(
+                                Rc::clone(changed_safe.0),
+                                ErrorAnnotation::new(
+                                    Some(format!(
+                                        "consider giving `{}` a value here",
+                                        changed_safe.0.to_string()
+                                    )),
+                                    self.else_branch.as_ref().unwrap().pos,
+                                    ErrorDisplayType::Info,
+                                ),
+                            );
+                        }
+                    }
+                    None => {
+                        // No else, so not allowed
+                        context.set_unsafe(
+                            Rc::clone(changed_safe.0),
+                            ErrorAnnotation::new(
+                                Some(format!(
+                                    "consider giving `{}` a value here in a else clause",
+                                    changed_safe.0.to_string()
+                                )),
+                                self.pos,
+                                ErrorDisplayType::Info,
+                            ),
+                        );
+                    }
+                }
+            }
+        }
+
+        // Returns nothing
+        Ok(Cow::Owned(TypeCheckType {
+            value: TypeCheckTypeType::Placeholder,
+            pos: self.pos,
+            inferred: true,
+        }))
+    }
+}
+
 impl<'a> TypeCheck<'a> for Statement<'a> {
     fn type_check<'b>(
         &mut self,
@@ -1304,6 +1500,9 @@ impl<'a> TypeCheck<'a> for Statement<'a> {
                 (statement as &mut dyn TypeCheck<'_>).type_check(return_type, context)
             }
             Statement::TypeAssign(statement) => {
+                (statement as &mut dyn TypeCheck<'_>).type_check(return_type, context)
+            }
+            Statement::Conditional(statement) => {
                 (statement as &mut dyn TypeCheck<'_>).type_check(return_type, context)
             }
             Statement::Empty(_) => Ok(Cow::Owned(TypeCheckType {
@@ -1354,8 +1553,11 @@ impl<'a> TypeCheckSymbTab<'a> {
         TypeCheckSymbTab {
             items: HashMap::new(),
             curr_prefix: Vec::new(),
+            changed_safe: HashMap::new(),
+            conditional_state: CurrentContext::Other,
         }
     }
+
     pub fn set_value(
         &mut self,
         namespace: Rc<Namespace<'a>>,
@@ -1370,6 +1572,79 @@ impl<'a> TypeCheckSymbTab<'a> {
 
         self.items.insert(Rc::clone(&adjusted_namespace), value);
         Rc::clone(&adjusted_namespace)
+    }
+
+    fn reset_changed_safe(&mut self) {
+        self.changed_safe.clear();
+    }
+
+    fn insert_changed_safe(&mut self, namespace: Rc<Namespace<'a>>, val: Nullable<'a>) {
+        self.changed_safe.insert(namespace, val);
+    }
+
+    fn get_changed_safe(&self) -> HashMap<Rc<Namespace<'a>>, Nullable<'a>> {
+        self.changed_safe.clone()
+    }
+
+    fn get_safe_value(&self, namespace: Rc<Namespace<'a>>) -> Nullable<'a> {
+        if let CurrentContext::If(pos) = self.conditional_state {
+            Nullable::ConditionalSafe(ErrorAnnotation::new(
+                Some(format!(
+                    "consider giving `{}` a value here",
+                    namespace.to_string()
+                )),
+                pos,
+                ErrorDisplayType::Info,
+            ))
+        } else if let CurrentContext::Else(pos) = self.conditional_state {
+            Nullable::ConditionalSafe(ErrorAnnotation::new(
+                Some(format!(
+                    "consider giving `{}` a value here",
+                    namespace.to_string()
+                )),
+                pos,
+                ErrorDisplayType::Info,
+            ))
+        } else {
+            Nullable::Safe
+        }
+    }
+
+    fn set_unsafe(&mut self, namespace: Rc<Namespace<'a>>, error: ErrorAnnotation<'a>) {
+        match self.items.remove(&namespace) {
+            Some(SymbTabObj::Variable(val, _)) => {
+                self.items.insert(
+                    namespace,
+                    SymbTabObj::Variable(val, Nullable::Unsafe(error)),
+                );
+            }
+            _ => {
+                panic!("Tried to get item that is not variable");
+            }
+        }
+    }
+
+    fn set_safe(&mut self, namespace: Rc<Namespace<'a>>) {
+        match self.items.remove(&namespace) {
+            Some(SymbTabObj::Variable(val, _)) => {
+                self.items
+                    .insert(namespace, SymbTabObj::Variable(val, Nullable::Safe));
+            }
+            _ => {
+                panic!("Tried to get item that is not variable");
+            }
+        }
+    }
+
+    fn is_safe_cond(
+        symbtab: &HashMap<Rc<Namespace<'a>>, Nullable<'a>>,
+        key: &Rc<Namespace<'a>>,
+    ) -> bool {
+        if let Some(val) = symbtab.get(key) {
+            val.get_safe_cond().is_some()
+        } else {
+            false
+        }
     }
 
     fn push_curr_prefix(&mut self, prefix: &mut Vec<NameID<'a>>) {

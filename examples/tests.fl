@@ -1,6 +1,13 @@
-
 public
 def entry() -> int {
-    
-    return 0;
+    let x: int;
+    if (false) {
+        x = 10;
+    } else if (false) {
+        x = 100;
+    } else {
+        --x = 10;
+    }
+
+    return x;
 }
