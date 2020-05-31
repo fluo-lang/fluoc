@@ -1,0 +1,16 @@
+/*overload + add_ints(left: int, right: int) -> int {
+    return core::op::add(left, right);
+}*/
+
+def do_something(val: int) -> int {
+    return val;
+}
+
+def do_something() -> bool {
+    return true;
+}
+
+def entry() {
+    do_something();
+    do_something(19);
+}

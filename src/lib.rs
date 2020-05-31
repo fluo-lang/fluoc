@@ -1,9 +1,10 @@
 // For benchmarks
 pub mod codegen;
-pub mod core;
+pub mod fluo_core;
 pub mod helpers;
 pub mod lexer;
 pub mod logger;
+pub mod mangle;
 pub mod parser;
 pub mod paths;
 pub mod typecheck;

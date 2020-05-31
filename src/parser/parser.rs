@@ -626,9 +626,10 @@ impl<'a> Parser<'a> {
         Ok(ast::Statement::FunctionDefine(ast::FunctionDefine {
             return_type: ast::TypeCheckOrType::Type(Rc::new(return_type)),
             arguments,
-            block,
+            block: Some(block),
             visibility,
             name,
+            mangled_name: None,
             pos: self.position(position),
         }))
     }
@@ -668,12 +669,14 @@ impl<'a> Parser<'a> {
 
         self.next(lexer::TokenType::SEMI, position, false)?;
 
-        Ok(ast::Statement::ExternDef(ast::ExternDef {
+        Ok(ast::Statement::FunctionDefine(ast::FunctionDefine {
             return_type: ast::TypeCheckOrType::Type(Rc::new(return_type)),
             arguments,
             visibility,
             name,
+            mangled_name: None,
             pos: self.position(position),
+            block: None, // No block on external function
         }))
     }
 
@@ -795,6 +798,7 @@ impl<'a> Parser<'a> {
             arguments,
             name: Rc::new(namespace),
             pos: self.position(position),
+            mangled_name: None,
         }))
     }
 

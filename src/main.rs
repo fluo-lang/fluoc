@@ -8,7 +8,8 @@ pub mod master;
 pub mod parser;
 pub mod typecheck;
 pub mod paths;
-pub mod core;
+pub mod fluo_core;
+pub mod mangle;
 
 #[macro_use]
 extern crate clap;

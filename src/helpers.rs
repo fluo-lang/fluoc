@@ -85,7 +85,7 @@ pub fn get_core_loc() -> path::PathBuf {
     core_path.pop();
 
     core_path.push("src");
-    core_path.push("core");
+    core_path.push("fluo_core");
     core_path.push("core");
     core_path.push("core.fl");
 

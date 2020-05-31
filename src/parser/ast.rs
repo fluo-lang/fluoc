@@ -269,18 +269,9 @@ impl Visibility {
 pub struct FunctionDefine<'a> {
     pub return_type: TypeCheckOrType<'a>,
     pub arguments: Arguments<'a>,
-    pub block: Block<'a>,
+    pub block: Option<Block<'a>>, // Option if is an extern
     pub name: Rc<Namespace<'a>>,
-    pub visibility: Visibility,
-    pub pos: helpers::Pos<'a>,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-/// External function definition
-pub struct ExternDef<'a> {
-    pub return_type: TypeCheckOrType<'a>,
-    pub arguments: Arguments<'a>,
-    pub name: Rc<Namespace<'a>>,
+    pub mangled_name: Option<String>,
     pub visibility: Visibility,
     pub pos: helpers::Pos<'a>,
 }
@@ -302,6 +293,7 @@ pub struct Return<'a> {
 pub struct FunctionCall<'a> {
     pub arguments: ArgumentsRun<'a>,
     pub name: Rc<Namespace<'a>>,
+    pub mangled_name: Option<String>,
     pub pos: helpers::Pos<'a>,
 }
 
@@ -511,8 +503,6 @@ pub enum Node<'a> {
 
     Conditional(Conditional<'a>),
 
-    ExternDef(ExternDef<'a>),
-
     Unit(Unit<'a>),
 
     Import(Import<'a>),
@@ -532,7 +522,6 @@ pub enum Statement<'a> {
     VariableDeclaration(VariableDeclaration<'a>),
 
     FunctionDefine(FunctionDefine<'a>),
-    ExternDef(ExternDef<'a>),
 
     Conditional(Conditional<'a>),
 
@@ -552,7 +541,6 @@ impl<'a> Statement<'a> {
             Statement::VariableDeclaration(val) => val.pos,
 
             Statement::FunctionDefine(val) => val.pos,
-            Statement::ExternDef(val) => val.pos,
 
             Statement::Conditional(val) => val.pos,
 
@@ -571,10 +559,7 @@ impl<'a> Statement<'a> {
             Statement::ExpressionStatement(val) => val.expression.to_str().to_string(),
             Statement::VariableDeclaration(_) => "variable declaration".to_string(),
 
-            Statement::FunctionDefine(val) => {
-                format!("function define {{\n{}}}", val.block.to_string())
-            }
-            Statement::ExternDef(_) => "external function define".to_string(),
+            Statement::FunctionDefine(_) => "function define".to_string(),
 
             Statement::Conditional(_) => "conditional".to_string(),
 
@@ -598,7 +583,6 @@ impl<'a> Statement<'a> {
             Statement::VariableDeclaration(_) => &Scope::Block,
 
             Statement::FunctionDefine(_) => &Scope::All,
-            Statement::ExternDef(_) => &Scope::All,
 
             Statement::Conditional(_) => &Scope::Block,
 
@@ -618,7 +602,6 @@ impl<'a> Statement<'a> {
             Statement::VariableDeclaration(val) => Node::VariableDeclaration(val),
 
             Statement::FunctionDefine(val) => Node::FunctionDefine(val),
-            Statement::ExternDef(val) => Node::ExternDef(val),
 
             Statement::Conditional(val) => Node::Conditional(val),
 

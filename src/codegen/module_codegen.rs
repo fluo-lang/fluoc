@@ -107,7 +107,6 @@ impl<'a> CodeGenModule<'a> {
     fn gen_stmt_pass_1(&mut self, statement: &ast::Statement<'a>) {
         match statement {
             ast::Statement::FunctionDefine(func_def) => self.gen_function_prototype(func_def),
-            ast::Statement::ExternDef(func_def) => self.gen_extern_function_prototype(func_def),
             ast::Statement::Unit(unit) => self.get_unit_proto(unit),
             _ => {}
         }
@@ -118,7 +117,7 @@ impl<'a> CodeGenModule<'a> {
             ast::Statement::FunctionDefine(func_def) => self.gen_function_define(
                 func_def,
                 self.module
-                    .get_function(&func_def.name.to_string()[..])
+                    .get_function(&func_def.mangled_name.as_ref().unwrap()[..])
                     .unwrap(),
             ),
             ast::Statement::Unit(unit) => self.get_unit(unit),
@@ -248,7 +247,7 @@ impl<'a> CodeGenModule<'a> {
             .iter()
             .map(|argument| self.eval_expr(argument))
             .collect();
-        let str_val = func_call.name.to_string();
+        let str_val = func_call.mangled_name.as_ref().unwrap();
 
         self.builder
             .build_call(
@@ -331,24 +330,7 @@ impl<'a> CodeGenModule<'a> {
     }
 
     fn gen_function_prototype(&mut self, func_def: &ast::FunctionDefine<'_>) {
-        let func_name = &func_def.name.to_string()[..];
-        let return_type = self.get_type(func_def.return_type.unwrap_type_check_ref());
-        let fn_type = return_type.fn_type(
-            &func_def
-                .arguments
-                .positional
-                .iter()
-                .map(|arg| self.get_type(arg.1.unwrap_type_check_ref()))
-                .collect::<Vec<types::BasicTypeEnum<'_>>>()[..],
-            false,
-        );
-
-        let function = self.module.add_function(func_name, fn_type, None);
-        function.set_linkage(func_def.visibility.get_linkage());
-    }
-
-    fn gen_extern_function_prototype(&mut self, func_def: &ast::ExternDef<'_>) {
-        let func_name = &func_def.name.to_string()[..];
+        let func_name = &func_def.mangled_name.as_ref().unwrap()[..];
         let return_type = self.get_type(func_def.return_type.unwrap_type_check_ref());
         let fn_type = return_type.fn_type(
             &func_def
@@ -369,28 +351,34 @@ impl<'a> CodeGenModule<'a> {
         func_def: &ast::FunctionDefine<'a>,
         func_val: values::FunctionValue<'a>,
     ) {
-        self.symbtab.clear();
+        match &func_def.block {
+            Some(block) => {
+                self.symbtab.clear();
 
-        let entry_bb = self.context.append_basic_block(func_val, "entry");
-        let builder = self.context.create_builder();
-        builder.position_at_end(entry_bb);
+                let entry_bb = self.context.append_basic_block(func_val, "entry");
+                let builder = self.context.create_builder();
+                builder.position_at_end(entry_bb);
 
-        for (idx, (argument, type_val)) in func_def.arguments.positional.iter().enumerate() {
-            let arg_type = self.get_type(type_val.unwrap_type_check_ref());
-            let argument_alloca = builder.build_alloca(arg_type, &argument.value[..]);
-            builder.build_store(
-                argument_alloca,
-                func_val.get_nth_param(idx.try_into().unwrap()).unwrap(),
-            );
+                for (idx, (argument, type_val)) in func_def.arguments.positional.iter().enumerate()
+                {
+                    let arg_type = self.get_type(type_val.unwrap_type_check_ref());
+                    let argument_alloca = builder.build_alloca(arg_type, &argument.value[..]);
+                    builder.build_store(
+                        argument_alloca,
+                        func_val.get_nth_param(idx.try_into().unwrap()).unwrap(),
+                    );
 
-            self.symbtab.insert(
-                Rc::new(argument.into_namespace()),
-                argument_alloca.as_basic_value_enum(),
-            );
+                    self.symbtab.insert(
+                        Rc::new(argument.into_namespace()),
+                        argument_alloca.as_basic_value_enum(),
+                    );
+                }
+
+                self.builder = builder;
+                self.generate_inner_block(block, func_val);
+            }
+            None => {}
         }
-
-        self.builder = builder;
-        self.generate_inner_block(&func_def.block, func_val);
     }
 
     fn gen_return(&mut self, ret: &ast::Return<'a>) {
@@ -417,10 +405,10 @@ impl<'a> CodeGenModule<'a> {
         //           if { // else if #2  }
         //           else { // final else }
         //         } // etc
-        //       }-
-        // | ------------------------------------------------------------------- |
-        // | We traverse down the conditional starting from the first else block |
-        // | ------------------------------------------------------------------- |
+        //       }
+        // | ----------------------------------------------------------------- |
+        // | We traverse down the conditional starting from the first if block |
+        // | ----------------------------------------------------------------- |
 
         // The block positioned after the conditionals
         let after_cond = self.context.append_basic_block(func_val, "after_cond");

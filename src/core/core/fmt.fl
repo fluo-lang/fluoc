@@ -1,6 +1,0 @@
-@[no_core]
-
--- Placeholder value for function signature
-public
-extern
-def print_int(val: int) -> ();

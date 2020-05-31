@@ -69,7 +69,7 @@ impl<'a> Generator<'a> {
         let fn_type = empty_tuple.fn_type(&[i32_type.into()], false);
         let fn_addr = self
             .module
-            .add_function("core::fmt::print_int", fn_type, None);
+            .add_function("core_fmt_print__int", fn_type, None);
 
         let entry_block = self.context.append_basic_block(fn_addr, "entry");
 
@@ -105,7 +105,7 @@ impl<'a> Generator<'a> {
         let i32_type = self.context.i32_type();
 
         let fn_type = i32_type.fn_type(&[i32_type.into(), i32_type.into()], false);
-        let fn_addr = self.module.add_function("core::op::add_int", fn_type, None);
+        let fn_addr = self.module.add_function("core_op_add__int", fn_type, None);
 
         let entry_block = self.context.append_basic_block(fn_addr, "entry");
 
@@ -126,7 +126,7 @@ impl<'a> Generator<'a> {
         let i32_type = self.context.i32_type();
 
         let fn_type = i32_type.fn_type(&[i32_type.into(), i32_type.into()], false);
-        let fn_addr = self.module.add_function("core::op::mul_int", fn_type, None);
+        let fn_addr = self.module.add_function("core_op_mul__int", fn_type, None);
 
         let entry_block = self.context.append_basic_block(fn_addr, "entry");
 
@@ -147,7 +147,7 @@ impl<'a> Generator<'a> {
         let i32_type = self.context.i32_type();
 
         let fn_type = i32_type.fn_type(&[i32_type.into(), i32_type.into()], false);
-        let fn_addr = self.module.add_function("core::op::sub_int", fn_type, None);
+        let fn_addr = self.module.add_function("core_op_sub__int", fn_type, None);
 
         let entry_block = self.context.append_basic_block(fn_addr, "entry");
 
@@ -215,7 +215,7 @@ fn main() {
     core_path.pop();
 
     core_path.push("src");
-    core_path.push("core");
+    core_path.push("fluo_core");
     core_path.push("core");
 
     let llvm_context = context::Context::create();
