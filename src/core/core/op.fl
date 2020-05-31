@@ -14,3 +14,23 @@ def sub_int(val1: int, val2: int) -> int;
 public
 extern
 def mul_int(val1: int, val2: int) -> int;
+
+/*
+New overload syntax
+@[no_core]
+
+-- Placeholder
+public
+extern
+overload add_int + (val1: int, val2: int) -> int;
+
+-- Placeholder
+public
+extern
+overload sub_int - (val1: int, val2: int) -> int;
+
+-- Placeholder
+public
+extern
+overload mul_int * (val1: int, val2: int) -> int;
+*/

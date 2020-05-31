@@ -13,14 +13,19 @@ pub enum TokenType<'a> {
     STRING(&'a str),
     DEF,
     IMPORT,
-    RETURN,
-    LET,
+    TYPE,
+    OVERLOAD,
     IMPL,
     PATTERN,
-    AS,
-    TYPE,
-    PUBLIC,
+
     UNIT,
+
+    LET,
+    AS,
+    RETURN,
+
+    PUBLIC,
+
     EXTERN,
 
     AT,
@@ -120,6 +125,7 @@ impl<'a> fmt::Display for Token<'a> {
             TokenType::EXTERN => "keyword `extern`".to_string(),
             TokenType::IF => "keyword `if`".to_string(),
             TokenType::ELSE => "keyword `else`".to_string(),
+            TokenType::OVERLOAD => "keyword `overload`".to_string(),
 
             TokenType::AS => "operator `as`".to_string(),
             TokenType::DIV => "operator `/`".to_string(),
@@ -182,6 +188,8 @@ fn get_tok_length(tok: &TokenType<'_>) -> usize {
         TokenType::LINECOMMENT(val) | TokenType::BLOCKCOMMENT(val) | TokenType::WHITESPACE(val) => {
             *val
         }
+
+        TokenType::OVERLOAD => 8,
 
         TokenType::PATTERN => 7,
 
@@ -502,6 +510,7 @@ impl<'a> Lexer<'a> {
             "extern" => Ok(TokenType::EXTERN),
             "if" => Ok(TokenType::IF),
             "else" => Ok(TokenType::ELSE),
+            "overload" => Ok(TokenType::OVERLOAD),
             _ => Ok(TokenType::IDENTIFIER(id.1)),
         }
     }
