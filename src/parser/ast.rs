@@ -201,6 +201,7 @@ pub struct Block<'a> {
     pub nodes: Vec<Statement<'a>>,
     pub tags: Vec<Tag<'a>>, // For now, tags are just strings
     pub pos: helpers::Pos<'a>,
+    pub insert_return: bool,
 }
 
 impl<'a> Block<'a> {
@@ -226,6 +227,7 @@ impl<'a> Units<'a> {
             nodes: self.units.into_iter().map(|x| Statement::Unit(x)).collect(),
             tags: Vec::new(),
             pos: self.pos,
+            insert_return: false,
         }
     }
 

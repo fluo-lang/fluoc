@@ -289,6 +289,7 @@ impl<'a> Parser<'a> {
             nodes: ast_list,
             tags: Vec::new(),
             pos: self.position(position),
+            insert_return: false,
         };
         self.ast = Some(block);
         Ok(())
@@ -353,6 +354,7 @@ impl<'a> Parser<'a> {
             nodes: ast_list,
             tags: Vec::new(),
             pos: self.position(position),
+            insert_return: false,
         })
     }
 

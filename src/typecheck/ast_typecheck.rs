@@ -707,7 +707,24 @@ impl<'a> TypeCheckType<'a> {
                     } else {
                         let type_val =
                             TypeCheckType::from_expr(&mut variable_assign.expr, context)?;
-                        let nullable_val = context.get_safe_value(Rc::clone(&variable_assign.name));
+                        println!(
+                            "{:?}",
+                            context
+                                .get_variable(Rc::clone(&variable_assign.name))?
+                                .unwrap_variable_ref()
+                                .1
+                        );
+                        let nullable_val = if context
+                            .get_variable(Rc::clone(&variable_assign.name))?
+                            .unwrap_variable_ref()
+                            .1
+                            == &Nullable::Safe
+                        {
+                            // Value is already safe, just skip all of this
+                            Nullable::Safe
+                        } else {
+                            context.get_safe_value(Rc::clone(&variable_assign.name))
+                        };
                         context.set_value(
                             Rc::clone(&variable_assign.name),
                             SymbTabObj::Variable(type_val, nullable_val.clone()), // Value is safe? it's guaranteed to have a value (depending on context)
@@ -1087,7 +1104,10 @@ impl<'a> TypeCheck<'a> for Block<'a> {
                     ))
                 }
                 None => {
-                    self.insert_implicit_return();
+                    if self.insert_return {
+                        self.insert_implicit_return();
+                    }
+
                     Ok(Cow::Owned(TypeCheckType {
                         value: TypeCheckTypeType::TupleType(UnionType {
                             types: Vec::new(),
@@ -1233,6 +1253,8 @@ impl<'a> TypeCheck<'a> for FunctionDefine<'a> {
                 SymbTabObj::Variable((argument.1.clone()).unwrap_type_check(), Nullable::Safe),
             );
         }
+
+        self.block.insert_return = true;
 
         (&mut self.block as &mut dyn TypeCheck<'_>).type_check(
             Some(Cow::Owned(TypeCheckOrType::as_typecheck_type(
@@ -1415,6 +1437,10 @@ impl<'a> TypeCheck<'a> for Conditional<'a> {
 
         for i in 0..changed_safe_vals.len() {
             for changed_safe in &changed_safe_vals[i] {
+                if changed_safe.1 == &Nullable::Safe {
+                    // Value is already safe, just skip all of this
+                    continue;
+                }
                 match &else_safe_vals {
                     Some(else_val) => {
                         if TypeCheckSymbTab::is_safe_cond(else_val, changed_safe.0) {

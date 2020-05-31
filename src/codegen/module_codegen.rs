@@ -93,7 +93,7 @@ impl<'a> CodeGenModule<'a> {
             self.gen_stmt_pass_2(statement)
         }
 
-        //println!("{}", self.module.print_to_string().to_string());
+        println!("{}", self.module.print_to_string().to_string());
         self.typecheck.parser.logger.borrow().log_verbose(&|| {
             format!(
                 "{}: LLVM IR generated",
@@ -126,13 +126,21 @@ impl<'a> CodeGenModule<'a> {
         }
     }
 
-    fn generate_inner_block(&mut self, block: &ast::Block<'a>) {
+    fn generate_inner_block(
+        &mut self,
+        block: &ast::Block<'a>,
+        function: inkwell::values::FunctionValue<'a>,
+    ) {
         for stmt in &block.nodes {
-            self.gen_inner_stmt(stmt);
+            self.gen_inner_stmt(stmt, function);
         }
     }
 
-    fn gen_inner_stmt(&mut self, statement: &ast::Statement<'a>) {
+    fn gen_inner_stmt(
+        &mut self,
+        statement: &ast::Statement<'a>,
+        function: inkwell::values::FunctionValue<'a>,
+    ) {
         match statement {
             ast::Statement::ExpressionStatement(expr_stmt) => {
                 self.eval_expr(&expr_stmt.expression);
@@ -144,7 +152,7 @@ impl<'a> CodeGenModule<'a> {
             ast::Statement::VariableDeclaration(var_dec) => {
                 self.gen_variable_dec(var_dec);
             }
-            ast::Statement::Conditional(conditional) => self.gen_conditional(conditional),
+            ast::Statement::Conditional(conditional) => self.gen_conditional(conditional, function),
             _ => {}
         };
     }
@@ -359,7 +367,7 @@ impl<'a> CodeGenModule<'a> {
     fn gen_function_define(
         &mut self,
         func_def: &ast::FunctionDefine<'a>,
-        func_val: values::FunctionValue<'_>,
+        func_val: values::FunctionValue<'a>,
     ) {
         self.symbtab.clear();
 
@@ -382,7 +390,7 @@ impl<'a> CodeGenModule<'a> {
         }
 
         self.builder = builder;
-        self.generate_inner_block(&func_def.block);
+        self.generate_inner_block(&func_def.block, func_val);
     }
 
     fn gen_return(&mut self, ret: &ast::Return<'a>) {
@@ -390,7 +398,85 @@ impl<'a> CodeGenModule<'a> {
         self.builder.build_return(Some(&ret_val));
     }
 
-    fn gen_conditional(&mut self, conditional: &ast::Conditional<'a>) {}
+    fn gen_conditional(
+        &mut self,
+        conditional: &ast::Conditional<'a>,
+        func_val: inkwell::values::FunctionValue<'a>,
+    ) {
+        // fluo: if {}
+        //       else if {}
+        //       else if {}
+        //       else {}
+        //
+        // llvm: if {}
+        //       else {
+        //         if {
+        //           // else if #1
+        //         }
+        //         else {
+        //           if { // else if #2  }
+        //           else { // final else }
+        //         } // etc
+        //       }-
+        // | ------------------------------------------------------------------- |
+        // | We traverse down the conditional starting from the first else block |
+        // | ------------------------------------------------------------------- |
+
+        // The block positioned after the conditionals
+        let after_cond = self.context.append_basic_block(func_val, "after_cond");
+
+        // "highest" block
+        let mut highest_block = self
+            .context
+            .append_basic_block(func_val, "conditional_block");
+
+        self.builder.build_unconditional_branch(highest_block);
+
+        let mut else_block = highest_block;
+
+        assert!(!conditional.if_branches.is_empty());
+
+        for cond in &conditional.if_branches {
+            else_block = self.context.append_basic_block(func_val, "else_block");
+
+            // Create then block, generate appropriate contents
+            let then_block = self.context.append_basic_block(func_val, "if_block");
+            self.builder.position_at_end(then_block);
+            self.generate_inner_block(&cond.block, func_val);
+
+            // Jump to next part of flow after this
+            self.builder.build_unconditional_branch(after_cond);
+
+            // Create conditional statement on the highest block
+            self.builder.position_at_end(highest_block);
+            let cond_expr = self.eval_expr(&cond.cond).into_int_value();
+            self.builder
+                .build_conditional_branch(cond_expr, then_block, else_block);
+
+            // Set the new highest block to be the else block
+            highest_block = else_block;
+        }
+
+        //println!("{}", self.module.print_to_string().to_string());
+
+        match &conditional.else_branch {
+            Some(else_branch) => {
+                // There is an else branch
+                // Edit it
+                self.builder.position_at_end(else_block);
+                self.generate_inner_block(&else_branch.block, func_val);
+
+                // Jump to next part of flow after this
+                self.builder.build_unconditional_branch(after_cond);
+            }
+            None => {
+                // Jump to next part of flow after this
+                self.builder.build_unconditional_branch(after_cond);
+            }
+        };
+
+        self.builder.position_at_end(after_cond);
+    }
 
     fn get_type(
         &mut self,
