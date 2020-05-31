@@ -53,9 +53,9 @@ def entry() {
    rustup default nightly
    ```
 
-3. Clone this repo:
+3. Clone this repo (recursively):
    ```bash
-   git clone git@github.com:fluo-lang/fluo.git
+   git clone --recurse-submodules -j8 git@github.com:fluo-lang/fluo.git
    ```
 
 4. There is no step 4
