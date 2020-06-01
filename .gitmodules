@@ -1,3 +1,5 @@
 [submodule "src/fluo_core"]
 	path = src/fluo_core
 	url = https://github.com/fluo-lang/fluo_core
+[submodule "fluo_core"]
+	branch = master
