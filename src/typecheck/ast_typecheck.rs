@@ -1236,7 +1236,6 @@ impl<'a> TypeCheck<'a> for FunctionDefine<'a> {
 
                 block.insert_return = true;
 
-                println!("{}", context);
                 (block as &mut dyn TypeCheck<'_>).type_check(
                     Some(Cow::Owned(TypeCheckOrType::as_typecheck_type(
                         Cow::Borrowed(&self.return_type),
@@ -1563,12 +1562,6 @@ impl<'a> TypeType<'a> {
             _ => {}
         };
         Err(())
-    }
-}
-
-impl<'a> Namespace<'a> {
-    fn starts_with(&self, prefix: &[NameID<'_>]) -> bool {
-        &self.scopes[..prefix.len()] == &prefix[..]
     }
 }
 

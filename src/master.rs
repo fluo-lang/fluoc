@@ -135,7 +135,7 @@ impl<'a> Master<'a> {
         let mut args = vec![
             paths::path_to_str(&module.output_file).to_string(),
             "-e".to_string(),
-            "_N5entry_R2t0".to_string(),
+            "_N5entry_A0_R2t0".to_string(),
             "-no-pie".to_string(),
             "-Qunused-arguments".to_string(),
         ];

@@ -9,9 +9,10 @@
 
 // Types are encoded like
 // P for "parameter type"
+// A for "argument types"
 // R for "return type"
 // my_func (int, int) -> bool
-// N7my_func_P5V3int_P5V3int_R6V4bool
+// N7my_func_A14P5V3int_P5V3int_R6V4bool
 
 // Tuples
 // t for "tuple type"
@@ -49,7 +50,7 @@ impl<'a> ast::Namespace<'a> {
         context: &'b ast_typecheck::TypeCheckSymbTab<'a>,
     ) -> Result<String, ErrorOrVec<'a>> {
         let mut mangled = self.mangle();
-        mangled += &types
+        let mangled_args = &types
             .into_iter()
             .map(|arg_type| {
                 let arg_mangled = arg_type.mangle(context);
@@ -57,6 +58,8 @@ impl<'a> ast::Namespace<'a> {
             })
             .collect::<Vec<_>>()
             .join("_")[..];
+        mangled += &format!("_A{}{}", mangled_args.len(), mangled_args)[..];
+
         match return_type {
             Some(ret_type) => {
                 let ret_type_mangled = ret_type.mangle(context);
