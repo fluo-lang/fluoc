@@ -1751,7 +1751,6 @@ impl<'a> TypeCheckSymbTab<'a> {
             .as_ref()
             .clone()
             .prepend_namespace(self.curr_prefix.clone());
-
         match self
             .items
             .get(&other.mangle_types(&types_ref, return_type, self)?[..])
@@ -1780,21 +1779,94 @@ impl<'a> TypeCheckSymbTab<'a> {
             None => {}
         }
 
-        Err(ErrorOrVec::Error(
-            Error::new(
-                "function does not exist".to_string(),
-                ErrorType::UndefinedSymbol,
-                namespace.pos,
-                ErrorDisplayType::Error,
-                vec![ErrorAnnotation::new(
-                    Some(format!("undefined function `{}`", namespace)),
+        let functions_name_other = self.get_prefix_string(&other.mangle()[..]);
+        let functions_name_normal = self.get_prefix_string(&namespace.mangle()[..]);
+
+        // TODO: add a "did you mean..."
+        if !functions_name_normal.is_empty() {
+            // Favour normal
+            Err(ErrorOrVec::Error(
+                Error::new(
+                    "overloaded function does not exist".to_string(),
+                    ErrorType::UndefinedSymbol,
                     namespace.pos,
                     ErrorDisplayType::Error,
-                )],
-                true,
-            ),
-            ErrorLevel::NonExistentFunc,
-        ))
+                    vec![
+                        ErrorAnnotation::new(
+                            Some(format!("undefined function `{}`", namespace)),
+                            namespace.pos,
+                            ErrorDisplayType::Error,
+                        ),
+                        ErrorAnnotation::new(
+                            Some(format!(
+                                "for the overloaded function `({}) -> {}`",
+                                types
+                                    .into_iter()
+                                    .map(|x| x.to_string())
+                                    .collect::<Vec<_>>()
+                                    .join(","),
+                                return_type
+                                    .map(|val| val.to_string())
+                                    .unwrap_or("_".to_string())
+                            )),
+                            namespace.pos,
+                            ErrorDisplayType::Error,
+                        ),
+                    ],
+                    true,
+                ),
+                ErrorLevel::NonExistentFunc,
+            ))
+        } else if !functions_name_other.is_empty() {
+            Err(ErrorOrVec::Error(
+                Error::new(
+                    "overloaded function does not exist".to_string(),
+                    ErrorType::UndefinedSymbol,
+                    namespace.pos,
+                    ErrorDisplayType::Error,
+                    vec![
+                        ErrorAnnotation::new(
+                            Some(format!("undefined function `{}`", namespace)),
+                            namespace.pos,
+                            ErrorDisplayType::Error,
+                        ),
+                        ErrorAnnotation::new(
+                            Some(format!(
+                                "for types of ({}) -> {}",
+                                types
+                                    .into_iter()
+                                    .map(|x| x.to_string())
+                                    .collect::<Vec<_>>()
+                                    .join(","),
+                                return_type
+                                    .map(|val| val.to_string())
+                                    .unwrap_or("_".to_string())
+                            )),
+                            namespace.pos,
+                            ErrorDisplayType::Error,
+                        ),
+                    ],
+                    true,
+                ),
+                ErrorLevel::NonExistentFunc,
+            ))
+        } else {
+            Err(ErrorOrVec::Error(
+                Error::new(
+                    "function does not exist".to_string(),
+                    ErrorType::UndefinedSymbol,
+                    namespace.pos,
+                    ErrorDisplayType::Error,
+                    vec![ErrorAnnotation::new(
+                        Some(format!("undefined function `{}`", namespace)),
+                        namespace.pos,
+                        ErrorDisplayType::Error,
+                    )],
+                    true,
+                ),
+                ErrorLevel::NonExistentFunc,
+            ))
+        }
     }
 
     fn generate_private_type_err(

@@ -10,7 +10,8 @@ def do_something() -> bool {
     return true;
 }
 
+public
 def entry() {
-    do_something();
-    do_something(19);
+    let my_int: int = do_something();
+    let my_other: int = do_something(19);
 }
