@@ -19,6 +19,7 @@ pub enum ErrorType {
     UndefinedSymbol,
     TypeCastError,
     PossibleUninitVal,
+    InferError,
     VisibilityError,
     ImportError,
 }
@@ -39,6 +40,7 @@ impl ErrorType {
             ErrorType::PossibleUninitVal => "possible_initialized",
             ErrorType::VisibilityError => "visibility_error",
             ErrorType::ImportError => "import_error",
+            ErrorType::InferError => "infer_error",
         }
     }
 }
@@ -418,6 +420,7 @@ impl<'a> Logger<'a> {
     ) {
         // Last line of annotation
         let repeat = span_width + span_number;
+        writer_pos.0 += 1;
         *writer_pos = self.buffer.writel(
             writer_pos.0 - 1,
             max_line_size + self.indentation.len() + 4 + span_width - span_number,

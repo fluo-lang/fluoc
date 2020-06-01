@@ -64,14 +64,15 @@ impl<'a> SymbTabObj<'a> {
             ),
         }
     }
-    fn unwrap_type_ref(&self) -> (&TypeCheckType<'a>, Visibility) {
+
+    pub fn unwrap_type_ref(&self) -> (&TypeCheckType<'a>, Visibility) {
         match self {
             SymbTabObj::CustomType(val, visibility) => (val, *visibility),
             _ => panic!("Tried to unwrap type from symbtab object, got `{:?}`", self),
         }
     }
 
-    fn unwrap_function_ref(&self) -> (&TypeCheckType<'a>, helpers::Pos<'a>) {
+    pub fn unwrap_function_ref(&self) -> (&TypeCheckType<'a>, helpers::Pos<'a>) {
         match self {
             SymbTabObj::Function(val, pos) => (val, *pos),
             _ => panic!(
@@ -185,6 +186,13 @@ impl<'a> TypeCheckTypeType<'a> {
     fn unwrap_func_return(self) -> TypeCheckType<'a> {
         match self {
             TypeCheckTypeType::FunctionSig(_, ret_type, _) => *ret_type,
+            _ => panic!("Tried to unwrap func return from type check type"),
+        }
+    }
+
+    pub fn unwrap_func_return_ref(&self) -> &TypeCheckType<'a> {
+        match self {
+            TypeCheckTypeType::FunctionSig(_, ret_type, _) => ret_type,
             _ => panic!("Tried to unwrap func return from type check type"),
         }
     }
@@ -578,7 +586,8 @@ impl<'a> TypeCheckType<'a> {
                 func_call.mangled_name = Some(func_call.name.mangle_types(
                     &func_call_arg_types.iter().collect::<Vec<_>>()[..],
                     return_type,
-                ));
+                    context,
+                )?);
 
                 if func.0.value.get_visibility() == Visibility::Private
                     && func.0.pos.filename != func_call.pos.filename
@@ -677,7 +686,7 @@ impl<'a> TypeCheckType<'a> {
                             ErrorLevel::TypeError,
                         ));
                     } else {
-                        context.set_value(
+                        context.set_local(
                             Rc::clone(&variable_assignment_dec.name),
                             SymbTabObj::Variable(value_type, Nullable::Safe),
                         );
@@ -735,7 +744,7 @@ impl<'a> TypeCheckType<'a> {
                         } else {
                             context.get_safe_value(Rc::clone(&variable_assign.name))
                         };
-                        context.set_value(
+                        context.set_local(
                             Rc::clone(&variable_assign.name),
                             SymbTabObj::Variable(value_type, nullable_val.clone()), // Value is safe? it's guaranteed to have a value (depending on context)
                         );
@@ -1161,7 +1170,7 @@ impl<'a> FunctionDefine<'a> {
             false,
         )?);
 
-        self.name = context.set_value(
+        self.name = context.set_function(
             Rc::clone(&self.name),
             SymbTabObj::Function(
                 TypeCheckType {
@@ -1186,6 +1195,19 @@ impl<'a> FunctionDefine<'a> {
                 },
                 self.pos,
             ),
+        )?;
+
+        self.mangled_name = Some(
+            self.name.mangle_types(
+                &self
+                    .arguments
+                    .positional
+                    .iter()
+                    .map(|(_, type_val)| type_val.unwrap_type_check_ref())
+                    .collect::<Vec<_>>()[..],
+                Some(self.return_type.unwrap_type_check_ref()),
+                context,
+            )?,
         );
 
         Ok(())
@@ -1203,7 +1225,7 @@ impl<'a> TypeCheck<'a> for FunctionDefine<'a> {
                 let mut context = context.clone();
 
                 for argument in &self.arguments.positional {
-                    context.set_value(
+                    context.set_local(
                         Namespace::from_name_id(argument.0),
                         SymbTabObj::Variable(
                             (argument.1.clone()).unwrap_type_check(),
@@ -1213,6 +1235,8 @@ impl<'a> TypeCheck<'a> for FunctionDefine<'a> {
                 }
 
                 block.insert_return = true;
+
+                println!("{}", context);
                 (block as &mut dyn TypeCheck<'_>).type_check(
                     Some(Cow::Owned(TypeCheckOrType::as_typecheck_type(
                         Cow::Borrowed(&self.return_type),
@@ -1228,18 +1252,6 @@ impl<'a> TypeCheck<'a> for FunctionDefine<'a> {
                 inferred: true,
             })),
         };
-
-        self.mangled_name = Some(
-            self.name.mangle_types(
-                &self
-                    .arguments
-                    .positional
-                    .iter()
-                    .map(|(_, type_val)| type_val.unwrap_type_check_ref())
-                    .collect::<Vec<_>>()[..],
-                Some(self.return_type.unwrap_type_check_ref()),
-            ),
-        );
 
         ret_val
     }
@@ -1282,7 +1294,7 @@ impl<'a> TypeCheck<'a> for VariableDeclaration<'a> {
         context: &'b mut TypeCheckSymbTab<'a>,
     ) -> Result<Cow<'a, TypeCheckType<'a>>, ErrorOrVec<'a>> {
         let type_val = TypeCheckType::from_type(self.t.unwrap_type(), context, false)?;
-        context.set_value(
+        context.set_local(
             Rc::clone(&self.name),
             SymbTabObj::Variable(
                 type_val.clone(),
@@ -1315,7 +1327,7 @@ impl<'a> TypeAssign<'a> {
             true,
         )?);
 
-        self.name = context.set_value(
+        self.name = context.set_global(
             Rc::clone(&self.name),
             SymbTabObj::CustomType(self.value.unwrap_type_check_ref().clone(), self.visibility),
         );
@@ -1570,7 +1582,16 @@ impl<'a> TypeCheckSymbTab<'a> {
         }
     }
 
-    pub fn set_value(
+    pub fn set_local(
+        &mut self,
+        namespace: Rc<Namespace<'a>>,
+        value: SymbTabObj<'a>,
+    ) -> Rc<Namespace<'a>> {
+        self.items.insert(namespace.mangle(), value);
+        Rc::clone(&namespace)
+    }
+
+    pub fn set_global(
         &mut self,
         namespace: Rc<Namespace<'a>>,
         value: SymbTabObj<'a>,
@@ -1584,6 +1605,35 @@ impl<'a> TypeCheckSymbTab<'a> {
 
         self.items.insert(adjusted_namespace.mangle(), value);
         Rc::clone(&adjusted_namespace)
+    }
+
+    pub fn set_function(
+        &mut self,
+        namespace: Rc<Namespace<'a>>,
+        value: SymbTabObj<'a>,
+    ) -> Result<Rc<Namespace<'a>>, ErrorOrVec<'a>> {
+        let adjusted_namespace = Rc::new(
+            namespace
+                .as_ref()
+                .clone()
+                .prepend_namespace(self.curr_prefix.clone()),
+        );
+        let func = value.unwrap_function_ref().0.value.unwrap_func();
+
+        self.items.insert(
+            adjusted_namespace.mangle_types(
+                &func
+                    .0
+                    .positional
+                    .iter()
+                    .map(|val| &val.1)
+                    .collect::<Vec<_>>()[..],
+                Some(func.1),
+                self,
+            )?,
+            value,
+        );
+        Ok(Rc::clone(&adjusted_namespace))
     }
 
     fn reset_changed_safe(&mut self) {
@@ -1663,14 +1713,24 @@ impl<'a> TypeCheckSymbTab<'a> {
     }
 
     pub fn get_prefix(self, prefix_match: &[NameID<'_>]) -> HashMap<String, SymbTabObj<'a>> {
-        let manged_prefix = prefix_match
+        let mangle_prefix = prefix_match
             .iter()
-            .map(|name| name.mangle())
-            .collect::<Vec<String>>()
+            .map(|name| {
+                let mangled = name.mangle();
+                format!("N{}{}", mangled.len(), mangled)
+            })
+            .collect::<Vec<_>>()
             .join("_");
         self.items
             .into_iter()
-            .filter(|(key, _)| key.starts_with(&manged_prefix[..]))
+            .filter(|(key, _)| key.starts_with(&mangle_prefix[..]))
+            .collect()
+    }
+
+    pub fn get_prefix_string(&self, prefix_match: &str) -> HashMap<&String, &SymbTabObj<'a>> {
+        self.items
+            .iter()
+            .filter(|(key, _)| key.starts_with(prefix_match))
             .collect()
     }
 
@@ -1684,7 +1744,7 @@ impl<'a> TypeCheckSymbTab<'a> {
         // Namespace of std
         match self
             .items
-            .get(&namespace.mangle_types(types_ref, return_type)[..])
+            .get(&namespace.mangle_types(types_ref, return_type, self)?[..])
         {
             Some(val) => match val.deref() {
                 SymbTabObj::Function(_, _) => return Ok((val, namespace)),
@@ -1701,7 +1761,7 @@ impl<'a> TypeCheckSymbTab<'a> {
 
         match self
             .items
-            .get(&other.mangle_types(&types_ref, return_type)[..])
+            .get(&other.mangle_types(&types_ref, return_type, self)?[..])
         {
             Some(val) => match val.deref() {
                 SymbTabObj::Function(_, _) => return Ok((val, Rc::new(other))),
@@ -1773,7 +1833,10 @@ impl<'a> TypeCheckSymbTab<'a> {
         )
     }
 
-    fn get_type(&self, namespace: Rc<Namespace<'a>>) -> Result<&SymbTabObj<'a>, ErrorOrVec<'a>> {
+    pub fn get_type(
+        &self,
+        namespace: Rc<Namespace<'a>>,
+    ) -> Result<&SymbTabObj<'a>, ErrorOrVec<'a>> {
         // Namespace of std
         match self.items.get(&namespace.mangle()) {
             Some(val) => match val.deref() {

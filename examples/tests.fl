@@ -1,16 +1,6 @@
 import tests2;
 
 public
-def entry() -> int {
-    let x: int = 10;
-    if (false) {
-        x = 10;
-    } else if (true) {
-        --x = 100;
-        core::fmt::print_int(10);
-    } else {
-        core::fmt::print_int(100);
-    }
-
-    return x;
+def entry() {
+    tests2::hello(10);
 }

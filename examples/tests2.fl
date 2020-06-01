@@ -1,3 +1,6 @@
 
 type value = int;
 
+def hello(val: int) -> tests2::value {
+    return 10;
+}
