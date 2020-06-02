@@ -171,64 +171,6 @@ impl<'a> PartialEq for Token<'a> {
     }
 }
 
-/// Get length of token: useful for calculating positions of tokens
-fn get_tok_length(tok: &TokenType<'_>) -> usize {
-    match tok {
-        TokenType::STRING(val)
-        | TokenType::IDENTIFIER(val)
-        | TokenType::NUMBER(val)
-        | TokenType::UNKNOWN(val) => val.chars().count(),
-
-        TokenType::BOOL(val) => match *val {
-            "0" => 5,
-            "1" => 4,
-            _ => panic!("Bool was not of 0 or 1"),
-        },
-
-        TokenType::LINECOMMENT(val) | TokenType::BLOCKCOMMENT(val) | TokenType::WHITESPACE(val) => {
-            *val
-        }
-
-        TokenType::OVERLOAD => 8,
-
-        TokenType::PATTERN => 7,
-
-        TokenType::IMPORT | TokenType::RETURN | TokenType::PUBLIC | TokenType::EXTERN => 6,
-
-        TokenType::IMPL | TokenType::TYPE | TokenType::UNIT | TokenType::ELSE => 4,
-
-        TokenType::LET | TokenType::DEF => 3,
-
-        TokenType::ARROW
-        | TokenType::DMOD
-        | TokenType::DOUBLECOLON
-        | TokenType::AS
-        | TokenType::IF => 2,
-
-        TokenType::DIV
-        | TokenType::MOD
-        | TokenType::MUL
-        | TokenType::ADD
-        | TokenType::SUB
-        | TokenType::COMMA
-        | TokenType::LP
-        | TokenType::RP
-        | TokenType::LCP
-        | TokenType::RCP
-        | TokenType::LB
-        | TokenType::RB
-        | TokenType::QUESTION
-        | TokenType::DOT
-        | TokenType::EQUALS
-        | TokenType::SEMI
-        | TokenType::COLON
-        | TokenType::DOLLAR
-        | TokenType::AT => 1,
-
-        TokenType::EOF => 0,
-    }
-}
-
 /// Check if character is a whitespace character
 pub fn is_whitespace(c: char) -> bool {
     match c {
@@ -320,128 +262,95 @@ impl<'a> Lexer<'a> {
     }
 
     /// Get next token in input stream's type
-    fn get_next_tok_type(&mut self) -> Result<TokenType<'a>, Error<'a>> {
+    fn get_next_tok_type(&mut self) -> Result<(TokenType<'a>, usize), Error<'a>> {
         let first_char = self.bump();
-        let token_kind = match first_char {
-            '-' => match self.peek_char() {
-                '-' => {
-                    self.line_comment()?;
-                    self.bump(); // Eat the \n
-                    self.get_next_tok_type()
+        let pos = self.position;
+        Ok((
+            match first_char {
+                '-' => match self.peek_char() {
+                    '-' => {
+                        self.line_comment()?;
+                        self.bump(); // Eat the \n
+                        return self.get_next_tok_type();
+                    }
+                    '>' => {
+                        self.bump();
+                        TokenType::ARROW
+                    }
+                    _ => TokenType::SUB,
+                },
+
+                c if is_whitespace(c) => {
+                    self.whitespace()?;
+                    return self.get_next_tok_type();
                 }
-                '>' => {
-                    self.bump();
-                    Ok(TokenType::ARROW)
+
+                c if self.is_id_start(c) => self.identifier()?,
+
+                '0'..='9' => self.number()?,
+
+                '*' => TokenType::MUL,
+                '+' => TokenType::ADD,
+                '/' => match self.peek_char() {
+                    '*' => {
+                        self.bump();
+                        self.block_comment()?;
+                        return self.get_next_tok_type();
+                    }
+                    _ => TokenType::DIV,
+                },
+
+                '%' => match self.peek_char() {
+                    '%' => TokenType::DMOD,
+                    _ => TokenType::MOD,
+                },
+                '$' => TokenType::DOLLAR,
+
+                '(' => TokenType::LP,
+                ')' => TokenType::RP,
+                '{' => TokenType::LCP,
+                '}' => TokenType::RCP,
+                '[' => TokenType::LB,
+                ']' => TokenType::RB,
+
+                '.' => TokenType::DOT,
+                ';' => TokenType::SEMI,
+                '=' => TokenType::EQUALS,
+                '?' => TokenType::QUESTION,
+                ',' => TokenType::COMMA,
+                ':' => match self.peek_char() {
+                    ':' => {
+                        self.bump();
+                        TokenType::DOUBLECOLON
+                    }
+                    _ => TokenType::COLON,
+                },
+                '@' => TokenType::AT,
+
+                '"' => self.string()?,
+                EOF_CHAR => {
+                    self.position -= 1;
+                    TokenType::EOF
                 }
-                _ => Ok(TokenType::SUB),
-            },
-            c if is_whitespace(c) => {
-                self.whitespace()?;
-                self.get_next_tok_type()
-            }
 
-            c if self.is_id_start(c) => self.identifier(),
-
-            '0'..='9' => self.number(),
-
-            '*' => Ok(TokenType::MUL),
-            '+' => Ok(TokenType::ADD),
-            '/' => match self.peek_char() {
-                '*' => {
-                    self.bump();
-                    self.block_comment()?;
-                    self.get_next_tok_type()
+                unknown => {
+                    let pos = helpers::Pos {
+                        s: self.position - 1,
+                        e: self.position,
+                        filename: self.filename,
+                    };
+                    return Err(Error::new(
+                        format!("Unknown character `{}`", unknown.to_string()),
+                        ErrorType::UnknownCharacter,
+                        pos,
+                        ErrorDisplayType::Error,
+                        vec![ErrorAnnotation::new(None, pos, ErrorDisplayType::Error)],
+                        true,
+                    ));
                 }
-                _ => Ok(TokenType::DIV),
             },
-
-            '%' => match self.peek_char() {
-                '%' => Ok(TokenType::DMOD),
-                _ => Ok(TokenType::MOD),
-            },
-            '$' => Ok(TokenType::DOLLAR),
-
-            '(' => Ok(TokenType::LP),
-            ')' => Ok(TokenType::RP),
-            '{' => Ok(TokenType::LCP),
-            '}' => Ok(TokenType::RCP),
-            '[' => Ok(TokenType::LB),
-            ']' => Ok(TokenType::RB),
-
-            '.' => Ok(TokenType::DOT),
-            ';' => Ok(TokenType::SEMI),
-            '=' => Ok(TokenType::EQUALS),
-            '?' => Ok(TokenType::QUESTION),
-            ',' => Ok(TokenType::COMMA),
-            ':' => match self.peek_char() {
-                ':' => {
-                    self.bump();
-                    Ok(TokenType::DOUBLECOLON)
-                }
-                _ => Ok(TokenType::COLON),
-            },
-            '@' => Ok(TokenType::AT),
-
-            '"' => self.string(),
-            EOF_CHAR => {
-                self.position -= 1;
-                Ok(TokenType::EOF)
-            }
-
-            unknown => {
-                let pos = helpers::Pos {
-                    s: self.position - 1,
-                    e: self.position,
-                    filename: self.filename,
-                };
-                Err(Error::new(
-                    format!("Unknown character `{}`", unknown.to_string()),
-                    ErrorType::UnknownCharacter,
-                    pos,
-                    ErrorDisplayType::Error,
-                    vec![ErrorAnnotation::new(None, pos, ErrorDisplayType::Error)],
-                    true,
-                ))
-            }
-        };
-
-        token_kind
-    }
-
-    pub fn eat_whitespace(&mut self) -> Result<(), Error<'a>> {
-        let first_char = self.peek_char();
-
-        match first_char {
-            '-' => match self.peek_char() {
-                '-' => {
-                    self.line_comment()?;
-                    self.bump(); // Eat the \n
-                    return Ok(());
-                }
-                _ => {}
-            },
-            '/' => match self.peek_char() {
-                '*' => {
-                    self.bump();
-                    self.block_comment()?;
-                    return Ok(());
-                }
-                _ => {}
-            },
-            c if is_whitespace(c) => {
-                self.whitespace()?;
-                return Ok(());
-            }
-            _ => {}
-        };
-        Ok(())
-    }
-
-    #[allow(unused_must_use)]
-    /// Set get of lexer: for use by the parser
-    pub fn get_pos(&mut self) -> Result<usize, Error<'a>> {
-        self.eat_whitespace()?;
-        Ok(self.position)
+            pos,
+        ))
     }
 
     pub fn advance(&mut self) -> Result<Token<'a>, Error<'a>> {
@@ -457,18 +366,11 @@ impl<'a> Lexer<'a> {
     /// Get next token in input stream, but don't advance
     pub fn peek(&mut self) -> Result<Token<'a>, Error<'a>> {
         if self.change_peek {
-            let token_kind = self.get_next_tok_type()?;
+            let (token_kind, start_pos) = self.get_next_tok_type()?;
+            let end_pos = self.position;
 
             self.current_token = Token {
-                pos: helpers::Pos::new(
-                    if get_tok_length(&token_kind) > self.position {
-                        0
-                    } else {
-                        self.position - get_tok_length(&token_kind)
-                    },
-                    self.position,
-                    self.filename,
-                ),
+                pos: helpers::Pos::new(start_pos - 1, end_pos, self.filename),
                 token: token_kind,
             };
             self.change_peek = false
@@ -615,7 +517,6 @@ impl<'a> Lexer<'a> {
             eaten += 1;
             val = self.peek_char();
         }
-
         (
             eaten,
             if val != EOF_CHAR {
@@ -624,60 +525,5 @@ impl<'a> Lexer<'a> {
                 &self.file_contents[pos..pos + eaten]
             },
         )
-    }
-}
-
-#[cfg(test)]
-mod lexer_tests {
-    use super::*;
-
-    #[test]
-    fn token_len_bin_op() {
-        assert_eq!(get_tok_length(&TokenType::ADD), 1);
-        assert_eq!(get_tok_length(&TokenType::DIV), 1);
-        assert_eq!(get_tok_length(&TokenType::SUB), 1);
-        assert_eq!(get_tok_length(&TokenType::MUL), 1);
-        assert_eq!(get_tok_length(&TokenType::DIV), 1);
-    }
-
-    #[test]
-    fn token_len_keywords() {
-        assert_eq!(get_tok_length(&TokenType::DEF), 3);
-        assert_eq!(get_tok_length(&TokenType::IMPORT), 6);
-        assert_eq!(get_tok_length(&TokenType::RETURN), 6);
-        assert_eq!(get_tok_length(&TokenType::LET), 3);
-    }
-
-    #[test]
-    fn token_len_literal() {
-        assert_eq!(get_tok_length(&TokenType::QUESTION), 1);
-        assert_eq!(get_tok_length(&TokenType::SEMI), 1);
-        assert_eq!(get_tok_length(&TokenType::RP), 1);
-        assert_eq!(get_tok_length(&TokenType::LP), 1);
-        assert_eq!(get_tok_length(&TokenType::RCP), 1);
-        assert_eq!(get_tok_length(&TokenType::LCP), 1);
-        assert_eq!(get_tok_length(&TokenType::DOT), 1);
-        assert_eq!(get_tok_length(&TokenType::EQUALS), 1);
-        assert_eq!(get_tok_length(&TokenType::COMMA), 1);
-    }
-
-    #[test]
-    fn token_len_eof() {
-        assert_eq!(get_tok_length(&TokenType::EOF), 0);
-    }
-
-    #[test]
-    fn token_len_values() {
-        assert_eq!(get_tok_length(&TokenType::NUMBER("10203")), 5);
-        assert_eq!(get_tok_length(&TokenType::NUMBER("1")), 1);
-
-        assert_eq!(get_tok_length(&TokenType::IDENTIFIER("hi_a2h8r")), 8);
-        assert_eq!(get_tok_length(&TokenType::IDENTIFIER("_")), 1);
-
-        assert_eq!(get_tok_length(&TokenType::STRING("\"10203\"")), 7);
-        assert_eq!(get_tok_length(&TokenType::STRING("\"\"")), 2);
-
-        assert_eq!(get_tok_length(&TokenType::UNKNOWN("!@#$%^")), 6);
-        assert_eq!(get_tok_length(&TokenType::UNKNOWN("`~")), 2);
     }
 }

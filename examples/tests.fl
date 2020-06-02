@@ -2,5 +2,6 @@ import tests2;
 
 public
 def entry() {
-    core::fmt::print_int(10);
+    let x: str = 10;
+    hello
 }
