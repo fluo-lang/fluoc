@@ -1,4 +1,4 @@
-import tests2;
+unit tests2;
 
 overload + add_int (val1: int, val2: int) -> int {
     return 10;

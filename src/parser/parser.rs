@@ -5,7 +5,6 @@ use crate::parser::ast;
 use crate::parser::ast::{Expr, Scope, Statement};
 use crate::paths;
 use crate::typecheck::ast_typecheck::TypeCheckType;
-use crate::typecheck::typecheck;
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -70,14 +69,13 @@ impl<'a> Parser<'a> {
         logger: Rc<RefCell<Logger<'a>>>,
     ) -> Parser<'a> {
         let l = lexer::Lexer::new(filename, file_contents);
-
         Parser {
             lexer: l,
             ast: None,
             statements: [
+                Parser::import,
                 Parser::unit,
                 Parser::function_define,
-                Parser::import,
                 Parser::expression_statement,
                 Parser::return_statement,
                 Parser::variable_declaration,
@@ -236,10 +234,9 @@ impl<'a> Parser<'a> {
             return Err(vec![e]);
         }
 
-        let position = self.token_pos;
-
         // Set our scope to outside
         let scope = Scope::Outer;
+        let position = self.token_pos;
 
         let mut ast_list: Vec<Statement<'_>> = Vec::new();
         let next = self.peek();
@@ -273,6 +270,9 @@ impl<'a> Parser<'a> {
                             }
                         }
                         Err(e) => {
+                            if e.is_priority() {
+                                return Err(vec![e]);
+                            }
                             errors.push(e);
                         }
                     }
@@ -287,6 +287,7 @@ impl<'a> Parser<'a> {
                 }
             }
         }
+
         let block = ast::Block {
             nodes: ast_list,
             tags: Vec::new(),
@@ -421,6 +422,7 @@ impl<'a> Parser<'a> {
         let position = self.token_pos;
         self.next(lexer::TokenType::UNIT, position, true)?;
         let name = self.namespace()?;
+
         let block = self.block(Scope::Outer)?;
 
         Ok(Statement::Unit(ast::Unit {
@@ -430,7 +432,7 @@ impl<'a> Parser<'a> {
         }))
     }
 
-    fn import_file(&mut self, name: &mut ast::Namespace<'a>) -> Result<Statement<'a>, Error<'a>> {
+    fn add_file(&mut self, name: &mut ast::Namespace<'a>) -> Result<Statement<'a>, Error<'a>> {
         let mut scopes = Vec::new();
         std::mem::swap(&mut scopes, &mut name.scopes);
 
@@ -496,73 +498,49 @@ impl<'a> Parser<'a> {
                     error.urgent = true;
                     return Err(error);
                 }
-            }
+            };
+
             Ok(Statement::Unit(ast::Unit {
                 pos: last.pos,
                 name: last.into_namespace(),
                 block: parser.ast.unwrap(),
             }))
         } else {
-            let imported_filename: &'static path::Path = path::Path::new(Box::leak(
-                import_path.to_string_lossy().into_owned().into_boxed_str(),
-            ));
-            let file_contents = paths::read_file_leak(imported_filename);
-            self.logger
-                .borrow_mut()
-                .add_file(imported_filename, file_contents);
-            let mut typechecker = match typecheck::TypeCheckModule::new(
-                imported_filename,
-                file_contents,
-                Rc::clone(&self.logger),
-            ) {
-                Ok(val) => val,
-                Err(e) => return Err(e.into_iter().nth(0).unwrap()),
-            };
-            match typechecker.type_check() {
-                Ok(_) => {}
-                Err(e) => return Err(e.into_iter().nth(0).unwrap()),
-            };
-
-            let objs = typechecker.symtab.get_prefix(&scopes[..]);
-
-            if objs.is_empty() {
-                Err(Error::new(
-                    "value does not exist".to_string(),
-                    ErrorType::ImportError,
-                    name.pos,
-                    ErrorDisplayType::Error,
-                    vec![ErrorAnnotation::new(
+            Err(Error::new(
+                "cannot declare a unit any further than file".to_string(),
+                ErrorType::ImportError,
+                name.pos,
+                ErrorDisplayType::Error,
+                vec![
+                    ErrorAnnotation::new(
                         Some(format!(
-                            "value `{}` does not exist in file `{}`",
-                            scopes
-                                .into_iter()
-                                .map(|val| val.value)
-                                .collect::<Vec<_>>()
-                                .join("::"),
+                            "cannot declare unit more from `{}`",
                             import_path.display()
                         )),
-                        last.pos,
+                        name.pos,
                         ErrorDisplayType::Error,
-                    )],
-                    true,
-                ))
-            } else {
-                panic!("this type of import to implemented yet");
-                //Ok(Statement::SymbolTabInsert(objs))
-            }
+                    ),
+                    ErrorAnnotation::new(
+                        Some("help: did you mean to alias?".to_string()),
+                        name.pos,
+                        ErrorDisplayType::Info,
+                    ),
+                ],
+                true,
+            ))
         }
     }
 
     /// Imports
     fn import(&mut self) -> Result<Statement<'a>, Error<'a>> {
         let position = self.token_pos;
-        self.next(lexer::TokenType::IMPORT, position, true)?;
+        self.next(lexer::TokenType::UNIT, position, true)?;
 
         let mut namespace = self.namespace()?;
 
         self.next(lexer::TokenType::SEMI, position, false)?;
 
-        self.import_file(&mut namespace)
+        self.add_file(&mut namespace)
     }
 
     fn compiler_tag(&mut self) -> Result<Statement<'a>, Error<'a>> {

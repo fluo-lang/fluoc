@@ -82,6 +82,7 @@ impl<'a> CodeGenModule<'a> {
         let gen_start = Instant::now();
 
         let mut statements = None;
+
         std::mem::swap(&mut self.typecheck.parser.ast, &mut statements);
         let statements = statements.unwrap();
         for statement in &statements.nodes {

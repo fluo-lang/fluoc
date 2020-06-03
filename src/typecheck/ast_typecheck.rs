@@ -1,4 +1,3 @@
-use crate::fluo_core::core;
 use crate::helpers;
 use crate::lexer::TokenType;
 use crate::logger::logger::{
@@ -10,7 +9,6 @@ use crate::parser::ast::*;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt;
-use std::iter::Extend;
 use std::ops::Deref;
 use std::rc::Rc;
 
@@ -1015,15 +1013,6 @@ impl<'a> Block<'a> {
         }));
     }
 
-    pub fn get_core<'b>(&mut self) -> Vec<Statement<'a>> {
-        if !self.tags.iter().any(|&i| i.content.value == "no_core") {
-            // Load core module
-            core::import_core()
-        } else {
-            Vec::new()
-        }
-    }
-
     pub fn process_tags<'b>(&mut self) -> Result<(), ErrorOrVec<'a>> {
         for i in 0..self.nodes.len() {
             match &self.nodes[i] {
@@ -1048,35 +1037,15 @@ impl<'a> TypeCheck<'a> for Block<'a> {
         let mut errors: Vec<(Error<'_>, ErrorLevel)> = Vec::new();
         let mut ret_types: Vec<&mut Expr<'_>> = Vec::new();
 
-        for i in 0..self.nodes.len() {
-            let val = &mut self.nodes[i];
-            if let Statement::Unit(unit) = val {
-                if !self.tags.iter().any(|&i| i.content.value == "no_core") {
-                    unit.block.nodes.append(&mut core::import_core());
-                }
-            }
-        }
-
         for mut node in &mut self.nodes {
             // First pass
             match &mut node {
                 Statement::FunctionDefine(func_def) => func_def.generate_proto(context)?,
-                Statement::Unit(unit) => {
-                    unit.block.process_tags()?;
-
-                    let mut new_symb = TypeCheckSymbTab::new();
-                    std::mem::swap(&mut new_symb.curr_prefix, &mut context.curr_prefix);
-
-                    match node.type_check(None, &mut new_symb) {
-                        Ok(_) => Ok(()),
-                        Err(e) => Err(e),
-                    }?;
-
-                    context.items.extend(new_symb.items);
-                    std::mem::swap(&mut new_symb.curr_prefix, &mut context.curr_prefix);
-                }
                 Statement::TypeAssign(type_assign) => {
                     type_assign.type_check(None, context)?;
+                }
+                Statement::Unit(unit) => {
+                    unit.type_check(return_type.clone(), context)?;
                 }
                 _ => {}
             }
@@ -1086,7 +1055,6 @@ impl<'a> TypeCheck<'a> for Block<'a> {
             if let Statement::Unit(_) = node {
                 continue;
             }
-
             match node.type_check(return_type.clone(), context) {
                 Ok(_) => {}
                 Err(e) => {

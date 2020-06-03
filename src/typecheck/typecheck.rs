@@ -1,10 +1,12 @@
+use crate::fluo_core;
 use crate::helpers;
 use crate::logger::logger::{Error, Logger};
-use crate::parser::parser;
 use crate::parser::parser::Parser;
+use crate::parser::{ast, parser};
 use crate::typecheck::ast_typecheck;
 
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::path;
 use std::rc::Rc;
 use std::time::Instant;
@@ -12,6 +14,7 @@ use std::time::Instant;
 /// Typecheck object
 pub struct TypeCheckModule<'a> {
     pub parser: Parser<'a>,
+    pub modules: HashMap<&'a path::Path, ast::Block<'a>>,
     pub symtab: ast_typecheck::TypeCheckSymbTab<'a>,
 }
 
@@ -29,13 +32,24 @@ impl<'a> TypeCheckModule<'a> {
         p.initialize_expr();
         Ok(TypeCheckModule {
             parser: p,
+            modules: HashMap::new(),
             symtab: ast_typecheck::TypeCheckSymbTab::new(),
         })
     }
 
     pub fn type_check(&mut self) -> Result<(), Vec<Error<'a>>> {
         let parser_start = Instant::now();
+        // Load core lib on outer scope
         self.parser.parse()?;
+        self.parser
+            .ast
+            .as_mut()
+            .unwrap()
+            .nodes
+            .append(&mut fluo_core::core::load_core(Rc::clone(
+                &self.parser.logger,
+            )));
+
         self.parser.logger.borrow().log_verbose(&|| {
             format!(
                 "{}: Parsed and lexed",
@@ -51,11 +65,6 @@ impl<'a> TypeCheckModule<'a> {
             Err(e) => return Err(helpers::get_high_priority(e.as_vec())),
         };
 
-        // Load core lib on outer scope
-        let parser_ast = self.parser.ast.as_mut().unwrap();
-        let loaded_core = &mut parser_ast.get_core();
-        parser_ast.nodes.append(loaded_core);
-
         // Do type checking
         match (self.parser.ast.as_mut().unwrap() as &mut dyn ast_typecheck::TypeCheck<'_>)
             .type_check(None, &mut self.symtab)
@@ -69,18 +78,6 @@ impl<'a> TypeCheckModule<'a> {
                 }); // Lazily run it so no impact on performance
                 Ok(())
             }
-            Err(e) => Err(helpers::get_high_priority(e.as_vec())),
-        }
-    }
-
-    pub fn get_symbols(mut self) -> Result<ast_typecheck::TypeCheckSymbTab<'a>, Vec<Error<'a>>> {
-        self.parser.parse()?;
-
-        // Do type checking
-        match (self.parser.ast.as_mut().unwrap() as &mut dyn ast_typecheck::TypeCheck<'_>)
-            .type_check(None, &mut self.symtab)
-        {
-            Ok(_) => Ok(self.symtab), // Return symbol table here
             Err(e) => Err(helpers::get_high_priority(e.as_vec())),
         }
     }

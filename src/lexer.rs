@@ -12,7 +12,6 @@ const EOF_CHAR: char = '\0';
 pub enum TokenType<'a> {
     STRING(&'a str),
     DEF,
-    IMPORT,
     TYPE,
     OVERLOAD,
     IMPL,
@@ -114,7 +113,6 @@ impl<'a> fmt::Display for Token<'a> {
             ),
 
             TokenType::DEF => "keyword `def`".to_string(),
-            TokenType::IMPORT => "keyword `import`".to_string(),
             TokenType::RETURN => "keyword `return`".to_string(),
             TokenType::LET => "keyword `let`".to_string(),
             TokenType::IMPL => "keyword `impl`".to_string(),
@@ -407,7 +405,6 @@ impl<'a> Lexer<'a> {
             "as" => Ok(TokenType::AS),
             "type" => Ok(TokenType::TYPE),
             "public" => Ok(TokenType::PUBLIC),
-            "import" => Ok(TokenType::IMPORT),
             "unit" => Ok(TokenType::UNIT),
             "true" => Ok(TokenType::BOOL("1")),
             "false" => Ok(TokenType::BOOL("0")),

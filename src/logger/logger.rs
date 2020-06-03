@@ -1213,7 +1213,7 @@ impl<'a> Logger<'a> {
         let mut errors = errors;
         errors.sort_by_key(|x| {
             (
-                // Urgents have a greater priority (i.e. a scope error)
+                // Urgents have a greater priority (i.e. a wrong scope error)
                 if x.urgent { 1 } else { 0 },
                 // If its urgent, the one first wins
                 Reverse(if x.urgent { x.position.s } else { 0 }),
