@@ -135,10 +135,10 @@ impl<'a> Parser<'a> {
                 lexer::TokenType::SEMI => {
                     // Special case for semicolon error
                     let mut semi_error = self.syntax_error(t, &error[..], is_keyword, false);
-                    let position_e = self.position(prev_pos - 1);
+                    let position_e = self.position(prev_pos - 1).e;
                     semi_error.annotations.push(ErrorAnnotation::new(
                         Some("did you mean to put a `;` here?".to_string()),
-                        helpers::Pos::new(position_e.s, position_e.e, self.lexer.filename),
+                        helpers::Pos::new(position_e - 1, position_e, self.lexer.filename),
                         ErrorDisplayType::Info,
                     ));
                     Err(semi_error)
@@ -154,15 +154,10 @@ impl<'a> Parser<'a> {
     }
 
     pub fn position(&mut self, position: usize) -> helpers::Pos<'a> {
+        let token = self.tokens[position];
         helpers::Pos {
-            s: self.tokens[position].pos.s,
-            e: self.tokens[if self.token_pos > 0 {
-                self.token_pos - 1
-            } else {
-                self.token_pos
-            }]
-            .pos
-            .e,
+            s: token.pos.s,
+            e: token.pos.e,
             filename: self.lexer.filename,
         }
     }

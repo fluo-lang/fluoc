@@ -373,6 +373,7 @@ impl<'a> Lexer<'a> {
                 pos: helpers::Pos::new(start_pos - 1, end_pos, self.filename),
                 token: token_kind,
             };
+
             self.change_peek = false
         }
         Ok(self.current_token)
@@ -390,6 +391,7 @@ impl<'a> Lexer<'a> {
     fn is_id_start(&mut self, c: char) -> bool {
         ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || c == '_'
     }
+
     /// Tokenize identifier and keywords
     fn identifier(&mut self) -> Result<TokenType<'a>, Error<'a>> {
         self.position -= 1;
