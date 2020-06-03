@@ -1915,8 +1915,9 @@ impl<'a> TypeCheckSymbTab<'a> {
                             .0
                             .value
                             .unwrap_func_return_ref();
+                        // TODO: fix the `name` (write a demangler)
                         ErrorAnnotation::new(
-                            Some(format!("possible return of {} in `{}`", ret_type, name)),
+                            Some(format!("possible return of `{}` in `{}`", ret_type, name)),
                             position,
                             ErrorDisplayType::Error,
                         )

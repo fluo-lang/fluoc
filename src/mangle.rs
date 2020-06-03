@@ -70,7 +70,7 @@ impl<'a> TokenType<'a> {
             TokenType::DIV => "div",
             TokenType::DMOD => "mdd",
             TokenType::MOD => "mod",
-            TokenType::MUL => "nul",
+            TokenType::MUL => "mul",
             _ => panic!("{} cannot be mangled", self),
         };
 
