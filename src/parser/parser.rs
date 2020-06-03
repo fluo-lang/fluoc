@@ -54,7 +54,7 @@ pub struct Parser<'a> {
     pub lexer: lexer::Lexer<'a>,
     /// Abstract syntax tree
     pub ast: Option<ast::Block<'a>>,
-    statements: [fn(&mut Self) -> Result<Statement<'a>, Error<'a>>; 10],
+    statements: [fn(&mut Self) -> Result<Statement<'a>, Error<'a>>; 12],
     prefix_op: HashMap<lexer::TokenType<'a>, Prec>,
     infix_op: HashMap<lexer::TokenType<'a>, Prec>,
     tokens: Vec<lexer::Token<'a>>,
@@ -85,6 +85,8 @@ impl<'a> Parser<'a> {
                 Parser::compiler_tag,
                 Parser::extern_def,
                 Parser::conditional,
+                Parser::overload_define,
+                Parser::overload_extern,
             ],
             prefix_op: HashMap::new(),
             infix_op: HashMap::new(),
@@ -135,7 +137,7 @@ impl<'a> Parser<'a> {
                 lexer::TokenType::SEMI => {
                     // Special case for semicolon error
                     let mut semi_error = self.syntax_error(t, &error[..], is_keyword, false);
-                    let position_e = self.position(prev_pos - 1).e;
+                    let position_e = self.tokens[prev_pos - 1].pos.e;
                     semi_error.annotations.push(ErrorAnnotation::new(
                         Some("did you mean to put a `;` here?".to_string()),
                         helpers::Pos::new(position_e - 1, position_e, self.lexer.filename),
@@ -153,11 +155,16 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn position(&mut self, position: usize) -> helpers::Pos<'a> {
-        let token = self.tokens[position];
+    pub fn get_relative_pos(&mut self, position: usize) -> helpers::Pos<'a> {
         helpers::Pos {
-            s: token.pos.s,
-            e: token.pos.e,
+            s: self.tokens[position].pos.s,
+            e: self.tokens[if self.token_pos > 0 {
+                self.token_pos - 1
+            } else {
+                self.token_pos
+            }]
+            .pos
+            .e,
             filename: self.lexer.filename,
         }
     }
@@ -283,7 +290,7 @@ impl<'a> Parser<'a> {
         let block = ast::Block {
             nodes: ast_list,
             tags: Vec::new(),
-            pos: self.position(position),
+            pos: self.get_relative_pos(position),
             insert_return: false,
         };
         self.ast = Some(block);
@@ -348,7 +355,7 @@ impl<'a> Parser<'a> {
         Ok(ast::Block {
             nodes: ast_list,
             tags: Vec::new(),
-            pos: self.position(position),
+            pos: self.get_relative_pos(position),
             insert_return: false,
         })
     }
@@ -379,7 +386,7 @@ impl<'a> Parser<'a> {
 
         Ok(ast::Arguments {
             positional: positional_args,
-            pos: self.position(position),
+            pos: self.get_relative_pos(position),
         })
     }
 
@@ -406,7 +413,7 @@ impl<'a> Parser<'a> {
             value: ast::TypeCheckOrType::Type(Rc::new(value)),
             name: Rc::new(name),
             visibility,
-            pos: self.position(position),
+            pos: self.get_relative_pos(position),
         }))
     }
 
@@ -419,7 +426,7 @@ impl<'a> Parser<'a> {
         Ok(Statement::Unit(ast::Unit {
             name,
             block,
-            pos: self.position(position),
+            pos: self.get_relative_pos(position),
         }))
     }
 
@@ -571,7 +578,7 @@ impl<'a> Parser<'a> {
 
         Ok(Statement::Tag(ast::Tag {
             content: id,
-            pos: self.position(position),
+            pos: self.get_relative_pos(position),
         }))
     }
 
@@ -625,7 +632,8 @@ impl<'a> Parser<'a> {
             visibility,
             name,
             mangled_name: None,
-            pos: self.position(position),
+            pos: self.get_relative_pos(position),
+            overload_operator: None,
         }))
     }
 
@@ -658,7 +666,7 @@ impl<'a> Parser<'a> {
             ast::Type {
                 value: ast::TypeType::Tuple(Vec::new()),
                 inferred: true,
-                pos: self.position(position),
+                pos: self.get_relative_pos(position),
             }
         };
 
@@ -670,8 +678,114 @@ impl<'a> Parser<'a> {
             visibility,
             name,
             mangled_name: None,
-            pos: self.position(position),
+            pos: self.get_relative_pos(position),
             block: None, // No block on external function
+            overload_operator: None,
+        }))
+    }
+
+    fn overload_define(&mut self) -> Result<Statement<'a>, Error<'a>> {
+        let position = self.token_pos;
+
+        let visibility = if self.peek().token == lexer::TokenType::PUBLIC {
+            self.forward();
+            ast::Visibility::Public
+        } else {
+            ast::Visibility::Private
+        };
+
+        self.next(lexer::TokenType::OVERLOAD, position, true)?;
+
+        let overload_operator = Some(self.forward().token);
+        let name = Rc::new(self.namespace()?);
+
+        self.next(lexer::TokenType::LP, position, false)?;
+
+        let arguments = self.parse_arguments()?;
+
+        self.next(lexer::TokenType::RP, position, false)?;
+
+        let block;
+        let return_type: ast::Type<'_> = if self.peek().token == lexer::TokenType::ARROW {
+            self.forward();
+            let temp = self.type_expr()?;
+            block = self.block(Scope::Block)?;
+            temp
+        } else if {
+            block = self.block(Scope::Block)?;
+            true
+        } {
+            ast::Type {
+                value: ast::TypeType::Tuple(Vec::new()),
+                inferred: true,
+                pos: block.pos,
+            }
+        } else {
+            ast::Type {
+                value: ast::TypeType::Tuple(Vec::new()),
+                inferred: true,
+                pos: block.pos,
+            }
+        };
+
+        Ok(ast::Statement::FunctionDefine(ast::FunctionDefine {
+            return_type: ast::TypeCheckOrType::Type(Rc::new(return_type)),
+            arguments,
+            block: Some(block),
+            visibility,
+            name,
+            mangled_name: None,
+            pos: self.get_relative_pos(position),
+            overload_operator,
+        }))
+    }
+
+    fn overload_extern(&mut self) -> Result<Statement<'a>, Error<'a>> {
+        let position = self.token_pos;
+
+        let visibility = if self.peek().token == lexer::TokenType::PUBLIC {
+            self.forward();
+            ast::Visibility::Public
+        } else {
+            ast::Visibility::Private
+        };
+
+        self.next(lexer::TokenType::EXTERN, position, true)?;
+
+        self.next(lexer::TokenType::OVERLOAD, position, true)?;
+
+        let overload_operator = Some(self.forward().token);
+        let name = Rc::new(self.namespace()?);
+
+        self.next(lexer::TokenType::LP, position, false)?;
+
+        let arguments = self.parse_extern_arguments()?;
+
+        self.next(lexer::TokenType::RP, position, false)?;
+
+        let return_type: ast::Type<'_> = if self.peek().token == lexer::TokenType::ARROW {
+            self.forward();
+            self.type_expr()?
+        } else {
+            self.forward();
+            ast::Type {
+                value: ast::TypeType::Tuple(Vec::new()),
+                inferred: true,
+                pos: self.get_relative_pos(position),
+            }
+        };
+
+        self.next(lexer::TokenType::SEMI, position, false)?;
+
+        Ok(ast::Statement::FunctionDefine(ast::FunctionDefine {
+            return_type: ast::TypeCheckOrType::Type(Rc::new(return_type)),
+            arguments,
+            visibility,
+            name,
+            mangled_name: None,
+            pos: self.get_relative_pos(position),
+            block: None, // No block on external function
+            overload_operator,
         }))
     }
 
@@ -701,7 +815,7 @@ impl<'a> Parser<'a> {
                 positional_args.push((
                     ast::NameID {
                         value: "none",
-                        pos: self.position(position),
+                        pos: self.get_relative_pos(position),
                     },
                     ast::TypeCheckOrType::Type(Rc::new(arg_type)),
                 ));
@@ -716,7 +830,7 @@ impl<'a> Parser<'a> {
 
         Ok(ast::Arguments {
             positional: positional_args,
-            pos: self.position(position),
+            pos: self.get_relative_pos(position),
         })
     }
 
@@ -731,7 +845,7 @@ impl<'a> Parser<'a> {
 
         Ok(ast::Statement::Return(ast::Return {
             expression: Box::new(expr),
-            pos: self.position(position),
+            pos: self.get_relative_pos(position),
         }))
     }
 
@@ -745,7 +859,7 @@ impl<'a> Parser<'a> {
         Ok(ast::Statement::ExpressionStatement(
             ast::ExpressionStatement {
                 expression: Box::new(expr),
-                pos: self.position(position),
+                pos: self.get_relative_pos(position),
             },
         ))
     }
@@ -773,7 +887,7 @@ impl<'a> Parser<'a> {
 
         Ok(ast::ArgumentsRun {
             positional: positional_args,
-            pos: self.position(position),
+            pos: self.get_relative_pos(position),
         })
     }
 
@@ -792,7 +906,7 @@ impl<'a> Parser<'a> {
         Ok(ast::Expr::FunctionCall(ast::FunctionCall {
             arguments,
             name: Rc::new(namespace),
-            pos: self.position(position),
+            pos: self.get_relative_pos(position),
             mangled_name: None,
         }))
     }
@@ -815,7 +929,7 @@ impl<'a> Parser<'a> {
                 t: ast::TypeCheckOrType::Type(Rc::new(var_type)),
                 name: Rc::new(namespace),
                 expr: Box::new(expr),
-                pos: self.position(position),
+                pos: self.get_relative_pos(position),
             },
         ))
     }
@@ -836,7 +950,7 @@ impl<'a> Parser<'a> {
             ast::VariableDeclaration {
                 t: ast::TypeCheckOrType::Type(Rc::new(var_type)),
                 name: Rc::new(namespace),
-                pos: self.position(position),
+                pos: self.get_relative_pos(position),
             },
         ))
     }
@@ -855,7 +969,7 @@ impl<'a> Parser<'a> {
             name: Rc::new(namespace),
             expr: Box::new(expr),
             type_val: None,
-            pos: self.position(position),
+            pos: self.get_relative_pos(position),
         }))
     }
 
@@ -881,7 +995,7 @@ impl<'a> Parser<'a> {
         Ok(ast::Statement::Conditional(ast::Conditional {
             if_branches,
             else_branch,
-            pos: self.position(position),
+            pos: self.get_relative_pos(position),
         }))
     }
 
@@ -900,7 +1014,7 @@ impl<'a> Parser<'a> {
         Ok(ast::IfBranch {
             cond,
             block,
-            pos: self.position(position),
+            pos: self.get_relative_pos(position),
         })
     }
 
@@ -920,7 +1034,7 @@ impl<'a> Parser<'a> {
         Ok(ast::IfBranch {
             cond,
             block,
-            pos: self.position(position),
+            pos: self.get_relative_pos(position),
         })
     }
 
@@ -932,7 +1046,7 @@ impl<'a> Parser<'a> {
 
         Ok(ast::ElseBranch {
             block,
-            pos: self.position(position),
+            pos: self.get_relative_pos(position),
         })
     }
 
@@ -981,11 +1095,11 @@ impl<'a> Parser<'a> {
         let temp = Err(Error::new(
             "Expected an operator".to_string(),
             ErrorType::Syntax,
-            self.position(position),
+            self.get_relative_pos(position),
             ErrorDisplayType::Error,
             vec![ErrorAnnotation::new(
                 None,
-                self.position(position),
+                self.get_relative_pos(position),
                 ErrorDisplayType::Error,
             )],
             false,
@@ -1007,11 +1121,11 @@ impl<'a> Parser<'a> {
         let temp = Err(Error::new(
             "Expected a prefix".to_string(),
             ErrorType::Syntax,
-            self.position(position),
+            self.get_relative_pos(position),
             ErrorDisplayType::Error,
             vec![ErrorAnnotation::new(
                 None,
-                self.position(position),
+                self.get_relative_pos(position),
                 ErrorDisplayType::Error,
             )],
             false,
@@ -1033,8 +1147,8 @@ impl<'a> Parser<'a> {
             left: Box::new(left),
             operator,
             right: Box::new(self.expr(binding_power)?),
-            type_val: None,
-            pos: self.position(position),
+            function_call: None,
+            pos: self.get_relative_pos(position),
         }))
     }
 
@@ -1048,7 +1162,7 @@ impl<'a> Parser<'a> {
                 operator: prefix,
                 val: Box::new(item),
                 type_val: None,
-                pos: self.position(position),
+                pos: self.get_relative_pos(position),
             }));
         }
 
@@ -1080,11 +1194,11 @@ impl<'a> Parser<'a> {
         let temp = Err(Error::new(
             "Missing expression".to_string(),
             ErrorType::Syntax,
-            self.position(position),
+            self.get_relative_pos(position),
             ErrorDisplayType::Error,
             vec![ErrorAnnotation::new(
                 Some(format!("Expected expression, found {}", next)),
-                self.position(position),
+                self.get_relative_pos(position),
                 ErrorDisplayType::Error,
             )],
             false,
@@ -1171,7 +1285,7 @@ impl<'a> Parser<'a> {
 
         Ok(ast::Namespace {
             scopes: ids,
-            pos: self.position(position),
+            pos: self.get_relative_pos(position),
         })
     }
 
@@ -1237,7 +1351,7 @@ impl<'a> Parser<'a> {
         Ok(ast::Tuple {
             values,
             type_val: None,
-            pos: self.position(position),
+            pos: self.get_relative_pos(position),
         })
     }
 
@@ -1324,7 +1438,7 @@ impl<'a> Parser<'a> {
         Ok(ast::Type {
             value: ast::TypeType::Tuple(values),
             inferred: false,
-            pos: self.position(position),
+            pos: self.get_relative_pos(position),
         })
     }
 
@@ -1366,7 +1480,7 @@ impl<'a> Parser<'a> {
         Ok(ast::DollarID {
             value: Rc::new(id),
             type_val: None,
-            pos: self.position(position),
+            pos: self.get_relative_pos(position),
         })
     }
 }

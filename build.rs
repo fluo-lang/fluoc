@@ -69,7 +69,7 @@ impl<'a> Generator<'a> {
         let fn_type = empty_tuple.fn_type(&[i32_type.into()], false);
         let fn_addr =
             self.module
-                .add_function("N4core_N3fmt_N9print_int_A9P7V5N3int_R2t0", fn_type, None);
+                .add_function("N4core_N3fmt_N9print_int_R2t0_A9P7V5N3int", fn_type, None);
 
         let entry_block = self.context.append_basic_block(fn_addr, "entry");
 
@@ -155,11 +155,9 @@ impl<'a> Generator<'a> {
         let i32_type = self.context.i32_type();
 
         let fn_type = i32_type.fn_type(&[i32_type.into(), i32_type.into()], false);
-        let fn_addr = self.module.add_function(
-            "N4core_N2op_N7sub_int_A19P7V5N3int_P7V5N3int_R7V5N3int",
-            fn_type,
-            None,
-        );
+        let fn_addr =
+            self.module
+                .add_function("N4core_N3fmt_N9print_int_R2t0_A9P7V5N3int", fn_type, None);
 
         let entry_block = self.context.append_basic_block(fn_addr, "entry");
 

@@ -1,5 +1,9 @@
 import tests2;
 
+overload + add_int (val1: int, val2: int) -> int {
+    return 10;
+}
+
 public
 def entry() {
     core::fmt::print_int(10+10);

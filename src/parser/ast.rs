@@ -1,5 +1,5 @@
 use crate::helpers;
-use crate::lexer::Token;
+use crate::lexer::{Token, TokenType};
 use crate::logger::logger::ErrorOrVec;
 use crate::typecheck::ast_typecheck::{TypeCheckSymbTab, TypeCheckType};
 
@@ -73,8 +73,8 @@ pub struct Reference<'a> {
 pub struct Infix<'a> {
     pub left: Box<Expr<'a>>,
     pub right: Box<Expr<'a>>,
+    pub function_call: Option<FunctionCall<'a>>,
     pub operator: Token<'a>,
-    pub type_val: Option<TypeCheckType<'a>>,
     pub pos: helpers::Pos<'a>,
 }
 
@@ -273,9 +273,9 @@ pub struct FunctionDefine<'a> {
     pub name: Rc<Namespace<'a>>,
     pub mangled_name: Option<String>,
     pub visibility: Visibility,
+    pub overload_operator: Option<TokenType<'a>>,
     pub pos: helpers::Pos<'a>,
 }
-
 #[derive(Debug, Clone, PartialEq)]
 pub struct ArgumentsRun<'a> {
     pub positional: Vec<Expr<'a>>,

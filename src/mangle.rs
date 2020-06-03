@@ -12,7 +12,7 @@
 // A for "argument types"
 // R for "return type"
 // my_func (int, int) -> bool
-// N7my_func_A14P5V3int_P5V3int_R6V4bool
+// N7my_func_R6V4bool_A15P5V3int_P5V3int
 
 // Tuples
 // t for "tuple type"
@@ -20,6 +20,25 @@
 // my_func (int, int) -> (bool, bool)
 // N7my_func _ P5 V3int _ P5 V3int _ R14 t11 V3int_V3int
 
+// Operator Overloading
+// convert the tokens into characters:
+//  + `add`  int, int -> int OR int -> int (infix operator)
+//  - `sub`  int, int -> int OR int -> int (infix operator)
+//  * `mul`  int, int -> int
+//  / `div`  int, int -> float
+//  % `mod`  int, int -> int
+// %% `mdd`  (MoDulo Divisible)          int, int -> bool
+//  > `grt`  (GReater Than)              int, int -> bool
+//  < `lst`  (LeSs Than)                 int, int -> bool
+//  >= `get` (Greater than or Equal To)  int, int -> bool
+//  <= `let` (Less than or Equal To)     int, int -> bool
+//  == `eqt` (EQual To)                  int, int -> bool
+//
+// O for "overloaded value"
+// overload + add_ints(int, int) -> int
+// O3add_N8add_ints_R5V3int_A15P5V3int_P5V3int
+
+use crate::lexer::TokenType;
 use crate::logger::logger::{
     Error, ErrorAnnotation, ErrorDisplayType, ErrorLevel, ErrorOrVec, ErrorType,
 };
@@ -27,6 +46,37 @@ use crate::parser::ast;
 use crate::typecheck::ast_typecheck;
 
 use std::rc::Rc;
+
+pub(crate) fn gen_manged_args<'a, 'b>(
+    types: &[&ast_typecheck::TypeCheckType<'a>],
+    context: &'b ast_typecheck::TypeCheckSymbTab<'a>,
+) -> String {
+    let mangled_args = types
+        .into_iter()
+        .map(|arg_type| {
+            let arg_mangled = arg_type.mangle(context);
+            format!("P{}{}", arg_mangled.len(), arg_mangled)
+        })
+        .collect::<Vec<_>>()
+        .join("_");
+    format!("_A{}{}", mangled_args.len(), mangled_args)
+}
+
+impl<'a> TokenType<'a> {
+    pub(crate) fn mangle(&self) -> String {
+        let mangled_op = match self {
+            TokenType::SUB => "sub",
+            TokenType::ADD => "add",
+            TokenType::DIV => "div",
+            TokenType::DMOD => "mdd",
+            TokenType::MOD => "mod",
+            TokenType::MUL => "nul",
+            _ => panic!("{} cannot be mangled", self),
+        };
+
+        format!("O{}{}_", mangled_op.len(), mangled_op)
+    }
+}
 
 impl<'a> ast::Namespace<'a> {
     /// Mangle function name without types
@@ -41,24 +91,17 @@ impl<'a> ast::Namespace<'a> {
             .collect::<Vec<_>>()
             .join("_")
     }
-    /// Mangle function name with types
-    /// Mangles name and returns as string
-    pub(crate) fn mangle_types<'b>(
+
+    /// Mangle operator overload function
+    pub(crate) fn mangle_overload<'b>(
         &self,
         types: &[&ast_typecheck::TypeCheckType<'a>],
         return_type: Option<&ast_typecheck::TypeCheckType<'a>>,
+        token: TokenType<'a>,
         context: &'b ast_typecheck::TypeCheckSymbTab<'a>,
     ) -> Result<String, ErrorOrVec<'a>> {
-        let mut mangled = self.mangle();
-        let mangled_args = &types
-            .into_iter()
-            .map(|arg_type| {
-                let arg_mangled = arg_type.mangle(context);
-                format!("P{}{}", arg_mangled.len(), arg_mangled)
-            })
-            .collect::<Vec<_>>()
-            .join("_")[..];
-        mangled += &format!("_A{}{}", mangled_args.len(), mangled_args)[..];
+        let mut mangled = token.mangle();
+        mangled += &self.mangle()[..];
 
         match return_type {
             Some(ret_type) => {
@@ -124,6 +167,88 @@ impl<'a> ast::Namespace<'a> {
                 }
             }
         }
+
+        mangled += &gen_manged_args(types, context)[..];
+
+        Ok(mangled)
+    }
+
+    /// Mangle function name with types
+    /// Mangles name and returns as string
+    pub(crate) fn mangle_types<'b>(
+        &self,
+        types: &[&ast_typecheck::TypeCheckType<'a>],
+        return_type: Option<&ast_typecheck::TypeCheckType<'a>>,
+        context: &'b ast_typecheck::TypeCheckSymbTab<'a>,
+    ) -> Result<String, ErrorOrVec<'a>> {
+        let mut mangled = self.mangle();
+
+        match return_type {
+            Some(ret_type) => {
+                let ret_type_mangled = ret_type.mangle(context);
+                mangled += &format!("_R{}{}", ret_type_mangled.len(), ret_type_mangled)[..];
+            }
+            None => {
+                let values = context
+                    .get_prefix_string(&mangled[..])
+                    .into_iter()
+                    .collect::<Vec<_>>();
+                let length = values.len();
+                if length == 1 {
+                    let ret_type_mangled = &values
+                        .first()
+                        .unwrap()
+                        .1
+                        .unwrap_function_ref()
+                        .0
+                        .value
+                        .unwrap_func_return_ref()
+                        .mangle(context)[..];
+                    mangled += &format!("_R{}{}", ret_type_mangled.len(), ret_type_mangled)[..];
+                } else if length == 0 {
+                    mangled.clear();
+                } else {
+                    let mut err = vec![ErrorAnnotation::new(
+                        Some(format!("function `{}` used here", self.to_string())),
+                        self.pos,
+                        ErrorDisplayType::Error,
+                    )];
+
+                    err.append(
+                        &mut values
+                            .into_iter()
+                            .map(|(_, type_val)| {
+                                let ret_type = type_val
+                                    .unwrap_function_ref()
+                                    .0
+                                    .value
+                                    .unwrap_func_return_ref();
+                                ErrorAnnotation::new(
+                                    Some(format!("possible return signature of {}", ret_type)),
+                                    self.pos,
+                                    ErrorDisplayType::Error,
+                                )
+                            })
+                            .collect::<Vec<_>>(),
+                    );
+
+                    // Cannot infer value to use
+                    return Err(ErrorOrVec::Error(
+                        Error::new(
+                            "cannot infer return type of function call".to_string(),
+                            ErrorType::InferError,
+                            self.pos,
+                            ErrorDisplayType::Error,
+                            err,
+                            true,
+                        ),
+                        ErrorLevel::TypeError,
+                    ));
+                }
+            }
+        }
+
+        mangled += &gen_manged_args(types, context)[..];
 
         Ok(mangled)
     }

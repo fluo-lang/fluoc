@@ -1,8 +1,10 @@
 use crate::fluo_core::core;
 use crate::helpers;
+use crate::lexer::TokenType;
 use crate::logger::logger::{
     Error, ErrorAnnotation, ErrorDisplayType, ErrorLevel, ErrorOrVec, ErrorType,
 };
+use crate::mangle;
 use crate::parser::ast::*;
 
 use std::borrow::Cow;
@@ -758,37 +760,62 @@ impl<'a> TypeCheckType<'a> {
             Expr::Infix(infix) => {
                 // TODO: add type infer based on known types of left or right
                 // Also, implement operator overloading
-                let left_type = TypeCheckType::from_expr(&mut *infix.left, context, None)?;
-                let right_type = TypeCheckType::from_expr(&mut *infix.right, context, None)?;
 
-                if TypeCheckType::sequiv(&left_type, &right_type, context)? {
-                    // Same type
-                    infix.type_val = Some(right_type);
-                    left_type
-                } else {
-                    return Err(ErrorOrVec::Error(
-                        Error::new(
-                            format!("type mismatch between operands of {}", infix.operator.token),
-                            ErrorType::TypeMismatch,
-                            infix.pos,
-                            ErrorDisplayType::Error,
-                            vec![
-                                ErrorAnnotation::new(
-                                    Some(format!("has type `{}`", left_type)),
-                                    left_type.pos,
-                                    ErrorDisplayType::Info,
-                                ),
-                                ErrorAnnotation::new(
-                                    Some(format!("has type `{}`", right_type)),
-                                    right_type.pos,
-                                    ErrorDisplayType::Info,
-                                ),
-                            ],
-                            true,
-                        ),
-                        ErrorLevel::TypeError,
-                    ));
-                }
+                let mut owned_left = Box::new(Expr::Empty(Empty {
+                    pos: (*infix.left).pos(),
+                }));
+                std::mem::swap(&mut infix.left, &mut owned_left);
+
+                let mut owned_right = Box::new(Expr::Empty(Empty {
+                    pos: (*infix.right).pos(),
+                }));
+                std::mem::swap(&mut infix.right, &mut owned_right);
+
+                // Infer types based one one type or the other
+                let (left_type, right_type) = match (
+                    TypeCheckType::from_expr(&mut *owned_left, context, return_type),
+                    TypeCheckType::from_expr(&mut *owned_right, context, return_type),
+                ) {
+                    (Ok(l), Ok(r)) => (l, r),
+                    (Ok(l), Err(_)) => {
+                        let right = TypeCheckType::from_expr(&mut *owned_right, context, Some(&l))?;
+                        (l, right)
+                    }
+                    (Err(_), Ok(r)) => (
+                        TypeCheckType::from_expr(&mut *owned_left, context, Some(&r))?,
+                        r,
+                    ),
+                    (Err(e), Err(_)) => {
+                        return Err(e);
+                    }
+                };
+
+                let overloaded = context.get_overloaded(
+                    &[&left_type, &right_type],
+                    return_type,
+                    infix.operator.token,
+                )?;
+
+                infix.function_call = Some(FunctionCall {
+                    arguments: ArgumentsRun {
+                        positional: vec![*owned_left, *owned_right],
+                        pos: infix.pos,
+                    },
+                    pos: infix.pos,
+                    name: Rc::new(Namespace {
+                        scopes: Vec::new(),
+                        pos: infix.pos,
+                    }),
+                    mangled_name: Some(overloaded.0),
+                });
+
+                overloaded
+                    .1
+                    .unwrap_function_ref()
+                    .0
+                    .value
+                    .unwrap_func_return_ref()
+                    .clone()
             }
             Expr::RefID(ref_namespace) => {
                 let val = context.get_variable(Rc::clone(&ref_namespace.value))?;
@@ -1170,45 +1197,92 @@ impl<'a> FunctionDefine<'a> {
             false,
         )?);
 
-        self.name = context.set_function(
-            Rc::clone(&self.name),
-            SymbTabObj::Function(
-                TypeCheckType {
-                    value: TypeCheckTypeType::FunctionSig(
-                        ArgumentsTypeCheck {
-                            positional,
-                            pos: self.arguments.pos,
+        match self.overload_operator {
+            Some(token) => {
+                // Overloading function
+                self.name = context.set_overloaded(
+                    Rc::clone(&self.name),
+                    token,
+                    SymbTabObj::Function(
+                        TypeCheckType {
+                            value: TypeCheckTypeType::FunctionSig(
+                                ArgumentsTypeCheck {
+                                    positional,
+                                    pos: self.arguments.pos,
+                                },
+                                Box::new(self.return_type.clone().unwrap_type_check()),
+                                self.visibility,
+                            ),
+                            pos: helpers::Pos::new(
+                                self.arguments.pos.s,
+                                if self.return_type.unwrap_type_check_ref().inferred {
+                                    self.return_type.unwrap_type_check_ref().pos.e
+                                } else {
+                                    self.arguments.pos.e
+                                },
+                                self.arguments.pos.filename,
+                            ),
+                            inferred: false,
                         },
-                        Box::new(self.return_type.clone().unwrap_type_check()),
-                        self.visibility,
+                        self.pos,
                     ),
-                    pos: helpers::Pos::new(
-                        self.arguments.pos.s,
-                        if self.return_type.unwrap_type_check_ref().inferred {
-                            self.return_type.unwrap_type_check_ref().pos.e
-                        } else {
-                            self.arguments.pos.e
+                )?;
+                self.mangled_name = Some(
+                    self.name.mangle_overload(
+                        &self
+                            .arguments
+                            .positional
+                            .iter()
+                            .map(|(_, type_val)| type_val.unwrap_type_check_ref())
+                            .collect::<Vec<_>>()[..],
+                        Some(self.return_type.unwrap_type_check_ref()),
+                        token,
+                        context,
+                    )?,
+                );
+            }
+            None => {
+                self.name = context.set_function(
+                    Rc::clone(&self.name),
+                    SymbTabObj::Function(
+                        TypeCheckType {
+                            value: TypeCheckTypeType::FunctionSig(
+                                ArgumentsTypeCheck {
+                                    positional,
+                                    pos: self.arguments.pos,
+                                },
+                                Box::new(self.return_type.clone().unwrap_type_check()),
+                                self.visibility,
+                            ),
+                            pos: helpers::Pos::new(
+                                self.arguments.pos.s,
+                                if self.return_type.unwrap_type_check_ref().inferred {
+                                    self.return_type.unwrap_type_check_ref().pos.e
+                                } else {
+                                    self.arguments.pos.e
+                                },
+                                self.arguments.pos.filename,
+                            ),
+                            inferred: false,
                         },
-                        self.arguments.pos.filename,
+                        self.pos,
                     ),
-                    inferred: false,
-                },
-                self.pos,
-            ),
-        )?;
+                )?;
 
-        self.mangled_name = Some(
-            self.name.mangle_types(
-                &self
-                    .arguments
-                    .positional
-                    .iter()
-                    .map(|(_, type_val)| type_val.unwrap_type_check_ref())
-                    .collect::<Vec<_>>()[..],
-                Some(self.return_type.unwrap_type_check_ref()),
-                context,
-            )?,
-        );
+                self.mangled_name = Some(
+                    self.name.mangle_types(
+                        &self
+                            .arguments
+                            .positional
+                            .iter()
+                            .map(|(_, type_val)| type_val.unwrap_type_check_ref())
+                            .collect::<Vec<_>>()[..],
+                        Some(self.return_type.unwrap_type_check_ref()),
+                        context,
+                    )?,
+                );
+            }
+        }
 
         Ok(())
     }
@@ -1220,7 +1294,7 @@ impl<'a> TypeCheck<'a> for FunctionDefine<'a> {
         _return_type: Option<Cow<'a, TypeCheckType<'a>>>,
         context: &'b mut TypeCheckSymbTab<'a>,
     ) -> Result<Cow<'a, TypeCheckType<'a>>, ErrorOrVec<'a>> {
-        let ret_val = match &mut self.block {
+        match &mut self.block {
             Some(block) => {
                 let mut context = context.clone();
 
@@ -1250,9 +1324,7 @@ impl<'a> TypeCheck<'a> for FunctionDefine<'a> {
                 pos: self.pos,
                 inferred: true,
             })),
-        };
-
-        ret_val
+        }
     }
 }
 
@@ -1539,7 +1611,7 @@ impl<'a> TypeCheck<'a> for Statement<'a> {
                 inferred: false,
             })),
             _ => panic!(
-                "Type_check not implemented for statement `{}`",
+                "Typecheck not implemented for statement `{}`",
                 &self.to_string()
             ),
         }
@@ -1598,6 +1670,37 @@ impl<'a> TypeCheckSymbTab<'a> {
 
         self.items.insert(adjusted_namespace.mangle(), value);
         Rc::clone(&adjusted_namespace)
+    }
+
+    pub fn set_overloaded(
+        &mut self,
+        namespace: Rc<Namespace<'a>>,
+        overload_val: TokenType<'a>,
+        value: SymbTabObj<'a>,
+    ) -> Result<Rc<Namespace<'a>>, ErrorOrVec<'a>> {
+        let adjusted_namespace = Rc::new(
+            namespace
+                .as_ref()
+                .clone()
+                .prepend_namespace(self.curr_prefix.clone()),
+        );
+        let func = value.unwrap_function_ref().0.value.unwrap_func();
+
+        self.items.insert(
+            adjusted_namespace.mangle_overload(
+                &func
+                    .0
+                    .positional
+                    .iter()
+                    .map(|val| &val.1)
+                    .collect::<Vec<_>>()[..],
+                Some(func.1),
+                overload_val,
+                self,
+            )?,
+            value,
+        );
+        Ok(Rc::clone(&adjusted_namespace))
     }
 
     pub fn set_function(
@@ -1725,6 +1828,115 @@ impl<'a> TypeCheckSymbTab<'a> {
             .iter()
             .filter(|(key, _)| key.starts_with(prefix_match))
             .collect()
+    }
+
+    fn get_overloaded(
+        &self,
+        types: &[&TypeCheckType<'a>],
+        return_type: Option<&TypeCheckType<'a>>,
+        operator: TokenType<'a>,
+    ) -> Result<(String, &SymbTabObj<'a>), ErrorOrVec<'a>> {
+        let end = &match return_type {
+            Some(val) => {
+                let ret_type = val.mangle(self);
+                format!(
+                    "R{}{}_{}",
+                    ret_type.len(),
+                    ret_type,
+                    mangle::gen_manged_args(types, self),
+                )
+            }
+            None => mangle::gen_manged_args(types, self),
+        }[..];
+
+        let possible_overloads = self
+            .get_prefix_string(&operator.mangle()[..])
+            .into_iter()
+            .filter(|(k, _)| k.ends_with(end))
+            .map(|(k, v)| (&k[..], v))
+            .collect::<Vec<_>>();
+
+        let possible_overloads_len = possible_overloads.len();
+
+        if possible_overloads_len == 1 {
+            let val = possible_overloads[0];
+            Ok((val.0.to_owned(), val.1))
+        } else if possible_overloads_len == 0 {
+            // No overloaded function
+            let first = types.first().unwrap().pos;
+            let position = helpers::Pos::new(first.s, types.last().unwrap().pos.e, first.filename);
+            Err(ErrorOrVec::Error(
+                Error::new(
+                    "no overloaded function found".to_string(),
+                    ErrorType::InferError,
+                    position,
+                    ErrorDisplayType::Error,
+                    vec![
+                        ErrorAnnotation::new(
+                            Some(format!("not found for {}", operator)),
+                            position,
+                            ErrorDisplayType::Error,
+                        ),
+                        ErrorAnnotation::new(
+                            Some(format!(
+                                "where function is ({}) -> {}",
+                                types
+                                    .iter()
+                                    .map(|x| x.to_string())
+                                    .collect::<Vec<_>>()
+                                    .join(", "),
+                                return_type
+                                    .map(|x| x.to_string())
+                                    .unwrap_or("_".to_string())
+                            )),
+                            position,
+                            ErrorDisplayType::Error,
+                        ),
+                    ],
+                    true,
+                ),
+                ErrorLevel::TypeError,
+            ))
+        } else {
+            let first = types.first().unwrap().pos;
+            let position = helpers::Pos::new(first.s, types.last().unwrap().pos.e, first.filename);
+            let mut err = vec![ErrorAnnotation::new(
+                Some(format!("operator used here",)),
+                position,
+                ErrorDisplayType::Error,
+            )];
+
+            err.append(
+                &mut possible_overloads
+                    .into_iter()
+                    .map(|(name, type_val)| {
+                        let ret_type = type_val
+                            .unwrap_function_ref()
+                            .0
+                            .value
+                            .unwrap_func_return_ref();
+                        ErrorAnnotation::new(
+                            Some(format!("possible return of {} in `{}`", ret_type, name)),
+                            position,
+                            ErrorDisplayType::Error,
+                        )
+                    })
+                    .collect::<Vec<_>>(),
+            );
+
+            // Cannot infer value to use
+            Err(ErrorOrVec::Error(
+                Error::new(
+                    "cannot infer return type of operator overload".to_string(),
+                    ErrorType::InferError,
+                    position,
+                    ErrorDisplayType::Error,
+                    err,
+                    true,
+                ),
+                ErrorLevel::TypeError,
+            ))
+        }
     }
 
     fn get_function(
