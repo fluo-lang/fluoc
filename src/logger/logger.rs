@@ -19,6 +19,7 @@ pub enum ErrorType {
     UndefinedSymbol,
     TypeCastError,
     PossibleUninitVal,
+    ScopeError,
     InferError,
     VisibilityError,
     ImportError,
@@ -41,6 +42,7 @@ impl ErrorType {
             ErrorType::VisibilityError => "visibility_error",
             ErrorType::ImportError => "import_error",
             ErrorType::InferError => "infer_error",
+            ErrorType::ScopeError => "scope_error",
         }
     }
 }
@@ -1138,23 +1140,8 @@ impl<'a> Logger<'a> {
     }
 
     fn raise_type(&mut self, errors: Vec<Error<'a>>, message_type: ErrorDisplayType) {
-        if !errors.is_empty() {
-            eprintln!(
-                "{}{}{}{} {} Found:{}\n",
-                message_type.get_color(),
-                color::UNDERLINE,
-                color::BOLD,
-                errors.len(),
-                if errors.len() == 1 {
-                    message_type.singular()
-                } else {
-                    message_type.plural()
-                },
-                color::RESET
-            );
-        } else {
-            return;
-        }
+        let display = !errors.is_empty();
+        let length = errors.len();
         for error in errors {
             eprintln!(
                 "{}{}{}{}{}: {}{}{}",
@@ -1170,6 +1157,24 @@ impl<'a> Logger<'a> {
             self.get_code(error);
             eprintln!("{}", self.buffer.render());
             self.buffer.reset();
+        }
+        if display {
+            eprintln!(
+                "{}{}{}{}{} {} Detected{}\n",
+                self.indentation,
+                message_type.get_color(),
+                color::UNDERLINE,
+                color::BOLD,
+                length,
+                if length == 1 {
+                    message_type.singular()
+                } else {
+                    message_type.plural()
+                },
+                color::RESET
+            );
+        } else {
+            return;
         }
     }
 

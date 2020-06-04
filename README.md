@@ -1,11 +1,13 @@
 <h1 align=center>
-    Fluo
+    <img src="img/logo_text.svg" height=300px/>
+    <br>
+    <br>
     <br>
     <a href="https://github.com/fluo-lang/fluo/actions"><img src="https://img.shields.io/github/workflow/status/fluo-lang/fluo/build-test-bench?style=for-the-badge" height=24px></img></a>
     <a href="https://trello.com/b/5gxtFXun/fluo"><img src="https://img.shields.io/badge/trello-here-000000FF?style=for-the-badge" height=24px></img></a>
-    
 </h1>
 
+<br>
 <br>
 <br>
 

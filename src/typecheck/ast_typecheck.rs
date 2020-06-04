@@ -689,6 +689,44 @@ impl<'a> TypeCheckType<'a> {
                             ErrorLevel::TypeError,
                         ));
                     } else {
+                        // Variable declaration in if statement is not allowed to overwrite the old one
+                        match context.get_variable(Rc::clone(&variable_assignment_dec.name)) {
+                            Ok(val) => match context.conditional_state {
+                                CurrentContext::If(_) | CurrentContext::Else(_) => {
+                                    // If and else
+                                    return Err(ErrorOrVec::Error(
+                                        Error::new(
+                                            "cannot redeclare then assign value from higher scope"
+                                                .to_string(),
+                                            ErrorType::ScopeError,
+                                            variable_assignment_dec.pos,
+                                            ErrorDisplayType::Error,
+                                            vec![
+                                                ErrorAnnotation::new(
+                                                    Some("but overwritten here".to_string()),
+                                                    variable_assignment_dec.pos,
+                                                    ErrorDisplayType::Error,
+                                                ),
+                                                ErrorAnnotation::new(
+                                                    Some(
+                                                        "variable originally defined here"
+                                                            .to_string(),
+                                                    ),
+                                                    val.pos(),
+                                                    ErrorDisplayType::Info,
+                                                ),
+                                            ],
+                                            true,
+                                        ),
+                                        ErrorLevel::TypeError,
+                                    ));
+                                }
+                                _ => {}
+                            },
+                            Err(_) => {
+                                // Value does not exist, ok
+                            }
+                        };
                         context.set_local(
                             Rc::clone(&variable_assignment_dec.name),
                             SymbTabObj::Variable(value_type, Nullable::Safe),
@@ -747,6 +785,7 @@ impl<'a> TypeCheckType<'a> {
                         } else {
                             context.get_safe_value(Rc::clone(&variable_assign.name))
                         };
+
                         context.set_local(
                             Rc::clone(&variable_assign.name),
                             SymbTabObj::Variable(value_type, nullable_val.clone()), // Value is safe? it's guaranteed to have a value (depending on context)
@@ -760,7 +799,6 @@ impl<'a> TypeCheckType<'a> {
             }
             Expr::Infix(infix) => {
                 // TODO: add type infer based on known types of left or right
-                // Also, implement operator overloading
 
                 let mut owned_left = Box::new(Expr::Empty(Empty {
                     pos: (*infix.left).pos(),
@@ -850,7 +888,7 @@ impl<'a> TypeCheckType<'a> {
                             annotations,
                             true,
                         ),
-                        ErrorLevel::TypeError,
+                        ErrorLevel::NonExistentVar,
                     ));
                 }
             }
@@ -1392,6 +1430,41 @@ impl<'a> TypeCheck<'a> for VariableDeclaration<'a> {
         _return_type: Option<Cow<'a, TypeCheckType<'a>>>,
         context: &'b mut TypeCheckSymbTab<'a>,
     ) -> Result<Cow<'a, TypeCheckType<'a>>, ErrorOrVec<'a>> {
+        // Variable declaration in if statement is not allowed to overwrite the old one
+        match context.get_variable(Rc::clone(&self.name)) {
+            Ok(val) => match context.conditional_state {
+                CurrentContext::If(_) | CurrentContext::Else(_) => {
+                    // If and else
+                    return Err(ErrorOrVec::Error(
+                        Error::new(
+                            "cannot redeclare value from higher scope".to_string(),
+                            ErrorType::ScopeError,
+                            self.pos,
+                            ErrorDisplayType::Error,
+                            vec![
+                                ErrorAnnotation::new(
+                                    Some("but overwritten here".to_string()),
+                                    self.pos,
+                                    ErrorDisplayType::Error,
+                                ),
+                                ErrorAnnotation::new(
+                                    Some("variable originally defined here".to_string()),
+                                    val.pos(),
+                                    ErrorDisplayType::Info,
+                                ),
+                            ],
+                            true,
+                        ),
+                        ErrorLevel::TypeError,
+                    ));
+                }
+                _ => {}
+            },
+            Err(_) => {
+                // Value does not exist, ok
+            }
+        };
+
         let type_val = TypeCheckType::from_type(self.t.unwrap_type(), context, false)?;
         context.set_local(
             Rc::clone(&self.name),
@@ -1491,42 +1564,46 @@ impl<'a> TypeCheck<'a> for Conditional<'a> {
         let mut changed_safe_vals = Vec::new();
 
         for branch in &mut self.if_branches {
-            context.reset_changed_safe();
-            context.conditional_state = CurrentContext::If(branch.pos);
-            branch.block.type_check(None, context)?;
+            // Different context for each one
+            let mut new_context = context.clone();
+
+            new_context.reset_changed_safe();
+            new_context.conditional_state = CurrentContext::If(branch.pos);
+            branch.block.type_check(None, &mut new_context)?;
             let branch_pos = branch.cond.pos();
             let actual_type = TypeCheckType::from_expr(
                 &mut branch.cond,
-                context,
+                &mut new_context,
                 Some(&TypeCheckType::construct_basic("bool", branch_pos)),
             )?;
 
-            match actual_type.cast_to_basic(context) {
+            match actual_type.cast_to_basic(&mut new_context) {
                 Ok(val) => match val {
                     "bool" => {}
                     _ => {
                         return Err(Conditional::generate_bool_err(
                             branch.cond.pos(),
                             actual_type,
-                        ))
+                        ));
                     }
                 },
                 Err(_) => {
                     return Err(Conditional::generate_bool_err(
                         branch.cond.pos(),
                         actual_type,
-                    ))
+                    ));
                 }
             }
-            changed_safe_vals.push(context.get_changed_safe());
+            changed_safe_vals.push(new_context.get_changed_safe());
         }
 
         let else_safe_vals = match &mut self.else_branch {
             Some(branch) => {
-                context.reset_changed_safe();
-                context.conditional_state = CurrentContext::Else(branch.pos);
-                branch.block.type_check(None, context)?;
-                Some(context.get_changed_safe())
+                let mut new_context = context.clone();
+                new_context.reset_changed_safe();
+                new_context.conditional_state = CurrentContext::Else(branch.pos);
+                branch.block.type_check(None, &mut new_context)?;
+                Some(new_context.get_changed_safe())
             }
             None => None,
         };
@@ -1542,6 +1619,8 @@ impl<'a> TypeCheck<'a> for Conditional<'a> {
                         if TypeCheckSymbTab::is_safe_cond(else_val, changed_safe.0) {
                             // Else val contains it, check every other branch
                             context.set_safe(changed_safe.0); // Set it as safe, if its not unset it (ofc)
+
+                            // Iterate through else ifs and see if it is all set there
                             for i in 1..changed_safe_vals.len() {
                                 let other_branch = &changed_safe_vals[i];
                                 if !TypeCheckSymbTab::is_safe_cond(&other_branch, changed_safe.0) {
@@ -1560,6 +1639,7 @@ impl<'a> TypeCheck<'a> for Conditional<'a> {
                                 }
                             }
                         } else {
+                            // Else doesn't contain it, error
                             context.set_unsafe(
                                 &changed_safe.0[..],
                                 ErrorAnnotation::new(
@@ -1680,7 +1760,7 @@ impl<'a> TypeCheckSymbTab<'a> {
         namespace: Rc<Namespace<'a>>,
         value: SymbTabObj<'a>,
     ) -> Rc<Namespace<'a>> {
-        self.items.insert(namespace.mangle(), value);
+        self.items.insert(namespace.to_string(), value);
         Rc::clone(&namespace)
     }
 
@@ -1786,7 +1866,7 @@ impl<'a> TypeCheckSymbTab<'a> {
     }
 
     fn insert_changed_safe(&mut self, namespace: Rc<Namespace<'a>>, val: Nullable<'a>) {
-        self.changed_safe.insert(namespace.mangle(), val);
+        self.changed_safe.insert(namespace.to_string(), val);
     }
 
     fn get_changed_safe(&self) -> HashMap<String, Nullable<'a>> {
@@ -1889,7 +1969,7 @@ impl<'a> TypeCheckSymbTab<'a> {
             Some(val) => {
                 let ret_type = val.mangle(self);
                 format!(
-                    "R{}{}_{}",
+                    "R{}{}{}",
                     ret_type.len(),
                     ret_type,
                     mangle::gen_manged_args(types, self),
@@ -1944,7 +2024,7 @@ impl<'a> TypeCheckSymbTab<'a> {
                     ],
                     true,
                 ),
-                ErrorLevel::TypeError,
+                ErrorLevel::NonExistentFunc,
             ))
         } else {
             let first = types.first().unwrap().pos;
@@ -1984,7 +2064,7 @@ impl<'a> TypeCheckSymbTab<'a> {
                     err,
                     true,
                 ),
-                ErrorLevel::TypeError,
+                ErrorLevel::NonExistentFunc,
             ))
         }
     }
@@ -2041,7 +2121,7 @@ impl<'a> TypeCheckSymbTab<'a> {
                             )],
                             true,
                         ),
-                        ErrorLevel::TypeError,
+                        ErrorLevel::NonExistentFunc,
                     ));
                 }
             },
@@ -2241,7 +2321,7 @@ impl<'a> TypeCheckSymbTab<'a> {
                             )],
                             true,
                         ),
-                        ErrorLevel::TypeError,
+                        ErrorLevel::NonExistentType,
                     ));
                 }
             },
@@ -2288,7 +2368,7 @@ impl<'a> TypeCheckSymbTab<'a> {
         &self,
         namespace: Rc<Namespace<'a>>,
     ) -> Result<&SymbTabObj<'a>, ErrorOrVec<'a>> {
-        match self.items.get(&namespace.mangle()) {
+        match self.items.get(&namespace.to_string()) {
             Some(val) => match val.deref() {
                 SymbTabObj::Variable(_, _) => return Ok(val),
                 other => {
@@ -2305,7 +2385,7 @@ impl<'a> TypeCheckSymbTab<'a> {
                             )],
                             true,
                         ),
-                        ErrorLevel::TypeError,
+                        ErrorLevel::NonExistentVar,
                     ));
                 }
             },

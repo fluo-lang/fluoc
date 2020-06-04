@@ -2,5 +2,20 @@ unit tests2;
 
 public
 def entry() {
-    core::fmt::print_int(10+10);
+    let x: int = 10;
+    let y: int;
+    y = 10;
+    core::fmt::print_int(x*x+y+10);
+
+    let z: int;
+    if (true) {
+        z = 123;
+    } else if (false) {
+        z = 1023*20;
+    } else {
+        z = 100;
+    }
+
+    core::fmt::print_int(z*x+y+10);
 }
+
