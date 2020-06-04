@@ -886,6 +886,7 @@ impl<'a> Parser<'a> {
             name: Rc::new(namespace),
             pos: self.get_relative_pos(position),
             mangled_name: None,
+            mangle: true,
         }))
     }
 

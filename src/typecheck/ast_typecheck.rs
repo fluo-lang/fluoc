@@ -578,16 +578,19 @@ impl<'a> TypeCheckType<'a> {
                     Rc::clone(&func_call.name),
                     &func_call_arg_types,
                     return_type,
+                    func_call.mangle,
                 )?;
                 let func = func_union_namespace.0.unwrap_function_ref();
 
                 func_call.name = func_union_namespace.1;
 
-                func_call.mangled_name = Some(func_call.name.mangle_types(
-                    &func_call_arg_types.iter().collect::<Vec<_>>()[..],
-                    return_type,
-                    context,
-                )?);
+                if let None = func_call.mangled_name {
+                    func_call.mangled_name = Some(func_call.name.mangle_types(
+                        &func_call_arg_types.iter().collect::<Vec<_>>()[..],
+                        return_type,
+                        context,
+                    )?);
+                }
 
                 if func.0.value.get_visibility() == Visibility::Private
                     && func.0.pos.filename != func_call.pos.filename
@@ -805,6 +808,7 @@ impl<'a> TypeCheckType<'a> {
                         pos: infix.pos,
                     }),
                     mangled_name: Some(overloaded.0),
+                    mangle: true,
                 });
 
                 overloaded
@@ -1037,10 +1041,60 @@ impl<'a> TypeCheck<'a> for Block<'a> {
         let mut errors: Vec<(Error<'_>, ErrorLevel)> = Vec::new();
         let mut ret_types: Vec<&mut Expr<'_>> = Vec::new();
 
-        for mut node in &mut self.nodes {
+        for i in 0..self.nodes.len() {
+            let node = &mut self.nodes[i];
             // First pass
-            match &mut node {
-                Statement::FunctionDefine(func_def) => func_def.generate_proto(context)?,
+            match node {
+                Statement::FunctionDefine(func_def) => {
+                    match &func_def.block {
+                        Some(_) => {
+                            // Not an extern
+                            func_def.generate_proto(context)?;
+                        }
+                        None => {
+                            // Extern function
+                            let func_name = func_def.name.scopes.last().unwrap();
+                            let mut func_def_other = func_def.clone();
+                            func_def_other.mangled_name = Some(func_name.value.to_string());
+                            func_def_other.name = Namespace::from_name_id(*func_name);
+                            let pos = func_def.pos;
+                            func_def.block = Some(Block {
+                                tags: Vec::new(),
+                                nodes: vec![Statement::Return(Return {
+                                    expression: Box::new(Expr::FunctionCall(FunctionCall {
+                                        arguments: ArgumentsRun {
+                                            positional: func_def
+                                                .arguments
+                                                .positional
+                                                .iter()
+                                                .map(|(name, _)| {
+                                                    Expr::RefID(RefID {
+                                                        value: Namespace::from_name_id(*name),
+                                                        pos,
+                                                        type_val: None,
+                                                    })
+                                                })
+                                                .collect::<Vec<_>>(),
+                                            pos,
+                                        },
+                                        name: Namespace::from_name_id(*func_name),
+                                        mangled_name: Some(func_name.value.to_string()),
+                                        pos,
+                                        mangle: false,
+                                    })),
+                                    pos,
+                                })],
+                                pos,
+                                insert_return: false,
+                            });
+
+                            func_def.generate_proto(context)?;
+                            func_def_other.generate_proto(context)?;
+
+                            self.nodes.push(Statement::FunctionDefine(func_def_other));
+                        }
+                    }
+                }
                 Statement::TypeAssign(type_assign) => {
                     type_assign.type_check(None, context)?;
                 }
@@ -1143,6 +1197,7 @@ impl<'a> FunctionDefine<'a> {
         &mut self,
         context: &'b mut TypeCheckSymbTab<'a>,
     ) -> Result<(), ErrorOrVec<'a>> {
+        let to_mangle = self.block.is_some(); // Mangle if there is a block
         let mut positional = Vec::new();
         for idx in 0..self.arguments.positional.len() {
             self.arguments.positional[idx] = (
@@ -1194,20 +1249,23 @@ impl<'a> FunctionDefine<'a> {
                         },
                         self.pos,
                     ),
+                    to_mangle,
                 )?;
-                self.mangled_name = Some(
-                    self.name.mangle_overload(
-                        &self
-                            .arguments
-                            .positional
-                            .iter()
-                            .map(|(_, type_val)| type_val.unwrap_type_check_ref())
-                            .collect::<Vec<_>>()[..],
-                        Some(self.return_type.unwrap_type_check_ref()),
-                        token,
-                        context,
-                    )?,
-                );
+                if let None = self.mangled_name {
+                    self.mangled_name = Some(
+                        self.name.mangle_overload(
+                            &self
+                                .arguments
+                                .positional
+                                .iter()
+                                .map(|(_, type_val)| type_val.unwrap_type_check_ref())
+                                .collect::<Vec<_>>()[..],
+                            Some(self.return_type.unwrap_type_check_ref()),
+                            token,
+                            context,
+                        )?,
+                    );
+                }
             }
             None => {
                 self.name = context.set_function(
@@ -1235,20 +1293,22 @@ impl<'a> FunctionDefine<'a> {
                         },
                         self.pos,
                     ),
+                    to_mangle,
                 )?;
-
-                self.mangled_name = Some(
-                    self.name.mangle_types(
-                        &self
-                            .arguments
-                            .positional
-                            .iter()
-                            .map(|(_, type_val)| type_val.unwrap_type_check_ref())
-                            .collect::<Vec<_>>()[..],
-                        Some(self.return_type.unwrap_type_check_ref()),
-                        context,
-                    )?,
-                );
+                if let None = self.mangled_name {
+                    self.mangled_name = Some(
+                        self.name.mangle_types(
+                            &self
+                                .arguments
+                                .positional
+                                .iter()
+                                .map(|(_, type_val)| type_val.unwrap_type_check_ref())
+                                .collect::<Vec<_>>()[..],
+                            Some(self.return_type.unwrap_type_check_ref()),
+                            context,
+                        )?,
+                    );
+                }
             }
         }
 
@@ -1645,29 +1705,40 @@ impl<'a> TypeCheckSymbTab<'a> {
         namespace: Rc<Namespace<'a>>,
         overload_val: TokenType<'a>,
         value: SymbTabObj<'a>,
+        mangle: bool,
     ) -> Result<Rc<Namespace<'a>>, ErrorOrVec<'a>> {
-        let adjusted_namespace = Rc::new(
-            namespace
-                .as_ref()
-                .clone()
-                .prepend_namespace(self.curr_prefix.clone()),
-        );
+        let adjusted_namespace = if mangle {
+            Rc::new(
+                namespace
+                    .as_ref()
+                    .clone()
+                    .prepend_namespace(self.curr_prefix.clone()),
+            )
+        } else {
+            Rc::clone(&namespace)
+        };
+
         let func = value.unwrap_function_ref().0.value.unwrap_func();
 
         self.items.insert(
-            adjusted_namespace.mangle_overload(
-                &func
-                    .0
-                    .positional
-                    .iter()
-                    .map(|val| &val.1)
-                    .collect::<Vec<_>>()[..],
-                Some(func.1),
-                overload_val,
-                self,
-            )?,
+            if mangle {
+                adjusted_namespace.mangle_overload(
+                    &func
+                        .0
+                        .positional
+                        .iter()
+                        .map(|val| &val.1)
+                        .collect::<Vec<_>>()[..],
+                    Some(func.1),
+                    overload_val,
+                    self,
+                )?
+            } else {
+                adjusted_namespace.scopes.last().unwrap().value.to_string()
+            },
             value,
         );
+
         Ok(Rc::clone(&adjusted_namespace))
     }
 
@@ -1675,26 +1746,36 @@ impl<'a> TypeCheckSymbTab<'a> {
         &mut self,
         namespace: Rc<Namespace<'a>>,
         value: SymbTabObj<'a>,
+        mangle: bool,
     ) -> Result<Rc<Namespace<'a>>, ErrorOrVec<'a>> {
-        let adjusted_namespace = Rc::new(
-            namespace
-                .as_ref()
-                .clone()
-                .prepend_namespace(self.curr_prefix.clone()),
-        );
+        let adjusted_namespace = if mangle {
+            Rc::new(
+                namespace
+                    .as_ref()
+                    .clone()
+                    .prepend_namespace(self.curr_prefix.clone()),
+            )
+        } else {
+            Rc::clone(&namespace)
+        };
+
         let func = value.unwrap_function_ref().0.value.unwrap_func();
 
         self.items.insert(
-            adjusted_namespace.mangle_types(
-                &func
-                    .0
-                    .positional
-                    .iter()
-                    .map(|val| &val.1)
-                    .collect::<Vec<_>>()[..],
-                Some(func.1),
-                self,
-            )?,
+            if mangle {
+                adjusted_namespace.mangle_types(
+                    &func
+                        .0
+                        .positional
+                        .iter()
+                        .map(|val| &val.1)
+                        .collect::<Vec<_>>()[..],
+                    Some(func.1),
+                    self,
+                )?
+            } else {
+                adjusted_namespace.scopes.last().unwrap().value.to_string()
+            },
             value,
         );
         Ok(Rc::clone(&adjusted_namespace))
@@ -1913,13 +1994,17 @@ impl<'a> TypeCheckSymbTab<'a> {
         namespace: Rc<Namespace<'a>>,
         types: &[TypeCheckType<'a>],
         return_type: Option<&TypeCheckType<'a>>,
+        mangle: bool,
     ) -> Result<(&SymbTabObj<'a>, Rc<Namespace<'a>>), ErrorOrVec<'a>> {
         let types_ref = &types.iter().collect::<Vec<_>>();
         // Namespace of std
-        match self
-            .items
-            .get(&namespace.mangle_types(types_ref, return_type, self)?[..])
-        {
+        match self.items.get(
+            &if mangle {
+                namespace.mangle_types(types_ref, return_type, self)?
+            } else {
+                namespace.scopes.last().unwrap().value.to_string()
+            }[..],
+        ) {
             Some(val) => match val.deref() {
                 SymbTabObj::Function(_, _) => return Ok((val, namespace)),
                 _ => {}
@@ -1932,10 +2017,13 @@ impl<'a> TypeCheckSymbTab<'a> {
             .as_ref()
             .clone()
             .prepend_namespace(self.curr_prefix.clone());
-        match self
-            .items
-            .get(&other.mangle_types(&types_ref, return_type, self)?[..])
-        {
+        match self.items.get(
+            &if mangle {
+                other.mangle_types(types_ref, return_type, self)?
+            } else {
+                other.scopes.last().unwrap().value.to_string()
+            }[..],
+        ) {
             Some(val) => match val.deref() {
                 SymbTabObj::Function(_, _) => return Ok((val, Rc::new(other))),
                 other => {
@@ -1960,8 +2048,20 @@ impl<'a> TypeCheckSymbTab<'a> {
             None => {}
         }
 
-        let functions_name_other = self.get_prefix_string(&other.mangle()[..]);
-        let functions_name_normal = self.get_prefix_string(&namespace.mangle()[..]);
+        let other_man = other.mangle();
+        let namespace_man = namespace.mangle();
+
+        let (functions_name_other, functions_name_normal) = if mangle {
+            (
+                self.get_prefix_string(&other_man[..]),
+                self.get_prefix_string(&namespace_man[..]),
+            )
+        } else {
+            (
+                self.get_prefix_string(other.scopes.last().unwrap().value),
+                self.get_prefix_string(namespace.scopes.last().unwrap().value),
+            )
+        };
 
         // TODO: add a "did you mean..."
         if !functions_name_normal.is_empty() {

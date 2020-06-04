@@ -1,5 +1,4 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use lib::helpers;
 use lib::logger;
 use lib::parser;
 

@@ -294,6 +294,7 @@ pub struct FunctionCall<'a> {
     pub arguments: ArgumentsRun<'a>,
     pub name: Rc<Namespace<'a>>,
     pub mangled_name: Option<String>,
+    pub mangle: bool,
     pub pos: helpers::Pos<'a>,
 }
 

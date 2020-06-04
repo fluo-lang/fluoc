@@ -285,6 +285,7 @@ impl<'a> CodeGenModule<'a> {
 
     fn gen_function_prototype(&mut self, func_def: &ast::FunctionDefine<'_>) {
         let func_name = &func_def.mangled_name.as_ref().unwrap()[..];
+        println!("{}", func_name);
         let return_type = self.get_type(func_def.return_type.unwrap_type_check_ref());
         let fn_type = return_type.fn_type(
             &func_def
