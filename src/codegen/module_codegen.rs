@@ -207,7 +207,7 @@ impl<'a> CodeGenModule<'a> {
             .build_call(
                 self.module.get_function(&str_val[..]).unwrap(),
                 &arguments[..],
-                &str_val[..],
+                &func_call.name.to_string()[..],
             )
             .try_as_basic_value()
             .left()

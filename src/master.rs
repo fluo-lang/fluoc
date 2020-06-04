@@ -17,6 +17,7 @@ use std::time::Instant;
 use inkwell::context::Context;
 use inkwell::module;
 use inkwell::passes::PassManager;
+use inkwell::passes::PassManagerSubType;
 use inkwell::targets::{InitializationConfig, Target, TargetMachine};
 
 pub struct Master<'a> {
@@ -44,7 +45,6 @@ impl<'a> Master<'a> {
             .context
             .create_module(filename.to_str().expect("Filename specified is not valid"));
 
-        self.init_passes(&module);
         let mut code_gen_mod = helpers::error_or_other(
             CodeGenModule::new(
                 module,
@@ -63,26 +63,30 @@ impl<'a> Master<'a> {
             .add_file(&filename, code_gen_mod.typecheck.parser.lexer.file_contents);
 
         helpers::error_or_other(code_gen_mod.generate(), Rc::clone(&self.logger));
+
+        let pass_manager = self.init_passes();
+        pass_manager.run_on(&code_gen_mod.module);
         self.modules.insert(&filename, code_gen_mod);
 
         self.write_obj_file(&filename);
         self.link_objs(&filename);
     }
 
-    fn init_passes(&self, module: &module::Module<'_>) {
-        let fpm = PassManager::create(module);
+    fn init_passes(&self) -> PassManager<module::Module<'a>> {
+        let fpm: PassManager<module::Module<'_>> = PassManager::create(());
 
         fpm.add_instruction_combining_pass();
+        fpm.add_tail_call_elimination_pass();
         fpm.add_reassociate_pass();
+        fpm.add_constant_propagation_pass();
         fpm.add_gvn_pass();
         fpm.add_cfg_simplification_pass();
         fpm.add_basic_alias_analysis_pass();
         fpm.add_promote_memory_to_register_pass();
-        fpm.add_instruction_combining_pass();
-        fpm.add_reassociate_pass();
         fpm.add_tail_call_elimination_pass();
+        fpm.add_instruction_combining_pass();
 
-        fpm.initialize();
+        return fpm;
     }
 
     fn write_obj_file(&self, filename: &'a path::Path) {
