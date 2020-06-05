@@ -27,24 +27,21 @@ macro_rules! ignore_or_return {
 #[derive(Copy, Clone, PartialEq, PartialOrd)]
 pub enum Prec {
     LOWEST = 0,
-    // TODO: Add bool operators
+
+    /// Comparison operators
+    COMP = 1,
+
     /// `+` and `-`
-    TERM = 1,
+    TERM = 2,
 
     /// `*` and `/` and `%`
-    FACTOR = 2,
+    FACTOR = 3,
 
     /// `as` operator (CONVersion operator)
-    CONV = 3,
+    CONV = 4,
 
     /// `-` (negate) and others (i.e. `!` logical negate)
-    PREFIX = 4,
-
-    /// Function call
-    CALL = 5,
-
-    /// Variable assignment as expr
-    VARIABLE = 6,
+    PREFIX = 5,
 }
 
 /// Recursive descent parser
@@ -186,6 +183,17 @@ impl<'a> Parser<'a> {
 
         // `as` keyword
         self.register_infix(lexer::TokenType::AS, Prec::CONV);
+
+        // `>`
+        self.register_infix(lexer::TokenType::GT, Prec::COMP);
+        // `<`
+        self.register_infix(lexer::TokenType::LT, Prec::COMP);
+        // `>=`
+        self.register_infix(lexer::TokenType::GE, Prec::COMP);
+        // `<=`
+        self.register_infix(lexer::TokenType::LE, Prec::COMP);
+        // `==`
+        self.register_infix(lexer::TokenType::EQ, Prec::COMP);
     }
 
     pub fn register_prefix(&mut self, token: lexer::TokenType<'a>, prec: Prec) {

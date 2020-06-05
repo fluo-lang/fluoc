@@ -42,6 +42,12 @@ pub enum TokenType<'a> {
     SUB,
     DMOD,
 
+    GT, // > Greater than
+    LT, // < Less than
+    GE, // >= Greater than or equal to
+    LE, // <= Less than or equal to
+    EQ, // == Equal to
+
     ARROW,
 
     LP,
@@ -132,6 +138,12 @@ impl<'a> fmt::Display for Token<'a> {
             TokenType::ADD => "operator `+`".to_string(),
             TokenType::SUB => "operator `-`".to_string(),
             TokenType::DMOD => "operator `%%`".to_string(),
+            TokenType::GT => "operator `>`".to_string(),
+            TokenType::LT => "operator `<`".to_string(),
+            TokenType::GE => "operator `>=`".to_string(),
+            TokenType::LE => "operator `<=`".to_string(),
+            TokenType::EQ => "operator `==`".to_string(),
+
             TokenType::DOLLAR => "token `$`".to_string(),
             TokenType::AT => "token `@`".to_string(),
 
@@ -303,6 +315,20 @@ impl<'a> Lexer<'a> {
                     _ => TokenType::MOD,
                 },
                 '$' => TokenType::DOLLAR,
+                '>' => match self.peek_char() {
+                    '=' => {
+                        self.bump();
+                        TokenType::GE
+                    }
+                    _ => TokenType::GT,
+                },
+                '<' => match self.peek_char() {
+                    '=' => {
+                        self.bump();
+                        TokenType::LE
+                    }
+                    _ => TokenType::LT,
+                },
 
                 '(' => TokenType::LP,
                 ')' => TokenType::RP,
@@ -313,7 +339,14 @@ impl<'a> Lexer<'a> {
 
                 '.' => TokenType::DOT,
                 ';' => TokenType::SEMI,
-                '=' => TokenType::EQUALS,
+                '=' => match self.peek_char() {
+                    '=' => {
+                        self.bump();
+                        TokenType::EQ
+                    }
+                    _ => TokenType::EQUALS,
+                },
+
                 '?' => TokenType::QUESTION,
                 ',' => TokenType::COMMA,
                 ':' => match self.peek_char() {

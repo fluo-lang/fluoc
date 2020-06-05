@@ -93,7 +93,6 @@ impl<'a> CodeGenModule<'a> {
             self.gen_stmt_pass_2(statement)
         }
 
-        println!("{}", self.module.print_to_string().to_string());
         self.typecheck.parser.logger.borrow().log_verbose(&|| {
             format!(
                 "{}: LLVM IR generated",
@@ -285,7 +284,6 @@ impl<'a> CodeGenModule<'a> {
 
     fn gen_function_prototype(&mut self, func_def: &ast::FunctionDefine<'_>) {
         let func_name = &func_def.mangled_name.as_ref().unwrap()[..];
-        println!("{}", func_name);
         let return_type = self.get_type(func_def.return_type.unwrap_type_check_ref());
         let fn_type = return_type.fn_type(
             &func_def
@@ -400,8 +398,6 @@ impl<'a> CodeGenModule<'a> {
             highest_block = else_block;
         }
 
-        //println!("{}", self.module.print_to_string().to_string());
-
         match &conditional.else_branch {
             Some(else_branch) => {
                 // There is an else branch
@@ -414,6 +410,7 @@ impl<'a> CodeGenModule<'a> {
             }
             None => {
                 // Jump to next part of flow after this
+                self.builder.position_at_end(else_block);
                 self.builder.build_unconditional_branch(after_cond);
             }
         };

@@ -26,4 +26,11 @@
             "program": "${workspaceRoot}/target/debug/bin",
             "cwd": "${workspaceFolder}"
         },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'a.out'",
+            "program": "${workspaceRoot}/a.out",
+            "cwd": "${workspaceFolder}"
+        },
     }

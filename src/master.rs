@@ -17,7 +17,6 @@ use std::time::Instant;
 use inkwell::context::Context;
 use inkwell::module;
 use inkwell::passes::PassManager;
-use inkwell::passes::PassManagerSubType;
 use inkwell::targets::{InitializationConfig, Target, TargetMachine};
 
 pub struct Master<'a> {
@@ -66,6 +65,8 @@ impl<'a> Master<'a> {
 
         let pass_manager = self.init_passes();
         pass_manager.run_on(&code_gen_mod.module);
+
+        println!("{}", code_gen_mod.module.print_to_string().to_string());
         self.modules.insert(&filename, code_gen_mod);
 
         self.write_obj_file(&filename);
@@ -80,11 +81,11 @@ impl<'a> Master<'a> {
         fpm.add_reassociate_pass();
         fpm.add_constant_propagation_pass();
         fpm.add_gvn_pass();
-        fpm.add_cfg_simplification_pass();
         fpm.add_basic_alias_analysis_pass();
         fpm.add_promote_memory_to_register_pass();
         fpm.add_tail_call_elimination_pass();
         fpm.add_instruction_combining_pass();
+        //fpm.add_verifier_pass();
 
         return fpm;
     }
@@ -104,7 +105,7 @@ impl<'a> Master<'a> {
                 "",
                 inkwell::OptimizationLevel::Aggressive,
                 inkwell::targets::RelocMode::Default,
-                inkwell::targets::CodeModel::Default,
+                inkwell::targets::CodeModel::Kernel,
             )
             .unwrap();
 
@@ -142,6 +143,7 @@ impl<'a> Master<'a> {
             "_N5entry_R2t0_A0".to_string(),
             "-no-pie".to_string(),
             "-Qunused-arguments".to_string(),
+            "-g".to_string(),
         ];
 
         args.append(

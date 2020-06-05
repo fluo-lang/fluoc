@@ -799,29 +799,18 @@ impl<'a> TypeCheckType<'a> {
             }
             Expr::Infix(infix) => {
                 // TODO: add type infer based on known types of left or right
-
-                let mut owned_left = Box::new(Expr::Empty(Empty {
-                    pos: (*infix.left).pos(),
-                }));
-                std::mem::swap(&mut infix.left, &mut owned_left);
-
-                let mut owned_right = Box::new(Expr::Empty(Empty {
-                    pos: (*infix.right).pos(),
-                }));
-                std::mem::swap(&mut infix.right, &mut owned_right);
-
                 // Infer types based one one type or the other
                 let (left_type, right_type) = match (
-                    TypeCheckType::from_expr(&mut *owned_left, context, return_type),
-                    TypeCheckType::from_expr(&mut *owned_right, context, return_type),
+                    TypeCheckType::from_expr(&mut *infix.left, context, return_type),
+                    TypeCheckType::from_expr(&mut *infix.right, context, return_type),
                 ) {
                     (Ok(l), Ok(r)) => (l, r),
                     (Ok(l), Err(_)) => {
-                        let right = TypeCheckType::from_expr(&mut *owned_right, context, Some(&l))?;
+                        let right = TypeCheckType::from_expr(&mut *infix.right, context, Some(&l))?;
                         (l, right)
                     }
                     (Err(_), Ok(r)) => (
-                        TypeCheckType::from_expr(&mut *owned_left, context, Some(&r))?,
+                        TypeCheckType::from_expr(&mut *infix.left, context, Some(&r))?,
                         r,
                     ),
                     (Err(e), Err(_)) => {
@@ -837,7 +826,7 @@ impl<'a> TypeCheckType<'a> {
 
                 infix.function_call = Some(FunctionCall {
                     arguments: ArgumentsRun {
-                        positional: vec![*owned_left, *owned_right],
+                        positional: vec![*infix.left.clone(), *infix.right.clone()],
                         pos: infix.pos,
                     },
                     pos: infix.pos,
@@ -892,7 +881,10 @@ impl<'a> TypeCheckType<'a> {
                     ));
                 }
             }
-            _ => panic!("Type expression inference not implemented yet"),
+            _ => panic!(
+                "Type expression inference not implemented yet for {:?}",
+                val
+            ),
         })
     }
 }

@@ -1,0 +1,9 @@
+
+def fib(n: int) -> int {
+    return fib(n);
+}
+
+public
+def entry() {
+    fib(2);
+}

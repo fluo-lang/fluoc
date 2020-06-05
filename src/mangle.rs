@@ -71,6 +71,11 @@ impl<'a> TokenType<'a> {
             TokenType::DMOD => "mdd",
             TokenType::MOD => "mod",
             TokenType::MUL => "mul",
+            TokenType::GT => "grt",
+            TokenType::LT => "lst",
+            TokenType::GE => "get",
+            TokenType::LE => "let",
+            TokenType::EQ => "eqt",
             _ => panic!("{} cannot be mangled", self),
         };
 
