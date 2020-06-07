@@ -1,4 +1,7 @@
 // For benchmarks
+#[macro_use]
+extern crate lazy_static;
+
 pub mod codegen;
 pub mod fluo_core;
 pub mod helpers;

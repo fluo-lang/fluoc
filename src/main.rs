@@ -1,5 +1,8 @@
 #![feature(backtrace)]
 #![warn(rust_2018_idioms)]
+#[macro_use]
+extern crate lazy_static;
+
 pub mod codegen;
 pub mod helpers;
 pub mod lexer;
@@ -50,14 +53,25 @@ fn main() {
     let context = Context::create();
     
     let read_file_start = Instant::now();
-    let contents = paths::read_file(filename.as_path());
+    let mut contents = paths::read_file(filename.as_path());
+
+    let mut prelude_path: path::PathBuf = helpers::CORE_LOC.to_owned();
+    prelude_path.pop();
+    prelude_path.pop();
+    prelude_path.push("prelude.fl");
+
+    let prelude = paths::read_file(&prelude_path);
+    contents += &prelude[..];
     let mut master = master::Master::new(&context, matches.is_present("verbose"));
     master.logger.borrow().log_verbose(&|| format!("{}: Read file", helpers::display_duration(read_file_start.elapsed()))); // Lazily run it so no impact on performance
-
+    
     master.generate_file(
         filename.as_path(),
         &contents[..],
-        path::Path::new(matches.value_of("output").unwrap_or("out.o")),
+        path::Path::new("out.ll"),
+        path::Path::new("out.o"),
+        path::Path::new("out.bc"),
+        path::Path::new("out.s"),
     );
 
     master.logger.borrow().log(format!("{}: All Done", helpers::display_duration(master_start.elapsed())));

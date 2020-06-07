@@ -17,7 +17,6 @@ use std::time::Instant;
 use inkwell::context::Context;
 use inkwell::module;
 use inkwell::passes::PassManager;
-use inkwell::targets::{InitializationConfig, Target, TargetMachine};
 
 pub struct Master<'a> {
     context: &'a Context,
@@ -38,7 +37,10 @@ impl<'a> Master<'a> {
         &mut self,
         filename: &'a path::Path,
         file_contents: &'a str,
-        output_file: &'a path::Path,
+        output_file_ir: &'a path::Path,
+        output_file_obj: &'a path::Path,
+        output_file_bc: &'a path::Path,
+        output_file_asm: &'a path::Path,
     ) {
         let module = self
             .context
@@ -51,7 +53,10 @@ impl<'a> Master<'a> {
                 &filename,
                 file_contents,
                 Rc::clone(&self.logger),
-                output_file,
+                output_file_ir,
+                output_file_obj,
+                output_file_bc,
+                output_file_asm,
             ),
             Rc::clone(&self.logger),
         );
@@ -66,10 +71,11 @@ impl<'a> Master<'a> {
         let pass_manager = self.init_passes();
         pass_manager.run_on(&code_gen_mod.module);
 
-        println!("{}", code_gen_mod.module.print_to_string().to_string());
+        //println!("{}", code_gen_mod.module.print_to_string().to_string());
         self.modules.insert(&filename, code_gen_mod);
 
-        self.write_obj_file(&filename);
+        self.write_ir_file(&filename);
+        self.link_to_obj(&filename);
         self.link_objs(&filename);
     }
 
@@ -79,57 +85,27 @@ impl<'a> Master<'a> {
         fpm.add_instruction_combining_pass();
         fpm.add_tail_call_elimination_pass();
         fpm.add_reassociate_pass();
+        fpm.add_function_inlining_pass();
         fpm.add_constant_propagation_pass();
         fpm.add_gvn_pass();
         fpm.add_basic_alias_analysis_pass();
         fpm.add_promote_memory_to_register_pass();
         fpm.add_tail_call_elimination_pass();
         fpm.add_instruction_combining_pass();
-        //fpm.add_verifier_pass();
 
         return fpm;
     }
 
-    fn write_obj_file(&self, filename: &'a path::Path) {
-        let module = self.modules.get(filename).unwrap();
-
-        Target::initialize_native(&InitializationConfig::default())
-            .expect("Failed to initialize native target");
-        let default_triple = TargetMachine::get_default_triple();
-        let target = Target::from_triple(&default_triple).expect("Failed to get target");
-
-        let target_machine = target
-            .create_target_machine(
-                &default_triple,
-                "x86-64",
-                "",
-                inkwell::OptimizationLevel::Aggressive,
-                inkwell::targets::RelocMode::Default,
-                inkwell::targets::CodeModel::Kernel,
-            )
-            .unwrap();
-
+    fn write_ir_file(&self, filename: &'a path::Path) {
         let write_obj_start = Instant::now();
-        target_machine
-            .write_to_file(
-                &module.module,
-                inkwell::targets::FileType::Object,
-                &path::Path::new(module.output_file),
-            )
-            .expect("Error writing object");
-        self.logger.borrow().log_verbose(&|| {
-            format!(
-                "{}: Object file written",
-                helpers::display_duration(write_obj_start.elapsed())
-            )
-        }); // Lazily run it so no impact on performance
-    }
-
-    fn link_objs(&self, filename: &'a path::Path) {
-        // DYLD_LIBRARY_PATH="$(rustc --print sysroot)/lib:$DYLD_LIBRARY_PATH" ./a.out
-        let link_start = Instant::now();
         let module = self.modules.get(filename).unwrap();
-        let mut core_loc = helpers::get_core_loc();
+
+        module
+            .module
+            .print_to_file(module.output_ir)
+            .expect("Failed to write llvm ir to file");
+
+        let mut core_loc: path::PathBuf = helpers::CORE_LOC.to_owned();
         core_loc.pop();
 
         let paths = match fs::read_dir(&core_loc) {
@@ -138,12 +114,9 @@ impl<'a> Master<'a> {
         };
 
         let mut args = vec![
-            paths::path_to_str(&module.output_file).to_string(),
-            "-e".to_string(),
-            "_N5entry_R2t0_A0".to_string(),
-            "-no-pie".to_string(),
-            "-Qunused-arguments".to_string(),
-            "-g".to_string(),
+            paths::path_to_str(&module.output_ir).to_string(),
+            "-o".to_string(),
+            paths::path_to_str(&module.output_bc).to_string(),
         ];
 
         args.append(
@@ -157,14 +130,159 @@ impl<'a> Master<'a> {
                             .path()
                             .extension()
                             .unwrap_or(OsStr::new(""))
-                            == OsStr::new("o"))
+                            == OsStr::new("ll"))
                 })
                 .map(|obj_path| paths::pathbuf_to_string(obj_path.unwrap().path()))
                 .collect(),
         );
 
+        match Command::new("llvm-link").args(&args[..]).spawn() {
+            Ok(mut child) => match child.wait() {
+                Ok(_) => {}
+                Err(e) => {
+                    eprintln!(
+                        "{}Error when linking llvm ir:{} {}",
+                        color::RED,
+                        color::RESET,
+                        e
+                    );
+                    process::exit(1);
+                }
+            },
+            Err(e) => {
+                eprintln!(
+                    "{}Error when linking llvm ir:{} {}",
+                    color::RED,
+                    color::RESET,
+                    e
+                );
+                process::exit(1);
+            }
+        };
+
+        self.logger.borrow().log_verbose(&|| {
+            format!(
+                "{}: IR linker command invoked: {}`llvm-link {}`",
+                helpers::display_duration(write_obj_start.elapsed()),
+                color::RESET,
+                args.join(" ")
+            )
+        });
+
+        self.logger.borrow().log_verbose(&|| {
+            format!(
+                "{}: IR file written and linked",
+                helpers::display_duration(write_obj_start.elapsed())
+            )
+        });
+    }
+
+    fn link_to_obj(&self, filename: &'a path::Path) {
+        let ir_to_asm = Instant::now();
+        let module = self.modules.get(filename).unwrap();
+
+        match Command::new("llc")
+            .args(&[
+                paths::path_to_str(&module.output_bc).to_string(),
+                "-O3".to_string(),
+                "-o".to_string(),
+                paths::path_to_str(&module.output_asm).to_string(),
+            ])
+            .spawn()
+        {
+            Ok(mut child) => match child.wait() {
+                Ok(_) => {}
+                Err(e) => {
+                    eprintln!(
+                        "{}Error when turning LLVM into asm:{} {}",
+                        color::RED,
+                        color::RESET,
+                        e
+                    );
+                    process::exit(1);
+                }
+            },
+            Err(e) => {
+                eprintln!(
+                    "{}Error when turning LLVM into asm:{} {}",
+                    color::RED,
+                    color::RESET,
+                    e
+                );
+                process::exit(1);
+            }
+        };
+
+        self.logger.borrow().log_verbose(&|| {
+            format!(
+                "{}: IR file turned into asm",
+                helpers::display_duration(ir_to_asm.elapsed())
+            )
+        });
+
+        let asm_to_obj = Instant::now();
+
+        match Command::new("as")
+            .args(&[
+                paths::path_to_str(&module.output_asm).to_string(),
+                "-o".to_string(),
+                paths::path_to_str(&module.output_obj).to_string(),
+            ])
+            .spawn()
+        {
+            Ok(mut child) => match child.wait() {
+                Ok(_) => {}
+                Err(e) => {
+                    eprintln!(
+                        "{}Error when turning asm into object:{} {}",
+                        color::RED,
+                        color::RESET,
+                        e
+                    );
+                    process::exit(1);
+                }
+            },
+            Err(e) => {
+                eprintln!(
+                    "{}Error when turning asm into object:{} {}",
+                    color::RED,
+                    color::RESET,
+                    e
+                );
+                process::exit(1);
+            }
+        };
+
+        self.logger.borrow().log_verbose(&|| {
+            format!(
+                "{}: asm turned into obj",
+                helpers::display_duration(asm_to_obj.elapsed())
+            )
+        });
+    }
+
+    fn link_objs(&self, filename: &'a path::Path) {
+        // DYLD_LIBRARY_PATH="$(rustc --print sysroot)/lib:$DYLD_LIBRARY_PATH" ./a.out
+        let link_start = Instant::now();
+        let module = self.modules.get(filename).unwrap();
+
+        let args = vec![
+            paths::path_to_str(&module.output_obj).to_string(),
+            "-e".to_string(),
+            "_N5entry_R2t0_A0".to_string(),
+            "-no-pie".to_string(),
+            "-Qunused-arguments".to_string(),
+            "-g".to_string(),
+        ];
+
         match Command::new("gcc").args(&args[..]).spawn() {
-            Ok(_) => {}
+            Ok(mut child) => match child.wait() {
+                Ok(_) => {}
+                Err(e) => {
+                    eprintln!("{}Error when linking:{} {}", color::RED, color::RESET, e);
+                    process::exit(1);
+                }
+            },
             Err(e) => {
                 eprintln!("{}Error when linking:{} {}", color::RED, color::RESET, e);
                 process::exit(1);

@@ -75,19 +75,21 @@ pub fn display_duration(duration: std::time::Duration) -> String {
     }
 }
 
-pub fn get_core_loc() -> path::PathBuf {
-    let mut core_path = match current_exe() {
-        Ok(val) => val,
-        Err(e) => paths::file_error(e, "fluo core lib"),
+lazy_static! {
+    pub static ref CORE_LOC: path::PathBuf = {
+        let mut core_path = match current_exe() {
+            Ok(val) => val,
+            Err(e) => paths::file_error(e, "fluo core lib"),
+        };
+        core_path.pop();
+        core_path.pop();
+        core_path.pop();
+
+        core_path.push("src");
+        core_path.push("fluo_core");
+        core_path.push("core");
+        core_path.push("core.fl");
+
+        core_path
     };
-    core_path.pop();
-    core_path.pop();
-    core_path.pop();
-
-    core_path.push("src");
-    core_path.push("fluo_core");
-    core_path.push("core");
-    core_path.push("core.fl");
-
-    core_path
 }

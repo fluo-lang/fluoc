@@ -1,9 +1,12 @@
 
 def fib(n: int) -> int {
-    return fib(n);
+    if (n <= 0) {
+        return 1;
+    }
+    return fib(n - 2) + fib(n - 1);
 }
 
 public
 def entry() {
-    fib(2);
+    core::fmt::print_int(fib(45));
 }

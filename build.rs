@@ -4,7 +4,7 @@ use std::process;
 
 extern crate inkwell;
 use inkwell::passes::PassManager;
-use inkwell::targets::{InitializationConfig, Target, TargetMachine};
+use inkwell::targets::{InitializationConfig, Target};
 use inkwell::AddressSpace;
 use inkwell::{builder, context, module};
 
@@ -173,8 +173,9 @@ impl<'a> Generator<'a> {
 
         for (func_name, pred) in key_vals.iter() {
             let i32_type = self.context.i32_type();
+            let bool_type = self.context.bool_type();
 
-            let fn_type = i32_type.fn_type(&[i32_type.into(), i32_type.into()], false);
+            let fn_type = bool_type.fn_type(&[i32_type.into(), i32_type.into()], false);
             let fn_addr = self.module.add_function(func_name, fn_type, None);
 
             let entry_block = self.context.append_basic_block(fn_addr, "entry");
@@ -205,28 +206,6 @@ macro_rules! generate_llvm {
             Ok(_) => {}
             Err(e) => error("LLVM build error:".to_string(), e.to_string()),
         };
-
-        let default_triple = TargetMachine::get_default_triple();
-        let target = Target::from_triple(&default_triple).expect("Failed to get target");
-
-        let target_machine = target
-            .create_target_machine(
-                &default_triple,
-                "x86-64",
-                "",
-                inkwell::OptimizationLevel::Aggressive,
-                inkwell::targets::RelocMode::Default,
-                inkwell::targets::CodeModel::Default,
-            )
-            .unwrap();
-
-        target_machine
-            .write_to_file(
-                &gen.module,
-                inkwell::targets::FileType::Object,
-                &$core_path.join(format!("{}.o", $name)),
-            )
-            .expect("Error writing object");
     };
 }
 
