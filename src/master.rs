@@ -184,9 +184,11 @@ impl<'a> Master<'a> {
         match Command::new("llc")
             .args(&[
                 paths::path_to_str(&module.output_bc).to_string(),
+                "-filetype".to_string(),
+                "obj".to_string(),
                 "-O3".to_string(),
                 "-o".to_string(),
-                paths::path_to_str(&module.output_asm).to_string(),
+                paths::path_to_str(&module.output_obj).to_string(),
             ])
             .spawn()
         {
@@ -217,46 +219,6 @@ impl<'a> Master<'a> {
             format!(
                 "{}: IR file turned into asm",
                 helpers::display_duration(ir_to_asm.elapsed())
-            )
-        });
-
-        let asm_to_obj = Instant::now();
-
-        match Command::new("as")
-            .args(&[
-                paths::path_to_str(&module.output_asm).to_string(),
-                "-o".to_string(),
-                paths::path_to_str(&module.output_obj).to_string(),
-            ])
-            .spawn()
-        {
-            Ok(mut child) => match child.wait() {
-                Ok(_) => {}
-                Err(e) => {
-                    eprintln!(
-                        "{}Error when turning asm into object:{} {}",
-                        color::RED,
-                        color::RESET,
-                        e
-                    );
-                    process::exit(1);
-                }
-            },
-            Err(e) => {
-                eprintln!(
-                    "{}Error when turning asm into object:{} {}",
-                    color::RED,
-                    color::RESET,
-                    e
-                );
-                process::exit(1);
-            }
-        };
-
-        self.logger.borrow().log_verbose(&|| {
-            format!(
-                "{}: asm turned into obj",
-                helpers::display_duration(asm_to_obj.elapsed())
             )
         });
     }

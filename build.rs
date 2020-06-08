@@ -48,6 +48,7 @@ impl<'a> Generator<'a> {
     fn generate_fmt(&mut self) {
         self.generate_printf();
         self.generate_print_int();
+        self.generate_print_long();
     }
 
     fn generate_printf(&mut self) {
@@ -92,15 +93,50 @@ impl<'a> Generator<'a> {
             )));
     }
 
+    fn generate_print_long(&mut self) {
+        // print_int ( long ) -> ()
+        let i64_type = self.context.i64_type();
+        let empty_tuple = self.context.struct_type(&[], false);
+
+        let fn_type = empty_tuple.fn_type(&[i64_type.into()], false);
+        let fn_addr = self.module.add_function("print_long", fn_type, None);
+
+        let entry_block = self.context.append_basic_block(fn_addr, "entry");
+
+        self.builder.position_at_end(entry_block);
+
+        let format = self.builder.build_global_string_ptr("%i\n", "format");
+
+        self.builder.build_call(
+            self.module
+                .get_function("printf")
+                .expect("There is no printf defined??"),
+            &[
+                inkwell::values::BasicValueEnum::PointerValue(format.as_pointer_value()),
+                fn_addr.get_nth_param(0).unwrap().into_int_value().into(),
+            ],
+            "temp2",
+        );
+
+        self.builder
+            .build_return(Some(&inkwell::values::BasicValueEnum::StructValue(
+                empty_tuple.const_named_struct(&[]),
+            )));
+    }
+
     fn generate_op(&mut self) {
         self.generate_add_int();
         self.generate_mul_int();
         self.generate_sub_int();
         self.generate_cmp_int();
+
+        self.generate_add_long();
+        self.generate_mul_long();
+        self.generate_sub_long();
+        self.generate_cmp_long();
     }
 
     fn generate_add_int(&mut self) {
-        // print_i32 ( int ) -> ()
         let i32_type = self.context.i32_type();
 
         let fn_type = i32_type.fn_type(&[i32_type.into(), i32_type.into()], false);
@@ -121,7 +157,6 @@ impl<'a> Generator<'a> {
     }
 
     fn generate_mul_int(&mut self) {
-        // print_i32 ( int ) -> ()
         let i32_type = self.context.i32_type();
 
         let fn_type = i32_type.fn_type(&[i32_type.into(), i32_type.into()], false);
@@ -142,7 +177,6 @@ impl<'a> Generator<'a> {
     }
 
     fn generate_sub_int(&mut self) {
-        // print_i32 ( int ) -> ()
         let i32_type = self.context.i32_type();
 
         let fn_type = i32_type.fn_type(&[i32_type.into(), i32_type.into()], false);
@@ -176,6 +210,98 @@ impl<'a> Generator<'a> {
             let bool_type = self.context.bool_type();
 
             let fn_type = bool_type.fn_type(&[i32_type.into(), i32_type.into()], false);
+            let fn_addr = self.module.add_function(func_name, fn_type, None);
+
+            let entry_block = self.context.append_basic_block(fn_addr, "entry");
+
+            self.builder.position_at_end(entry_block);
+
+            let cmp_result = self.builder.build_int_compare(
+                *pred,
+                fn_addr.get_nth_param(0).unwrap().into_int_value().into(),
+                fn_addr.get_nth_param(1).unwrap().into_int_value().into(),
+                &format!("{}_temp", func_name)[..],
+            );
+
+            self.builder
+                .build_return(Some(&inkwell::values::BasicValueEnum::IntValue(cmp_result)));
+        }
+    }
+
+    fn generate_add_long(&mut self) {
+        let i64_type = self.context.i64_type();
+
+        let fn_type = i64_type.fn_type(&[i64_type.into(), i64_type.into()], false);
+        let fn_addr = self.module.add_function("add_long", fn_type, None);
+
+        let entry_block = self.context.append_basic_block(fn_addr, "entry");
+
+        self.builder.position_at_end(entry_block);
+
+        let add_result = self.builder.build_int_add(
+            fn_addr.get_nth_param(0).unwrap().into_int_value().into(),
+            fn_addr.get_nth_param(1).unwrap().into_int_value().into(),
+            "int_addition_temp",
+        );
+
+        self.builder
+            .build_return(Some(&inkwell::values::BasicValueEnum::IntValue(add_result)));
+    }
+
+    fn generate_mul_long(&mut self) {
+        let i64_type = self.context.i64_type();
+
+        let fn_type = i64_type.fn_type(&[i64_type.into(), i64_type.into()], false);
+        let fn_addr = self.module.add_function("mul_long", fn_type, None);
+
+        let entry_block = self.context.append_basic_block(fn_addr, "entry");
+
+        self.builder.position_at_end(entry_block);
+
+        let add_result = self.builder.build_int_mul(
+            fn_addr.get_nth_param(0).unwrap().into_int_value().into(),
+            fn_addr.get_nth_param(1).unwrap().into_int_value().into(),
+            "int_multiplication_temp",
+        );
+
+        self.builder
+            .build_return(Some(&inkwell::values::BasicValueEnum::IntValue(add_result)));
+    }
+
+    fn generate_sub_long(&mut self) {
+        let i64_type = self.context.i64_type();
+
+        let fn_type = i64_type.fn_type(&[i64_type.into(), i64_type.into()], false);
+        let fn_addr = self.module.add_function("sub_long", fn_type, None);
+
+        let entry_block = self.context.append_basic_block(fn_addr, "entry");
+
+        self.builder.position_at_end(entry_block);
+
+        let add_result = self.builder.build_int_sub(
+            fn_addr.get_nth_param(0).unwrap().into_int_value().into(),
+            fn_addr.get_nth_param(1).unwrap().into_int_value().into(),
+            "int_subtraction_temp",
+        );
+
+        self.builder
+            .build_return(Some(&inkwell::values::BasicValueEnum::IntValue(add_result)));
+    }
+
+    fn generate_cmp_long(&mut self) {
+        let key_vals = [
+            ("equal_to_long", inkwell::IntPredicate::EQ),
+            ("less_than_long", inkwell::IntPredicate::SLT),
+            ("greater_than_long", inkwell::IntPredicate::SGT),
+            ("greater_than_eq_long", inkwell::IntPredicate::SGE),
+            ("less_than_eq_long", inkwell::IntPredicate::SLE),
+        ];
+
+        for (func_name, pred) in key_vals.iter() {
+            let i64_type = self.context.i64_type();
+            let bool_type = self.context.bool_type();
+
+            let fn_type = bool_type.fn_type(&[i64_type.into(), i64_type.into()], false);
             let fn_addr = self.module.add_function(func_name, fn_type, None);
 
             let entry_block = self.context.append_basic_block(fn_addr, "entry");

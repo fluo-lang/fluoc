@@ -1,21 +1,12 @@
-unit tests2;
+
+def fib(n: long) -> long {
+    if (n <= 0 long) {
+        return 1 long;
+    }
+    return fib(n - 2 long) + fib(n - 1 long);
+}
 
 public
 def entry() {
-    let x: int = 10;
-    let y: int;
-    y = 10;
-    core::fmt::print_int(x*x+y+10);
-
-    let z: int;
-    if (true) {
-        z = 123;
-    } else if (false) {
-        z = 1023*20;
-    } else {
-        z = 100;
-    }
-
-    core::fmt::print_int(z*x+y+10);
+    core::fmt::print_long(fib(46 long));
 }
-

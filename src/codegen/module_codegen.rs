@@ -238,7 +238,7 @@ impl<'a> CodeGenModule<'a> {
     }
 
     fn eval_literal(&mut self, literal: &ast::Literal<'a>) -> values::BasicValueEnum<'a> {
-        match self.get_type(&literal.type_val.as_ref().unwrap()) {
+        match self.get_type(&literal.type_val.unwrap_type_check_ref()) {
             int_val if int_val.is_int_type() => std::convert::From::from(
                 int_val.into_int_type().const_int(
                     literal
@@ -436,9 +436,10 @@ impl<'a> CodeGenModule<'a> {
                 match value.value.is_basic_type() {
                     Ok(basic_type) => match basic_type {
                         "int" => self.context.i32_type().into(),
+                        "long" => self.context.i64_type().into(),
                         "str" => self.context.i8_type().array_type(10).into(),
                         "bool" => self.context.bool_type().into(),
-                        val => panic!("`{}` type not implemented yet!", val),
+                        val => panic!("`{}` type not implemented yet! {:?}", val, type_ast.pos),
                     },
                     Err(_) => {
                         panic!("Tried to get basic type from SingleType, but its not a basic type",)

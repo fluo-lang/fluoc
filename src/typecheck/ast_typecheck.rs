@@ -561,16 +561,14 @@ impl<'a> TypeCheckType<'a> {
                 });
                 tuple_val.type_val.clone().unwrap()
             }
-            Expr::Literal(lit) => lit.type_val.clone().unwrap(),
+            Expr::Literal(lit) => lit.into_type(context, return_type)?,
             Expr::FunctionCall(func_call) => {
                 // Validate function call
                 let func_call_arg_types = func_call
                     .arguments
                     .positional
                     .iter_mut()
-                    .map(|mut argument| {
-                        TypeCheckType::from_expr(&mut argument, context, return_type)
-                    })
+                    .map(|mut argument| TypeCheckType::from_expr(&mut argument, context, None))
                     .collect::<Result<Vec<TypeCheckType<'_>>, _>>()?;
 
                 // Name of function gotten and function signature
@@ -801,8 +799,8 @@ impl<'a> TypeCheckType<'a> {
                 // TODO: add type infer based on known types of left or right
                 // Infer types based one one type or the other
                 let (left_type, right_type) = match (
-                    TypeCheckType::from_expr(&mut *infix.left, context, return_type),
-                    TypeCheckType::from_expr(&mut *infix.right, context, return_type),
+                    TypeCheckType::from_expr(&mut *infix.left, context, None),
+                    TypeCheckType::from_expr(&mut *infix.right, context, None),
                 ) {
                     (Ok(l), Ok(r)) => (l, r),
                     (Ok(l), Err(_)) => {
@@ -1725,7 +1723,11 @@ impl<'a> TypeType<'a> {
                 if let Some(val) = value.scopes.get(0) {
                     match val.value {
                         "int" => return Ok("int"),
+                        "{number}" => return Ok("{number}"),
+                        "long" => return Ok("long"),
+
                         "str" => return Ok("str"),
+
                         "bool" => return Ok("bool"),
                         _ => {}
                     }

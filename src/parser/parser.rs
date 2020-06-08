@@ -2,7 +2,7 @@ use crate::helpers;
 use crate::lexer;
 use crate::logger::logger::{Error, ErrorAnnotation, ErrorDisplayType, ErrorType, Logger};
 use crate::parser::ast;
-use crate::parser::ast::{Expr, Scope, Statement};
+use crate::parser::ast::{Expr, Scope, Statement, TypeCheckOrType};
 use crate::paths;
 use crate::typecheck::ast_typecheck::TypeCheckType;
 
@@ -1154,6 +1154,7 @@ impl<'a> Parser<'a> {
         }
 
         let exprs = [
+            Parser::number_type,
             Parser::integer,
             Parser::string_literal,
             Parser::dollar_expr,
@@ -1201,7 +1202,10 @@ impl<'a> Parser<'a> {
         if let lexer::TokenType::BOOL(value) = &possible_bool.token {
             Ok(ast::Expr::Literal(ast::Literal {
                 value,
-                type_val: Some(TypeCheckType::construct_basic("bool", possible_bool.pos)),
+                type_val: TypeCheckOrType::TypeCheckType(TypeCheckType::construct_basic(
+                    "bool",
+                    possible_bool.pos,
+                )),
                 pos: possible_bool.pos,
             }))
         } else {
@@ -1218,7 +1222,9 @@ impl<'a> Parser<'a> {
         if let lexer::TokenType::NUMBER(value) = &int.token {
             Ok(ast::Expr::Literal(ast::Literal {
                 value,
-                type_val: Some(TypeCheckType::construct_basic("int", int.pos)),
+                type_val: TypeCheckOrType::TypeCheckType(TypeCheckType::construct_basic(
+                    "{number}", int.pos,
+                )),
                 pos: int.pos,
             }))
         } else {
@@ -1228,6 +1234,33 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn number_type(&mut self) -> Result<Expr<'a>, Error<'a>> {
+        let position = self.token_pos;
+
+        let next_tok = self.forward();
+        let int = if let lexer::TokenType::NUMBER(value) = next_tok.token {
+            value
+        } else {
+            let temp = Err(self.syntax_error(next_tok, "expected integer", false, false));
+            self.set_pos(position);
+            return temp;
+        };
+
+        let type_val = Rc::new(match self.type_expr() {
+            Ok(val) => val,
+            Err(e) => {
+                self.set_pos(position);
+                return Err(e);
+            }
+        });
+
+        Ok(ast::Expr::Literal(ast::Literal {
+            value: int,
+            pos: helpers::Pos::new(next_tok.pos.s, type_val.pos.e, next_tok.pos.filename),
+            type_val: TypeCheckOrType::Type(type_val),
+        }))
+    }
+
     fn string_literal(&mut self) -> Result<Expr<'a>, Error<'a>> {
         let position = self.token_pos;
 
@@ -1235,7 +1268,9 @@ impl<'a> Parser<'a> {
         if let lexer::TokenType::STRING(value) = &string.token {
             Ok(ast::Expr::Literal(ast::Literal {
                 value,
-                type_val: Some(TypeCheckType::construct_basic("str", string.pos)),
+                type_val: TypeCheckOrType::TypeCheckType(TypeCheckType::construct_basic(
+                    "str", string.pos,
+                )),
                 pos: string.pos,
             }))
         } else {
