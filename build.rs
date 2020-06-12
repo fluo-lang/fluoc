@@ -105,7 +105,7 @@ impl<'a> Generator<'a> {
 
         self.builder.position_at_end(entry_block);
 
-        let format = self.builder.build_global_string_ptr("%i\n", "format");
+        let format = self.builder.build_global_string_ptr("%ld\n", "format");
 
         self.builder.build_call(
             self.module
