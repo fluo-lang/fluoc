@@ -336,6 +336,7 @@ macro_rules! generate_llvm {
 }
 
 fn main() {
+    println!("cargo:rerun-if-changed=build.rs");
     let mut core_path = match current_exe() {
         Ok(val) => val,
         Err(e) => error("Error getting current executable path:".to_string(), e),
