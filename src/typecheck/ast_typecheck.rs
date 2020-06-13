@@ -887,6 +887,7 @@ impl<'a> TypeCheckType<'a> {
     }
 }
 
+// TODO: get rid of these cows
 pub trait TypeCheck<'a>: std::fmt::Debug {
     fn type_check<'b>(
         &mut self,
