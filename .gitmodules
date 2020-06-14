@@ -5,4 +5,4 @@
 	branch = master
 [submodule "src/fluo_std"]
 	path = src/fluo_std
-	url = git@github.com:fluo-lang/fluo_std.git
+	url = https://github.com/fluo-lang/fluo_std
