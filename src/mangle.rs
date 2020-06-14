@@ -50,16 +50,16 @@ use std::rc::Rc;
 pub(crate) fn gen_manged_args<'a, 'b>(
     types: &[&ast_typecheck::TypeCheckType<'a>],
     context: &'b ast_typecheck::TypeCheckSymbTab<'a>,
-) -> String {
+) -> Result<String, ErrorOrVec<'a>> {
     let mangled_args = types
         .into_iter()
         .map(|arg_type| {
-            let arg_mangled = arg_type.mangle(context);
-            format!("P{}{}", arg_mangled.len(), arg_mangled)
+            let arg_mangled = arg_type.mangle(context)?;
+            Ok(format!("P{}{}", arg_mangled.len(), arg_mangled))
         })
-        .collect::<Vec<_>>()
+        .collect::<Result<Vec<_>, _>>()?
         .join("_");
-    format!("_A{}{}", mangled_args.len(), mangled_args)
+    Ok(format!("_A{}{}", mangled_args.len(), mangled_args))
 }
 
 impl<'a> TokenType<'a> {
@@ -110,7 +110,7 @@ impl<'a> ast::Namespace<'a> {
 
         match return_type {
             Some(ret_type) => {
-                let ret_type_mangled = ret_type.mangle(context);
+                let ret_type_mangled = ret_type.mangle(context)?;
                 mangled += &format!("_R{}{}", ret_type_mangled.len(), ret_type_mangled)[..];
             }
             None => {
@@ -128,7 +128,7 @@ impl<'a> ast::Namespace<'a> {
                         .0
                         .value
                         .unwrap_func_return_ref()
-                        .mangle(context)[..];
+                        .mangle(context)?[..];
                     mangled += &format!("_R{}{}", ret_type_mangled.len(), ret_type_mangled)[..];
                 } else if length == 0 {
                     mangled.clear();
@@ -173,7 +173,7 @@ impl<'a> ast::Namespace<'a> {
             }
         }
 
-        mangled += &gen_manged_args(types, context)[..];
+        mangled += &gen_manged_args(types, context)?[..];
 
         Ok(mangled)
     }
@@ -190,7 +190,7 @@ impl<'a> ast::Namespace<'a> {
 
         match return_type {
             Some(ret_type) => {
-                let ret_type_mangled = ret_type.mangle(context);
+                let ret_type_mangled = ret_type.mangle(context)?;
                 mangled += &format!("_R{}{}", ret_type_mangled.len(), ret_type_mangled)[..];
             }
             None => {
@@ -208,7 +208,7 @@ impl<'a> ast::Namespace<'a> {
                         .0
                         .value
                         .unwrap_func_return_ref()
-                        .mangle(context)[..];
+                        .mangle(context)?[..];
                     mangled += &format!("_R{}{}", ret_type_mangled.len(), ret_type_mangled)[..];
                 } else if length == 0 {
                     mangled.clear();
@@ -253,7 +253,7 @@ impl<'a> ast::Namespace<'a> {
             }
         }
 
-        mangled += &gen_manged_args(types, context)[..];
+        mangled += &gen_manged_args(types, context)?[..];
 
         Ok(mangled)
     }
@@ -261,29 +261,31 @@ impl<'a> ast::Namespace<'a> {
 
 impl<'a> ast_typecheck::TypeCheckType<'a> {
     /// Mangle typecheck type
-    pub(crate) fn mangle<'b>(&self, context: &'b ast_typecheck::TypeCheckSymbTab<'a>) -> String {
-        match &self.value {
+    pub(crate) fn mangle<'b>(
+        &self,
+        context: &'b ast_typecheck::TypeCheckSymbTab<'a>,
+    ) -> Result<String, ErrorOrVec<'a>> {
+        Ok(match &self.value {
             ast_typecheck::TypeCheckTypeType::SingleType(val) => val.mangle(),
             ast_typecheck::TypeCheckTypeType::CustomType(val, _) => context
-                .get_type(Rc::clone(val))
-                .unwrap()
+                .get_type(Rc::clone(val))?
                 .unwrap_type_ref()
                 .0
-                .mangle(context),
+                .mangle(context)?,
             ast_typecheck::TypeCheckTypeType::TupleType(val) => {
                 let tuple_items = val
                     .types
                     .iter()
                     .map(|type_val| {
-                        let mangled = type_val.mangle(context);
-                        format!("{}{}", mangled.len(), mangled)
+                        let mangled = type_val.mangle(context)?;
+                        Ok(format!("{}{}", mangled.len(), mangled))
                     })
-                    .collect::<Vec<_>>()
+                    .collect::<Result<Vec<_>, _>>()?
                     .join("_");
                 format!("t{}{}", tuple_items.len(), tuple_items)
             }
             _ => panic!("No name mangling for {}", self),
-        }
+        })
     }
 }
 

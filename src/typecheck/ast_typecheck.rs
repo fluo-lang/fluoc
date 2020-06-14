@@ -865,7 +865,6 @@ impl<'a> TypeCheckType<'a> {
     }
 }
 
-// TODO: get rid of these cows
 pub trait TypeCheck<'a>: std::fmt::Debug {
     fn type_check<'b>(
         &mut self,
@@ -1940,15 +1939,15 @@ impl<'a> TypeCheckSymbTab<'a> {
     ) -> Result<(String, &SymbTabObj<'a>), ErrorOrVec<'a>> {
         let end = &match return_type {
             Some(val) => {
-                let ret_type = val.mangle(self);
+                let ret_type = val.mangle(self)?;
                 format!(
                     "R{}{}{}",
                     ret_type.len(),
                     ret_type,
-                    mangle::gen_manged_args(types, self),
+                    mangle::gen_manged_args(types, self)?,
                 )
             }
-            None => mangle::gen_manged_args(types, self),
+            None => mangle::gen_manged_args(types, self)?,
         }[..];
 
         let possible_overloads = self

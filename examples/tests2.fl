@@ -1,6 +1,6 @@
 
 type value = int;
 
-def hello(val: int) -> value {
-    return 10;
+public def hello(val: int) -> tests2::value {
+    return val;
 }
