@@ -47,6 +47,141 @@ use crate::typecheck::ast_typecheck;
 
 use std::rc::Rc;
 
+#[derive(PartialEq, Debug)]
+pub enum NodeChild {
+    RawString(String),
+    Children(Vec<Node>),
+}
+
+#[derive(PartialEq, Debug)]
+pub struct Node {
+    descriptor: char,
+    child: NodeChild,
+}
+
+impl Node {
+    pub fn demangle(input: String) -> Node {
+        Node {
+            descriptor: '$',
+            child: NodeChild::demangle(input),
+        }
+    }
+}
+
+impl NodeChild {
+    fn demangle(input: String) -> NodeChild {
+        let mut characters = input.chars().peekable();
+        let mut nodes = Vec::new();
+        loop {
+            let first = match characters.next() {
+                Some(val) => val,
+                None => break,
+            };
+            let mut next_char = *(match characters.peek() {
+                Some(val) => val,
+                None => break,
+            });
+
+            if '0' <= next_char && next_char <= '9' {
+                let mut modifier_amount = String::new();
+                let mut first_loop = true;
+                while '0' <= next_char && next_char <= '9' {
+                    if !first_loop {
+                        characters.next();
+                    } else {
+                        first_loop = false;
+                    }
+
+                    modifier_amount.push(next_char);
+                    next_char = *characters.peek().unwrap();
+                }
+
+                let length = modifier_amount[1..].parse::<usize>().unwrap();
+                let mut descriptor_string = String::with_capacity(length);
+                for _ in 0..length {
+                    descriptor_string.push(characters.next().unwrap());
+                }
+
+                nodes.push(Node {
+                    descriptor: first,
+                    child: NodeChild::demangle(descriptor_string),
+                })
+            } else {
+                return NodeChild::RawString(input);
+            }
+
+            characters.next();
+        }
+
+        NodeChild::Children(nodes)
+    }
+}
+
+#[cfg(test)]
+mod demangle_tests {
+    use super::*;
+
+    #[test]
+    fn simple_test() {
+        assert_eq!(
+            Node::demangle("N5entry".to_string()),
+            Node {
+                descriptor: '$',
+                child: NodeChild::Children(vec![Node {
+                    descriptor: 'N',
+                    child: NodeChild::RawString("entry".to_string()),
+                }])
+            }
+        )
+    }
+
+    #[test]
+    fn complex_test() {
+        assert_eq!(
+            Node::demangle("N7my_func_P5V3int_P5V3int_R14t11V3int_V3int".to_string()),
+            Node {
+                descriptor: '$',
+                child: NodeChild::Children(vec![
+                    Node {
+                        descriptor: 'N',
+                        child: NodeChild::RawString("my_func".to_string())
+                    },
+                    Node {
+                        descriptor: 'P',
+                        child: NodeChild::Children(vec![Node {
+                            descriptor: 'V',
+                            child: NodeChild::RawString("int".to_string())
+                        }])
+                    },
+                    Node {
+                        descriptor: 'P',
+                        child: NodeChild::Children(vec![Node {
+                            descriptor: 'V',
+                            child: NodeChild::RawString("int".to_string())
+                        }])
+                    },
+                    Node {
+                        descriptor: 'R',
+                        child: NodeChild::Children(vec![Node {
+                            descriptor: 't',
+                            child: NodeChild::Children(vec![
+                                Node {
+                                    descriptor: 'V',
+                                    child: NodeChild::RawString("int".to_string())
+                                },
+                                Node {
+                                    descriptor: 'V',
+                                    child: NodeChild::RawString("int".to_string())
+                                }
+                            ])
+                        }])
+                    }
+                ])
+            }
+        )
+    }
+}
+
 pub(crate) fn gen_manged_args<'a, 'b>(
     types: &[&ast_typecheck::TypeCheckType<'a>],
     context: &'b ast_typecheck::TypeCheckSymbTab<'a>,

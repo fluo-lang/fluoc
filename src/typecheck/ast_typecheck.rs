@@ -2082,10 +2082,9 @@ impl<'a> TypeCheckSymbTab<'a> {
         mangle: bool,
     ) -> Result<(&SymbTabObj<'a>, Rc<Namespace<'a>>), ErrorOrVec<'a>> {
         let types_ref = &types.iter().collect::<Vec<_>>();
-        /* Namespace of std
         match self.items.get(
             &if mangle {
-                namespace.mangle_types(types_ref, return_type, &mut self)?
+                namespace.mangle_types(types_ref, return_type, self)?
             } else {
                 namespace.scopes.last().unwrap().value.to_string()
             }[..],
@@ -2095,7 +2094,7 @@ impl<'a> TypeCheckSymbTab<'a> {
                 _ => {}
             },
             None => {}
-        }*/
+        }
 
         // Try other namespace
         let other = namespace

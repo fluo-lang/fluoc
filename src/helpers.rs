@@ -92,4 +92,20 @@ lazy_static! {
 
         core_path
     };
+    pub static ref STD_LOC: path::PathBuf = {
+        let mut core_path = match current_exe() {
+            Ok(val) => val,
+            Err(e) => paths::file_error(e, "fluo std lib"),
+        };
+        core_path.pop();
+        core_path.pop();
+        core_path.pop();
+
+        core_path.push("src");
+        core_path.push("fluo_std");
+        core_path.push("std");
+        core_path.push("std.fl");
+
+        core_path
+    };
 }

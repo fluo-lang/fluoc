@@ -4,6 +4,7 @@ extern crate lazy_static;
 
 pub mod codegen;
 pub mod fluo_core;
+pub mod fluo_std;
 pub mod helpers;
 pub mod lexer;
 pub mod logger;

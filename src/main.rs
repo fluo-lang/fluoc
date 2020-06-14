@@ -12,6 +12,7 @@ pub mod parser;
 pub mod typecheck;
 pub mod paths;
 pub mod fluo_core;
+pub mod fluo_std;
 pub mod mangle;
 
 #[macro_use]

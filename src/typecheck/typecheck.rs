@@ -1,4 +1,5 @@
 use crate::fluo_core;
+use crate::fluo_std;
 use crate::helpers;
 use crate::logger::logger::{Error, Logger};
 use crate::parser::parser::Parser;
@@ -49,6 +50,13 @@ impl<'a> TypeCheckModule<'a> {
             .append(&mut fluo_core::core::load_core(Rc::clone(
                 &self.parser.logger,
             )));
+
+        self.parser
+            .ast
+            .as_mut()
+            .unwrap()
+            .nodes
+            .append(&mut fluo_std::std::load_std(Rc::clone(&self.parser.logger)));
 
         self.parser.logger.borrow().log_verbose(&|| {
             format!(
