@@ -175,7 +175,7 @@ impl<'a> PartialEq for ArgumentsTypeCheck<'a> {
 #[derive(PartialEq, Debug, Clone)]
 pub enum TypeCheckTypeType<'a> {
     FunctionSig(ArgumentsTypeCheck<'a>, Box<TypeCheckType<'a>>, Visibility),
-    SingleType(Rc<Type<'a>>),
+    SingleType(Rc<Namespace<'a>>),
     TupleType(UnionType<'a>),
     ArrayType(Box<TypeCheckType<'a>>, usize), // Length
     CustomType(Rc<Namespace<'a>>, Option<Box<TypeCheckType<'a>>>), // Single Type
@@ -312,7 +312,7 @@ impl<'a> TypeCheckType<'a> {
     pub fn cast_to_basic<'b>(
         &'b self,
         context: &'b TypeCheckSymbTab<'a>,
-    ) -> Result<&'static str, ErrorOrVec<'a>> {
+    ) -> Result<String, ErrorOrVec<'a>> {
         match &self.value {
             TypeCheckTypeType::FunctionSig(_, _, _) => Err(ErrorOrVec::Error(
                 Error::new(
@@ -329,25 +329,7 @@ impl<'a> TypeCheckType<'a> {
                 ),
                 ErrorLevel::TypeError,
             )),
-            TypeCheckTypeType::SingleType(type_val) => {
-                type_val.value.is_basic_type().or_else(|_| {
-                    Err(ErrorOrVec::Error(
-                        Error::new(
-                            format!("`{}` is not primitive", self),
-                            ErrorType::TypeCastError,
-                            self.pos,
-                            ErrorDisplayType::Error,
-                            vec![ErrorAnnotation::new(
-                                Some(format!("has type `{}`", self)),
-                                self.pos,
-                                ErrorDisplayType::Error,
-                            )],
-                            true,
-                        ),
-                        ErrorLevel::TypeError,
-                    ))
-                })
-            }
+            TypeCheckTypeType::SingleType(type_val) => Ok(type_val.to_string()),
             TypeCheckTypeType::TupleType(_) => Err(ErrorOrVec::Error(
                 Error::new(
                     "tuple cannot be casted as primitive".to_string(),
@@ -434,7 +416,7 @@ impl<'a> TypeCheckType<'a> {
             Ok(TypeCheckType {
                 pos: val.pos,
                 inferred: val.inferred,
-                value: TypeCheckTypeType::SingleType(val),
+                value: TypeCheckTypeType::SingleType(val.value.unwrap_type()),
             })
         } else if let TypeType::Tuple(types) = &val.value {
             Ok(TypeCheckType {
@@ -478,16 +460,12 @@ impl<'a> TypeCheckType<'a> {
 
     pub fn construct_basic(type_name: &'a str, pos: helpers::Pos<'a>) -> TypeCheckType<'a> {
         TypeCheckType {
-            value: TypeCheckTypeType::SingleType(Rc::new(Type {
-                value: TypeType::Type(Rc::new(Namespace {
-                    scopes: vec![NameID {
-                        value: type_name,
-                        pos,
-                    }],
+            value: TypeCheckTypeType::SingleType(Rc::new(Namespace {
+                scopes: vec![NameID {
+                    value: type_name,
                     pos,
-                })),
+                }],
                 pos,
-                inferred: false,
             })),
             pos,
             inferred: false,
@@ -1569,7 +1547,7 @@ impl<'a> TypeCheck<'a> for Conditional<'a> {
             )?;
 
             match actual_type.cast_to_basic(&mut new_context) {
-                Ok(val) => match val {
+                Ok(val) => match val.as_str() {
                     "bool" => {}
                     _ => {
                         return Err(Conditional::generate_bool_err(

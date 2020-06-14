@@ -263,7 +263,7 @@ impl<'a> ast_typecheck::TypeCheckType<'a> {
     /// Mangle typecheck type
     pub(crate) fn mangle<'b>(&self, context: &'b ast_typecheck::TypeCheckSymbTab<'a>) -> String {
         match &self.value {
-            ast_typecheck::TypeCheckTypeType::SingleType(val) => val.value.mangle(),
+            ast_typecheck::TypeCheckTypeType::SingleType(val) => val.mangle(),
             ast_typecheck::TypeCheckTypeType::CustomType(val, _) => context
                 .get_type(Rc::clone(val))
                 .unwrap()

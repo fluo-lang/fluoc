@@ -97,9 +97,11 @@ impl<'a> Literal<'a> {
                 ret_type.cast_to_basic(context),
                 type_val.cast_to_basic(context),
             ) {
-                (Ok("int"), Ok("{number}")) => ret_type.clone(),
-                (Ok("long"), Ok("{number}")) => ret_type.clone(),
-                (Ok(_), Ok(_)) => ret_type.clone(),
+                (Ok(val1), Ok(val2)) => match (&val1[..], &val2[..]) {
+                    ("int", "{number}") => ret_type.clone(),
+                    ("long", "{number}") => ret_type.clone(),
+                    (_, _) => ret_type.clone(),
+                },
                 (Err(e), _) => panic!(
                     "Tried to cast non basic literal to basic. Should not happen!! {:?}",
                     e
@@ -409,6 +411,15 @@ impl<'a> fmt::Display for TypeType<'a> {
             }
         };
         write!(f, "{}", rep)
+    }
+}
+
+impl<'a> TypeType<'a> {
+    pub fn unwrap_type(&self) -> Rc<Namespace<'a>> {
+        match self {
+            TypeType::Type(val) => Rc::clone(val),
+            TypeType::Tuple(_) => panic!("Tried to unwrap type from typetype, found tuple"),
+        }
     }
 }
 
