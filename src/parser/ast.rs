@@ -490,10 +490,21 @@ impl<'a> Namespace<'a> {
         &mut self.scopes
     }
 
-    pub fn prepend_namespace(&mut self, mut other: Vec<NameID<'a>>) -> Namespace<'a> {
-        std::mem::swap(&mut self.scopes, &mut other); // Put into other
-        self.scopes.append(&mut other); // Append self.scopes
+    pub fn prepend_namespace(&mut self, other: &mut Vec<NameID<'a>>) -> Namespace<'a> {
+        std::mem::swap(&mut self.scopes, other); // Put into other
+        self.scopes.append(other); // Append self.scopes
         self.clone()
+    }
+
+    pub fn prepend_namespace_rc(&self, other: &[NameID<'a>]) -> Namespace<'a> {
+        Namespace {
+            scopes: other
+                .iter()
+                .chain(&self.scopes)
+                .map(|x| *x)
+                .collect::<Vec<_>>(),
+            pos: self.pos,
+        }
     }
 }
 

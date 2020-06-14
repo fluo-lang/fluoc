@@ -3,5 +3,5 @@ unit tests2;
 
 public
 def entry() {
-    tests2::hello(1239 int);
+    tests2::hello(1239 tests2::value);
 }

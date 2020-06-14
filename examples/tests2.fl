@@ -1,6 +1,7 @@
 
+public
 type value = int;
 
-public def hello(val: int) -> tests2::value {
+public def hello(val: value) -> value {
     return val;
 }

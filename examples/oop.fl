@@ -7,7 +7,7 @@ class Animal (
         this.farts += 1;
     }
 
-    pattern std::oop::new (weight: int) {
+    pattern std::oop::new(weight: int) {
         return Animal { farts = 0, weight: weight };
     }
 }

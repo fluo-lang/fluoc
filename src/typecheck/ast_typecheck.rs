@@ -246,6 +246,32 @@ impl<'a> fmt::Display for TypeCheckType<'a> {
 }
 
 impl<'a> TypeCheckType<'a> {
+    fn prepend_namespace(&mut self, prepend_name: &[NameID<'a>]) {
+        match &mut self.value {
+            TypeCheckTypeType::FunctionSig(arguments, return_type, _) => {
+                arguments
+                    .positional
+                    .iter_mut()
+                    .for_each(|(k, v)| v.prepend_namespace(prepend_name));
+                return_type.prepend_namespace(prepend_name);
+            }
+            TypeCheckTypeType::SingleType(type_val) => {}
+            TypeCheckTypeType::TupleType(types) => {
+                types
+                    .types
+                    .iter_mut()
+                    .for_each(|v| v.prepend_namespace(prepend_name));
+            }
+            TypeCheckTypeType::ArrayType(elements_types, _) => {
+                elements_types.prepend_namespace(prepend_name);
+            }
+            TypeCheckTypeType::CustomType(ref mut namespace, _) => {
+                *namespace = Rc::new(namespace.prepend_namespace_rc(prepend_name));
+            }
+            TypeCheckTypeType::Placeholder => panic!("Tried to print placeholder value"),
+        }
+    }
+
     /// Check for equivalence of types
     fn sequiv<'b>(
         left: &Self,
@@ -412,14 +438,14 @@ impl<'a> TypeCheckType<'a> {
         context: &'b mut TypeCheckSymbTab<'a>,
         is_none: bool, // Special case on whether to eval the custom type into a basic type or not
     ) -> Result<TypeCheckType<'a>, ErrorOrVec<'a>> {
-        if let Ok(_) = val.value.is_basic_type() {
-            Ok(TypeCheckType {
+        let mut temp_type = if let Ok(_) = val.value.is_basic_type() {
+            TypeCheckType {
                 pos: val.pos,
                 inferred: val.inferred,
                 value: TypeCheckTypeType::SingleType(val.value.unwrap_type()),
-            })
+            }
         } else if let TypeType::Tuple(types) = &val.value {
-            Ok(TypeCheckType {
+            TypeCheckType {
                 value: TypeCheckTypeType::TupleType(UnionType {
                     types: types
                         .into_iter()
@@ -430,9 +456,9 @@ impl<'a> TypeCheckType<'a> {
                 }),
                 pos: val.pos,
                 inferred: val.inferred,
-            })
+            }
         } else if let TypeType::Type(other) = &val.value {
-            Ok(TypeCheckType {
+            TypeCheckType {
                 value: TypeCheckTypeType::CustomType(
                     Rc::clone(other),
                     if is_none {
@@ -449,13 +475,17 @@ impl<'a> TypeCheckType<'a> {
                 ),
                 pos: val.pos,
                 inferred: val.inferred,
-            })
+            }
         } else {
             panic!(format!(
                 "Unknown type {:?} tried to convert to type check type",
                 val
             ));
-        }
+        };
+
+        temp_type.prepend_namespace(&context.curr_prefix);
+
+        Ok(temp_type)
     }
 
     pub fn construct_basic(type_name: &'a str, pos: helpers::Pos<'a>) -> TypeCheckType<'a> {
@@ -474,7 +504,7 @@ impl<'a> TypeCheckType<'a> {
 
     fn generate_func_type_mismatch(
         func_call: &FunctionCall<'a>,
-        func_arg_types: Vec<&TypeCheckType<'_>>,
+        func_arg_types: &[&TypeCheckType<'_>],
         func_call_arg_types: Vec<TypeCheckType<'_>>,
     ) -> ErrorOrVec<'a> {
         ErrorOrVec::Error(
@@ -560,14 +590,6 @@ impl<'a> TypeCheckType<'a> {
 
                 func_call.name = func_union_namespace.1;
 
-                if let None = func_call.mangled_name {
-                    func_call.mangled_name = Some(func_call.name.mangle_types(
-                        &func_call_arg_types.iter().collect::<Vec<_>>()[..],
-                        return_type,
-                        context,
-                    )?);
-                }
-
                 if func.0.value.get_visibility() == Visibility::Private
                     && func.0.pos.filename != func_call.pos.filename
                 {
@@ -595,6 +617,7 @@ impl<'a> TypeCheckType<'a> {
                         ErrorLevel::TypeError,
                     ));
                 };
+
                 let func_arg_types: Vec<&TypeCheckType<'_>> = func
                     .0
                     .value
@@ -609,23 +632,33 @@ impl<'a> TypeCheckType<'a> {
                     // Not same length, raise error
                     return Err(TypeCheckType::generate_func_type_mismatch(
                         func_call,
-                        func_arg_types,
+                        &func_arg_types,
                         func_call_arg_types,
                     ));
                 }
+
+                let temp = func.0.value.clone().unwrap_func_return();
 
                 for (real_type, call_type) in func_arg_types.iter().zip(&func_call_arg_types) {
                     // Check if called argument type matches with expected type
                     if !TypeCheckType::sequiv(real_type, call_type, context)? {
                         return Err(TypeCheckType::generate_func_type_mismatch(
                             func_call,
-                            func_arg_types,
+                            &func_arg_types,
                             func_call_arg_types,
                         ));
                     }
                 }
 
-                func.0.value.clone().unwrap_func_return()
+                if let None = func_call.mangled_name {
+                    func_call.mangled_name = Some(func_call.name.mangle_types(
+                        &func_call_arg_types.iter().collect::<Vec<_>>()[..],
+                        return_type,
+                        context,
+                    )?);
+                }
+
+                temp
             }
             Expr::VariableAssignDeclaration(variable_assignment_dec) => {
                 let cast_type = TypeCheckOrType::as_typecheck_type(
@@ -1745,7 +1778,7 @@ impl<'a> TypeCheckSymbTab<'a> {
             namespace
                 .as_ref()
                 .clone()
-                .prepend_namespace(self.curr_prefix.clone()),
+                .prepend_namespace(&mut self.curr_prefix.clone()),
         );
 
         self.items.insert(adjusted_namespace.mangle(), value);
@@ -1764,7 +1797,7 @@ impl<'a> TypeCheckSymbTab<'a> {
                 namespace
                     .as_ref()
                     .clone()
-                    .prepend_namespace(self.curr_prefix.clone()),
+                    .prepend_namespace(&mut self.curr_prefix.clone()),
             )
         } else {
             Rc::clone(&namespace)
@@ -1805,7 +1838,7 @@ impl<'a> TypeCheckSymbTab<'a> {
                 namespace
                     .as_ref()
                     .clone()
-                    .prepend_namespace(self.curr_prefix.clone()),
+                    .prepend_namespace(&mut self.curr_prefix.clone()),
             )
         } else {
             Rc::clone(&namespace)
@@ -2049,10 +2082,10 @@ impl<'a> TypeCheckSymbTab<'a> {
         mangle: bool,
     ) -> Result<(&SymbTabObj<'a>, Rc<Namespace<'a>>), ErrorOrVec<'a>> {
         let types_ref = &types.iter().collect::<Vec<_>>();
-        // Namespace of std
+        /* Namespace of std
         match self.items.get(
             &if mangle {
-                namespace.mangle_types(types_ref, return_type, self)?
+                namespace.mangle_types(types_ref, return_type, &mut self)?
             } else {
                 namespace.scopes.last().unwrap().value.to_string()
             }[..],
@@ -2062,13 +2095,13 @@ impl<'a> TypeCheckSymbTab<'a> {
                 _ => {}
             },
             None => {}
-        }
+        }*/
 
         // Try other namespace
         let other = namespace
             .as_ref()
             .clone()
-            .prepend_namespace(self.curr_prefix.clone());
+            .prepend_namespace(&mut self.curr_prefix.clone());
         match self.items.get(
             &if mangle {
                 other.mangle_types(types_ref, return_type, self)?
@@ -2235,7 +2268,6 @@ impl<'a> TypeCheckSymbTab<'a> {
         &self,
         namespace: Rc<Namespace<'a>>,
     ) -> Result<&SymbTabObj<'a>, ErrorOrVec<'a>> {
-        // Namespace of std
         match self.items.get(&namespace.mangle()) {
             Some(val) => match val.deref() {
                 SymbTabObj::CustomType(typechecktype, visibility) => {
@@ -2261,7 +2293,7 @@ impl<'a> TypeCheckSymbTab<'a> {
         let other = namespace
             .as_ref()
             .clone()
-            .prepend_namespace(self.curr_prefix.clone());
+            .prepend_namespace(&mut self.curr_prefix.clone());
 
         match self.items.get(&other.mangle()) {
             Some(val) => match val.deref() {
