@@ -401,7 +401,10 @@ impl<'a> ast_typecheck::TypeCheckType<'a> {
         context: &'b ast_typecheck::TypeCheckSymbTab<'a>,
     ) -> Result<String, ErrorOrVec<'a>> {
         Ok(match &self.value {
-            ast_typecheck::TypeCheckTypeType::SingleType(val) => val.mangle(),
+            ast_typecheck::TypeCheckTypeType::SingleType(val) => {
+                let mangled = val.mangle();
+                format!("V{}{}", mangled.len(), mangled)
+            }
             ast_typecheck::TypeCheckTypeType::CustomType(val, _) => context
                 .get_type(Rc::clone(val))?
                 .unwrap_type_ref()
@@ -421,19 +424,6 @@ impl<'a> ast_typecheck::TypeCheckType<'a> {
             }
             _ => panic!("No name mangling for {}", self),
         })
-    }
-}
-
-impl<'a> ast::TypeType<'a> {
-    /// Mangle typecheck type
-    pub(crate) fn mangle(&self) -> String {
-        match self {
-            ast::TypeType::Tuple(_) => panic!("no"),
-            ast::TypeType::Type(type_val) => {
-                let mangled = type_val.mangle();
-                format!("V{}{}", mangled.len(), mangled)
-            }
-        }
     }
 }
 
