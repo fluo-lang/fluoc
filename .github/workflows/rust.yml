@@ -2,16 +2,16 @@ name: build-test-bench
 
 on:
   push:
-    branches: [ master ]
+    branches: [master]
   pull_request:
-    branches: [ master ]
+    branches: [master]
 
 jobs:
   build:
     strategy:
-        matrix:
-          os: [macos-latest, ubuntu-latest]
-          include:
+      matrix:
+        os: [macos-latest, ubuntu-latest]
+        include:
           - os: macos-latest
             INSTALL_LLVM: brew install llvm
             ENV_VARS: LLVM_SYS_100_PREFIX="/usr/local/opt/llvm"
@@ -20,22 +20,22 @@ jobs:
             ENV_VARS: ~
     runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v2
-    - name: Checkout submodules
-      shell: bash
-      run: |
-        auth_header="$(git config --local --get http.https://github.com/.extraheader)"
-        git submodule sync --recursive
-        git -c "http.extraheader=$auth_header" -c protocol.version=2 submodule update --init --force --recursive --depth=1
-    - name: Install LLVM
-      run: ${{matrix.INSTALL_LLVM}}
-    - name: Get rust nightly
-      run: rustup install nightly
-    - name: Set rust nightly as default for cargo
-      run: rustup default nightly
-    - name: Build
-      run: ${{matrix.ENV_VARS}} cargo build --verbose --release
-    - name: Run tests
-      run: ${{matrix.ENV_VARS}} cargo test --verbose
-    - name: Run benchmarks
-      run: ${{matrix.ENV_VARS}} cargo bench --verbose
+      - uses: actions/checkout@v2
+      - name: Checkout submodules
+        shell: bash
+        run: |
+          auth_header="$(git config --local --get http.https://github.com/.extraheader)"
+          git submodule sync --recursive
+          git -c "http.extraheader=$auth_header" -c protocol.version=2 submodule update --init --force --recursive --depth=1
+      - name: Install LLVM
+        run: ${{matrix.INSTALL_LLVM}}
+      - name: Get rust nightly
+        run: rustup install nightly
+      - name: Set rust nightly as default for cargo
+        run: rustup default nightly
+      - name: Build
+        run: ${{matrix.ENV_VARS}} cargo build --verbose --release
+      - name: Run tests
+        run: ${{matrix.ENV_VARS}} cargo test --verbose
+      - name: Run benchmarks
+        run: ${{matrix.ENV_VARS}} cargo bench --verbose

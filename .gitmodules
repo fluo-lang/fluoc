@@ -3,3 +3,6 @@
 	url = https://github.com/fluo-lang/fluo_core
 [submodule "fluo_core"]
 	branch = master
+[submodule "src/fluo_std"]
+	path = src/fluo_std
+	url = https://github.com/fluo-lang/fluo_std

@@ -8,9 +8,10 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::fs;
+use std::io::Write;
 use std::path;
 use std::process;
-use std::process::Command;
+use std::process::{Child, Command, Output, Stdio};
 use std::rc::Rc;
 use std::time::Instant;
 
@@ -39,8 +40,6 @@ impl<'a> Master<'a> {
         file_contents: &'a str,
         output_file_ir: &'a path::Path,
         output_file_obj: &'a path::Path,
-        output_file_bc: &'a path::Path,
-        output_file_asm: &'a path::Path,
     ) {
         let module = self
             .context
@@ -55,8 +54,6 @@ impl<'a> Master<'a> {
                 Rc::clone(&self.logger),
                 output_file_ir,
                 output_file_obj,
-                output_file_bc,
-                output_file_asm,
             ),
             Rc::clone(&self.logger),
         );
@@ -74,8 +71,7 @@ impl<'a> Master<'a> {
         //println!("{}", code_gen_mod.module.print_to_string().to_string());
         self.modules.insert(&filename, code_gen_mod);
 
-        self.write_ir_file(&filename);
-        self.link_to_obj(&filename);
+        self.link_to_obj(&filename, self.write_ir_file(&filename));
         self.link_objs(&filename);
     }
 
@@ -96,7 +92,7 @@ impl<'a> Master<'a> {
         return fpm;
     }
 
-    fn write_ir_file(&self, filename: &'a path::Path) {
+    fn write_ir_file(&self, filename: &'a path::Path) -> Output {
         let write_obj_start = Instant::now();
         let module = self.modules.get(filename).unwrap();
 
@@ -113,11 +109,7 @@ impl<'a> Master<'a> {
             Err(e) => paths::file_error(e, core_loc.display()),
         };
 
-        let mut args = vec![
-            paths::path_to_str(&module.output_ir).to_string(),
-            "-o".to_string(),
-            paths::path_to_str(&module.output_bc).to_string(),
-        ];
+        let mut args = vec![paths::path_to_str(&module.output_ir).to_string()];
 
         args.append(
             &mut paths
@@ -136,19 +128,12 @@ impl<'a> Master<'a> {
                 .collect(),
         );
 
-        match Command::new("llvm-link").args(&args[..]).spawn() {
-            Ok(mut child) => match child.wait() {
-                Ok(_) => {}
-                Err(e) => {
-                    eprintln!(
-                        "{}Error when linking llvm ir:{} {}",
-                        color::RED,
-                        color::RESET,
-                        e
-                    );
-                    process::exit(1);
-                }
-            },
+        let cmd = match Command::new("llvm-link")
+            .args(&args[..])
+            .stdout(Stdio::piped())
+            .spawn()
+        {
+            Ok(child) => child,
             Err(e) => {
                 eprintln!(
                     "{}Error when linking llvm ir:{} {}",
@@ -159,6 +144,8 @@ impl<'a> Master<'a> {
                 process::exit(1);
             }
         };
+
+        let output = cmd.wait_with_output().expect("Failed to read stdout");
 
         self.logger.borrow().log_verbose(&|| {
             format!(
@@ -171,39 +158,49 @@ impl<'a> Master<'a> {
 
         self.logger.borrow().log_verbose(&|| {
             format!(
-                "{}: IR file written and linked",
+                "{}: IR linked",
                 helpers::display_duration(write_obj_start.elapsed())
             )
         });
+
+        output
     }
 
-    fn link_to_obj(&self, filename: &'a path::Path) {
+    fn link_to_obj(&self, filename: &'a path::Path, pipe: Output) {
         let ir_to_asm = Instant::now();
         let module = self.modules.get(filename).unwrap();
 
         match Command::new("llc")
             .args(&[
-                paths::path_to_str(&module.output_bc).to_string(),
                 "-filetype".to_string(),
                 "obj".to_string(),
                 "-O3".to_string(),
                 "-o".to_string(),
                 paths::path_to_str(&module.output_obj).to_string(),
             ])
+            .stdin(Stdio::piped())
             .spawn()
         {
-            Ok(mut child) => match child.wait() {
-                Ok(_) => {}
-                Err(e) => {
-                    eprintln!(
-                        "{}Error when turning LLVM into asm:{} {}",
-                        color::RED,
-                        color::RESET,
-                        e
-                    );
-                    process::exit(1);
+            Ok(mut child) => {
+                child
+                    .stdin
+                    .as_mut()
+                    .expect("Failed to get std from llvm-link")
+                    .write_all(&pipe.stdout)
+                    .expect("Failed to write to stdin");
+                match child.wait() {
+                    Ok(_) => {}
+                    Err(e) => {
+                        eprintln!(
+                            "{}Error when turning LLVM into asm:{} {}",
+                            color::RED,
+                            color::RESET,
+                            e
+                        );
+                        process::exit(1);
+                    }
                 }
-            },
+            }
             Err(e) => {
                 eprintln!(
                     "{}Error when turning LLVM into asm:{} {}",
@@ -231,7 +228,7 @@ impl<'a> Master<'a> {
         let args = vec![
             paths::path_to_str(&module.output_obj).to_string(),
             "-e".to_string(),
-            "_N5entry_R2t0_A0".to_string(),
+            "_N5entry_A0_R2t0".to_string(),
             "-no-pie".to_string(),
             "-Qunused-arguments".to_string(),
             "-g".to_string(),

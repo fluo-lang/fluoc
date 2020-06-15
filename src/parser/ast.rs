@@ -97,9 +97,11 @@ impl<'a> Literal<'a> {
                 ret_type.cast_to_basic(context),
                 type_val.cast_to_basic(context),
             ) {
-                (Ok("int"), Ok("{number}")) => ret_type.clone(),
-                (Ok("long"), Ok("{number}")) => ret_type.clone(),
-                (Ok(_), Ok(_)) => ret_type.clone(),
+                (Ok(val1), Ok(val2)) => match (&val1[..], &val2[..]) {
+                    ("int", "{number}") => ret_type.clone(),
+                    ("long", "{number}") => ret_type.clone(),
+                    (_, _) => ret_type.clone(),
+                },
                 (Err(e), _) => panic!(
                     "Tried to cast non basic literal to basic. Should not happen!! {:?}",
                     e
@@ -412,6 +414,15 @@ impl<'a> fmt::Display for TypeType<'a> {
     }
 }
 
+impl<'a> TypeType<'a> {
+    pub fn unwrap_type(&self) -> Rc<Namespace<'a>> {
+        match self {
+            TypeType::Type(val) => Rc::clone(val),
+            TypeType::Tuple(_) => panic!("Tried to unwrap type from typetype, found tuple"),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 /// Type Node
 pub struct Type<'a> {
@@ -479,10 +490,21 @@ impl<'a> Namespace<'a> {
         &mut self.scopes
     }
 
-    pub fn prepend_namespace(&mut self, mut other: Vec<NameID<'a>>) -> Namespace<'a> {
-        std::mem::swap(&mut self.scopes, &mut other); // Put into other
-        self.scopes.append(&mut other); // Append self.scopes
+    pub fn prepend_namespace(&mut self, other: &mut Vec<NameID<'a>>) -> Namespace<'a> {
+        std::mem::swap(&mut self.scopes, other); // Put into other
+        self.scopes.append(other); // Append self.scopes
         self.clone()
+    }
+
+    pub fn prepend_namespace_rc(&self, other: &[NameID<'a>]) -> Namespace<'a> {
+        Namespace {
+            scopes: other
+                .iter()
+                .chain(&self.scopes)
+                .map(|x| *x)
+                .collect::<Vec<_>>(),
+            pos: self.pos,
+        }
     }
 }
 

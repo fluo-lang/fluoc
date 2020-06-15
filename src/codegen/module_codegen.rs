@@ -51,8 +51,6 @@ pub struct CodeGenModule<'a> {
     pub symbtab: CodeGenSymbTab<'a>,
     pub output_ir: &'a path::Path,
     pub output_obj: &'a path::Path,
-    pub output_bc: &'a path::Path,
-    pub output_asm: &'a path::Path,
 }
 
 impl<'a> CodeGenModule<'a> {
@@ -68,8 +66,6 @@ impl<'a> CodeGenModule<'a> {
         logger: Rc<RefCell<Logger<'a>>>,
         output_ir: &'a path::Path,
         output_obj: &'a path::Path,
-        output_bc: &'a path::Path,
-        output_asm: &'a path::Path,
     ) -> Result<CodeGenModule<'a>, Vec<Error<'a>>> {
         let typecheck = typecheck::TypeCheckModule::new(filename, file_contents, logger);
         Ok(CodeGenModule {
@@ -80,8 +76,6 @@ impl<'a> CodeGenModule<'a> {
             symbtab: CodeGenSymbTab::new(),
             output_ir,
             output_obj,
-            output_bc,
-            output_asm,
         })
     }
 
@@ -432,20 +426,13 @@ impl<'a> CodeGenModule<'a> {
         type_ast: &ast_typecheck::TypeCheckType<'_>,
     ) -> types::BasicTypeEnum<'a> {
         match &type_ast.value {
-            ast_typecheck::TypeCheckTypeType::SingleType(value) => {
-                match value.value.is_basic_type() {
-                    Ok(basic_type) => match basic_type {
-                        "int" => self.context.i32_type().into(),
-                        "long" => self.context.i64_type().into(),
-                        "str" => self.context.i8_type().array_type(10).into(),
-                        "bool" => self.context.bool_type().into(),
-                        val => panic!("`{}` type not implemented yet! {:?}", val, type_ast.pos),
-                    },
-                    Err(_) => {
-                        panic!("Tried to get basic type from SingleType, but its not a basic type",)
-                    }
-                }
-            }
+            ast_typecheck::TypeCheckTypeType::SingleType(value) => match &value.to_string()[..] {
+                "int" => self.context.i32_type().into(),
+                "long" => self.context.i64_type().into(),
+                "str" => self.context.i8_type().array_type(10).into(),
+                "bool" => self.context.bool_type().into(),
+                val => panic!("`{}` type not implemented yet! {:?}", val, type_ast.pos),
+            },
             ast_typecheck::TypeCheckTypeType::CustomType(_, value) => {
                 self.get_type(&*(value.as_ref().unwrap()))
             }

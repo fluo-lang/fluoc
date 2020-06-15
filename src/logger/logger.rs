@@ -1088,7 +1088,10 @@ impl<'a> Logger<'a> {
             writer_pos.1 - 1,
             &format!(
                 "{}:{}:{}",
-                &filename.display(),
+                &filename
+                    .strip_prefix(std::env::current_dir().unwrap_or(path::PathBuf::new()))
+                    .unwrap_or(filename)
+                    .display(),
                 (position.0).0,
                 (position.0).1
             ),

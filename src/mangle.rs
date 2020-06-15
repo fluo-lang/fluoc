@@ -47,19 +47,215 @@ use crate::typecheck::ast_typecheck;
 
 use std::rc::Rc;
 
-pub(crate) fn gen_manged_args<'a, 'b>(
+#[derive(PartialEq, Debug)]
+pub enum NodeChild {
+    RawString(String),
+    Children(Vec<Node>),
+}
+
+#[derive(PartialEq, Debug)]
+pub struct Node {
+    descriptor: char,
+    child: NodeChild,
+}
+
+impl Node {
+    pub fn demangle(input: String) -> Node {
+        Node {
+            descriptor: '$',
+            child: NodeChild::demangle(input),
+        }
+    }
+
+    fn from_type<'a>(
+        namespace: &ast::Namespace<'a>,
+        arguments: &ast_typecheck::ArgumentsTypeCheck<'a>,
+        ret_type: &ast_typecheck::TypeCheckType<'a>,
+    ) -> Node {
+        let mut val = Vec::new();
+        val.append(&mut NodeChild::from_namespace(namespace));
+        Node {
+            descriptor: '$',
+            child: NodeChild::Children(val),
+        }
+    }
+}
+
+impl NodeChild {
+    fn from_name<'a>(name: ast::NameID<'a>) -> NodeChild {
+        NodeChild::RawString(name.value.to_string())
+    }
+
+    fn from_namespace<'a>(namespace: &ast::Namespace<'a>) -> Vec<Node> {
+        let mut nodes = Vec::new();
+        for name in &namespace.scopes {
+            nodes.push(Node {
+                descriptor: 'N',
+                child: Self::from_name(*name),
+            })
+        }
+
+        nodes
+    }
+
+    fn from_type<'a, 'b>(
+        type_val: &ast_typecheck::TypeCheckTypeType<'a>,
+        context: &'b ast_typecheck::TypeCheckSymbTab<'a>,
+    ) -> Result<Node, ErrorOrVec<'a>> {
+        Ok(match type_val {
+            ast_typecheck::TypeCheckTypeType::SingleType(type_val) => Node {
+                descriptor: 'V',
+                child: NodeChild::RawString(type_val.mangle()),
+            },
+            ast_typecheck::TypeCheckTypeType::TupleType(types) => {
+                let tuple_items = types
+                    .types
+                    .iter()
+                    .map(|type_val| NodeChild::from_type(&type_val.value, context))
+                    .collect::<Result<Vec<_>, _>>()?;
+                Node {
+                    descriptor: 't',
+                    child: NodeChild::Children(tuple_items),
+                }
+            }
+            ast_typecheck::TypeCheckTypeType::CustomType(namespace, _) => Self::from_type(
+                &context
+                    .get_type(Rc::clone(namespace))?
+                    .unwrap_type_ref()
+                    .0
+                    .value,
+                context,
+            )?,
+            _ => panic!("Mangling not implemented for this type yet!"),
+        })
+    }
+
+    fn demangle(input: String) -> NodeChild {
+        let mut characters = input.chars().peekable();
+        let mut nodes = Vec::new();
+        loop {
+            let first = match characters.next() {
+                Some(val) => val,
+                None => break,
+            };
+            let mut next_char = *(match characters.peek() {
+                Some(val) => val,
+                None => break,
+            });
+
+            if '0' <= next_char && next_char <= '9' {
+                let mut modifier_amount = String::new();
+                let mut first_loop = true;
+                while '0' <= next_char && next_char <= '9' {
+                    if !first_loop {
+                        characters.next();
+                    } else {
+                        first_loop = false;
+                    }
+
+                    modifier_amount.push(next_char);
+                    next_char = *characters.peek().unwrap();
+                }
+
+                let length = modifier_amount[1..].parse::<usize>().unwrap();
+                let mut descriptor_string = String::with_capacity(length);
+                for _ in 0..length {
+                    descriptor_string.push(characters.next().unwrap());
+                }
+
+                nodes.push(Node {
+                    descriptor: first,
+                    child: NodeChild::demangle(descriptor_string),
+                })
+            } else {
+                return NodeChild::RawString(input);
+            }
+
+            characters.next();
+        }
+
+        NodeChild::Children(nodes)
+    }
+}
+
+#[cfg(test)]
+mod demangle_tests {
+    use super::*;
+
+    #[test]
+    fn simple_test() {
+        assert_eq!(
+            Node::demangle("N5entry".to_string()),
+            Node {
+                descriptor: '$',
+                child: NodeChild::Children(vec![Node {
+                    descriptor: 'N',
+                    child: NodeChild::RawString("entry".to_string()),
+                }])
+            }
+        )
+    }
+
+    #[test]
+    fn complex_test() {
+        assert_eq!(
+            Node::demangle("N7my_func_P5V3int_P5V3int_R14t11V3int_V3int".to_string()),
+            Node {
+                descriptor: '$',
+                child: NodeChild::Children(vec![
+                    Node {
+                        descriptor: 'N',
+                        child: NodeChild::RawString("my_func".to_string())
+                    },
+                    Node {
+                        descriptor: 'P',
+                        child: NodeChild::Children(vec![Node {
+                            descriptor: 'V',
+                            child: NodeChild::RawString("int".to_string())
+                        }])
+                    },
+                    Node {
+                        descriptor: 'P',
+                        child: NodeChild::Children(vec![Node {
+                            descriptor: 'V',
+                            child: NodeChild::RawString("int".to_string())
+                        }])
+                    },
+                    Node {
+                        descriptor: 'R',
+                        child: NodeChild::Children(vec![Node {
+                            descriptor: 't',
+                            child: NodeChild::Children(vec![
+                                Node {
+                                    descriptor: 'V',
+                                    child: NodeChild::RawString("int".to_string())
+                                },
+                                Node {
+                                    descriptor: 'V',
+                                    child: NodeChild::RawString("int".to_string())
+                                }
+                            ])
+                        }])
+                    }
+                ])
+            }
+        )
+    }
+}
+
+pub(crate) fn gen_mangled_args<'a, 'b>(
     types: &[&ast_typecheck::TypeCheckType<'a>],
     context: &'b ast_typecheck::TypeCheckSymbTab<'a>,
-) -> String {
+) -> Result<String, ErrorOrVec<'a>> {
     let mangled_args = types
         .into_iter()
         .map(|arg_type| {
-            let arg_mangled = arg_type.mangle(context);
-            format!("P{}{}", arg_mangled.len(), arg_mangled)
+            let arg_mangled = arg_type.mangle(context)?;
+            Ok(format!("P{}{}", arg_mangled.len(), arg_mangled))
         })
-        .collect::<Vec<_>>()
+        .collect::<Result<Vec<_>, _>>()?
         .join("_");
-    format!("_A{}{}", mangled_args.len(), mangled_args)
+    Ok(format!("_A{}{}", mangled_args.len(), mangled_args))
 }
 
 impl<'a> TokenType<'a> {
@@ -108,9 +304,11 @@ impl<'a> ast::Namespace<'a> {
         let mut mangled = token.mangle();
         mangled += &self.mangle()[..];
 
+        mangled += &gen_mangled_args(types, context)?[..];
+
         match return_type {
             Some(ret_type) => {
-                let ret_type_mangled = ret_type.mangle(context);
+                let ret_type_mangled = ret_type.mangle(context)?;
                 mangled += &format!("_R{}{}", ret_type_mangled.len(), ret_type_mangled)[..];
             }
             None => {
@@ -128,11 +326,12 @@ impl<'a> ast::Namespace<'a> {
                         .0
                         .value
                         .unwrap_func_return_ref()
-                        .mangle(context)[..];
+                        .mangle(context)?[..];
                     mangled += &format!("_R{}{}", ret_type_mangled.len(), ret_type_mangled)[..];
                 } else if length == 0 {
                     mangled.clear();
                 } else {
+                    // Try to infer based on arguments type
                     let mut err = vec![ErrorAnnotation::new(
                         Some(format!("function `{}` used here", self.to_string())),
                         self.pos,
@@ -173,8 +372,6 @@ impl<'a> ast::Namespace<'a> {
             }
         }
 
-        mangled += &gen_manged_args(types, context)[..];
-
         Ok(mangled)
     }
 
@@ -187,10 +384,11 @@ impl<'a> ast::Namespace<'a> {
         context: &'b ast_typecheck::TypeCheckSymbTab<'a>,
     ) -> Result<String, ErrorOrVec<'a>> {
         let mut mangled = self.mangle();
+        mangled += &gen_mangled_args(types, context)?[..];
 
         match return_type {
             Some(ret_type) => {
-                let ret_type_mangled = ret_type.mangle(context);
+                let ret_type_mangled = ret_type.mangle(context)?;
                 mangled += &format!("_R{}{}", ret_type_mangled.len(), ret_type_mangled)[..];
             }
             None => {
@@ -208,7 +406,7 @@ impl<'a> ast::Namespace<'a> {
                         .0
                         .value
                         .unwrap_func_return_ref()
-                        .mangle(context)[..];
+                        .mangle(context)?[..];
                     mangled += &format!("_R{}{}", ret_type_mangled.len(), ret_type_mangled)[..];
                 } else if length == 0 {
                     mangled.clear();
@@ -253,50 +451,40 @@ impl<'a> ast::Namespace<'a> {
             }
         }
 
-        mangled += &gen_manged_args(types, context)[..];
-
         Ok(mangled)
     }
 }
 
 impl<'a> ast_typecheck::TypeCheckType<'a> {
     /// Mangle typecheck type
-    pub(crate) fn mangle<'b>(&self, context: &'b ast_typecheck::TypeCheckSymbTab<'a>) -> String {
-        match &self.value {
-            ast_typecheck::TypeCheckTypeType::SingleType(val) => val.value.mangle(),
+    pub(crate) fn mangle<'b>(
+        &self,
+        context: &'b ast_typecheck::TypeCheckSymbTab<'a>,
+    ) -> Result<String, ErrorOrVec<'a>> {
+        Ok(match &self.value {
+            ast_typecheck::TypeCheckTypeType::SingleType(val) => {
+                let mangled = val.mangle();
+                format!("V{}{}", mangled.len(), mangled)
+            }
             ast_typecheck::TypeCheckTypeType::CustomType(val, _) => context
-                .get_type(Rc::clone(val))
-                .unwrap()
+                .get_type(Rc::clone(val))?
                 .unwrap_type_ref()
                 .0
-                .mangle(context),
+                .mangle(context)?,
             ast_typecheck::TypeCheckTypeType::TupleType(val) => {
                 let tuple_items = val
                     .types
                     .iter()
                     .map(|type_val| {
-                        let mangled = type_val.mangle(context);
-                        format!("{}{}", mangled.len(), mangled)
+                        let mangled = type_val.mangle(context)?;
+                        Ok(format!("{}{}", mangled.len(), mangled))
                     })
-                    .collect::<Vec<_>>()
+                    .collect::<Result<Vec<_>, _>>()?
                     .join("_");
                 format!("t{}{}", tuple_items.len(), tuple_items)
             }
             _ => panic!("No name mangling for {}", self),
-        }
-    }
-}
-
-impl<'a> ast::TypeType<'a> {
-    /// Mangle typecheck type
-    pub(crate) fn mangle(&self) -> String {
-        match self {
-            ast::TypeType::Tuple(_) => panic!("no"),
-            ast::TypeType::Type(type_val) => {
-                let mangled = type_val.mangle();
-                format!("V{}{}", mangled.len(), mangled)
-            }
-        }
+        })
     }
 }
 

@@ -12,6 +12,7 @@ def do_something() -> bool {
 
 public
 def entry() {
-    let my_int: int = do_something();
-    let my_other: int = do_something(19);
+     -- Should be error
+    let my_int: bool = do_something();
+    let my_other: int = do_something(19int);
 }

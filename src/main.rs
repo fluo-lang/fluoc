@@ -12,6 +12,7 @@ pub mod parser;
 pub mod typecheck;
 pub mod paths;
 pub mod fluo_core;
+pub mod fluo_std;
 pub mod mangle;
 
 #[macro_use]
@@ -70,8 +71,6 @@ fn main() {
         &contents[..],
         path::Path::new("out.ll"),
         path::Path::new("out.o"),
-        path::Path::new("out.bc"),
-        path::Path::new("out.s"),
     );
 
     master.logger.borrow().log(format!("{}: All Done", helpers::display_duration(master_start.elapsed())));
