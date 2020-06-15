@@ -66,9 +66,70 @@ impl Node {
             child: NodeChild::demangle(input),
         }
     }
+
+    fn from_type<'a>(
+        namespace: &ast::Namespace<'a>,
+        arguments: &ast_typecheck::ArgumentsTypeCheck<'a>,
+        ret_type: &ast_typecheck::TypeCheckType<'a>,
+    ) -> Node {
+        let mut val = Vec::new();
+        val.append(&mut NodeChild::from_namespace(namespace));
+        Node {
+            descriptor: '$',
+            child: NodeChild::Children(val),
+        }
+    }
 }
 
 impl NodeChild {
+    fn from_name<'a>(name: ast::NameID<'a>) -> NodeChild {
+        NodeChild::RawString(name.value.to_string())
+    }
+
+    fn from_namespace<'a>(namespace: &ast::Namespace<'a>) -> Vec<Node> {
+        let mut nodes = Vec::new();
+        for name in &namespace.scopes {
+            nodes.push(Node {
+                descriptor: 'N',
+                child: Self::from_name(*name),
+            })
+        }
+
+        nodes
+    }
+
+    fn from_type<'a, 'b>(
+        type_val: &ast_typecheck::TypeCheckTypeType<'a>,
+        context: &'b ast_typecheck::TypeCheckSymbTab<'a>,
+    ) -> Result<Node, ErrorOrVec<'a>> {
+        Ok(match type_val {
+            ast_typecheck::TypeCheckTypeType::SingleType(type_val) => Node {
+                descriptor: 'V',
+                child: NodeChild::RawString(type_val.mangle()),
+            },
+            ast_typecheck::TypeCheckTypeType::TupleType(types) => {
+                let tuple_items = types
+                    .types
+                    .iter()
+                    .map(|type_val| NodeChild::from_type(&type_val.value, context))
+                    .collect::<Result<Vec<_>, _>>()?;
+                Node {
+                    descriptor: 't',
+                    child: NodeChild::Children(tuple_items),
+                }
+            }
+            ast_typecheck::TypeCheckTypeType::CustomType(namespace, _) => Self::from_type(
+                &context
+                    .get_type(Rc::clone(namespace))?
+                    .unwrap_type_ref()
+                    .0
+                    .value,
+                context,
+            )?,
+            _ => panic!("Mangling not implemented for this type yet!"),
+        })
+    }
+
     fn demangle(input: String) -> NodeChild {
         let mut characters = input.chars().peekable();
         let mut nodes = Vec::new();
@@ -182,7 +243,7 @@ mod demangle_tests {
     }
 }
 
-pub(crate) fn gen_manged_args<'a, 'b>(
+pub(crate) fn gen_mangled_args<'a, 'b>(
     types: &[&ast_typecheck::TypeCheckType<'a>],
     context: &'b ast_typecheck::TypeCheckSymbTab<'a>,
 ) -> Result<String, ErrorOrVec<'a>> {
@@ -243,6 +304,8 @@ impl<'a> ast::Namespace<'a> {
         let mut mangled = token.mangle();
         mangled += &self.mangle()[..];
 
+        mangled += &gen_mangled_args(types, context)?[..];
+
         match return_type {
             Some(ret_type) => {
                 let ret_type_mangled = ret_type.mangle(context)?;
@@ -268,6 +331,7 @@ impl<'a> ast::Namespace<'a> {
                 } else if length == 0 {
                     mangled.clear();
                 } else {
+                    // Try to infer based on arguments type
                     let mut err = vec![ErrorAnnotation::new(
                         Some(format!("function `{}` used here", self.to_string())),
                         self.pos,
@@ -308,8 +372,6 @@ impl<'a> ast::Namespace<'a> {
             }
         }
 
-        mangled += &gen_manged_args(types, context)?[..];
-
         Ok(mangled)
     }
 
@@ -322,6 +384,7 @@ impl<'a> ast::Namespace<'a> {
         context: &'b ast_typecheck::TypeCheckSymbTab<'a>,
     ) -> Result<String, ErrorOrVec<'a>> {
         let mut mangled = self.mangle();
+        mangled += &gen_mangled_args(types, context)?[..];
 
         match return_type {
             Some(ret_type) => {
@@ -387,8 +450,6 @@ impl<'a> ast::Namespace<'a> {
                 }
             }
         }
-
-        mangled += &gen_manged_args(types, context)?[..];
 
         Ok(mangled)
     }

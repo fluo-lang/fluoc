@@ -204,7 +204,7 @@ impl<'a> TypeCheckTypeType<'a> {
         }
     }
 
-    fn unwrap_func(&self) -> (&ArgumentsTypeCheck<'a>, &TypeCheckType<'a>, Visibility) {
+    pub fn unwrap_func(&self) -> (&ArgumentsTypeCheck<'a>, &TypeCheckType<'a>, Visibility) {
         match self {
             TypeCheckTypeType::FunctionSig(arguments, ret_type, visibility) => {
                 (arguments, &*ret_type, *visibility)
@@ -1977,10 +1977,10 @@ impl<'a> TypeCheckSymbTab<'a> {
                     "R{}{}{}",
                     ret_type.len(),
                     ret_type,
-                    mangle::gen_manged_args(types, self)?,
+                    mangle::gen_mangled_args(types, self)?,
                 )
             }
-            None => mangle::gen_manged_args(types, self)?,
+            None => mangle::gen_mangled_args(types, self)?,
         }[..];
 
         let possible_overloads = self

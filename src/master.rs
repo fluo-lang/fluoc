@@ -231,7 +231,7 @@ impl<'a> Master<'a> {
         let args = vec![
             paths::path_to_str(&module.output_obj).to_string(),
             "-e".to_string(),
-            "_N5entry_R2t0_A0".to_string(),
+            "_N5entry_A0_R2t0".to_string(),
             "-no-pie".to_string(),
             "-Qunused-arguments".to_string(),
             "-g".to_string(),
