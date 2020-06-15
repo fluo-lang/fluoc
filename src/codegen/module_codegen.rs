@@ -51,8 +51,6 @@ pub struct CodeGenModule<'a> {
     pub symbtab: CodeGenSymbTab<'a>,
     pub output_ir: &'a path::Path,
     pub output_obj: &'a path::Path,
-    pub output_bc: &'a path::Path,
-    pub output_asm: &'a path::Path,
 }
 
 impl<'a> CodeGenModule<'a> {
@@ -68,8 +66,6 @@ impl<'a> CodeGenModule<'a> {
         logger: Rc<RefCell<Logger<'a>>>,
         output_ir: &'a path::Path,
         output_obj: &'a path::Path,
-        output_bc: &'a path::Path,
-        output_asm: &'a path::Path,
     ) -> Result<CodeGenModule<'a>, Vec<Error<'a>>> {
         let typecheck = typecheck::TypeCheckModule::new(filename, file_contents, logger);
         Ok(CodeGenModule {
@@ -80,8 +76,6 @@ impl<'a> CodeGenModule<'a> {
             symbtab: CodeGenSymbTab::new(),
             output_ir,
             output_obj,
-            output_bc,
-            output_asm,
         })
     }
 
