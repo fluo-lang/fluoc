@@ -67,12 +67,6 @@ impl<'a> TypeCheckModule<'a> {
 
         let typecheck_start = Instant::now();
 
-        // Process compiler tags
-        match self.parser.ast.as_mut().unwrap().process_tags() {
-            Ok(_) => {}
-            Err(e) => return Err(helpers::get_high_priority(e.as_vec())),
-        };
-
         // Do type checking
         match (self.parser.ast.as_mut().unwrap() as &mut dyn ast_typecheck::TypeCheck<'_>)
             .type_check(None, &mut self.symtab)

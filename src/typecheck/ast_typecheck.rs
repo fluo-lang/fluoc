@@ -1077,20 +1077,6 @@ impl<'a> Block<'a> {
             pos: self.pos,
         }));
     }
-
-    pub fn process_tags<'b>(&mut self) -> Result<(), ErrorOrVec<'a>> {
-        for i in 0..self.nodes.len() {
-            match &self.nodes[i] {
-                Statement::Tag(tag) => {
-                    self.tags.push(*tag);
-                    let mut placeholder = Statement::Empty(Empty { pos: self.pos });
-                    std::mem::swap(&mut placeholder, &mut self.nodes[i]); // Replace node with placeholder
-                }
-                _ => {}
-            }
-        }
-        Ok(())
-    }
 }
 
 impl<'a> TypeCheck<'a> for Block<'a> {
@@ -1101,10 +1087,10 @@ impl<'a> TypeCheck<'a> for Block<'a> {
     ) -> Result<Option<TypeCheckType<'a>>, ErrorOrVec<'a>> {
         let mut errors: Vec<(Error<'_>, ErrorLevel)> = Vec::new();
         let mut ret_types: Vec<&mut Expr<'_>> = Vec::new();
+        let mut tags = Vec::new();
 
         for i in 0..self.nodes.len() {
             let node = &mut self.nodes[i];
-            let mut tags = Vec::new();
 
             // First pass
             match node {
@@ -1112,56 +1098,70 @@ impl<'a> TypeCheck<'a> for Block<'a> {
                     tags.push(tag.content.value);
                 }
                 Statement::FunctionDefine(func_def) => {
-                    match &func_def.block {
-                        Some(_) => {
-                            // Not an extern
-                            func_def.generate_proto(context)?;
+                    match tags.iter().position(|x| x == &"no_mangle") {
+                        Some(pos) => {
+                            tags.remove(pos);
                         }
                         None => {
-                            // Extern function
-                            let func_name = func_def.name.scopes.last().unwrap();
-                            let mut func_def_other = func_def.clone();
-                            func_def_other.mangled_name = Some(func_name.value.to_string());
-                            func_def_other.overload_operator = None;
-                            func_def_other.name = Namespace::from_name_id(*func_name);
-
-                            let pos = func_def.pos;
-                            func_def.block = Some(Block {
-                                tags: Vec::new(),
-                                nodes: vec![Statement::Return(Return {
-                                    expression: Box::new(Expr::FunctionCall(FunctionCall {
-                                        arguments: ArgumentsRun {
-                                            positional: func_def
-                                                .arguments
-                                                .positional
-                                                .iter()
-                                                .map(|(name, _)| {
-                                                    Expr::RefID(RefID {
-                                                        value: Namespace::from_name_id(*name),
-                                                        pos,
-                                                        type_val: None,
-                                                    })
-                                                })
-                                                .collect::<Vec<_>>(),
-                                            pos,
-                                        },
-                                        name: Namespace::from_name_id(*func_name),
-                                        mangled_name: Some(func_name.value.to_string()),
-                                        pos,
-                                        mangle: false,
-                                    })),
-                                    pos,
-                                })],
-                                pos,
-                                insert_return: false,
-                            });
-
-                            func_def.generate_proto(context)?;
-                            func_def_other.generate_proto(context)?;
-
-                            self.nodes.push(Statement::FunctionDefine(func_def_other));
+                            match &func_def.block {
+                                Some(_) => {
+                                    // Not an extern
+                                    func_def.generate_proto(context)?;
+                                    continue;
+                                }
+                                None => {
+                                    // Extern function
+                                    // Continue to next
+                                }
+                            }
                         }
                     }
+
+                    let func_name = func_def.name.scopes.last().unwrap();
+                    let mut func_def_other = func_def.clone();
+                    func_def_other.mangled_name = Some(func_name.value.to_string());
+                    func_def_other.overload_operator = None;
+                    func_def_other.name = Namespace::from_name_id(*func_name);
+
+                    let mut temp = None;
+                    std::mem::swap(&mut func_def_other.block, &mut temp);
+                    func_def_other.generate_proto(context)?;
+                    std::mem::swap(&mut func_def_other.block, &mut temp);
+
+                    let pos = func_def.pos;
+                    func_def.block = Some(Block {
+                        tags: Vec::new(),
+                        nodes: vec![Statement::Return(Return {
+                            expression: Box::new(Expr::FunctionCall(FunctionCall {
+                                arguments: ArgumentsRun {
+                                    positional: func_def
+                                        .arguments
+                                        .positional
+                                        .iter()
+                                        .map(|(name, _)| {
+                                            Expr::RefID(RefID {
+                                                value: Namespace::from_name_id(*name),
+                                                pos,
+                                                type_val: None,
+                                            })
+                                        })
+                                        .collect::<Vec<_>>(),
+                                    pos,
+                                },
+                                name: Namespace::from_name_id(*func_name),
+                                mangled_name: Some(func_name.value.to_string()),
+                                pos,
+                                mangle: false,
+                            })),
+                            pos,
+                        })],
+                        pos,
+                        insert_return: false,
+                    });
+
+                    func_def.generate_proto(context)?;
+
+                    self.nodes.push(Statement::FunctionDefine(func_def_other));
                 }
                 Statement::TypeAssign(type_assign) => {
                     type_assign.type_check(None, context)?;

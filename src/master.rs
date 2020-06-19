@@ -128,8 +128,6 @@ impl<'a> Master<'a> {
                 .collect(),
         );
 
-        println!("{:?}", args);
-
         let cmd = match Command::new("llvm-link")
             .args(&args[..])
             .stdout(Stdio::piped())
@@ -137,12 +135,7 @@ impl<'a> Master<'a> {
         {
             Ok(child) => child,
             Err(e) => {
-                eprintln!(
-                    "{}Error linking llvm ir:{} {}",
-                    color::RED,
-                    color::RESET,
-                    e
-                );
+                eprintln!("{}Error linking llvm ir:{} {}", color::RED, color::RESET, e);
                 process::exit(1);
             }
         };
@@ -229,8 +222,6 @@ impl<'a> Master<'a> {
 
         let args = vec![
             paths::path_to_str(&module.output_obj).to_string(),
-            "-e".to_string(),
-            "_N5entry_A0_R2t0".to_string(),
             "-no-pie".to_string(),
             "-g".to_string(),
         ];
