@@ -21,7 +21,7 @@
                 }
             },
             "args": [
-                "examples/tests.fl"
+                "examples/overloading.fl"
             ],
             "program": "${workspaceRoot}/target/debug/bin",
             "cwd": "${workspaceFolder}"

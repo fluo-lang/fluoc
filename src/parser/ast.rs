@@ -506,6 +506,14 @@ impl<'a> Namespace<'a> {
             pos: self.pos,
         }
     }
+
+    pub fn starts_with(&self, other: Rc<Namespace<'a>>) -> bool {
+        if &self.scopes[0..other.scopes.len()-1] == &other.scopes[..] {
+            true
+        } else {
+            false
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]

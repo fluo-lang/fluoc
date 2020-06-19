@@ -3,7 +3,6 @@ use crate::lexer::TokenType;
 use crate::logger::logger::{
     Error, ErrorAnnotation, ErrorDisplayType, ErrorLevel, ErrorOrVec, ErrorType,
 };
-use crate::mangle;
 use crate::parser::ast::*;
 
 use std::borrow::Cow;
@@ -50,7 +49,7 @@ impl<'a> Nullable<'a> {
 #[derive(Debug, Clone, PartialEq)]
 pub enum SymbTabObj<'a> {
     CustomType(TypeCheckType<'a>, Visibility),
-    Function(TypeCheckType<'a>, helpers::Pos<'a>),
+    Function(TypeCheckType<'a>, helpers::Pos<'a>, bool),
     Variable(TypeCheckType<'a>, Nullable<'a>),
 }
 
@@ -72,9 +71,9 @@ impl<'a> SymbTabObj<'a> {
         }
     }
 
-    pub fn unwrap_function_ref(&self) -> (&TypeCheckType<'a>, helpers::Pos<'a>) {
+    pub fn unwrap_function_ref(&self) -> (&TypeCheckType<'a>, helpers::Pos<'a>, bool) {
         match self {
-            SymbTabObj::Function(val, pos) => (val, *pos),
+            SymbTabObj::Function(val, pos, mangled) => (val, *pos, *mangled),
             _ => panic!(
                 "Tried to unwrap variable from symbtab object, got `{:?}`",
                 self
@@ -85,7 +84,7 @@ impl<'a> SymbTabObj<'a> {
     pub fn pos(&self) -> helpers::Pos<'a> {
         match &self {
             SymbTabObj::CustomType(val, _) => val.pos,
-            SymbTabObj::Function(val, _) => val.pos,
+            SymbTabObj::Function(val, _, _) => val.pos,
             SymbTabObj::Variable(val, _) => val.pos,
         }
     }
@@ -95,7 +94,7 @@ impl<'a> fmt::Display for SymbTabObj<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let representation = match self {
             SymbTabObj::CustomType(_, _) => "custom type",
-            SymbTabObj::Function(_, _) => "function",
+            SymbTabObj::Function(_, _, _) => "function",
             SymbTabObj::Variable(_, _) => "variable",
         };
         write!(f, "{}", representation)
@@ -111,9 +110,9 @@ pub enum CurrentContext<'a> {
 
 #[derive(Clone, Debug)]
 pub struct TypeCheckSymbTab<'a> {
-    pub items: HashMap<String, SymbTabObj<'a>>,
+    pub items: HashMap<(Option<TokenType<'a>>, Rc<Namespace<'a>>), Vec<SymbTabObj<'a>>>,
     curr_prefix: Vec<NameID<'a>>, // Current Namespace to push
-    changed_safe: HashMap<String, Nullable<'a>>,
+    changed_safe: HashMap<Rc<Namespace<'a>>, Nullable<'a>>,
     conditional_state: CurrentContext<'a>,
 }
 
@@ -121,7 +120,18 @@ impl<'a> fmt::Display for TypeCheckSymbTab<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut val = String::new();
         for (key, value) in self.items.iter() {
-            val += &format!("{}: {}\n", key, value)[..];
+            val += &format!(
+                "{}{}: {}\n",
+                key.0
+                    .map(|value| value.to_string())
+                    .unwrap_or("".to_string()),
+                key.1,
+                value
+                    .iter()
+                    .map(|val| val.to_string())
+                    .collect::<Vec<_>>()
+                    .join(",\n")
+            )[..];
         }
         write!(f, "{}", val)
     }
@@ -246,16 +256,25 @@ impl<'a> fmt::Display for TypeCheckType<'a> {
 }
 
 impl<'a> TypeCheckType<'a> {
+    /// Check if self can cast to other
+    fn can_cast<'b>(&self, other: &Self, context: &'b TypeCheckSymbTab<'a>) -> bool {
+        if Self::sequiv(self, other, context) {
+            true
+        } else {
+            false
+        }
+    }
+
     fn prepend_namespace(&mut self, prepend_name: &[NameID<'a>]) {
         match &mut self.value {
             TypeCheckTypeType::FunctionSig(arguments, return_type, _) => {
                 arguments
                     .positional
                     .iter_mut()
-                    .for_each(|(k, v)| v.prepend_namespace(prepend_name));
+                    .for_each(|(_, v)| v.prepend_namespace(prepend_name));
                 return_type.prepend_namespace(prepend_name);
             }
-            TypeCheckTypeType::SingleType(type_val) => {}
+            TypeCheckTypeType::SingleType(_) => {}
             TypeCheckTypeType::TupleType(types) => {
                 types
                     .types
@@ -273,13 +292,9 @@ impl<'a> TypeCheckType<'a> {
     }
 
     /// Check for equivalence of types
-    fn sequiv<'b>(
-        left: &Self,
-        right: &Self,
-        context: &'b TypeCheckSymbTab<'a>,
-    ) -> Result<bool, ErrorOrVec<'a>> {
+    fn sequiv<'b>(left: &Self, right: &Self, context: &'b TypeCheckSymbTab<'a>) -> bool {
         match (left.cast_to_basic(context), right.cast_to_basic(context)) {
-            (Ok(left_ok), Ok(right_ok)) => return Ok(left_ok == right_ok),
+            (Ok(left_ok), Ok(right_ok)) => return left_ok == right_ok,
             _ => {}
         }
         if left.is_tuple() && right.is_tuple() {
@@ -296,21 +311,21 @@ impl<'a> TypeCheckType<'a> {
                         inferred: _,
                     },
                 ) if left_contents.types.len() == right_contents.types.len() => {
-                    return Ok(left_contents
+                    return left_contents
                         .types
                         .iter()
                         .zip(&right_contents.types)
                         .map(|(left_val, right_val)| {
                             TypeCheckType::sequiv(left_val, right_val, context)
                         })
-                        .collect::<Result<Vec<_>, _>>()? // Check if all values are ok
+                        .collect::<Vec<_>>() // Check if all values are ok
                         .iter()
-                        .all(|x| *x)); // All values *are* ok, check if they are all true
+                        .all(|x| *x); // All values *are* ok, check if they are all true
                 }
                 _ => {}
             }
         }
-        Ok(false)
+        false
     }
 
     fn is_tuple_empty(&self) -> bool {
@@ -403,7 +418,7 @@ impl<'a> TypeCheckType<'a> {
         types
             .windows(2)
             .map(|w| {
-                if TypeCheckType::sequiv(&w[0], &w[1], context)? {
+                if TypeCheckType::sequiv(&w[0], &w[1], context) {
                     Ok(())
                 } else {
                     return Err(ErrorOrVec::Error(
@@ -582,9 +597,8 @@ impl<'a> TypeCheckType<'a> {
                 // Name of function gotten and function signature
                 let func_union_namespace = context.get_function(
                     Rc::clone(&func_call.name),
-                    &func_call_arg_types,
+                    &func_call_arg_types.iter().collect::<Vec<_>>()[..],
                     return_type,
-                    func_call.mangle,
                 )?;
                 let func = func_union_namespace.0.unwrap_function_ref();
 
@@ -641,7 +655,7 @@ impl<'a> TypeCheckType<'a> {
 
                 for (real_type, call_type) in func_arg_types.iter().zip(&func_call_arg_types) {
                     // Check if called argument type matches with expected type
-                    if !TypeCheckType::sequiv(real_type, call_type, context)? {
+                    if !TypeCheckType::sequiv(real_type, call_type, context) {
                         return Err(TypeCheckType::generate_func_type_mismatch(
                             func_call,
                             &func_arg_types,
@@ -653,7 +667,7 @@ impl<'a> TypeCheckType<'a> {
                 if let None = func_call.mangled_name {
                     func_call.mangled_name = Some(func_call.name.mangle_types(
                         &func_call_arg_types.iter().collect::<Vec<_>>()[..],
-                        return_type,
+                        func.0.value.unwrap_func_return_ref(),
                         context,
                     )?);
                 }
@@ -673,7 +687,7 @@ impl<'a> TypeCheckType<'a> {
                 )?;
 
                 variable_assignment_dec.t =
-                    if !TypeCheckType::sequiv(&cast_type, &value_type, context)? {
+                    if !TypeCheckType::sequiv(&cast_type, &value_type, context) {
                         // Not the same type, error
                         return Err(ErrorOrVec::Error(
                             Error::new(
@@ -758,7 +772,7 @@ impl<'a> TypeCheckType<'a> {
                 )?;
 
                 variable_assign.type_val =
-                    if !TypeCheckType::sequiv(&cast_type, &value_type, context)? {
+                    if !TypeCheckType::sequiv(&cast_type, &value_type, context) {
                         // Not the same type, error
                         return Err(ErrorOrVec::Error(
                             Error::new(
@@ -843,7 +857,18 @@ impl<'a> TypeCheckType<'a> {
                         scopes: Vec::new(),
                         pos: infix.pos,
                     }),
-                    mangled_name: Some(overloaded.0),
+                    mangled_name: Some(
+                        overloaded.0.mangle_types(
+                            &[&left_type, &right_type],
+                            overloaded
+                                .1
+                                .unwrap_function_ref()
+                                .0
+                                .value
+                                .unwrap_func_return_ref(),
+                            context,
+                        )?,
+                    ),
                     mangle: true,
                 });
 
@@ -903,7 +928,7 @@ pub trait TypeCheck<'a>: std::fmt::Debug {
         &mut self,
         _return_type: Option<Cow<'a, TypeCheckType<'a>>>,
         _context: &'b mut TypeCheckSymbTab<'a>,
-    ) -> Result<Cow<'a, TypeCheckType<'a>>, ErrorOrVec<'a>> {
+    ) -> Result<Option<TypeCheckType<'a>>, ErrorOrVec<'a>> {
         panic!(format!(
             "TypeCheckType type_check not implemented for {:?}",
             self
@@ -976,7 +1001,7 @@ impl<'a> TypeCheck<'a> for Return<'a> {
         &mut self,
         return_type: Option<Cow<'a, TypeCheckType<'a>>>,
         context: &'b mut TypeCheckSymbTab<'a>,
-    ) -> Result<Cow<'a, TypeCheckType<'a>>, ErrorOrVec<'a>> {
+    ) -> Result<Option<TypeCheckType<'a>>, ErrorOrVec<'a>> {
         let returned_type = TypeCheckType::from_expr(
             &mut self.expression,
             context,
@@ -1001,7 +1026,7 @@ impl<'a> TypeCheck<'a> for Return<'a> {
                             self.construct_err(return_type_some.into_owned(), returned_type)
                         );
                     } else {
-                        Ok(return_type_some)
+                        Ok(None)
                     }
                 } else {
                     if return_type_some.inferred {
@@ -1016,20 +1041,17 @@ impl<'a> TypeCheck<'a> for Return<'a> {
             }
             Some(value) => {
                 // Make sure returns are of the same type or can be casted
-                if TypeCheckType::sequiv(&returned_type, &value, context)? {
+                if TypeCheckType::sequiv(&returned_type, &value, context) {
                     // Same type
-                    Ok(value)
+                    Ok(None)
                 } else {
                     return Err(self.construct_err(value.into_owned(), returned_type));
                 }
             }
             None => {
                 // No required return type (i.e. in outer scope)
-                Ok(Cow::Owned(TypeCheckType::from_expr(
-                    &mut self.expression,
-                    context,
-                    None,
-                )?))
+                TypeCheckType::from_expr(&mut self.expression, context, None)?;
+                Ok(None)
             }
         }
     }
@@ -1076,14 +1098,19 @@ impl<'a> TypeCheck<'a> for Block<'a> {
         &mut self,
         return_type: Option<Cow<'a, TypeCheckType<'a>>>,
         context: &'b mut TypeCheckSymbTab<'a>,
-    ) -> Result<Cow<'a, TypeCheckType<'a>>, ErrorOrVec<'a>> {
+    ) -> Result<Option<TypeCheckType<'a>>, ErrorOrVec<'a>> {
         let mut errors: Vec<(Error<'_>, ErrorLevel)> = Vec::new();
         let mut ret_types: Vec<&mut Expr<'_>> = Vec::new();
 
         for i in 0..self.nodes.len() {
             let node = &mut self.nodes[i];
+            let mut tags = Vec::new();
+
             // First pass
             match node {
+                Statement::Tag(tag) => {
+                    tags.push(tag.content.value);
+                }
                 Statement::FunctionDefine(func_def) => {
                     match &func_def.block {
                         Some(_) => {
@@ -1095,7 +1122,9 @@ impl<'a> TypeCheck<'a> for Block<'a> {
                             let func_name = func_def.name.scopes.last().unwrap();
                             let mut func_def_other = func_def.clone();
                             func_def_other.mangled_name = Some(func_name.value.to_string());
+                            func_def_other.overload_operator = None;
                             func_def_other.name = Namespace::from_name_id(*func_name);
+
                             let pos = func_def.pos;
                             func_def.block = Some(Block {
                                 tags: Vec::new(),
@@ -1170,20 +1199,12 @@ impl<'a> TypeCheck<'a> for Block<'a> {
                 .map(|expr| Ok(TypeCheckType::from_expr(expr, context, None)?))
                 .collect::<Result<Vec<TypeCheckType<'a>>, ErrorOrVec<'_>>>()?;
             TypeCheckType::all_same_type(&ret_types[..], context)?;
-            Ok(Cow::Owned(ret_types.into_iter().nth(0).unwrap()))
+            Ok(None)
         } else {
             match return_type {
                 Some(value) if value.is_tuple_empty() => {
                     self.insert_implicit_return();
-                    Ok(Cow::Owned(TypeCheckType {
-                        value: TypeCheckTypeType::TupleType(UnionType {
-                            types: Vec::new(),
-                            pos: self.pos,
-                            inferred: false,
-                        }),
-                        pos: self.pos,
-                        inferred: false,
-                    }))
+                    Ok(None)
                 }
                 Some(other) => {
                     // Error, not the right return type
@@ -1216,15 +1237,7 @@ impl<'a> TypeCheck<'a> for Block<'a> {
                         self.insert_implicit_return();
                     }
 
-                    Ok(Cow::Owned(TypeCheckType {
-                        value: TypeCheckTypeType::TupleType(UnionType {
-                            types: Vec::new(),
-                            pos: self.pos,
-                            inferred: false,
-                        }),
-                        pos: self.pos,
-                        inferred: false,
-                    }))
+                    Ok(None)
                 }
             }
         }
@@ -1287,8 +1300,8 @@ impl<'a> FunctionDefine<'a> {
                             inferred: false,
                         },
                         self.pos,
+                        to_mangle,
                     ),
-                    to_mangle,
                 )?;
                 if let None = self.mangled_name {
                     self.mangled_name = Some(
@@ -1299,7 +1312,7 @@ impl<'a> FunctionDefine<'a> {
                                 .iter()
                                 .map(|(_, type_val)| type_val.unwrap_type_check_ref())
                                 .collect::<Vec<_>>()[..],
-                            Some(self.return_type.unwrap_type_check_ref()),
+                            self.return_type.unwrap_type_check_ref(),
                             token,
                             context,
                         )?,
@@ -1331,8 +1344,8 @@ impl<'a> FunctionDefine<'a> {
                             inferred: false,
                         },
                         self.pos,
+                        to_mangle,
                     ),
-                    to_mangle,
                 )?;
                 if let None = self.mangled_name {
                     self.mangled_name = Some(
@@ -1343,7 +1356,7 @@ impl<'a> FunctionDefine<'a> {
                                 .iter()
                                 .map(|(_, type_val)| type_val.unwrap_type_check_ref())
                                 .collect::<Vec<_>>()[..],
-                            Some(self.return_type.unwrap_type_check_ref()),
+                            self.return_type.unwrap_type_check_ref(),
                             context,
                         )?,
                     );
@@ -1360,7 +1373,7 @@ impl<'a> TypeCheck<'a> for FunctionDefine<'a> {
         &mut self,
         _return_type: Option<Cow<'a, TypeCheckType<'a>>>,
         context: &'b mut TypeCheckSymbTab<'a>,
-    ) -> Result<Cow<'a, TypeCheckType<'a>>, ErrorOrVec<'a>> {
+    ) -> Result<Option<TypeCheckType<'a>>, ErrorOrVec<'a>> {
         match &mut self.block {
             Some(block) => {
                 let mut context = context.clone();
@@ -1383,14 +1396,12 @@ impl<'a> TypeCheck<'a> for FunctionDefine<'a> {
                         &mut context,
                     )?)),
                     &mut context,
-                )
+                )?;
+
+                Ok(None)
             }
             // No block; external definition
-            None => Ok(Cow::Owned(TypeCheckType {
-                value: TypeCheckTypeType::Placeholder,
-                pos: self.pos,
-                inferred: true,
-            })),
+            None => Ok(None),
         }
     }
 }
@@ -1400,9 +1411,9 @@ impl<'a> TypeCheck<'a> for ExpressionStatement<'a> {
         &mut self,
         _return_type: Option<Cow<'a, TypeCheckType<'a>>>,
         context: &'b mut TypeCheckSymbTab<'a>,
-    ) -> Result<Cow<'a, TypeCheckType<'a>>, ErrorOrVec<'a>> {
-        let type_val = TypeCheckType::from_expr(&mut self.expression, context, None)?;
-        Ok(Cow::Owned(type_val))
+    ) -> Result<Option<TypeCheckType<'a>>, ErrorOrVec<'a>> {
+        TypeCheckType::from_expr(&mut self.expression, context, None)?;
+        Ok(None)
     }
 }
 
@@ -1411,17 +1422,13 @@ impl<'a> TypeCheck<'a> for Unit<'a> {
         &mut self,
         _return_type: Option<Cow<'a, TypeCheckType<'a>>>,
         context: &'b mut TypeCheckSymbTab<'a>,
-    ) -> Result<Cow<'a, TypeCheckType<'a>>, ErrorOrVec<'a>> {
+    ) -> Result<Option<TypeCheckType<'a>>, ErrorOrVec<'a>> {
         context.push_curr_prefix(self.name.as_vec_nameid());
         (&mut self.block as &mut dyn TypeCheck<'_>).type_check(None, context)?;
         context.curr_prefix.pop();
 
         // Unit returns nothing
-        Ok(Cow::Owned(TypeCheckType {
-            value: TypeCheckTypeType::Placeholder,
-            pos: self.pos,
-            inferred: true,
-        }))
+        Ok(None)
     }
 }
 
@@ -1430,7 +1437,7 @@ impl<'a> TypeCheck<'a> for VariableDeclaration<'a> {
         &mut self,
         _return_type: Option<Cow<'a, TypeCheckType<'a>>>,
         context: &'b mut TypeCheckSymbTab<'a>,
-    ) -> Result<Cow<'a, TypeCheckType<'a>>, ErrorOrVec<'a>> {
+    ) -> Result<Option<TypeCheckType<'a>>, ErrorOrVec<'a>> {
         // Variable declaration in if statement is not allowed to overwrite the old one
         match context.get_variable(Rc::clone(&self.name)) {
             Ok(val) => match context.conditional_state {
@@ -1480,11 +1487,7 @@ impl<'a> TypeCheck<'a> for VariableDeclaration<'a> {
         );
         self.t = TypeCheckOrType::TypeCheckType(type_val);
 
-        Ok(Cow::Owned(TypeCheckType {
-            value: TypeCheckTypeType::Placeholder,
-            pos: self.pos,
-            inferred: true,
-        }))
+        Ok(None)
     }
 }
 
@@ -1519,13 +1522,9 @@ impl<'a> TypeCheck<'a> for TypeAssign<'a> {
         &mut self,
         _return_type: Option<Cow<'a, TypeCheckType<'a>>>,
         _context: &'b mut TypeCheckSymbTab<'a>,
-    ) -> Result<Cow<'a, TypeCheckType<'a>>, ErrorOrVec<'a>> {
+    ) -> Result<Option<TypeCheckType<'a>>, ErrorOrVec<'a>> {
         // Returns nothing
-        Ok(Cow::Owned(TypeCheckType {
-            value: TypeCheckTypeType::Placeholder,
-            pos: self.pos,
-            inferred: true,
-        }))
+        Ok(None)
     }
 }
 
@@ -1561,7 +1560,7 @@ impl<'a> TypeCheck<'a> for Conditional<'a> {
         &mut self,
         _return_type: Option<Cow<'a, TypeCheckType<'a>>>,
         context: &'b mut TypeCheckSymbTab<'a>,
-    ) -> Result<Cow<'a, TypeCheckType<'a>>, ErrorOrVec<'a>> {
+    ) -> Result<Option<TypeCheckType<'a>>, ErrorOrVec<'a>> {
         let mut changed_safe_vals = Vec::new();
 
         for branch in &mut self.if_branches {
@@ -1617,17 +1616,20 @@ impl<'a> TypeCheck<'a> for Conditional<'a> {
                 }
                 match &else_safe_vals {
                     Some(else_val) => {
-                        if TypeCheckSymbTab::is_safe_cond(else_val, changed_safe.0) {
+                        if TypeCheckSymbTab::is_safe_cond(else_val, Rc::clone(changed_safe.0)) {
                             // Else val contains it, check every other branch
-                            context.set_safe(changed_safe.0); // Set it as safe, if its not unset it (ofc)
+                            context.set_safe(Rc::clone(&changed_safe.0)); // Set it as safe, if its not unset it (ofc)
 
                             // Iterate through else ifs and see if it is all set there
                             for i in 1..changed_safe_vals.len() {
                                 let other_branch = &changed_safe_vals[i];
-                                if !TypeCheckSymbTab::is_safe_cond(&other_branch, changed_safe.0) {
+                                if !TypeCheckSymbTab::is_safe_cond(
+                                    &other_branch,
+                                    Rc::clone(&changed_safe.0),
+                                ) {
                                     // Branch does not contain value, fail
                                     context.set_unsafe(
-                                        &changed_safe.0[..],
+                                        Rc::clone(changed_safe.0),
                                         ErrorAnnotation::new(
                                             Some(format!(
                                                 "consider giving `{}` a value here",
@@ -1642,7 +1644,7 @@ impl<'a> TypeCheck<'a> for Conditional<'a> {
                         } else {
                             // Else doesn't contain it, error
                             context.set_unsafe(
-                                &changed_safe.0[..],
+                                Rc::clone(changed_safe.0),
                                 ErrorAnnotation::new(
                                     Some(format!(
                                         "consider giving `{}` a value here",
@@ -1657,7 +1659,7 @@ impl<'a> TypeCheck<'a> for Conditional<'a> {
                     None => {
                         // No else, so not allowed
                         context.set_unsafe(
-                            &changed_safe.0[..],
+                            Rc::clone(changed_safe.0),
                             ErrorAnnotation::new(
                                 Some(format!(
                                     "consider giving `{}` a value here in a else clause",
@@ -1673,11 +1675,7 @@ impl<'a> TypeCheck<'a> for Conditional<'a> {
         }
 
         // Returns nothing
-        Ok(Cow::Owned(TypeCheckType {
-            value: TypeCheckTypeType::Placeholder,
-            pos: self.pos,
-            inferred: true,
-        }))
+        Ok(None)
     }
 }
 
@@ -1686,7 +1684,7 @@ impl<'a> TypeCheck<'a> for Statement<'a> {
         &mut self,
         return_type: Option<Cow<'a, TypeCheckType<'a>>>,
         context: &'b mut TypeCheckSymbTab<'a>,
-    ) -> Result<Cow<'a, TypeCheckType<'a>>, ErrorOrVec<'a>> {
+    ) -> Result<Option<TypeCheckType<'a>>, ErrorOrVec<'a>> {
         match self {
             Statement::Return(statement) => {
                 (statement as &mut dyn TypeCheck<'_>).type_check(return_type, context)
@@ -1709,16 +1707,8 @@ impl<'a> TypeCheck<'a> for Statement<'a> {
             Statement::Conditional(statement) => {
                 (statement as &mut dyn TypeCheck<'_>).type_check(return_type, context)
             }
-            Statement::Empty(_) => Ok(Cow::Owned(TypeCheckType {
-                value: TypeCheckTypeType::Placeholder,
-                pos: self.pos(),
-                inferred: false,
-            })),
-            Statement::Tag(_) => Ok(Cow::Owned(TypeCheckType {
-                value: TypeCheckTypeType::Placeholder,
-                pos: self.pos(),
-                inferred: false,
-            })),
+            Statement::Empty(_) => Ok(None),
+            Statement::Tag(_) => Ok(None),
             _ => panic!(
                 "Typecheck not implemented for statement `{}`",
                 &self.to_string()
@@ -1731,7 +1721,7 @@ impl<'a> TypeType<'a> {
     pub fn is_basic_type(&self) -> Result<&'static str, ()> {
         match &self {
             TypeType::Type(value) => {
-                if let Some(val) = value.scopes.get(0) {
+                if let Some(val) = value.scopes.first() {
                     match val.value {
                         "int" => return Ok("int"),
                         "{number}" => return Ok("{number}"),
@@ -1765,8 +1755,11 @@ impl<'a> TypeCheckSymbTab<'a> {
         namespace: Rc<Namespace<'a>>,
         value: SymbTabObj<'a>,
     ) -> Rc<Namespace<'a>> {
-        self.items.insert(namespace.to_string(), value);
-        Rc::clone(&namespace)
+        self.items
+            .entry((None, Rc::clone(&namespace)))
+            .or_insert(Vec::new())
+            .push(value);
+        namespace
     }
 
     pub fn set_global(
@@ -1781,7 +1774,10 @@ impl<'a> TypeCheckSymbTab<'a> {
                 .prepend_namespace(&mut self.curr_prefix.clone()),
         );
 
-        self.items.insert(adjusted_namespace.mangle(), value);
+        self.items
+            .entry((None, namespace))
+            .or_insert(Vec::new())
+            .push(value);
         Rc::clone(&adjusted_namespace)
     }
 
@@ -1790,39 +1786,18 @@ impl<'a> TypeCheckSymbTab<'a> {
         namespace: Rc<Namespace<'a>>,
         overload_val: TokenType<'a>,
         value: SymbTabObj<'a>,
-        mangle: bool,
     ) -> Result<Rc<Namespace<'a>>, ErrorOrVec<'a>> {
-        let adjusted_namespace = if mangle {
-            Rc::new(
-                namespace
-                    .as_ref()
-                    .clone()
-                    .prepend_namespace(&mut self.curr_prefix.clone()),
-            )
-        } else {
-            Rc::clone(&namespace)
-        };
-
-        let func = value.unwrap_function_ref().0.value.unwrap_func();
-
-        self.items.insert(
-            if mangle {
-                adjusted_namespace.mangle_overload(
-                    &func
-                        .0
-                        .positional
-                        .iter()
-                        .map(|val| &val.1)
-                        .collect::<Vec<_>>()[..],
-                    Some(func.1),
-                    overload_val,
-                    self,
-                )?
-            } else {
-                adjusted_namespace.scopes.last().unwrap().value.to_string()
-            },
-            value,
+        let adjusted_namespace = Rc::new(
+            namespace
+                .as_ref()
+                .clone()
+                .prepend_namespace(&mut self.curr_prefix.clone()),
         );
+
+        self.items
+            .entry((Some(overload_val), namespace))
+            .or_insert(Vec::new())
+            .push(value);
 
         Ok(Rc::clone(&adjusted_namespace))
     }
@@ -1831,39 +1806,20 @@ impl<'a> TypeCheckSymbTab<'a> {
         &mut self,
         namespace: Rc<Namespace<'a>>,
         value: SymbTabObj<'a>,
-        mangle: bool,
     ) -> Result<Rc<Namespace<'a>>, ErrorOrVec<'a>> {
-        let adjusted_namespace = if mangle {
-            Rc::new(
-                namespace
-                    .as_ref()
-                    .clone()
-                    .prepend_namespace(&mut self.curr_prefix.clone()),
-            )
-        } else {
-            Rc::clone(&namespace)
-        };
-
-        let func = value.unwrap_function_ref().0.value.unwrap_func();
-
-        self.items.insert(
-            if mangle {
-                adjusted_namespace.mangle_types(
-                    &func
-                        .0
-                        .positional
-                        .iter()
-                        .map(|val| &val.1)
-                        .collect::<Vec<_>>()[..],
-                    Some(func.1),
-                    self,
-                )?
-            } else {
-                adjusted_namespace.scopes.last().unwrap().value.to_string()
-            },
-            value,
+        let adjusted_namespace = Rc::new(
+            namespace
+                .as_ref()
+                .clone()
+                .prepend_namespace(&mut self.curr_prefix.clone()),
         );
-        Ok(Rc::clone(&adjusted_namespace))
+
+        self.items
+            .entry((None, Rc::clone(&adjusted_namespace)))
+            .or_insert(Vec::new())
+            .push(value);
+
+        Ok(adjusted_namespace)
     }
 
     fn reset_changed_safe(&mut self) {
@@ -1871,10 +1827,10 @@ impl<'a> TypeCheckSymbTab<'a> {
     }
 
     fn insert_changed_safe(&mut self, namespace: Rc<Namespace<'a>>, val: Nullable<'a>) {
-        self.changed_safe.insert(namespace.to_string(), val);
+        self.changed_safe.insert(namespace, val);
     }
 
-    fn get_changed_safe(&self) -> HashMap<String, Nullable<'a>> {
+    fn get_changed_safe(&self) -> HashMap<Rc<Namespace<'a>>, Nullable<'a>> {
         self.changed_safe.clone()
     }
 
@@ -1902,13 +1858,26 @@ impl<'a> TypeCheckSymbTab<'a> {
         }
     }
 
-    fn set_unsafe(&mut self, namespace: &str, error: ErrorAnnotation<'a>) {
-        match self.items.remove(namespace) {
+    fn remove_last(items: &mut Vec<SymbTabObj<'a>>) -> Option<SymbTabObj<'a>> {
+        if items.first().is_none() {
+            None
+        } else {
+            Some(items.remove(0))
+        }
+    }
+
+    fn set_unsafe(&mut self, namespace: Rc<Namespace<'a>>, error: ErrorAnnotation<'a>) {
+        match Self::remove_last(
+            &mut self
+                .items
+                .remove(&(None, Rc::clone(&namespace)))
+                .unwrap_or(Vec::new()),
+        ) {
             Some(SymbTabObj::Variable(val, _)) => {
-                self.items.insert(
-                    namespace.to_string(),
-                    SymbTabObj::Variable(val, Nullable::Unsafe(error)),
-                );
+                self.items
+                    .entry((None, namespace))
+                    .or_insert(Vec::new())
+                    .push(SymbTabObj::Variable(val, Nullable::Unsafe(error)));
             }
             _ => {
                 panic!("Tried to get item that is not variable");
@@ -1916,13 +1885,18 @@ impl<'a> TypeCheckSymbTab<'a> {
         }
     }
 
-    fn set_safe(&mut self, namespace: &str) {
-        match self.items.remove(namespace) {
+    fn set_safe(&mut self, namespace: Rc<Namespace<'a>>) {
+        match Self::remove_last(
+            &mut self
+                .items
+                .remove(&(None, Rc::clone(&namespace)))
+                .unwrap_or(Vec::new()),
+        ) {
             Some(SymbTabObj::Variable(val, _)) => {
-                self.items.insert(
-                    namespace.to_string(),
-                    SymbTabObj::Variable(val, Nullable::Safe),
-                );
+                self.items
+                    .entry((None, namespace))
+                    .or_insert(Vec::new())
+                    .push(SymbTabObj::Variable(val, Nullable::Safe));
             }
             _ => {
                 panic!("Tried to get item that is not variable");
@@ -1930,8 +1904,11 @@ impl<'a> TypeCheckSymbTab<'a> {
         }
     }
 
-    fn is_safe_cond(symbtab: &HashMap<String, Nullable<'a>>, key: &str) -> bool {
-        if let Some(val) = symbtab.get(key) {
+    fn is_safe_cond(
+        symbtab: &HashMap<Rc<Namespace<'a>>, Nullable<'a>>,
+        key: Rc<Namespace<'a>>,
+    ) -> bool {
+        if let Some(val) = symbtab.get(&key) {
             val.get_safe_cond().is_some()
         } else {
             false
@@ -1942,58 +1919,72 @@ impl<'a> TypeCheckSymbTab<'a> {
         self.curr_prefix.append(prefix);
     }
 
-    pub fn get_prefix(self, prefix_match: &[NameID<'_>]) -> HashMap<String, SymbTabObj<'a>> {
-        let mangle_prefix = prefix_match
+    pub fn get_prefix(
+        &self,
+        prefix_match: Rc<Namespace<'a>>,
+    ) -> HashMap<Rc<Namespace<'a>>, &[SymbTabObj<'a>]> {
+        self.items
             .iter()
-            .map(|name| {
-                let mangled = name.mangle();
-                format!("N{}{}", mangled.len(), mangled)
+            .filter(|((_, key), _)| key.starts_with(Rc::clone(&prefix_match)))
+            .map(|(key, val)| (Rc::clone(&key.1), &val[..]))
+            .collect()
+    }
+
+    pub fn get_prefix_op(
+        &self,
+        real_op: TokenType<'a>,
+    ) -> HashMap<Rc<Namespace<'a>>, &[SymbTabObj<'a>]> {
+        self.items
+            .iter()
+            .filter(|((op, _), _)| {
+                if let Some(operator) = op {
+                    *operator == real_op
+                } else {
+                    false
+                }
             })
-            .collect::<Vec<_>>()
-            .join("_");
-        self.items
-            .into_iter()
-            .filter(|(key, _)| key.starts_with(&mangle_prefix[..]))
+            .map(|(key, val)| (Rc::clone(&key.1), &val[..]))
             .collect()
     }
 
-    pub fn get_prefix_string(&self, prefix_match: &str) -> HashMap<&String, &SymbTabObj<'a>> {
-        self.items
+    fn match_types<'b>(
+        &self,
+        val: &SymbTabObj<'a>,
+        types: &[&TypeCheckType<'a>],
+        return_type: Option<&TypeCheckType<'a>>,
+        context: &'b TypeCheckSymbTab<'a>,
+    ) -> bool {
+        let func_sig = val.unwrap_function_ref().0.value.unwrap_func();
+        types
             .iter()
-            .filter(|(key, _)| key.starts_with(prefix_match))
-            .collect()
+            .zip(&func_sig.0.positional)
+            .all(|(used, real)| used.can_cast(&real.1, self))
+            && if let Some(ret_val) = return_type {
+                TypeCheckType::sequiv(ret_val, func_sig.1, context)
+            } else {
+                true
+            }
     }
 
-    fn get_overloaded(
+    fn get_overloaded<'b>(
         &self,
         types: &[&TypeCheckType<'a>],
         return_type: Option<&TypeCheckType<'a>>,
         operator: TokenType<'a>,
-    ) -> Result<(String, &SymbTabObj<'a>), ErrorOrVec<'a>> {
-        let end = &match return_type {
-            Some(val) => {
-                let ret_type = val.mangle(self)?;
-                format!(
-                    "R{}{}{}",
-                    ret_type.len(),
-                    ret_type,
-                    mangle::gen_mangled_args(types, self)?,
-                )
+    ) -> Result<(Rc<Namespace<'a>>, &SymbTabObj<'a>), ErrorOrVec<'a>> {
+        let mut possible_overloads = Vec::new();
+        for (k, sigs) in self.get_prefix_op(operator).into_iter() {
+            for sig in sigs {
+                if self.match_types(sig, types, return_type, self) {
+                    possible_overloads.push((Rc::clone(&k), sig))
+                }
             }
-            None => mangle::gen_mangled_args(types, self)?,
-        }[..];
-
-        let possible_overloads = self
-            .get_prefix_string(&operator.mangle()[..])
-            .into_iter()
-            .filter(|(k, _)| k.ends_with(end))
-            .map(|(k, v)| (&k[..], v))
-            .collect::<Vec<_>>();
+        }
 
         let possible_overloads_len = possible_overloads.len();
 
         if possible_overloads_len == 1 {
-            let val = possible_overloads[0];
+            let val = &possible_overloads[0];
             Ok((val.0.to_owned(), val.1))
         } else if possible_overloads_len == 0 {
             // No overloaded function
@@ -2077,161 +2068,187 @@ impl<'a> TypeCheckSymbTab<'a> {
     fn get_function(
         &self,
         namespace: Rc<Namespace<'a>>,
-        types: &[TypeCheckType<'a>],
+        types: &[&TypeCheckType<'a>],
         return_type: Option<&TypeCheckType<'a>>,
-        mangle: bool,
     ) -> Result<(&SymbTabObj<'a>, Rc<Namespace<'a>>), ErrorOrVec<'a>> {
-        let types_ref = &types.iter().collect::<Vec<_>>();
-        match self.items.get(
-            &if mangle {
-                namespace.mangle_types(types_ref, return_type, self)?
-            } else {
-                namespace.scopes.last().unwrap().value.to_string()
-            }[..],
-        ) {
-            Some(val) => match val.deref() {
-                SymbTabObj::Function(_, _) => return Ok((val, namespace)),
-                _ => {}
-            },
+        match self.items.get(&(None, Rc::clone(&namespace))) {
+            Some(val) => {
+                if val.len() == 1 {
+                    let only_value = val.deref().first().unwrap();
+                    match only_value {
+                        SymbTabObj::Function(_, _, _) => return Ok((only_value, namespace)),
+                        _ => {}
+                    }
+                } else {
+                    // More than one value here
+                    // TODO: try to infer type
+                    let mut possibles = Vec::new();
+                    let mut mangled_values = Vec::new();
+
+                    for sig in val {
+                        if let SymbTabObj::Function(_, _, mangled) = sig {
+                            if !*mangled {
+                                mangled_values.push((Rc::clone(&namespace), sig));
+                                continue;
+                            }
+                            if self.match_types(sig, types, return_type, self) {
+                                possibles.push((Rc::clone(&namespace), sig))
+                            }
+                        }
+                    }
+
+                    if possibles.len() == 1 {
+                        return Ok((possibles.first().unwrap().1, namespace));
+                    } else if mangled_values.len() == 1 {
+                        return Ok((mangled_values.first().unwrap().1, namespace));
+                    } else {
+                        let mut err = vec![ErrorAnnotation::new(
+                            Some(format!("function `{}` used here", namespace.to_string())),
+                            namespace.pos,
+                            ErrorDisplayType::Error,
+                        )];
+
+                        err.append(
+                            &mut val
+                                .into_iter()
+                                .map(|type_val| {
+                                    let func_type =
+                                        type_val.unwrap_function_ref().0.value.unwrap_func();
+                                    ErrorAnnotation::new(
+                                        Some(format!(
+                                            "possible function signature of ({}) -> {}",
+                                            func_type
+                                                .0
+                                                .positional
+                                                .iter()
+                                                .map(|(_, val)| val.to_string())
+                                                .collect::<Vec<_>>()
+                                                .join(", "),
+                                            func_type.1
+                                        )),
+                                        namespace.pos,
+                                        ErrorDisplayType::Error,
+                                    )
+                                })
+                                .collect::<Vec<_>>(),
+                        );
+
+                        // Cannot infer value to use
+                        return Err(ErrorOrVec::Error(
+                            Error::new(
+                                "cannot infer return type of function call".to_string(),
+                                ErrorType::InferError,
+                                namespace.pos,
+                                ErrorDisplayType::Error,
+                                err,
+                                true,
+                            ),
+                            ErrorLevel::TypeError,
+                        ));
+                    }
+                }
+            }
             None => {}
         }
 
         // Try other namespace
-        let other = namespace
-            .as_ref()
-            .clone()
-            .prepend_namespace(&mut self.curr_prefix.clone());
-        match self.items.get(
-            &if mangle {
-                other.mangle_types(types_ref, return_type, self)?
-            } else {
-                other.scopes.last().unwrap().value.to_string()
-            }[..],
-        ) {
-            Some(val) => match val.deref() {
-                SymbTabObj::Function(_, _) => return Ok((val, Rc::new(other))),
-                other => {
-                    // Cannot get function with and without current prefix
-                    return Err(ErrorOrVec::Error(
-                        Error::new(
-                            format!("`{}` is not a function", namespace),
-                            ErrorType::UndefinedSymbol,
-                            namespace.pos,
-                            ErrorDisplayType::Error,
-                            vec![ErrorAnnotation::new(
-                                Some(format!("`{}` is a `{}`, not a function", namespace, other)),
-                                namespace.pos,
-                                ErrorDisplayType::Error,
-                            )],
-                            true,
-                        ),
-                        ErrorLevel::NonExistentFunc,
-                    ));
+        let other = Rc::new(
+            namespace
+                .as_ref()
+                .clone()
+                .prepend_namespace(&mut self.curr_prefix.clone()),
+        );
+        match self.items.get(&(None, Rc::clone(&other))) {
+            Some(val) => {
+                if val.len() == 1 {
+                    let only_value = val.deref().first().unwrap();
+                    match only_value {
+                        SymbTabObj::Function(_, _, _) => {
+                            return Ok((only_value, Rc::clone(&other)))
+                        }
+                        other => {
+                            // Cannot get function with and without current prefix
+                            return Err(ErrorOrVec::Error(
+                                Error::new(
+                                    format!("`{}` is not a function", namespace),
+                                    ErrorType::UndefinedSymbol,
+                                    namespace.pos,
+                                    ErrorDisplayType::Error,
+                                    vec![ErrorAnnotation::new(
+                                        Some(format!(
+                                            "`{}` is a `{}`, not a function",
+                                            namespace, other
+                                        )),
+                                        namespace.pos,
+                                        ErrorDisplayType::Error,
+                                    )],
+                                    true,
+                                ),
+                                ErrorLevel::NonExistentFunc,
+                            ));
+                        }
+                    }
+                } else {
+                    let mut possibles = Vec::new();
+                    let mut mangled_values = Vec::new();
+
+                    for sig in val {
+                        if let SymbTabObj::Function(_, _, mangled) = sig {
+                            if !*mangled {
+                                mangled_values.push((Rc::clone(&namespace), sig));
+                                continue;
+                            }
+                            if self.match_types(sig, types, return_type, self) {
+                                possibles.push((Rc::clone(&namespace), sig))
+                            }
+                        }
+                    }
+
+                    if possibles.len() == 1 {
+                        return Ok((possibles.first().unwrap().1, namespace));
+                    } else if mangled_values.len() == 1 {
+                        return Ok((mangled_values.first().unwrap().1, namespace));
+                    }
                 }
-            },
+            }
             None => {}
         }
 
-        let other_man = other.mangle();
-        let namespace_man = namespace.mangle();
-
-        let (functions_name_other, functions_name_normal) = if mangle {
-            (
-                self.get_prefix_string(&other_man[..]),
-                self.get_prefix_string(&namespace_man[..]),
-            )
-        } else {
-            (
-                self.get_prefix_string(other.scopes.last().unwrap().value),
-                self.get_prefix_string(namespace.scopes.last().unwrap().value),
-            )
-        };
+        println!("{} {}", namespace, other);
 
         // TODO: add a "did you mean..."
-        if !functions_name_normal.is_empty() {
-            // Favour normal
-            Err(ErrorOrVec::Error(
-                Error::new(
-                    "overloaded function does not exist".to_string(),
-                    ErrorType::UndefinedSymbol,
-                    namespace.pos,
-                    ErrorDisplayType::Error,
-                    vec![
-                        ErrorAnnotation::new(
-                            Some(format!("undefined function `{}`", namespace)),
-                            namespace.pos,
-                            ErrorDisplayType::Error,
-                        ),
-                        ErrorAnnotation::new(
-                            Some(format!(
-                                "for the overloaded function `({}) -> {}`",
-                                types
-                                    .into_iter()
-                                    .map(|x| x.to_string())
-                                    .collect::<Vec<_>>()
-                                    .join(","),
-                                return_type
-                                    .map(|val| val.to_string())
-                                    .unwrap_or("_".to_string())
-                            )),
-                            namespace.pos,
-                            ErrorDisplayType::Error,
-                        ),
-                    ],
-                    true,
-                ),
-                ErrorLevel::NonExistentFunc,
-            ))
-        } else if !functions_name_other.is_empty() {
-            Err(ErrorOrVec::Error(
-                Error::new(
-                    "overloaded function does not exist".to_string(),
-                    ErrorType::UndefinedSymbol,
-                    namespace.pos,
-                    ErrorDisplayType::Error,
-                    vec![
-                        ErrorAnnotation::new(
-                            Some(format!("undefined function `{}`", namespace)),
-                            namespace.pos,
-                            ErrorDisplayType::Error,
-                        ),
-                        ErrorAnnotation::new(
-                            Some(format!(
-                                "for types of ({}) -> {}",
-                                types
-                                    .into_iter()
-                                    .map(|x| x.to_string())
-                                    .collect::<Vec<_>>()
-                                    .join(","),
-                                return_type
-                                    .map(|val| val.to_string())
-                                    .unwrap_or("_".to_string())
-                            )),
-                            namespace.pos,
-                            ErrorDisplayType::Error,
-                        ),
-                    ],
-                    true,
-                ),
-                ErrorLevel::NonExistentFunc,
-            ))
-        } else {
-            Err(ErrorOrVec::Error(
-                Error::new(
-                    "function does not exist".to_string(),
-                    ErrorType::UndefinedSymbol,
-                    namespace.pos,
-                    ErrorDisplayType::Error,
-                    vec![ErrorAnnotation::new(
+        Err(ErrorOrVec::Error(
+            Error::new(
+                "function does not exist".to_string(),
+                ErrorType::UndefinedSymbol,
+                namespace.pos,
+                ErrorDisplayType::Error,
+                vec![
+                    ErrorAnnotation::new(
                         Some(format!("undefined function `{}`", namespace)),
                         namespace.pos,
                         ErrorDisplayType::Error,
-                    )],
-                    true,
-                ),
-                ErrorLevel::NonExistentFunc,
-            ))
-        }
+                    ),
+                    ErrorAnnotation::new(
+                        Some(format!(
+                            "for the types of `({}) -> {}`",
+                            types
+                                .into_iter()
+                                .map(|x| x.to_string())
+                                .collect::<Vec<_>>()
+                                .join(", "),
+                            return_type
+                                .map(|val| val.to_string())
+                                .unwrap_or("_".to_string())
+                        )),
+                        namespace.pos,
+                        ErrorDisplayType::Error,
+                    ),
+                ],
+                true,
+            ),
+            ErrorLevel::NonExistentFunc,
+        ))
     }
 
     fn generate_private_type_err(
@@ -2267,9 +2284,9 @@ impl<'a> TypeCheckSymbTab<'a> {
         &self,
         namespace: Rc<Namespace<'a>>,
     ) -> Result<&SymbTabObj<'a>, ErrorOrVec<'a>> {
-        match self.items.get(&namespace.mangle()) {
+        match self.items.get(&(None, Rc::clone(&namespace))) {
             Some(val) => match val.deref() {
-                SymbTabObj::CustomType(typechecktype, visibility) => {
+                [SymbTabObj::CustomType(typechecktype, visibility)] => {
                     return Ok(
                         if *visibility == Visibility::Private
                             && typechecktype.pos.filename != namespace.pos.filename
@@ -2279,7 +2296,7 @@ impl<'a> TypeCheckSymbTab<'a> {
                                 typechecktype.pos,
                             ));
                         } else {
-                            val
+                            val.first().unwrap()
                         },
                     );
                 }
@@ -2289,14 +2306,16 @@ impl<'a> TypeCheckSymbTab<'a> {
         }
 
         // Try other namespace
-        let other = namespace
-            .as_ref()
-            .clone()
-            .prepend_namespace(&mut self.curr_prefix.clone());
+        let other = Rc::new(
+            namespace
+                .as_ref()
+                .clone()
+                .prepend_namespace(&mut self.curr_prefix.clone()),
+        );
 
-        match self.items.get(&other.mangle()) {
+        match self.items.get(&(None, other)) {
             Some(val) => match val.deref() {
-                SymbTabObj::CustomType(typechecktype, visibility) => {
+                [SymbTabObj::CustomType(typechecktype, visibility)] => {
                     return Ok(
                         if *visibility == Visibility::Private
                             && typechecktype.pos.filename != namespace.pos.filename
@@ -2306,7 +2325,7 @@ impl<'a> TypeCheckSymbTab<'a> {
                                 typechecktype.pos,
                             ));
                         } else {
-                            val
+                            val.first().unwrap()
                         },
                     );
                 }
@@ -2318,7 +2337,11 @@ impl<'a> TypeCheckSymbTab<'a> {
                             namespace.pos,
                             ErrorDisplayType::Error,
                             vec![ErrorAnnotation::new(
-                                Some(format!("`{}` is a `{}`, not a type", namespace, other)),
+                                Some(format!(
+                                    "`{}` is a `{}`, not a type",
+                                    namespace,
+                                    other.first().unwrap()
+                                )),
                                 namespace.pos,
                                 ErrorDisplayType::Error,
                             )],
@@ -2371,9 +2394,9 @@ impl<'a> TypeCheckSymbTab<'a> {
         &self,
         namespace: Rc<Namespace<'a>>,
     ) -> Result<&SymbTabObj<'a>, ErrorOrVec<'a>> {
-        match self.items.get(&namespace.to_string()) {
+        match self.items.get(&(None, Rc::clone(&namespace))) {
             Some(val) => match val.deref() {
-                SymbTabObj::Variable(_, _) => return Ok(val),
+                [SymbTabObj::Variable(_, _)] => return Ok(val.first().unwrap()),
                 other => {
                     return Err(ErrorOrVec::Error(
                         Error::new(
@@ -2382,7 +2405,11 @@ impl<'a> TypeCheckSymbTab<'a> {
                             namespace.pos,
                             ErrorDisplayType::Error,
                             vec![ErrorAnnotation::new(
-                                Some(format!("`{}` is a `{}`, not a variable", namespace, other)),
+                                Some(format!(
+                                    "`{}` is a `{}`, not a variable",
+                                    namespace,
+                                    other.last().unwrap()
+                                )),
                                 namespace.pos,
                                 ErrorDisplayType::Error,
                             )],

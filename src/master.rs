@@ -11,7 +11,7 @@ use std::fs;
 use std::io::Write;
 use std::path;
 use std::process;
-use std::process::{Child, Command, Output, Stdio};
+use std::process::{Command, Output, Stdio};
 use std::rc::Rc;
 use std::time::Instant;
 
@@ -128,6 +128,8 @@ impl<'a> Master<'a> {
                 .collect(),
         );
 
+        println!("{:?}", args);
+
         let cmd = match Command::new("llvm-link")
             .args(&args[..])
             .stdout(Stdio::piped())
@@ -136,7 +138,7 @@ impl<'a> Master<'a> {
             Ok(child) => child,
             Err(e) => {
                 eprintln!(
-                    "{}Error when linking llvm ir:{} {}",
+                    "{}Error linking llvm ir:{} {}",
                     color::RED,
                     color::RESET,
                     e
@@ -230,7 +232,6 @@ impl<'a> Master<'a> {
             "-e".to_string(),
             "_N5entry_A0_R2t0".to_string(),
             "-no-pie".to_string(),
-            "-Qunused-arguments".to_string(),
             "-g".to_string(),
         ];
 
