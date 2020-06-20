@@ -1076,14 +1076,11 @@ impl<'a> Block<'a> {
     }
 }
 
-impl<'a> TypeCheck<'a> for Block<'a> {
-    fn type_check<'b>(
+impl<'a> Block<'a> {
+    pub fn first_pass<'b>(
         &mut self,
-        return_type: Option<Cow<'a, TypeCheckType<'a>>>,
         context: &'b mut TypeCheckSymbTab<'a>,
-    ) -> Result<Option<TypeCheckType<'a>>, ErrorOrVec<'a>> {
-        let mut errors: Vec<(Error<'_>, ErrorLevel)> = Vec::new();
-        let mut ret_types: Vec<&mut Expr<'_>> = Vec::new();
+    ) -> Result<(), ErrorOrVec<'a>> {
         let mut tags = Vec::new();
 
         for i in 0..self.nodes.len() {
@@ -1157,23 +1154,32 @@ impl<'a> TypeCheck<'a> for Block<'a> {
                     });
 
                     func_def.generate_proto(context)?;
-
                     self.nodes.push(Statement::FunctionDefine(func_def_other));
                 }
                 Statement::TypeAssign(type_assign) => {
                     type_assign.type_check(None, context)?;
                 }
                 Statement::Unit(unit) => {
-                    unit.type_check(return_type.clone(), context)?;
+                    unit.first_pass(context)?;
                 }
                 _ => {}
             }
         }
 
+        Ok(())
+    }
+}
+
+impl<'a> TypeCheck<'a> for Block<'a> {
+    fn type_check<'b>(
+        &mut self,
+        return_type: Option<Cow<'a, TypeCheckType<'a>>>,
+        context: &'b mut TypeCheckSymbTab<'a>,
+    ) -> Result<Option<TypeCheckType<'a>>, ErrorOrVec<'a>> {
+        let mut errors: Vec<(Error<'_>, ErrorLevel)> = Vec::new();
+        let mut ret_types: Vec<&mut Expr<'_>> = Vec::new();
+
         for node in &mut self.nodes {
-            if let Statement::Unit(_) = node {
-                continue;
-            }
             match node.type_check(return_type.clone(), context) {
                 Ok(_) => {}
                 Err(e) => {
@@ -1270,6 +1276,13 @@ impl<'a> FunctionDefine<'a> {
             false,
         )?);
 
+        match &mut self.block {
+            Some(block) => {
+                block.first_pass(context)?;
+            }
+            None => {}
+        };
+
         match self.overload_operator {
             Some(token) => {
                 // Overloading function
@@ -1300,6 +1313,7 @@ impl<'a> FunctionDefine<'a> {
                         self.pos,
                         to_mangle,
                     ),
+                    to_mangle,
                 )?;
                 if let None = self.mangled_name {
                     self.mangled_name = Some(
@@ -1344,6 +1358,7 @@ impl<'a> FunctionDefine<'a> {
                         self.pos,
                         to_mangle,
                     ),
+                    to_mangle,
                 )?;
                 if let None = self.mangled_name {
                     self.mangled_name = Some(
@@ -1411,6 +1426,20 @@ impl<'a> TypeCheck<'a> for ExpressionStatement<'a> {
         context: &'b mut TypeCheckSymbTab<'a>,
     ) -> Result<Option<TypeCheckType<'a>>, ErrorOrVec<'a>> {
         TypeCheckType::from_expr(&mut self.expression, context, None)?;
+        Ok(None)
+    }
+}
+
+impl<'a> Unit<'a> {
+    fn first_pass<'b>(
+        &mut self,
+        context: &'b mut TypeCheckSymbTab<'a>,
+    ) -> Result<Option<TypeCheckType<'a>>, ErrorOrVec<'a>> {
+        context.push_curr_prefix(self.name.as_vec_nameid());
+        self.block.first_pass(context)?;
+        context.curr_prefix.pop();
+
+        // Unit returns nothing
         Ok(None)
     }
 }
@@ -1785,16 +1814,21 @@ impl<'a> TypeCheckSymbTab<'a> {
         namespace: Rc<Namespace<'a>>,
         overload_val: TokenType<'a>,
         value: SymbTabObj<'a>,
+        mangle: bool,
     ) -> Result<Rc<Namespace<'a>>, ErrorOrVec<'a>> {
-        let adjusted_namespace = Rc::new(
+        let adjusted_namespace = if mangle {
+            Rc::new(
+                namespace
+                    .as_ref()
+                    .clone()
+                    .prepend_namespace(&mut self.curr_prefix.clone()),
+            )
+        } else {
             namespace
-                .as_ref()
-                .clone()
-                .prepend_namespace(&mut self.curr_prefix.clone()),
-        );
+        };
 
         self.items
-            .entry((Some(overload_val), namespace))
+            .entry((Some(overload_val), Rc::clone(&adjusted_namespace)))
             .or_insert(Vec::new())
             .push(value);
 
@@ -1805,13 +1839,18 @@ impl<'a> TypeCheckSymbTab<'a> {
         &mut self,
         namespace: Rc<Namespace<'a>>,
         value: SymbTabObj<'a>,
+        mangle: bool,
     ) -> Result<Rc<Namespace<'a>>, ErrorOrVec<'a>> {
-        let adjusted_namespace = Rc::new(
+        let adjusted_namespace = if mangle {
+            Rc::new(
+                namespace
+                    .as_ref()
+                    .clone()
+                    .prepend_namespace(&mut self.curr_prefix.clone()),
+            )
+        } else {
             namespace
-                .as_ref()
-                .clone()
-                .prepend_namespace(&mut self.curr_prefix.clone()),
-        );
+        };
 
         self.items
             .entry((None, Rc::clone(&adjusted_namespace)))
@@ -2068,13 +2107,33 @@ impl<'a> TypeCheckSymbTab<'a> {
         types: &[&TypeCheckType<'a>],
         return_type: Option<&TypeCheckType<'a>>,
     ) -> Result<(&SymbTabObj<'a>, Rc<Namespace<'a>>), ErrorOrVec<'a>> {
+        let mut possible_error = None;
         match self.items.get(&(None, Rc::clone(&namespace))) {
             Some(val) => {
                 if val.len() == 1 {
                     let only_value = val.deref().first().unwrap();
                     match only_value {
                         SymbTabObj::Function(_, _, _) => return Ok((only_value, namespace)),
-                        _ => {}
+                        others => {
+                            possible_error = Some(ErrorOrVec::Error(
+                                Error::new(
+                                    format!("`{}` is not a function", namespace),
+                                    ErrorType::UndefinedSymbol,
+                                    namespace.pos,
+                                    ErrorDisplayType::Error,
+                                    vec![ErrorAnnotation::new(
+                                        Some(format!(
+                                            "`{}` is a `{}`, not a function",
+                                            namespace, others
+                                        )),
+                                        namespace.pos,
+                                        ErrorDisplayType::Error,
+                                    )],
+                                    true,
+                                ),
+                                ErrorLevel::NonExistentType,
+                            ));
+                        }
                     }
                 } else {
                     // More than one value here
@@ -2165,7 +2224,7 @@ impl<'a> TypeCheckSymbTab<'a> {
                         }
                         other => {
                             // Cannot get function with and without current prefix
-                            return Err(ErrorOrVec::Error(
+                            possible_error = Some(ErrorOrVec::Error(
                                 Error::new(
                                     format!("`{}` is not a function", namespace),
                                     ErrorType::UndefinedSymbol,
@@ -2211,39 +2270,46 @@ impl<'a> TypeCheckSymbTab<'a> {
             None => {}
         }
 
-        // TODO: add a "did you mean..."
-        Err(ErrorOrVec::Error(
-            Error::new(
-                "function does not exist".to_string(),
-                ErrorType::UndefinedSymbol,
-                namespace.pos,
-                ErrorDisplayType::Error,
-                vec![
-                    ErrorAnnotation::new(
-                        Some(format!("undefined function `{}`", namespace)),
-                        namespace.pos,
-                        ErrorDisplayType::Error,
-                    ),
-                    ErrorAnnotation::new(
-                        Some(format!(
-                            "for the types of `({}) -> {}`",
-                            types
-                                .into_iter()
-                                .map(|x| x.to_string())
-                                .collect::<Vec<_>>()
-                                .join(", "),
-                            return_type
-                                .map(|val| val.to_string())
-                                .unwrap_or("_".to_string())
-                        )),
-                        namespace.pos,
-                        ErrorDisplayType::Error,
-                    ),
-                ],
-                true,
-            ),
-            ErrorLevel::NonExistentFunc,
-        ))
+        println!("{} {}", namespace, other);
+        println!("{}", self);
+
+        if let Some(e) = possible_error {
+            return Err(e);
+        } else {
+            // TODO: add a "did you mean..."
+            Err(ErrorOrVec::Error(
+                Error::new(
+                    "function does not exist".to_string(),
+                    ErrorType::UndefinedSymbol,
+                    namespace.pos,
+                    ErrorDisplayType::Error,
+                    vec![
+                        ErrorAnnotation::new(
+                            Some(format!("undefined function `{}`", namespace)),
+                            namespace.pos,
+                            ErrorDisplayType::Error,
+                        ),
+                        ErrorAnnotation::new(
+                            Some(format!(
+                                "for the types of `({}) -> {}`",
+                                types
+                                    .into_iter()
+                                    .map(|x| x.to_string())
+                                    .collect::<Vec<_>>()
+                                    .join(", "),
+                                return_type
+                                    .map(|val| val.to_string())
+                                    .unwrap_or("_".to_string())
+                            )),
+                            namespace.pos,
+                            ErrorDisplayType::Error,
+                        ),
+                    ],
+                    true,
+                ),
+                ErrorLevel::NonExistentFunc,
+            ))
+        }
     }
 
     fn generate_private_type_err(

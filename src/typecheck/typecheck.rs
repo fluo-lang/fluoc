@@ -68,10 +68,16 @@ impl<'a> TypeCheckModule<'a> {
         let typecheck_start = Instant::now();
 
         // Do type checking
-        match (self.parser.ast.as_mut().unwrap() as &mut dyn ast_typecheck::TypeCheck<'_>)
-            .type_check(None, &mut self.symtab)
-        {
-            Ok(_) => {
+        match (
+            self.parser
+                .ast
+                .as_mut()
+                .unwrap()
+                .first_pass(&mut self.symtab),
+            (self.parser.ast.as_mut().unwrap() as &mut dyn ast_typecheck::TypeCheck<'_>)
+                .type_check(None, &mut self.symtab),
+        ) {
+            (Ok(_), Ok(_)) => {
                 self.parser.logger.borrow().log_verbose(&|| {
                     format!(
                         "{}: Typechecked",
@@ -80,7 +86,8 @@ impl<'a> TypeCheckModule<'a> {
                 }); // Lazily run it so no impact on performance
                 Ok(())
             }
-            Err(e) => Err(helpers::get_high_priority(e.as_vec())),
+            (Err(e), _) => Err(helpers::get_high_priority(e.as_vec())),
+            (_, Err(e)) => Err(helpers::get_high_priority(e.as_vec())),
         }
     }
 }
