@@ -3,5 +3,5 @@ public
 type value = int;
 
 public def hello(val: value) -> value {
-    return val;
+    return val + 10 value;
 }

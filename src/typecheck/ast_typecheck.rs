@@ -1,5 +1,5 @@
 use crate::helpers;
-use crate::lexer::TokenType;
+use crate::lexer::{Token, TokenType};
 use crate::logger::logger::{
     Error, ErrorAnnotation, ErrorDisplayType, ErrorLevel, ErrorOrVec, ErrorType,
 };
@@ -492,10 +492,7 @@ impl<'a> TypeCheckType<'a> {
                 inferred: val.inferred,
             }
         } else {
-            panic!(format!(
-                "Unknown type {:?} tried to convert to type check type",
-                val
-            ));
+            panic!("Unknown type {:?} tried to convert to type check type", val);
         };
 
         temp_type.prepend_namespace(&context.curr_prefix);
@@ -844,7 +841,7 @@ impl<'a> TypeCheckType<'a> {
                 let overloaded = context.get_overloaded(
                     &[&left_type, &right_type],
                     return_type,
-                    infix.operator.token,
+                    infix.operator,
                 )?;
 
                 infix.function_call = Some(FunctionCall {
@@ -1251,6 +1248,7 @@ impl<'a> FunctionDefine<'a> {
     ) -> Result<(), ErrorOrVec<'a>> {
         let to_mangle = self.block.is_some(); // Mangle if there is a block
         let mut positional = Vec::new();
+
         for idx in 0..self.arguments.positional.len() {
             self.arguments.positional[idx] = (
                 self.arguments.positional[idx].0,
@@ -1775,10 +1773,11 @@ impl<'a> TypeCheckSymbTab<'a> {
         );
 
         self.items
-            .entry((None, namespace))
+            .entry((None, Rc::clone(&adjusted_namespace)))
             .or_insert(Vec::new())
             .push(value);
-        Rc::clone(&adjusted_namespace)
+
+        adjusted_namespace
     }
 
     pub fn set_overloaded(
@@ -1970,10 +1969,10 @@ impl<'a> TypeCheckSymbTab<'a> {
         &self,
         types: &[&TypeCheckType<'a>],
         return_type: Option<&TypeCheckType<'a>>,
-        operator: TokenType<'a>,
+        operator: Token<'a>,
     ) -> Result<(Rc<Namespace<'a>>, &SymbTabObj<'a>), ErrorOrVec<'a>> {
         let mut possible_overloads = Vec::new();
-        for (k, sigs) in self.get_prefix_op(operator).into_iter() {
+        for (k, sigs) in self.get_prefix_op(operator.token).into_iter() {
             for sig in sigs {
                 if self.match_types(sig, types, return_type, self) {
                     possible_overloads.push((Rc::clone(&k), sig))
@@ -1988,17 +1987,16 @@ impl<'a> TypeCheckSymbTab<'a> {
             Ok((val.0.to_owned(), val.1))
         } else if possible_overloads_len == 0 {
             // No overloaded function
-            let first = types.first().unwrap().pos;
-            let position = helpers::Pos::new(first.s, types.last().unwrap().pos.e, first.filename);
+            let position = operator.pos;
             Err(ErrorOrVec::Error(
                 Error::new(
-                    "no overloaded function found".to_string(),
+                    "no operator overload found".to_string(),
                     ErrorType::InferError,
                     position,
                     ErrorDisplayType::Error,
                     vec![
                         ErrorAnnotation::new(
-                            Some(format!("not found for {}", operator)),
+                            Some(format!("overload not found for {}", operator)),
                             position,
                             ErrorDisplayType::Error,
                         ),
@@ -2023,8 +2021,7 @@ impl<'a> TypeCheckSymbTab<'a> {
                 ErrorLevel::NonExistentFunc,
             ))
         } else {
-            let first = types.first().unwrap().pos;
-            let position = helpers::Pos::new(first.s, types.last().unwrap().pos.e, first.filename);
+            let position = operator.pos;
             let mut err = vec![ErrorAnnotation::new(
                 Some(format!("operator used here",)),
                 position,
@@ -2214,8 +2211,6 @@ impl<'a> TypeCheckSymbTab<'a> {
             None => {}
         }
 
-        println!("{} {}", namespace, other);
-
         // TODO: add a "did you mean..."
         Err(ErrorOrVec::Error(
             Error::new(
@@ -2284,6 +2279,7 @@ impl<'a> TypeCheckSymbTab<'a> {
         &self,
         namespace: Rc<Namespace<'a>>,
     ) -> Result<&SymbTabObj<'a>, ErrorOrVec<'a>> {
+        let mut possible_error = None;
         match self.items.get(&(None, Rc::clone(&namespace))) {
             Some(val) => match val.deref() {
                 [SymbTabObj::CustomType(typechecktype, visibility)] => {
@@ -2300,7 +2296,27 @@ impl<'a> TypeCheckSymbTab<'a> {
                         },
                     );
                 }
-                _ => {}
+                other => {
+                    possible_error = Some(ErrorOrVec::Error(
+                        Error::new(
+                            format!("`{}` is not a type", namespace),
+                            ErrorType::UndefinedSymbol,
+                            namespace.pos,
+                            ErrorDisplayType::Error,
+                            vec![ErrorAnnotation::new(
+                                Some(format!(
+                                    "`{}` is a `{}`, not a type",
+                                    namespace,
+                                    other.first().unwrap()
+                                )),
+                                namespace.pos,
+                                ErrorDisplayType::Error,
+                            )],
+                            true,
+                        ),
+                        ErrorLevel::NonExistentType,
+                    ));
+                }
             },
             None => {}
         }
@@ -2330,7 +2346,7 @@ impl<'a> TypeCheckSymbTab<'a> {
                     );
                 }
                 other => {
-                    return Err(ErrorOrVec::Error(
+                    possible_error = Some(ErrorOrVec::Error(
                         Error::new(
                             format!("`{}` is not a type", namespace),
                             ErrorType::UndefinedSymbol,
@@ -2354,21 +2370,24 @@ impl<'a> TypeCheckSymbTab<'a> {
             None => {}
         }
 
-        Err(ErrorOrVec::Error(
-            Error::new(
-                "type does not exist".to_string(),
-                ErrorType::UndefinedSymbol,
-                namespace.pos,
-                ErrorDisplayType::Error,
-                vec![ErrorAnnotation::new(
-                    Some(format!("undefined type `{}`", namespace)),
+        match possible_error {
+            Some(err) => Err(err),
+            None => Err(ErrorOrVec::Error(
+                Error::new(
+                    "type does not exist".to_string(),
+                    ErrorType::UndefinedSymbol,
                     namespace.pos,
                     ErrorDisplayType::Error,
-                )],
-                true,
-            ),
-            ErrorLevel::NonExistentType,
-        ))
+                    vec![ErrorAnnotation::new(
+                        Some(format!("undefined type `{}`", namespace)),
+                        namespace.pos,
+                        ErrorDisplayType::Error,
+                    )],
+                    true,
+                ),
+                ErrorLevel::NonExistentType,
+            )),
+        }
     }
 
     fn get_basic_type(
