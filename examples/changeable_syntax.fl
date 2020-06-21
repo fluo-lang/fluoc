@@ -6,7 +6,7 @@ syntax print -> statement {
         `print`;
         `->`;
         value: $expr;
-        `;`;
+        `;`; -- Macros must end with a semicolon
     }
 
     eval {

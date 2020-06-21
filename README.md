@@ -88,7 +88,6 @@ Currently, you will need to install LLVM on your own. In the future, this will c
 
 ## More Examples
 ```rust
--- Return closure that returns int
 def make_closure(closure: () -> int) -> () -> int {
     return closure;
 }
@@ -99,8 +98,6 @@ def main() -> {
 ```
 
 ```rust
--- Generic print with static dispatch
--- Print is a statement
 syntax print -> statement {
     parse {
         `print`;
