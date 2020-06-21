@@ -1,6 +1,7 @@
 
 -- Generic print with static dispatch
-syntax print -> statement {  -- Print is a statement
+-- Print is a statement
+syntax print -> statement {
     parse {
         `print`;
         `->`;
@@ -10,13 +11,13 @@ syntax print -> statement {  -- Print is a statement
 
     eval {
         if $value is int {
-            `std::core::print($value);`
+            <`std::core::print($value);`>;
         } else {
-            raise "Invalid print type $value.type";
+            comp::raise("Invalid print type $value.type");
         }
     }
 }
 
 def entry() {
-    print 10;
+    print -> 10;
 }

@@ -185,22 +185,22 @@ impl<'a> PartialEq for Token<'a> {
 pub fn is_whitespace(c: char) -> bool {
     match c {
         | '\u{0009}' // \t
-        | '\u{000A}' // \n
-        | '\u{000B}' // vertical tab
-        | '\u{000C}' // form feed
-        | '\u{000D}' // \r
-        | '\u{0020}' // space
+            | '\u{000A}' // \n
+            | '\u{000B}' // vertical tab
+            | '\u{000C}' // form feed
+            | '\u{000D}' // \r
+            | '\u{0020}' // space
 
-        // NEXT LINE from latin1
-        | '\u{0085}'
+            // NEXT LINE from latin1
+            | '\u{0085}'
 
-        // Bidi markers
-        | '\u{200E}' // LEFT-TO-RIGHT MARK
-        | '\u{200F}' // RIGHT-TO-LEFT MARK
+            // Bidi markers
+            | '\u{200E}' // LEFT-TO-RIGHT MARK
+            | '\u{200F}' // RIGHT-TO-LEFT MARK
 
-        // Dedicated whitespace characters from Unicode
-        | '\u{2028}' // LINE SEPARATOR
-        | '\u{2029}' // PARAGRAPH SEPARATOR
+            // Dedicated whitespace characters from Unicode
+            | '\u{2028}' // LINE SEPARATOR
+            | '\u{2029}' // PARAGRAPH SEPARATOR
             => true,
         _ => false,
     }
@@ -425,11 +425,11 @@ impl<'a> Lexer<'a> {
 
     /// Tokenize identifier and keywords
     fn identifier(&mut self) -> Result<TokenType<'a>, Error<'a>> {
-        self.position -= 1;
+        let position = self.position;
         let id = self.eat_while(is_id_continue);
-        self.position += 1;
+        let real_captured = &self.file_contents[(position - 1)..(position + id.0)];
 
-        match id.1 {
+        match real_captured {
             "def" => Ok(TokenType::DEF),
             "let" => Ok(TokenType::LET),
             "impl" => Ok(TokenType::IMPL),
@@ -445,7 +445,7 @@ impl<'a> Lexer<'a> {
             "if" => Ok(TokenType::IF),
             "else" => Ok(TokenType::ELSE),
             "overload" => Ok(TokenType::OVERLOAD),
-            _ => Ok(TokenType::IDENTIFIER(id.1)),
+            _ => Ok(TokenType::IDENTIFIER(real_captured)),
         }
     }
 
