@@ -52,7 +52,7 @@ def entry() {
    rustup default nightly
    ```
 
-3. Clone this repo (recursively):
+3. Clone this repo (important: **clone recursively**):
    ```bash
    git clone --recurse-submodules -j8 git@github.com:fluo-lang/fluo.git
    ```
@@ -86,3 +86,39 @@ Currently, you will need to install LLVM on your own. In the future, this will c
 | Arch                                          | [AUR](https://www.archlinux.org/packages/extra/x86_64/llvm/)                                                       |
 | Windows + Other                               | [Prebuilt Binaries](https://releases.llvm.org/download.html#10.0.0), make sure to set proper environment variables |
 
+## More Examples
+```rust
+-- Return closure that returns int
+def make_closure(closure: () -> int) -> () -> int {
+    return closure;
+}
+
+def main() -> {
+    let x: int = make_closure(() -> int { return 10; })();
+}
+```
+
+```rust
+-- Generic print with static dispatch
+-- Print is a statement
+syntax print -> statement {
+    parse {
+        `print`;
+        `->`;
+        value: $expr;
+        `;`;
+    }
+
+    eval {
+        if $value is int {
+            <`std::core::print($value);`>;
+        } else {
+            comp::raise("Invalid print type $value.type");
+        }
+    }
+}
+
+def entry() {
+    print -> 10;
+}
+```
