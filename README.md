@@ -92,7 +92,7 @@ def make_closure(closure: () -> int) -> () -> int {
     return closure;
 }
 
-def main() -> {
+def main() {
     let x: int = make_closure(() -> int { return 10; })();
 }
 ```
