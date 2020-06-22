@@ -11,6 +11,8 @@ const EOF_CHAR: char = '\0';
 /// Type of tokens
 pub enum TokenType<'a> {
     STRING(&'a str),
+    CODEVALUE(&'a str),
+
     DEF,
     TYPE,
     OVERLOAD,
@@ -106,6 +108,7 @@ impl<'a> fmt::Display for Token<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let result = match &self.token {
             TokenType::STRING(val) => format!("string `{}`", val),
+            TokenType::CODEVALUE(val) => format!("code value `{}`", val),
             TokenType::IDENTIFIER(val) => format!("identifier `{}`", val),
             TokenType::NUMBER(val) => format!("number `{}`", val),
 
@@ -330,6 +333,8 @@ impl<'a> Lexer<'a> {
                     _ => TokenType::LT,
                 },
 
+                '`' => self.string('`', "code value")?,
+
                 '(' => TokenType::LP,
                 ')' => TokenType::RP,
                 '{' => TokenType::LCP,
@@ -358,7 +363,7 @@ impl<'a> Lexer<'a> {
                 },
                 '@' => TokenType::AT,
 
-                '"' => self.string()?,
+                '"' => self.string('"', "string")?,
                 EOF_CHAR => {
                     self.position -= 1;
                     TokenType::EOF
@@ -449,21 +454,21 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    /// Validate string
-    fn string(&mut self) -> Result<TokenType<'a>, Error<'a>> {
+    /// Validate string like
+    fn string(&mut self, marker: char, name: &'static str) -> Result<TokenType<'a>, Error<'a>> {
         let pos = self.position;
         let mut c = self.bump();
 
         while c != EOF_CHAR {
             match c {
-                '"' => {
+                _ if c == marker => {
                     return Ok(TokenType::STRING(
                         &self.file_contents[pos - 1..self.position],
                     ));
                 }
                 val => {
                     let first = self.peek_char();
-                    if (first == '\\' || first == '"') && val == '\\' {
+                    if (first == '\\' || first == marker) && val == '\\' {
                         // Bump again to skip escaped character
                         self.bump();
                         self.bump();
@@ -472,22 +477,21 @@ impl<'a> Lexer<'a> {
             }
             c = self.bump();
         }
+
+        let position_err = helpers::Pos {
+            s: pos - 1,
+            e: self.position - 1,
+            filename: self.filename,
+        };
+
         Err(Error::new(
-            "Unterminated string".to_string(),
+            format!("Unterminated {}", name),
             ErrorType::UnterminatedString,
-            helpers::Pos {
-                s: pos - 1,
-                e: self.position - 1,
-                filename: self.filename,
-            },
+            position_err,
             ErrorDisplayType::Error,
             vec![ErrorAnnotation::new(
                 None,
-                helpers::Pos {
-                    s: pos - 1,
-                    e: self.position - 1,
-                    filename: self.filename,
-                },
+                position_err,
                 ErrorDisplayType::Error,
             )],
             true,

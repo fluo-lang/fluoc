@@ -234,7 +234,7 @@ impl<'a> Parser<'a> {
         self.token_pos = pos;
     }
 
-    /// Parse from lexer
+    /// Parse from lexer tokens
     ///
     /// Returns nothing
     pub fn parse(&mut self) -> Result<(), Vec<Error<'a>>> {
@@ -2040,19 +2040,107 @@ pub mod parser_tests {
                 filename: path::Path::new(FILENAME)
             }
         },
-        name_id
+        name_id_1
+    );
+
+    parser_test!(
+        "a",
+        Parser::name_id,
+        NameID {
+            value: "a",
+            pos: Pos {
+                s: 0,
+                e: 1,
+                filename: path::Path::new(FILENAME)
+            }
+        },
+        name_id_2
+    );
+
+    parser_test!(
+        "\"a123ajd_test_test\"",
+        Parser::string_literal,
+        Expr::Literal(Literal {
+            value: "\"a123ajd_test_test\"",
+            type_val: TypeCheckOrType::TypeCheckType(TypeCheckType {
+                value: TypeCheckTypeType::SingleType(Rc::new(Namespace {
+                    scopes: vec![NameID {
+                        value: "str",
+                        pos: Pos {
+                            s: 0,
+                            e: 19,
+                            filename: path::Path::new(FILENAME)
+                        }
+                    }],
+                    pos: Pos {
+                        s: 0,
+                        e: 19,
+                        filename: path::Path::new(FILENAME)
+                    }
+                })),
+                pos: Pos {
+                    s: 0,
+                    e: 19,
+                    filename: path::Path::new(FILENAME)
+                },
+                inferred: false
+            }),
+            pos: Pos {
+                s: 0,
+                e: 19,
+                filename: path::Path::new(FILENAME)
+            }
+        }),
+        string_literal_1
+    );
+
+    parser_test!(
+        "\"a\"",
+        Parser::string_literal,
+        Expr::Literal(Literal {
+            value: "\"a\"",
+            type_val: TypeCheckOrType::TypeCheckType(TypeCheckType {
+                value: TypeCheckTypeType::SingleType(Rc::new(Namespace {
+                    scopes: vec![NameID {
+                        value: "str",
+                        pos: Pos {
+                            s: 0,
+                            e: 3,
+                            filename: path::Path::new(FILENAME)
+                        }
+                    }],
+                    pos: Pos {
+                        s: 0,
+                        e: 3,
+                        filename: path::Path::new(FILENAME)
+                    }
+                })),
+                pos: Pos {
+                    s: 0,
+                    e: 3,
+                    filename: path::Path::new(FILENAME)
+                },
+                inferred: false
+            }),
+            pos: Pos {
+                s: 0,
+                e: 3,
+                filename: path::Path::new(FILENAME)
+            }
+        }),
+        string_literal_2
     );
 
     //#[test]
     fn print_vals() {
         // Utility function for printing ast's
         let logger = Rc::new(RefCell::new(Logger::new(true)));
-        let mut parser = Parser::new(path::Path::new(FILENAME), "a123ajd_test_test", logger);
+        let mut parser = Parser::new(path::Path::new(FILENAME), "\"a\"", logger);
         parser.initialize_expr();
         parser
             .fill_token_stream()
             .expect("Failed to fill token stream");
-        let output = format!("{:?}", parser.name_id().expect("failed to parse"))
+        let output = format!("{:?}", parser.string_literal().expect("failed to parse"))
             .replace("[", "vec![")
             .replace(
                 "\"a_really_long_parser_filename_for_this_test.fl\"",

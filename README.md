@@ -67,7 +67,7 @@ Make sure you're in the fluo directory:
 cd fluo
 ```
 
-Fluo generates object files and you need to link them (this will change):
+Fluo generates an output file `a.out`:
 ```bash
 cargo run examples/tests.fl
 ./a.out
@@ -85,6 +85,8 @@ Currently, you will need to install LLVM on your own. In the future, this will c
 | Debian Method Two (If the above doesn't work) | `apt install llvm-10`                                                                                              |
 | Arch                                          | [AUR](https://www.archlinux.org/packages/extra/x86_64/llvm/)                                                       |
 | Windows + Other                               | [Prebuilt Binaries](https://releases.llvm.org/download.html#10.0.0), make sure to set proper environment variables |
+
+<br>
 
 ## More Examples
 ```rust
@@ -119,3 +121,4 @@ def entry() {
     print -> 10;
 }
 ```
+

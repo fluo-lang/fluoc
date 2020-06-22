@@ -11,7 +11,7 @@ syntax print -> statement {
 
     eval {
         if $value is int {
-            <`std::core::print($value);`>;
+            `std::core::print($value);`;
         } else {
             comp::raise("Invalid print type $value.type");
         }
@@ -21,3 +21,4 @@ syntax print -> statement {
 def entry() {
     print -> 10;
 }
+
