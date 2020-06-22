@@ -417,10 +417,11 @@ impl<'a> Lexer<'a> {
 
     /// Tokenize integer
     fn number(&mut self) -> Result<TokenType<'a>, Error<'a>> {
-        self.position -= 1;
+        let position = self.position;
+
         let num = self.eat_while(|c| '0' <= c && c <= '9');
-        self.position += 1;
-        Ok(TokenType::NUMBER(num.1))
+let real_captured = &self.file_contents[(position - 1)..(position + num.0)];
+        Ok(TokenType::NUMBER(real_captured))
     }
 
     /// Get start of ID (excluding number)
