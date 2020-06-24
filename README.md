@@ -1,10 +1,10 @@
-<h1 align=center>
-    Fluo
+<div align=center>
+    <img src="images/logo.png" width=200 align=center></img>
     <br>
+    <h1>Fluo</h1>
     <a href="https://github.com/fluo-lang/fluo/actions"><img src="https://img.shields.io/github/workflow/status/fluo-lang/fluo/build-test-bench?style=for-the-badge" height=24px></img></a>
     <a href="https://trello.com/b/5gxtFXun/fluo"><img src="https://img.shields.io/badge/trello-here-000000FF?style=for-the-badge" height=24px></img></a>
-</h1>
-
+</div>
 <br>
 <br>
 
@@ -23,7 +23,7 @@ def fizzbuzz(value: int) {
 }
 
 def entry() {
-    print("Hello, 世界!");
+    print("Hello, world!");
     fizzbuzz(100);
 }
 ```
@@ -94,8 +94,11 @@ def make_closure(closure: () -> int) -> () -> int {
     return closure;
 }
 
-def main() {
+def entry() {
     let x: int = make_closure(() -> int { return 10; })();
+
+    -- Prints 10
+    print(x); 
 }
 ```
 
@@ -110,7 +113,7 @@ syntax print -> statement {
 
     eval {
         if $value is int {
-            <`std::core::print($value);`>;
+            <`std::core::print_int($value);`>;
         } else {
             comp::raise("Invalid print type $value.type");
         }
