@@ -2205,24 +2205,666 @@ pub mod parser_tests {
         integer_literal_2
     );
 
+    parser_test!(
+        "true",
+        Parser::bool_expr,
+        Expr::Literal(Literal {
+            value: "1",
+            type_val: TypeCheckOrType::TypeCheckType(TypeCheckType {
+                value: TypeCheckTypeType::SingleType(Rc::new(Namespace {
+                    scopes: vec![NameID {
+                        value: "bool",
+                        pos: Pos {
+                            s: 0,
+                            e: 4,
+                            filename: path::Path::new(FILENAME)
+                        }
+                    }],
+                    pos: Pos {
+                        s: 0,
+                        e: 4,
+                        filename: path::Path::new(FILENAME)
+                    }
+                })),
+                pos: Pos {
+                    s: 0,
+                    e: 4,
+                    filename: path::Path::new(FILENAME)
+                },
+                inferred: false
+            }),
+            pos: Pos {
+                s: 0,
+                e: 4,
+                filename: path::Path::new(FILENAME)
+            }
+        }),
+        bool_true
+    );
+
+    parser_test!(
+        "false",
+        Parser::bool_expr,
+        Expr::Literal(Literal {
+            value: "0",
+            type_val: TypeCheckOrType::TypeCheckType(TypeCheckType {
+                value: TypeCheckTypeType::SingleType(Rc::new(Namespace {
+                    scopes: vec![NameID {
+                        value: "bool",
+                        pos: Pos {
+                            s: 0,
+                            e: 5,
+                            filename: path::Path::new(FILENAME)
+                        }
+                    }],
+                    pos: Pos {
+                        s: 0,
+                        e: 5,
+                        filename: path::Path::new(FILENAME)
+                    }
+                })),
+                pos: Pos {
+                    s: 0,
+                    e: 5,
+                    filename: path::Path::new(FILENAME)
+                },
+                inferred: false
+            }),
+            pos: Pos {
+                s: 0,
+                e: 5,
+                filename: path::Path::new(FILENAME)
+            }
+        }),
+        bool_false
+    );
+
+    parser_test!(
+        "if (true) { } else {}",
+        Parser::conditional,
+        Statement::Conditional(Conditional {
+            if_branches: vec![IfBranch {
+                cond: Expr::Literal(Literal {
+                    value: "1",
+                    type_val: TypeCheckOrType::TypeCheckType(TypeCheckType {
+                        value: TypeCheckTypeType::SingleType(Rc::new(Namespace {
+                            scopes: vec![NameID {
+                                value: "bool",
+                                pos: Pos {
+                                    s: 4,
+                                    e: 8,
+                                    filename: path::Path::new(FILENAME)
+                                }
+                            }],
+                            pos: Pos {
+                                s: 4,
+                                e: 8,
+                                filename: path::Path::new(FILENAME)
+                            }
+                        })),
+                        pos: Pos {
+                            s: 4,
+                            e: 8,
+                            filename: path::Path::new(FILENAME)
+                        },
+                        inferred: false
+                    }),
+                    pos: Pos {
+                        s: 4,
+                        e: 8,
+                        filename: path::Path::new(FILENAME)
+                    }
+                }),
+                block: Block {
+                    nodes: vec![],
+                    tags: vec![],
+                    pos: Pos {
+                        s: 10,
+                        e: 13,
+                        filename: path::Path::new(FILENAME)
+                    },
+                    insert_return: false
+                },
+                pos: Pos {
+                    s: 0,
+                    e: 13,
+                    filename: path::Path::new(FILENAME)
+                }
+            }],
+            else_branch: Some(ElseBranch {
+                block: Block {
+                    nodes: vec![],
+                    tags: vec![],
+                    pos: Pos {
+                        s: 19,
+                        e: 21,
+                        filename: path::Path::new(FILENAME)
+                    },
+                    insert_return: false
+                },
+                pos: Pos {
+                    s: 14,
+                    e: 21,
+                    filename: path::Path::new(FILENAME)
+                }
+            }),
+            pos: Pos {
+                s: 0,
+                e: 21,
+                filename: path::Path::new(FILENAME)
+            }
+        }),
+        conditional_1
+    );
+
+    parser_test!(
+        "if (true) { } else if (true) {} else {}",
+        Parser::conditional,
+        Statement::Conditional(Conditional {
+            if_branches: vec![
+                IfBranch {
+                    cond: Expr::Literal(Literal {
+                        value: "1",
+                        type_val: TypeCheckOrType::TypeCheckType(TypeCheckType {
+                            value: TypeCheckTypeType::SingleType(Rc::new(Namespace {
+                                scopes: vec![NameID {
+                                    value: "bool",
+                                    pos: Pos {
+                                        s: 4,
+                                        e: 8,
+                                        filename: path::Path::new(FILENAME)
+                                    }
+                                }],
+                                pos: Pos {
+                                    s: 4,
+                                    e: 8,
+                                    filename: path::Path::new(FILENAME)
+                                }
+                            })),
+                            pos: Pos {
+                                s: 4,
+                                e: 8,
+                                filename: path::Path::new(FILENAME)
+                            },
+                            inferred: false
+                        }),
+                        pos: Pos {
+                            s: 4,
+                            e: 8,
+                            filename: path::Path::new(FILENAME)
+                        }
+                    }),
+                    block: Block {
+                        nodes: vec![],
+                        tags: vec![],
+                        pos: Pos {
+                            s: 10,
+                            e: 13,
+                            filename: path::Path::new(FILENAME)
+                        },
+                        insert_return: false
+                    },
+                    pos: Pos {
+                        s: 0,
+                        e: 13,
+                        filename: path::Path::new(FILENAME)
+                    }
+                },
+                IfBranch {
+                    cond: Expr::Literal(Literal {
+                        value: "1",
+                        type_val: TypeCheckOrType::TypeCheckType(TypeCheckType {
+                            value: TypeCheckTypeType::SingleType(Rc::new(Namespace {
+                                scopes: vec![NameID {
+                                    value: "bool",
+                                    pos: Pos {
+                                        s: 23,
+                                        e: 27,
+                                        filename: path::Path::new(FILENAME)
+                                    }
+                                }],
+                                pos: Pos {
+                                    s: 23,
+                                    e: 27,
+                                    filename: path::Path::new(FILENAME)
+                                }
+                            })),
+                            pos: Pos {
+                                s: 23,
+                                e: 27,
+                                filename: path::Path::new(FILENAME)
+                            },
+                            inferred: false
+                        }),
+                        pos: Pos {
+                            s: 23,
+                            e: 27,
+                            filename: path::Path::new(FILENAME)
+                        }
+                    }),
+                    block: Block {
+                        nodes: vec![],
+                        tags: vec![],
+                        pos: Pos {
+                            s: 29,
+                            e: 31,
+                            filename: path::Path::new(FILENAME)
+                        },
+                        insert_return: false
+                    },
+                    pos: Pos {
+                        s: 14,
+                        e: 31,
+                        filename: path::Path::new(FILENAME)
+                    }
+                }
+            ],
+            else_branch: Some(ElseBranch {
+                block: Block {
+                    nodes: vec![],
+                    tags: vec![],
+                    pos: Pos {
+                        s: 37,
+                        e: 39,
+                        filename: path::Path::new(FILENAME)
+                    },
+                    insert_return: false
+                },
+                pos: Pos {
+                    s: 32,
+                    e: 39,
+                    filename: path::Path::new(FILENAME)
+                }
+            }),
+            pos: Pos {
+                s: 0,
+                e: 39,
+                filename: path::Path::new(FILENAME)
+            }
+        }),
+        conditional_2
+    );
+
+    parser_test!(
+        "if (true) { }",
+        Parser::conditional,
+        Statement::Conditional(Conditional {
+            if_branches: vec![IfBranch {
+                cond: Expr::Literal(Literal {
+                    value: "1",
+                    type_val: TypeCheckOrType::TypeCheckType(TypeCheckType {
+                        value: TypeCheckTypeType::SingleType(Rc::new(Namespace {
+                            scopes: vec![NameID {
+                                value: "bool",
+                                pos: Pos {
+                                    s: 4,
+                                    e: 8,
+                                    filename: path::Path::new(FILENAME)
+                                }
+                            }],
+                            pos: Pos {
+                                s: 4,
+                                e: 8,
+                                filename: path::Path::new(FILENAME)
+                            }
+                        })),
+                        pos: Pos {
+                            s: 4,
+                            e: 8,
+                            filename: path::Path::new(FILENAME)
+                        },
+                        inferred: false
+                    }),
+                    pos: Pos {
+                        s: 4,
+                        e: 8,
+                        filename: path::Path::new(FILENAME)
+                    }
+                }),
+                block: Block {
+                    nodes: vec![],
+                    tags: vec![],
+                    pos: Pos {
+                        s: 10,
+                        e: 13,
+                        filename: path::Path::new(FILENAME)
+                    },
+                    insert_return: false
+                },
+                pos: Pos {
+                    s: 0,
+                    e: 13,
+                    filename: path::Path::new(FILENAME)
+                }
+            }],
+            else_branch: None,
+            pos: Pos {
+                s: 0,
+                e: 13,
+                filename: path::Path::new(FILENAME)
+            }
+        }),
+        conditional_3
+    );
+
+    parser_test!(
+        "x = 10",
+        Parser::variable_assign,
+        Expr::VariableAssign(VariableAssign {
+            name: Rc::new(Namespace {
+                scopes: vec![NameID {
+                    value: "x",
+                    pos: Pos {
+                        s: 0,
+                        e: 1,
+                        filename: path::Path::new(FILENAME)
+                    }
+                }],
+                pos: Pos {
+                    s: 0,
+                    e: 1,
+                    filename: path::Path::new(FILENAME)
+                }
+            }),
+            expr: Box::new(Expr::Literal(Literal {
+                value: "10",
+                type_val: TypeCheckOrType::TypeCheckType(TypeCheckType {
+                    value: TypeCheckTypeType::SingleType(Rc::new(Namespace {
+                        scopes: vec![NameID {
+                            value: "{number}",
+                            pos: Pos {
+                                s: 4,
+                                e: 6,
+                                filename: path::Path::new(FILENAME)
+                            }
+                        }],
+                        pos: Pos {
+                            s: 4,
+                            e: 6,
+                            filename: path::Path::new(FILENAME)
+                        }
+                    })),
+                    pos: Pos {
+                        s: 4,
+                        e: 6,
+                        filename: path::Path::new(FILENAME)
+                    },
+                    inferred: false
+                }),
+                pos: Pos {
+                    s: 4,
+                    e: 6,
+                    filename: path::Path::new(FILENAME)
+                }
+            })),
+            type_val: None,
+            pos: Pos {
+                s: 0,
+                e: 6,
+                filename: path::Path::new(FILENAME)
+            }
+        }),
+        variable_assign
+    );
+
+    parser_test!(
+        "let x: (int, int) = 10",
+        Parser::variable_assign_full,
+        Expr::VariableAssignDeclaration(VariableAssignDeclaration {
+            t: TypeCheckOrType::Type(Rc::new(Type {
+                value: TypeType::Tuple(vec![
+                    Rc::new(Type {
+                        value: TypeType::Type(Rc::new(Namespace {
+                            scopes: vec![NameID {
+                                value: "int",
+                                pos: Pos {
+                                    s: 8,
+                                    e: 11,
+                                    filename: path::Path::new(FILENAME)
+                                }
+                            }],
+                            pos: Pos {
+                                s: 8,
+                                e: 11,
+                                filename: path::Path::new(FILENAME)
+                            }
+                        })),
+                        inferred: false,
+                        pos: Pos {
+                            s: 8,
+                            e: 11,
+                            filename: path::Path::new(FILENAME)
+                        }
+                    }),
+                    Rc::new(Type {
+                        value: TypeType::Type(Rc::new(Namespace {
+                            scopes: vec![NameID {
+                                value: "int",
+                                pos: Pos {
+                                    s: 13,
+                                    e: 16,
+                                    filename: path::Path::new(FILENAME)
+                                }
+                            }],
+                            pos: Pos {
+                                s: 13,
+                                e: 16,
+                                filename: path::Path::new(FILENAME)
+                            }
+                        })),
+                        inferred: false,
+                        pos: Pos {
+                            s: 13,
+                            e: 16,
+                            filename: path::Path::new(FILENAME)
+                        }
+                    })
+                ]),
+                inferred: false,
+                pos: Pos {
+                    s: 7,
+                    e: 17,
+                    filename: path::Path::new(FILENAME)
+                }
+            })),
+            name: Rc::new(Namespace {
+                scopes: vec![NameID {
+                    value: "x",
+                    pos: Pos {
+                        s: 4,
+                        e: 5,
+                        filename: path::Path::new(FILENAME)
+                    }
+                }],
+                pos: Pos {
+                    s: 4,
+                    e: 5,
+                    filename: path::Path::new(FILENAME)
+                }
+            }),
+            expr: Box::new(Expr::Literal(Literal {
+                value: "10",
+                type_val: TypeCheckOrType::TypeCheckType(TypeCheckType {
+                    value: TypeCheckTypeType::SingleType(Rc::new(Namespace {
+                        scopes: vec![NameID {
+                            value: "{number}",
+                            pos: Pos {
+                                s: 20,
+                                e: 22,
+                                filename: path::Path::new(FILENAME)
+                            }
+                        }],
+                        pos: Pos {
+                            s: 20,
+                            e: 22,
+                            filename: path::Path::new(FILENAME)
+                        }
+                    })),
+                    pos: Pos {
+                        s: 20,
+                        e: 22,
+                        filename: path::Path::new(FILENAME)
+                    },
+                    inferred: false
+                }),
+                pos: Pos {
+                    s: 20,
+                    e: 22,
+                    filename: path::Path::new(FILENAME)
+                }
+            })),
+            pos: Pos {
+                s: 0,
+                e: 22,
+                filename: path::Path::new(FILENAME)
+            }
+        }),
+        variable_assign_full
+    );
+
+    parser_test!(
+        "let x: int;",
+        Parser::variable_declaration,
+        Statement::VariableDeclaration(VariableDeclaration {
+            t: TypeCheckOrType::Type(Rc::new(Type {
+                value: TypeType::Type(Rc::new(Namespace {
+                    scopes: vec![NameID {
+                        value: "int",
+                        pos: Pos {
+                            s: 7,
+                            e: 10,
+                            filename: path::Path::new(FILENAME)
+                        }
+                    }],
+                    pos: Pos {
+                        s: 7,
+                        e: 10,
+                        filename: path::Path::new(FILENAME)
+                    }
+                })),
+                inferred: false,
+                pos: Pos {
+                    s: 7,
+                    e: 10,
+                    filename: path::Path::new(FILENAME)
+                }
+            })),
+            name: Rc::new(Namespace {
+                scopes: vec![NameID {
+                    value: "x",
+                    pos: Pos {
+                        s: 4,
+                        e: 5,
+                        filename: path::Path::new(FILENAME)
+                    }
+                }],
+                pos: Pos {
+                    s: 4,
+                    e: 5,
+                    filename: path::Path::new(FILENAME)
+                }
+            }),
+            pos: Pos {
+                s: 0,
+                e: 11,
+                filename: path::Path::new(FILENAME)
+            }
+        }),
+        variable_declaration
+    );
+
+    macro_rules! parser_run {
+        ($code: expr, $function: expr, $name: ident) => {
+            #[test]
+            fn $name() -> Result<(), Error<'static>> {
+                let logger = Rc::new(RefCell::new(Logger::new(true)));
+                let mut parser = Parser::new(path::Path::new(FILENAME), $code, logger);
+                parser.initialize_expr();
+                parser.fill_token_stream()?;
+                $function(&mut parser)?;
+                Ok(())
+            }
+        };
+    }
+
+    parser_run!("(19)", Parser::item, int_1_paren);
+    parser_run!("(1)", Parser::item, int_2_paren);
+    parser_run!("1", Parser::item, int_1);
+    parser_run!("19", Parser::item, int_2);
+
+    parser_run!("(true)", Parser::item, bool_true_paren);
+    parser_run!("(false)", Parser::item, bool_false_paren);
+    parser_run!("true", Parser::item, bool_true_item);
+    parser_run!("false", Parser::item, bool_false_item);
+
+    parser_run!("\"dab\"", Parser::item, string_literal_1_item);
+    parser_run!("\"\"", Parser::item, string_literal_2_item);
+    parser_run!("(\"dab\")", Parser::item, string_literal_1_paren);
+    parser_run!("(\"\")", Parser::item, string_literal_2_paren);
+
+    parser_run!("$hello", Parser::item, dollar_expr_item);
+    parser_run!("($hello)", Parser::item, dollar_expr_paren);
+
+    parser_run!("a(10, 10, \"hello\")", Parser::item, call_expr_1_item);
+    parser_run!("a(10, 10,)", Parser::item, call_expr_2_item);
+    parser_run!("(a(10, 10, \"hello\"))", Parser::item, call_expr_1_paren);
+    parser_run!("(a(10, 10,))", Parser::item, call_expr_2_paren);
+
+    parser_run!("(x = 5)", Parser::item, variable_assign_paren);
+    parser_run!("x = 5", Parser::item, variable_assign_item);
+
+    parser_run!("(let x: int = 5)", Parser::item, variable_assign_full_paren);
+    parser_run!("let x: int = 5", Parser::item, variable_assign_full_item);
+
+    parser_run!("(i)", Parser::item, ref_id_paren);
+    parser_run!("i3_hello_world", Parser::item, ref_id_item);
+
+    parser_run!(
+        "(let x: int = 10, x = 10, hello, 1, \"another_test\")",
+        Parser::item,
+        tuple_item
+    );
+    parser_run!(
+        "((let x: int = 10, x = 10, hello, 1, \"another_test\"))",
+        Parser::item,
+        tuple_paren
+    );
+
+    macro_rules! parser_err {
+        ($code: expr, $function: expr, $name: ident) => {
+            #[test]
+            fn $name() -> Result<(), Error<'static>> {
+                let logger = Rc::new(RefCell::new(Logger::new(true)));
+                let mut parser = Parser::new(path::Path::new(FILENAME), $code, logger);
+                parser.initialize_expr();
+                parser.fill_token_stream()?;
+                assert!($function(&mut parser).is_err());
+                Ok(())
+            }
+        };
+    }
+
     //#[test]
     fn print_vals() {
         // Utility function for printing ast's
         let logger = Rc::new(RefCell::new(Logger::new(true)));
-        let mut parser = Parser::new(path::Path::new(FILENAME), "12930", logger);
+        let mut parser = Parser::new(path::Path::new(FILENAME), "let x: int;", logger);
         parser.initialize_expr();
         parser
             .fill_token_stream()
             .expect("Failed to fill token stream");
-        let output = format!("{:?}", parser.integer().expect("failed to parse"))
-            .replace("[", "vec![")
-            .replace(
-                "\"a_really_long_parser_filename_for_this_test.fl\"",
-                "path::Path::new(FILENAME)",
-            )
-            .replace("SingleType(", "TypeCheckTypeType::SingleType(")
-            .replace("Literal(", "Expr::Literal(")
-            .replace("TypeCheckType(", "TypeCheckOrType::TypeCheckType(");
+        let output = format!(
+            "{:?}",
+            parser.variable_declaration().expect("failed to parse")
+        )
+        .replace("[", "vec![")
+        .replace(
+            "\"a_really_long_parser_filename_for_this_test.fl\"",
+            "path::Path::new(FILENAME)",
+        )
+        .replace("SingleType(", "TypeCheckTypeType::SingleType(")
+        .replace("Literal(", "Expr::Literal(")
+        .replace("TypeCheckType(", "TypeCheckOrType::TypeCheckType(");
         println!("{}", output);
         panic!("awd");
     }
