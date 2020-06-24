@@ -2134,16 +2134,76 @@ pub mod parser_tests {
     parser_test!(
         "12930",
         Parser::integer,
-Expr::Literal(Literal { value: "12930", type_val: TypeCheckOrType::TypeCheckType(TypeCheckType { value: TypeCheckTypeType::SingleType(Rc::new(Namespace { scopes: vec![NameID { value: "{number}", pos: Pos { s: 0, e: 5, filename: path::Path::new(FILENAME) } }], pos: Pos { s: 0, e: 5, filename: path::Path::new(FILENAME) } })), pos: Pos { s: 0, e: 5, filename: path::Path::new(FILENAME) }, inferred: false }), pos: Pos { s: 0, e: 5, filename: path::Path::new(FILENAME) } }),
-integer_literal_1
-                );
+        Expr::Literal(Literal {
+            value: "12930",
+            type_val: TypeCheckOrType::TypeCheckType(TypeCheckType {
+                value: TypeCheckTypeType::SingleType(Rc::new(Namespace {
+                    scopes: vec![NameID {
+                        value: "{number}",
+                        pos: Pos {
+                            s: 0,
+                            e: 5,
+                            filename: path::Path::new(FILENAME)
+                        }
+                    }],
+                    pos: Pos {
+                        s: 0,
+                        e: 5,
+                        filename: path::Path::new(FILENAME)
+                    }
+                })),
+                pos: Pos {
+                    s: 0,
+                    e: 5,
+                    filename: path::Path::new(FILENAME)
+                },
+                inferred: false
+            }),
+            pos: Pos {
+                s: 0,
+                e: 5,
+                filename: path::Path::new(FILENAME)
+            }
+        }),
+        integer_literal_1
+    );
 
-parser_test!(
+    parser_test!(
         "1",
         Parser::integer,
-Expr::Literal(Literal { value: "1", type_val: TypeCheckOrType::TypeCheckType(TypeCheckType { value: TypeCheckTypeType::SingleType(Rc::new(Namespace { scopes: vec![NameID { value: "{number}", pos: Pos { s: 0, e: 1, filename: path::Path::new(FILENAME) } }], pos: Pos { s: 0, e: 1, filename: path::Path::new(FILENAME) } })), pos: Pos { s: 0, e: 1, filename: path::Path::new(FILENAME) }, inferred: false }), pos: Pos { s: 0, e: 1, filename: path::Path::new(FILENAME) } }),
-integer_literal_2
-                );
+        Expr::Literal(Literal {
+            value: "1",
+            type_val: TypeCheckOrType::TypeCheckType(TypeCheckType {
+                value: TypeCheckTypeType::SingleType(Rc::new(Namespace {
+                    scopes: vec![NameID {
+                        value: "{number}",
+                        pos: Pos {
+                            s: 0,
+                            e: 1,
+                            filename: path::Path::new(FILENAME)
+                        }
+                    }],
+                    pos: Pos {
+                        s: 0,
+                        e: 1,
+                        filename: path::Path::new(FILENAME)
+                    }
+                })),
+                pos: Pos {
+                    s: 0,
+                    e: 1,
+                    filename: path::Path::new(FILENAME)
+                },
+                inferred: false
+            }),
+            pos: Pos {
+                s: 0,
+                e: 1,
+                filename: path::Path::new(FILENAME)
+            }
+        }),
+        integer_literal_2
+    );
 
     //#[test]
     fn print_vals() {
