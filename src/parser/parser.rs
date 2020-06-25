@@ -2773,6 +2773,311 @@ pub mod parser_tests {
         variable_declaration
     );
 
+    parser_test!(
+        "tests::j12::hello(\"hello\", 123,4,2,3,1,true,false,)",
+        Parser::function_call,
+        Expr::FunctionCall(FunctionCall {
+            arguments: ArgumentsRun {
+                positional: vec![
+                    Expr::Literal(Literal {
+                        value: "\"hello\"",
+                        type_val: TypeCheckOrType::TypeCheckType(TypeCheckType {
+                            value: TypeCheckTypeType::SingleType(Rc::new(Namespace {
+                                scopes: vec![NameID {
+                                    value: "str",
+                                    pos: Pos {
+                                        s: 18,
+                                        e: 25,
+                                        filename: path::Path::new(FILENAME)
+                                    }
+                                }],
+                                pos: Pos {
+                                    s: 18,
+                                    e: 25,
+                                    filename: path::Path::new(FILENAME)
+                                }
+                            })),
+                            pos: Pos {
+                                s: 18,
+                                e: 25,
+                                filename: path::Path::new(FILENAME)
+                            },
+                            inferred: false
+                        }),
+                        pos: Pos {
+                            s: 18,
+                            e: 25,
+                            filename: path::Path::new(FILENAME)
+                        }
+                    }),
+                    Expr::Literal(Literal {
+                        value: "123",
+                        type_val: TypeCheckOrType::TypeCheckType(TypeCheckType {
+                            value: TypeCheckTypeType::SingleType(Rc::new(Namespace {
+                                scopes: vec![NameID {
+                                    value: "{number}",
+                                    pos: Pos {
+                                        s: 27,
+                                        e: 30,
+                                        filename: path::Path::new(FILENAME)
+                                    }
+                                }],
+                                pos: Pos {
+                                    s: 27,
+                                    e: 30,
+                                    filename: path::Path::new(FILENAME)
+                                }
+                            })),
+                            pos: Pos {
+                                s: 27,
+                                e: 30,
+                                filename: path::Path::new(FILENAME)
+                            },
+                            inferred: false
+                        }),
+                        pos: Pos {
+                            s: 27,
+                            e: 30,
+                            filename: path::Path::new(FILENAME)
+                        }
+                    }),
+                    Expr::Literal(Literal {
+                        value: "4",
+                        type_val: TypeCheckOrType::TypeCheckType(TypeCheckType {
+                            value: TypeCheckTypeType::SingleType(Rc::new(Namespace {
+                                scopes: vec![NameID {
+                                    value: "{number}",
+                                    pos: Pos {
+                                        s: 31,
+                                        e: 32,
+                                        filename: path::Path::new(FILENAME)
+                                    }
+                                }],
+                                pos: Pos {
+                                    s: 31,
+                                    e: 32,
+                                    filename: path::Path::new(FILENAME)
+                                }
+                            })),
+                            pos: Pos {
+                                s: 31,
+                                e: 32,
+                                filename: path::Path::new(FILENAME)
+                            },
+                            inferred: false
+                        }),
+                        pos: Pos {
+                            s: 31,
+                            e: 32,
+                            filename: path::Path::new(FILENAME)
+                        }
+                    }),
+                    Expr::Literal(Literal {
+                        value: "2",
+                        type_val: TypeCheckOrType::TypeCheckType(TypeCheckType {
+                            value: TypeCheckTypeType::SingleType(Rc::new(Namespace {
+                                scopes: vec![NameID {
+                                    value: "{number}",
+                                    pos: Pos {
+                                        s: 33,
+                                        e: 34,
+                                        filename: path::Path::new(FILENAME)
+                                    }
+                                }],
+                                pos: Pos {
+                                    s: 33,
+                                    e: 34,
+                                    filename: path::Path::new(FILENAME)
+                                }
+                            })),
+                            pos: Pos {
+                                s: 33,
+                                e: 34,
+                                filename: path::Path::new(FILENAME)
+                            },
+                            inferred: false
+                        }),
+                        pos: Pos {
+                            s: 33,
+                            e: 34,
+                            filename: path::Path::new(FILENAME)
+                        }
+                    }),
+                    Expr::Literal(Literal {
+                        value: "3",
+                        type_val: TypeCheckOrType::TypeCheckType(TypeCheckType {
+                            value: TypeCheckTypeType::SingleType(Rc::new(Namespace {
+                                scopes: vec![NameID {
+                                    value: "{number}",
+                                    pos: Pos {
+                                        s: 35,
+                                        e: 36,
+                                        filename: path::Path::new(FILENAME)
+                                    }
+                                }],
+                                pos: Pos {
+                                    s: 35,
+                                    e: 36,
+                                    filename: path::Path::new(FILENAME)
+                                }
+                            })),
+                            pos: Pos {
+                                s: 35,
+                                e: 36,
+                                filename: path::Path::new(FILENAME)
+                            },
+                            inferred: false
+                        }),
+                        pos: Pos {
+                            s: 35,
+                            e: 36,
+                            filename: path::Path::new(FILENAME)
+                        }
+                    }),
+                    Expr::Literal(Literal {
+                        value: "1",
+                        type_val: TypeCheckOrType::TypeCheckType(TypeCheckType {
+                            value: TypeCheckTypeType::SingleType(Rc::new(Namespace {
+                                scopes: vec![NameID {
+                                    value: "{number}",
+                                    pos: Pos {
+                                        s: 37,
+                                        e: 38,
+                                        filename: path::Path::new(FILENAME)
+                                    }
+                                }],
+                                pos: Pos {
+                                    s: 37,
+                                    e: 38,
+                                    filename: path::Path::new(FILENAME)
+                                }
+                            })),
+                            pos: Pos {
+                                s: 37,
+                                e: 38,
+                                filename: path::Path::new(FILENAME)
+                            },
+                            inferred: false
+                        }),
+                        pos: Pos {
+                            s: 37,
+                            e: 38,
+                            filename: path::Path::new(FILENAME)
+                        }
+                    }),
+                    Expr::Literal(Literal {
+                        value: "1",
+                        type_val: TypeCheckOrType::TypeCheckType(TypeCheckType {
+                            value: TypeCheckTypeType::SingleType(Rc::new(Namespace {
+                                scopes: vec![NameID {
+                                    value: "bool",
+                                    pos: Pos {
+                                        s: 39,
+                                        e: 43,
+                                        filename: path::Path::new(FILENAME)
+                                    }
+                                }],
+                                pos: Pos {
+                                    s: 39,
+                                    e: 43,
+                                    filename: path::Path::new(FILENAME)
+                                }
+                            })),
+                            pos: Pos {
+                                s: 39,
+                                e: 43,
+                                filename: path::Path::new(FILENAME)
+                            },
+                            inferred: false
+                        }),
+                        pos: Pos {
+                            s: 39,
+                            e: 43,
+                            filename: path::Path::new(FILENAME)
+                        }
+                    }),
+                    Expr::Literal(Literal {
+                        value: "0",
+                        type_val: TypeCheckOrType::TypeCheckType(TypeCheckType {
+                            value: TypeCheckTypeType::SingleType(Rc::new(Namespace {
+                                scopes: vec![NameID {
+                                    value: "bool",
+                                    pos: Pos {
+                                        s: 44,
+                                        e: 49,
+                                        filename: path::Path::new(FILENAME)
+                                    }
+                                }],
+                                pos: Pos {
+                                    s: 44,
+                                    e: 49,
+                                    filename: path::Path::new(FILENAME)
+                                }
+                            })),
+                            pos: Pos {
+                                s: 44,
+                                e: 49,
+                                filename: path::Path::new(FILENAME)
+                            },
+                            inferred: false
+                        }),
+                        pos: Pos {
+                            s: 44,
+                            e: 49,
+                            filename: path::Path::new(FILENAME)
+                        }
+                    })
+                ],
+                pos: Pos {
+                    s: 18,
+                    e: 50,
+                    filename: path::Path::new(FILENAME)
+                }
+            },
+            name: Rc::new(Namespace {
+                scopes: vec![
+                    NameID {
+                        value: "tests",
+                        pos: Pos {
+                            s: 0,
+                            e: 5,
+                            filename: path::Path::new(FILENAME)
+                        }
+                    },
+                    NameID {
+                        value: "j12",
+                        pos: Pos {
+                            s: 7,
+                            e: 10,
+                            filename: path::Path::new(FILENAME)
+                        }
+                    },
+                    NameID {
+                        value: "hello",
+                        pos: Pos {
+                            s: 12,
+                            e: 17,
+                            filename: path::Path::new(FILENAME)
+                        }
+                    }
+                ],
+                pos: Pos {
+                    s: 0,
+                    e: 17,
+                    filename: path::Path::new(FILENAME)
+                }
+            }),
+            mangled_name: None,
+            mangle: true,
+            pos: Pos {
+                s: 0,
+                e: 51,
+                filename: path::Path::new(FILENAME)
+            }
+        }),
+        function_call
+    );
+
     macro_rules! parser_run {
         ($code: expr, $function: expr, $name: ident) => {
             #[test]
@@ -2848,23 +3153,24 @@ pub mod parser_tests {
     fn print_vals() {
         // Utility function for printing ast's
         let logger = Rc::new(RefCell::new(Logger::new(true)));
-        let mut parser = Parser::new(path::Path::new(FILENAME), "let x: int;", logger);
+        let mut parser = Parser::new(
+            path::Path::new(FILENAME),
+            "tests::j12::hello(\"hello\", 123,4,2,3,1,true,false,)",
+            logger,
+        );
         parser.initialize_expr();
         parser
             .fill_token_stream()
             .expect("Failed to fill token stream");
-        let output = format!(
-            "{:?}",
-            parser.variable_declaration().expect("failed to parse")
-        )
-        .replace("[", "vec![")
-        .replace(
-            "\"a_really_long_parser_filename_for_this_test.fl\"",
-            "path::Path::new(FILENAME)",
-        )
-        .replace("SingleType(", "TypeCheckTypeType::SingleType(")
-        .replace("Literal(", "Expr::Literal(")
-        .replace("TypeCheckType(", "TypeCheckOrType::TypeCheckType(");
+        let output = format!("{:?}", parser.function_call().expect("failed to parse"))
+            .replace("[", "vec![")
+            .replace(
+                "\"a_really_long_parser_filename_for_this_test.fl\"",
+                "path::Path::new(FILENAME)",
+            )
+            .replace("SingleType(", "TypeCheckTypeType::SingleType(")
+            .replace("Literal(", "Expr::Literal(")
+            .replace("TypeCheckType(", "TypeCheckOrType::TypeCheckType(");
         println!("{}", output);
         panic!("awd");
     }
