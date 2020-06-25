@@ -3078,6 +3078,300 @@ pub mod parser_tests {
         function_call
     );
 
+    parser_test!(
+        "tests::j12::hello()",
+        Parser::function_call,
+        Expr::FunctionCall(FunctionCall {
+            arguments: ArgumentsRun {
+                positional: vec![],
+                pos: Pos {
+                    s: 18,
+                    e: 18,
+                    filename: path::Path::new(FILENAME)
+                }
+            },
+            name: Rc::new(Namespace {
+                scopes: vec![
+                    NameID {
+                        value: "tests",
+                        pos: Pos {
+                            s: 0,
+                            e: 5,
+                            filename: path::Path::new(FILENAME)
+                        }
+                    },
+                    NameID {
+                        value: "j12",
+                        pos: Pos {
+                            s: 7,
+                            e: 10,
+                            filename: path::Path::new(FILENAME)
+                        }
+                    },
+                    NameID {
+                        value: "hello",
+                        pos: Pos {
+                            s: 12,
+                            e: 17,
+                            filename: path::Path::new(FILENAME)
+                        }
+                    }
+                ],
+                pos: Pos {
+                    s: 0,
+                    e: 17,
+                    filename: path::Path::new(FILENAME)
+                }
+            }),
+            mangled_name: None,
+            mangle: true,
+            pos: Pos {
+                s: 0,
+                e: 19,
+                filename: path::Path::new(FILENAME)
+            }
+        }),
+        function_call_empty
+    );
+
+    parser_test!(
+        "return ((let x: int = 10, x = 10, hello, 1, \"another_test\"));",
+        Parser::return_statement,
+        Statement::Return(Return {
+            expression: Box::new(Expr::Tuple(Tuple {
+                values: vec![
+                    Expr::VariableAssignDeclaration(VariableAssignDeclaration {
+                        t: TypeCheckOrType::Type(Rc::new(Type {
+                            value: TypeType::Type(Rc::new(Namespace {
+                                scopes: vec![NameID {
+                                    value: "int",
+                                    pos: Pos {
+                                        s: 16,
+                                        e: 19,
+                                        filename: path::Path::new(FILENAME)
+                                    }
+                                }],
+                                pos: Pos {
+                                    s: 16,
+                                    e: 19,
+                                    filename: path::Path::new(FILENAME)
+                                }
+                            })),
+                            inferred: false,
+                            pos: Pos {
+                                s: 16,
+                                e: 19,
+                                filename: path::Path::new(FILENAME)
+                            }
+                        })),
+                        name: Rc::new(Namespace {
+                            scopes: vec![NameID {
+                                value: "x",
+                                pos: Pos {
+                                    s: 13,
+                                    e: 14,
+                                    filename: path::Path::new(FILENAME)
+                                }
+                            }],
+                            pos: Pos {
+                                s: 13,
+                                e: 14,
+                                filename: path::Path::new(FILENAME)
+                            }
+                        }),
+                        expr: Box::new(Expr::Literal(Literal {
+                            value: "10",
+                            type_val: TypeCheckOrType::TypeCheckType(TypeCheckType {
+                                value: TypeCheckTypeType::SingleType(Rc::new(Namespace {
+                                    scopes: vec![NameID {
+                                        value: "{number}",
+                                        pos: Pos {
+                                            s: 22,
+                                            e: 24,
+                                            filename: path::Path::new(FILENAME)
+                                        }
+                                    }],
+                                    pos: Pos {
+                                        s: 22,
+                                        e: 24,
+                                        filename: path::Path::new(FILENAME)
+                                    }
+                                })),
+                                pos: Pos {
+                                    s: 22,
+                                    e: 24,
+                                    filename: path::Path::new(FILENAME)
+                                },
+                                inferred: false
+                            }),
+                            pos: Pos {
+                                s: 22,
+                                e: 24,
+                                filename: path::Path::new(FILENAME)
+                            }
+                        })),
+                        pos: Pos {
+                            s: 9,
+                            e: 24,
+                            filename: path::Path::new(FILENAME)
+                        }
+                    }),
+                    Expr::VariableAssign(VariableAssign {
+                        name: Rc::new(Namespace {
+                            scopes: vec![NameID {
+                                value: "x",
+                                pos: Pos {
+                                    s: 26,
+                                    e: 27,
+                                    filename: path::Path::new(FILENAME)
+                                }
+                            }],
+                            pos: Pos {
+                                s: 26,
+                                e: 27,
+                                filename: path::Path::new(FILENAME)
+                            }
+                        }),
+                        expr: Box::new(Expr::Literal(Literal {
+                            value: "10",
+                            type_val: TypeCheckOrType::TypeCheckType(TypeCheckType {
+                                value: TypeCheckTypeType::SingleType(Rc::new(Namespace {
+                                    scopes: vec![NameID {
+                                        value: "{number}",
+                                        pos: Pos {
+                                            s: 30,
+                                            e: 32,
+                                            filename: path::Path::new(FILENAME)
+                                        }
+                                    }],
+                                    pos: Pos {
+                                        s: 30,
+                                        e: 32,
+                                        filename: path::Path::new(FILENAME)
+                                    }
+                                })),
+                                pos: Pos {
+                                    s: 30,
+                                    e: 32,
+                                    filename: path::Path::new(FILENAME)
+                                },
+                                inferred: false
+                            }),
+                            pos: Pos {
+                                s: 30,
+                                e: 32,
+                                filename: path::Path::new(FILENAME)
+                            }
+                        })),
+                        type_val: None,
+                        pos: Pos {
+                            s: 26,
+                            e: 32,
+                            filename: path::Path::new(FILENAME)
+                        }
+                    }),
+                    Expr::RefID(RefID {
+                        value: Rc::new(Namespace {
+                            scopes: vec![NameID {
+                                value: "hello",
+                                pos: Pos {
+                                    s: 34,
+                                    e: 39,
+                                    filename: path::Path::new(FILENAME)
+                                }
+                            }],
+                            pos: Pos {
+                                s: 34,
+                                e: 39,
+                                filename: path::Path::new(FILENAME)
+                            }
+                        }),
+                        type_val: None,
+                        pos: Pos {
+                            s: 34,
+                            e: 39,
+                            filename: path::Path::new(FILENAME)
+                        }
+                    }),
+                    Expr::Literal(Literal {
+                        value: "1",
+                        type_val: TypeCheckOrType::TypeCheckType(TypeCheckType {
+                            value: TypeCheckTypeType::SingleType(Rc::new(Namespace {
+                                scopes: vec![NameID {
+                                    value: "{number}",
+                                    pos: Pos {
+                                        s: 41,
+                                        e: 42,
+                                        filename: path::Path::new(FILENAME)
+                                    }
+                                }],
+                                pos: Pos {
+                                    s: 41,
+                                    e: 42,
+                                    filename: path::Path::new(FILENAME)
+                                }
+                            })),
+                            pos: Pos {
+                                s: 41,
+                                e: 42,
+                                filename: path::Path::new(FILENAME)
+                            },
+                            inferred: false
+                        }),
+                        pos: Pos {
+                            s: 41,
+                            e: 42,
+                            filename: path::Path::new(FILENAME)
+                        }
+                    }),
+                    Expr::Literal(Literal {
+                        value: "\"another_test\"",
+                        type_val: TypeCheckOrType::TypeCheckType(TypeCheckType {
+                            value: TypeCheckTypeType::SingleType(Rc::new(Namespace {
+                                scopes: vec![NameID {
+                                    value: "str",
+                                    pos: Pos {
+                                        s: 44,
+                                        e: 58,
+                                        filename: path::Path::new(FILENAME)
+                                    }
+                                }],
+                                pos: Pos {
+                                    s: 44,
+                                    e: 58,
+                                    filename: path::Path::new(FILENAME)
+                                }
+                            })),
+                            pos: Pos {
+                                s: 44,
+                                e: 58,
+                                filename: path::Path::new(FILENAME)
+                            },
+                            inferred: false
+                        }),
+                        pos: Pos {
+                            s: 44,
+                            e: 58,
+                            filename: path::Path::new(FILENAME)
+                        }
+                    })
+                ],
+                type_val: None,
+                pos: Pos {
+                    s: 8,
+                    e: 59,
+                    filename: path::Path::new(FILENAME)
+                }
+            })),
+            pos: Pos {
+                s: 0,
+                e: 61,
+                filename: path::Path::new(FILENAME)
+            }
+        }),
+        return_statement
+    );
+
     macro_rules! parser_run {
         ($code: expr, $function: expr, $name: ident) => {
             #[test]
@@ -3135,6 +3429,61 @@ pub mod parser_tests {
         tuple_paren
     );
 
+    parser_run!("(19);", Parser::item, int_1_paren_stmt);
+    parser_run!("(1);", Parser::item, int_2_paren_stmt);
+    parser_run!("1;", Parser::item, int_1_stmt);
+    parser_run!("19;", Parser::item, int_2_stmt);
+
+    parser_run!("(true);", Parser::item, bool_true_paren_stmt);
+    parser_run!("(false);", Parser::item, bool_false_paren_stmt);
+    parser_run!("true;", Parser::item, bool_true_item_stmt);
+    parser_run!("false;", Parser::item, bool_false_item_stmt);
+
+    parser_run!("\"dab\";", Parser::item, string_literal_1_item_stmt);
+    parser_run!("\"\";", Parser::item, string_literal_2_item_stmt);
+    parser_run!("(\"dab\");", Parser::item, string_literal_1_paren_stmt);
+    parser_run!("(\"\");", Parser::item, string_literal_2_paren_stmt);
+
+    parser_run!("$hello;", Parser::item, dollar_expr_item_stmt);
+    parser_run!("($hello);", Parser::item, dollar_expr_paren_stmt);
+
+    parser_run!("a(10, 10, \"hello\");", Parser::item, call_expr_1_item_stmt);
+    parser_run!("a(10, 10,);", Parser::item, call_expr_2_item_stmt);
+    parser_run!(
+        "(a(10, 10, \"hello\"));",
+        Parser::item,
+        call_expr_1_paren_stmt
+    );
+    parser_run!("(a(10, 10,));", Parser::item, call_expr_2_paren_stmt);
+
+    parser_run!("(x = 5);", Parser::item, variable_assign_paren_stmt);
+    parser_run!("x = 5;", Parser::item, variable_assign_item_stmt);
+
+    parser_run!(
+        "(let x: int = 5);",
+        Parser::item,
+        variable_assign_full_paren_stmt
+    );
+    parser_run!(
+        "let x: int = 5;",
+        Parser::item,
+        variable_assign_full_item_stmt
+    );
+
+    parser_run!("(i);", Parser::item, ref_id_paren_stmt);
+    parser_run!("i3_hello_world;", Parser::item, ref_id_item_stmt);
+
+    parser_run!(
+        "(let x: int = 10, x = 10, hello, 1, \"another_test\");",
+        Parser::item,
+        tuple_item_stmt
+    );
+    parser_run!(
+        "((let x: int = 10, x = 10, hello, 1, \"another_test\"));",
+        Parser::item,
+        tuple_paren_stmt
+    );
+
     macro_rules! parser_err {
         ($code: expr, $function: expr, $name: ident) => {
             #[test]
@@ -3155,14 +3504,14 @@ pub mod parser_tests {
         let logger = Rc::new(RefCell::new(Logger::new(true)));
         let mut parser = Parser::new(
             path::Path::new(FILENAME),
-            "tests::j12::hello(\"hello\", 123,4,2,3,1,true,false,)",
+            "return ((let x: int = 10, x = 10, hello, 1, \"another_test\"));",
             logger,
         );
         parser.initialize_expr();
         parser
             .fill_token_stream()
             .expect("Failed to fill token stream");
-        let output = format!("{:?}", parser.function_call().expect("failed to parse"))
+        let output = format!("{:?}", parser.return_statement().expect("failed to parse"))
             .replace("[", "vec![")
             .replace(
                 "\"a_really_long_parser_filename_for_this_test.fl\"",
