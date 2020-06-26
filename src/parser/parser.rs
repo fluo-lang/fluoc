@@ -3372,6 +3372,545 @@ pub mod parser_tests {
         return_statement
     );
 
+    parser_test!(
+        "extern overload + add_overload_test9(int, int) -> int;",
+        Parser::overload_extern,
+        Statement::FunctionDefine(FunctionDefine {
+            return_type: TypeCheckOrType::Type(Rc::new(Type {
+                value: TypeType::Type(Rc::new(Namespace {
+                    scopes: vec![NameID {
+                        value: "int",
+                        pos: Pos {
+                            s: 50,
+                            e: 53,
+                            filename: path::Path::new(FILENAME)
+                        }
+                    }],
+                    pos: Pos {
+                        s: 50,
+                        e: 53,
+                        filename: path::Path::new(FILENAME)
+                    }
+                })),
+                inferred: false,
+                pos: Pos {
+                    s: 50,
+                    e: 53,
+                    filename: path::Path::new(FILENAME)
+                }
+            })),
+            arguments: Arguments {
+                positional: vec![
+                    (
+                        NameID {
+                            value: "none",
+                            pos: Pos {
+                                s: 37,
+                                e: 40,
+                                filename: path::Path::new(FILENAME)
+                            }
+                        },
+                        TypeCheckOrType::Type(Rc::new(Type {
+                            value: TypeType::Type(Rc::new(Namespace {
+                                scopes: vec![NameID {
+                                    value: "int",
+                                    pos: Pos {
+                                        s: 37,
+                                        e: 40,
+                                        filename: path::Path::new(FILENAME)
+                                    }
+                                }],
+                                pos: Pos {
+                                    s: 37,
+                                    e: 40,
+                                    filename: path::Path::new(FILENAME)
+                                }
+                            })),
+                            inferred: false,
+                            pos: Pos {
+                                s: 37,
+                                e: 40,
+                                filename: path::Path::new(FILENAME)
+                            }
+                        }))
+                    ),
+                    (
+                        NameID {
+                            value: "none",
+                            pos: Pos {
+                                s: 42,
+                                e: 45,
+                                filename: path::Path::new(FILENAME)
+                            }
+                        },
+                        TypeCheckOrType::Type(Rc::new(Type {
+                            value: TypeType::Type(Rc::new(Namespace {
+                                scopes: vec![NameID {
+                                    value: "int",
+                                    pos: Pos {
+                                        s: 42,
+                                        e: 45,
+                                        filename: path::Path::new(FILENAME)
+                                    }
+                                }],
+                                pos: Pos {
+                                    s: 42,
+                                    e: 45,
+                                    filename: path::Path::new(FILENAME)
+                                }
+                            })),
+                            inferred: false,
+                            pos: Pos {
+                                s: 42,
+                                e: 45,
+                                filename: path::Path::new(FILENAME)
+                            }
+                        }))
+                    )
+                ],
+                pos: Pos {
+                    s: 37,
+                    e: 45,
+                    filename: path::Path::new(FILENAME)
+                }
+            },
+            block: None,
+            name: Rc::new(Namespace {
+                scopes: vec![NameID {
+                    value: "add_overload_test9",
+                    pos: Pos {
+                        s: 18,
+                        e: 36,
+                        filename: path::Path::new(FILENAME)
+                    }
+                }],
+                pos: Pos {
+                    s: 18,
+                    e: 36,
+                    filename: path::Path::new(FILENAME)
+                }
+            }),
+            mangled_name: None,
+            visibility: Visibility::Private,
+            overload_operator: Some(lexer::TokenType::ADD),
+            pos: Pos {
+                s: 0,
+                e: 54,
+                filename: path::Path::new(FILENAME)
+            }
+        }),
+        overload_extern
+    );
+
+    parser_test!(
+        "overload + add_overload_test9(val: int, val: int) -> int {}",
+        Parser::overload_define,
+        Statement::FunctionDefine(FunctionDefine {
+            return_type: TypeCheckOrType::Type(Rc::new(Type {
+                value: TypeType::Type(Rc::new(Namespace {
+                    scopes: vec![NameID {
+                        value: "int",
+                        pos: Pos {
+                            s: 53,
+                            e: 56,
+                            filename: path::Path::new(FILENAME)
+                        }
+                    }],
+                    pos: Pos {
+                        s: 53,
+                        e: 56,
+                        filename: path::Path::new(FILENAME)
+                    }
+                })),
+                inferred: false,
+                pos: Pos {
+                    s: 53,
+                    e: 56,
+                    filename: path::Path::new(FILENAME)
+                }
+            })),
+            arguments: Arguments {
+                positional: vec![
+                    (
+                        NameID {
+                            value: "val",
+                            pos: Pos {
+                                s: 30,
+                                e: 33,
+                                filename: path::Path::new(FILENAME)
+                            }
+                        },
+                        TypeCheckOrType::Type(Rc::new(Type {
+                            value: TypeType::Type(Rc::new(Namespace {
+                                scopes: vec![NameID {
+                                    value: "int",
+                                    pos: Pos {
+                                        s: 35,
+                                        e: 38,
+                                        filename: path::Path::new(FILENAME)
+                                    }
+                                }],
+                                pos: Pos {
+                                    s: 35,
+                                    e: 38,
+                                    filename: path::Path::new(FILENAME)
+                                }
+                            })),
+                            inferred: false,
+                            pos: Pos {
+                                s: 35,
+                                e: 38,
+                                filename: path::Path::new(FILENAME)
+                            }
+                        }))
+                    ),
+                    (
+                        NameID {
+                            value: "val",
+                            pos: Pos {
+                                s: 40,
+                                e: 43,
+                                filename: path::Path::new(FILENAME)
+                            }
+                        },
+                        TypeCheckOrType::Type(Rc::new(Type {
+                            value: TypeType::Type(Rc::new(Namespace {
+                                scopes: vec![NameID {
+                                    value: "int",
+                                    pos: Pos {
+                                        s: 45,
+                                        e: 48,
+                                        filename: path::Path::new(FILENAME)
+                                    }
+                                }],
+                                pos: Pos {
+                                    s: 45,
+                                    e: 48,
+                                    filename: path::Path::new(FILENAME)
+                                }
+                            })),
+                            inferred: false,
+                            pos: Pos {
+                                s: 45,
+                                e: 48,
+                                filename: path::Path::new(FILENAME)
+                            }
+                        }))
+                    )
+                ],
+                pos: Pos {
+                    s: 30,
+                    e: 48,
+                    filename: path::Path::new(FILENAME)
+                }
+            },
+            block: Some(Block {
+                nodes: vec![],
+                tags: vec![],
+                pos: Pos {
+                    s: 57,
+                    e: 59,
+                    filename: path::Path::new(FILENAME)
+                },
+                insert_return: false
+            }),
+            name: Rc::new(Namespace {
+                scopes: vec![NameID {
+                    value: "add_overload_test9",
+                    pos: Pos {
+                        s: 11,
+                        e: 29,
+                        filename: path::Path::new(FILENAME)
+                    }
+                }],
+                pos: Pos {
+                    s: 11,
+                    e: 29,
+                    filename: path::Path::new(FILENAME)
+                }
+            }),
+            mangled_name: None,
+            visibility: Visibility::Private,
+            overload_operator: Some(lexer::TokenType::ADD),
+            pos: Pos {
+                s: 0,
+                e: 59,
+                filename: path::Path::new(FILENAME)
+            }
+        }),
+        overload_define
+    );
+
+    parser_test!(
+        "       def add_overload_test9(val: int, val: int) -> int {}",
+        Parser::function_define,
+        Statement::FunctionDefine(FunctionDefine {
+            return_type: TypeCheckOrType::Type(Rc::new(Type {
+                value: TypeType::Type(Rc::new(Namespace {
+                    scopes: vec![NameID {
+                        value: "int",
+                        pos: Pos {
+                            s: 53,
+                            e: 56,
+                            filename: path::Path::new(FILENAME)
+                        }
+                    }],
+                    pos: Pos {
+                        s: 53,
+                        e: 56,
+                        filename: path::Path::new(FILENAME)
+                    }
+                })),
+                inferred: false,
+                pos: Pos {
+                    s: 53,
+                    e: 56,
+                    filename: path::Path::new(FILENAME)
+                }
+            })),
+            arguments: Arguments {
+                positional: vec![
+                    (
+                        NameID {
+                            value: "val",
+                            pos: Pos {
+                                s: 30,
+                                e: 33,
+                                filename: path::Path::new(FILENAME)
+                            }
+                        },
+                        TypeCheckOrType::Type(Rc::new(Type {
+                            value: TypeType::Type(Rc::new(Namespace {
+                                scopes: vec![NameID {
+                                    value: "int",
+                                    pos: Pos {
+                                        s: 35,
+                                        e: 38,
+                                        filename: path::Path::new(FILENAME)
+                                    }
+                                }],
+                                pos: Pos {
+                                    s: 35,
+                                    e: 38,
+                                    filename: path::Path::new(FILENAME)
+                                }
+                            })),
+                            inferred: false,
+                            pos: Pos {
+                                s: 35,
+                                e: 38,
+                                filename: path::Path::new(FILENAME)
+                            }
+                        }))
+                    ),
+                    (
+                        NameID {
+                            value: "val",
+                            pos: Pos {
+                                s: 40,
+                                e: 43,
+                                filename: path::Path::new(FILENAME)
+                            }
+                        },
+                        TypeCheckOrType::Type(Rc::new(Type {
+                            value: TypeType::Type(Rc::new(Namespace {
+                                scopes: vec![NameID {
+                                    value: "int",
+                                    pos: Pos {
+                                        s: 45,
+                                        e: 48,
+                                        filename: path::Path::new(FILENAME)
+                                    }
+                                }],
+                                pos: Pos {
+                                    s: 45,
+                                    e: 48,
+                                    filename: path::Path::new(FILENAME)
+                                }
+                            })),
+                            inferred: false,
+                            pos: Pos {
+                                s: 45,
+                                e: 48,
+                                filename: path::Path::new(FILENAME)
+                            }
+                        }))
+                    )
+                ],
+                pos: Pos {
+                    s: 30,
+                    e: 48,
+                    filename: path::Path::new(FILENAME)
+                }
+            },
+            block: Some(Block {
+                nodes: vec![],
+                tags: vec![],
+                pos: Pos {
+                    s: 57,
+                    e: 59,
+                    filename: path::Path::new(FILENAME)
+                },
+                insert_return: false
+            }),
+            name: Rc::new(Namespace {
+                scopes: vec![NameID {
+                    value: "add_overload_test9",
+                    pos: Pos {
+                        s: 11,
+                        e: 29,
+                        filename: path::Path::new(FILENAME)
+                    }
+                }],
+                pos: Pos {
+                    s: 11,
+                    e: 29,
+                    filename: path::Path::new(FILENAME)
+                }
+            }),
+            mangled_name: None,
+            visibility: Visibility::Private,
+            overload_operator: None,
+            pos: Pos {
+                s: 7,
+                e: 59,
+                filename: path::Path::new(FILENAME)
+            }
+        }),
+        function_define
+    );
+
+    parser_test!(
+        "extern def        add_overload_test9(int, int) -> int;",
+        Parser::extern_def,
+        Statement::FunctionDefine(FunctionDefine {
+            return_type: TypeCheckOrType::Type(Rc::new(Type {
+                value: TypeType::Type(Rc::new(Namespace {
+                    scopes: vec![NameID {
+                        value: "int",
+                        pos: Pos {
+                            s: 50,
+                            e: 53,
+                            filename: path::Path::new(FILENAME)
+                        }
+                    }],
+                    pos: Pos {
+                        s: 50,
+                        e: 53,
+                        filename: path::Path::new(FILENAME)
+                    }
+                })),
+                inferred: false,
+                pos: Pos {
+                    s: 50,
+                    e: 53,
+                    filename: path::Path::new(FILENAME)
+                }
+            })),
+            arguments: Arguments {
+                positional: vec![
+                    (
+                        NameID {
+                            value: "none",
+                            pos: Pos {
+                                s: 37,
+                                e: 40,
+                                filename: path::Path::new(FILENAME)
+                            }
+                        },
+                        TypeCheckOrType::Type(Rc::new(Type {
+                            value: TypeType::Type(Rc::new(Namespace {
+                                scopes: vec![NameID {
+                                    value: "int",
+                                    pos: Pos {
+                                        s: 37,
+                                        e: 40,
+                                        filename: path::Path::new(FILENAME)
+                                    }
+                                }],
+                                pos: Pos {
+                                    s: 37,
+                                    e: 40,
+                                    filename: path::Path::new(FILENAME)
+                                }
+                            })),
+                            inferred: false,
+                            pos: Pos {
+                                s: 37,
+                                e: 40,
+                                filename: path::Path::new(FILENAME)
+                            }
+                        }))
+                    ),
+                    (
+                        NameID {
+                            value: "none",
+                            pos: Pos {
+                                s: 42,
+                                e: 45,
+                                filename: path::Path::new(FILENAME)
+                            }
+                        },
+                        TypeCheckOrType::Type(Rc::new(Type {
+                            value: TypeType::Type(Rc::new(Namespace {
+                                scopes: vec![NameID {
+                                    value: "int",
+                                    pos: Pos {
+                                        s: 42,
+                                        e: 45,
+                                        filename: path::Path::new(FILENAME)
+                                    }
+                                }],
+                                pos: Pos {
+                                    s: 42,
+                                    e: 45,
+                                    filename: path::Path::new(FILENAME)
+                                }
+                            })),
+                            inferred: false,
+                            pos: Pos {
+                                s: 42,
+                                e: 45,
+                                filename: path::Path::new(FILENAME)
+                            }
+                        }))
+                    )
+                ],
+                pos: Pos {
+                    s: 37,
+                    e: 45,
+                    filename: path::Path::new(FILENAME)
+                }
+            },
+            block: None,
+            name: Rc::new(Namespace {
+                scopes: vec![NameID {
+                    value: "add_overload_test9",
+                    pos: Pos {
+                        s: 18,
+                        e: 36,
+                        filename: path::Path::new(FILENAME)
+                    }
+                }],
+                pos: Pos {
+                    s: 18,
+                    e: 36,
+                    filename: path::Path::new(FILENAME)
+                }
+            }),
+            mangled_name: None,
+            visibility: Visibility::Private,
+            overload_operator: None,
+            pos: Pos {
+                s: 0,
+                e: 54,
+                filename: path::Path::new(FILENAME)
+            }
+        }),
+        extern_def 
+    );
+
+
     macro_rules! parser_run {
         ($code: expr, $function: expr, $name: ident) => {
             #[test]
@@ -3498,20 +4037,20 @@ pub mod parser_tests {
         };
     }
 
-    //#[test]
+    #[test]
     fn print_vals() {
         // Utility function for printing ast's
         let logger = Rc::new(RefCell::new(Logger::new(true)));
         let mut parser = Parser::new(
             path::Path::new(FILENAME),
-            "return ((let x: int = 10, x = 10, hello, 1, \"another_test\"));",
+            "overload + add_overload_test9(val: int, val: int) -> int {}",
             logger,
         );
         parser.initialize_expr();
         parser
             .fill_token_stream()
             .expect("Failed to fill token stream");
-        let output = format!("{:?}", parser.return_statement().expect("failed to parse"))
+        let output = format!("{:?}", parser.overload_define().expect("failed to parse"))
             .replace("[", "vec![")
             .replace(
                 "\"a_really_long_parser_filename_for_this_test.fl\"",
