@@ -4037,7 +4037,7 @@ pub mod parser_tests {
         };
     }
 
-    #[test]
+    //#[test]
     fn print_vals() {
         // Utility function for printing ast's
         let logger = Rc::new(RefCell::new(Logger::new(true)));
