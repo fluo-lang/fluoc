@@ -3910,6 +3910,12 @@ pub mod parser_tests {
         extern_def 
     );
 
+    parser_test!(
+        "@[no_mangle]",
+        Parser::compiler_tag, 
+        Statement::Tag(Tag { content: NameID { value: "no_mangle", pos: Pos { s: 2, e: 11, filename: path::Path::new(FILENAME) } }, pos: Pos { s: 0, e: 12, filename: path::Path::new(FILENAME) } }),
+        compilier_tag
+    );
 
     macro_rules! parser_run {
         ($code: expr, $function: expr, $name: ident) => {
@@ -4037,20 +4043,75 @@ pub mod parser_tests {
         };
     }
 
+    parser_err!(
+        "hello::",
+        Parser::namespace,
+        unmatched_namespace_err_1
+    );
+    
+    parser_err!(
+        "::",
+        Parser::namespace,
+        unmatched_namespace_err_2
+    );
+
+    parser_err!(
+        "hello::123",
+        Parser::namespace,
+        bad_nameid_namespace_err_1
+    );
+
+     parser_err!(
+        "hello 1,2,3,4)",
+        Parser::function_call,
+        unmatched_opening_paren_function_call_1 
+    );
+    
+    parser_err!(
+        "hello(1,2,3,4",
+        Parser::function_call,
+        unmatched_opening_paren_function_call_2
+    );
+
+    parser_err!(
+        "hello(1,2,3,4,,)",
+        Parser::function_call,
+        extra_comma_function_call_1
+    );
+
+    parser_err!(
+        "hello(1,,2,3,4,)",
+        Parser::function_call,
+        extra_comma_function_call_2
+    );
+
+    parser_err!(
+        "hello(1 2,3,4,)",
+        Parser::function_call,
+        mssing_comma_function_call_1
+    );
+
+    parser_err!(
+        "hello(1,2 3,4,)",
+        Parser::function_call,
+        mssing_comma_function_call_2
+    );
+
+
     //#[test]
     fn print_vals() {
         // Utility function for printing ast's
         let logger = Rc::new(RefCell::new(Logger::new(true)));
         let mut parser = Parser::new(
             path::Path::new(FILENAME),
-            "overload + add_overload_test9(val: int, val: int) -> int {}",
+            "",
             logger,
         );
         parser.initialize_expr();
         parser
             .fill_token_stream()
             .expect("Failed to fill token stream");
-        let output = format!("{:?}", parser.overload_define().expect("failed to parse"))
+        let output = format!("{:?}", parser.import().expect("failed to parse"))
             .replace("[", "vec![")
             .replace(
                 "\"a_really_long_parser_filename_for_this_test.fl\"",
