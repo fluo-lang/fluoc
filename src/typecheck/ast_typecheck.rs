@@ -855,7 +855,7 @@ impl<'a> TypeCheckType<'a> {
                         pos: infix.pos,
                     }),
                     mangled_name: Some(
-                        overloaded.0.mangle_types(
+                        overloaded.0.mangle_overload(
                             &[&left_type, &right_type],
                             overloaded
                                 .1
@@ -863,6 +863,7 @@ impl<'a> TypeCheckType<'a> {
                                 .0
                                 .value
                                 .unwrap_func_return_ref(),
+                            infix.operator.token,
                             context,
                         )?,
                     ),
@@ -1151,6 +1152,7 @@ impl<'a> Block<'a> {
                         })],
                         pos,
                         insert_return: false,
+                        returns: false,
                     });
 
                     func_def.generate_proto(context)?;
@@ -1202,6 +1204,7 @@ impl<'a> TypeCheck<'a> for Block<'a> {
                 .map(|expr| Ok(TypeCheckType::from_expr(expr, context, None)?))
                 .collect::<Result<Vec<TypeCheckType<'a>>, ErrorOrVec<'_>>>()?;
             TypeCheckType::all_same_type(&ret_types[..], context)?;
+            self.returns = true;
             Ok(None)
         } else {
             match return_type {
@@ -2522,4 +2525,10 @@ impl<'a> TypeCheckSymbTab<'a> {
             ErrorLevel::NonExistentVar,
         ))
     }
+}
+
+#[cfg(test)]
+mod typecheck_tests {
+    #[test]
+    fn test() {}
 }

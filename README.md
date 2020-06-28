@@ -1,6 +1,5 @@
 <div align=center>
-    <img src="images/logo.png" width=200 align=center></img>
-    <br>
+    <!--<img src="images/logo.png" width=200 align=center></img>-->
     <h1>Fluo</h1>
     <a href="https://github.com/fluo-lang/fluo/actions"><img src="https://img.shields.io/github/workflow/status/fluo-lang/fluo/build-test-bench?style=for-the-badge" height=24px></img></a>
     <a href="https://trello.com/b/5gxtFXun/fluo"><img src="https://img.shields.io/badge/trello-here-000000FF?style=for-the-badge" height=24px></img></a>

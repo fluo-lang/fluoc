@@ -389,7 +389,10 @@ impl<'a> CodeGenModule<'a> {
             self.generate_inner_block(&cond.block, func_val);
 
             // Jump to next part of flow after this
-            self.builder.build_unconditional_branch(after_cond);
+            // (Only if the block doesn't return)
+            if !cond.block.returns {
+                self.builder.build_unconditional_branch(after_cond);
+            }
 
             // Create conditional statement on the highest block
             self.builder.position_at_end(highest_block);
@@ -409,7 +412,10 @@ impl<'a> CodeGenModule<'a> {
                 self.generate_inner_block(&else_branch.block, func_val);
 
                 // Jump to next part of flow after this
-                self.builder.build_unconditional_branch(after_cond);
+                // (Only if the block doesn't return)
+                if !else_branch.block.returns {
+                    self.builder.build_unconditional_branch(after_cond);
+                }
             }
             None => {
                 // Jump to next part of flow after this

@@ -301,6 +301,7 @@ impl<'a> Parser<'a> {
             tags: Vec::new(),
             pos: self.get_relative_pos(position),
             insert_return: false,
+            returns: false
         };
         self.ast = Some(block);
         Ok(())
@@ -366,6 +367,7 @@ impl<'a> Parser<'a> {
             tags: Vec::new(),
             pos: self.get_relative_pos(position),
             insert_return: false,
+            returns: false
         })
     }
 
@@ -2323,7 +2325,8 @@ pub mod parser_tests {
                         e: 13,
                         filename: path::Path::new(FILENAME)
                     },
-                    insert_return: false
+                    insert_return: false,
+                    returns: false
                 },
                 pos: Pos {
                     s: 0,
@@ -2340,7 +2343,9 @@ pub mod parser_tests {
                         e: 21,
                         filename: path::Path::new(FILENAME)
                     },
-                    insert_return: false
+                    insert_return: false,
+                    returns: false
+
                 },
                 pos: Pos {
                     s: 14,
@@ -2402,7 +2407,9 @@ pub mod parser_tests {
                             e: 13,
                             filename: path::Path::new(FILENAME)
                         },
-                        insert_return: false
+                        insert_return: false,
+                    returns: false
+
                     },
                     pos: Pos {
                         s: 0,
@@ -2450,7 +2457,9 @@ pub mod parser_tests {
                             e: 31,
                             filename: path::Path::new(FILENAME)
                         },
-                        insert_return: false
+                        insert_return: false,
+                    returns: false
+
                     },
                     pos: Pos {
                         s: 14,
@@ -2468,7 +2477,9 @@ pub mod parser_tests {
                         e: 39,
                         filename: path::Path::new(FILENAME)
                     },
-                    insert_return: false
+                    insert_return: false,
+                    returns: false
+
                 },
                 pos: Pos {
                     s: 32,
@@ -2529,7 +2540,9 @@ pub mod parser_tests {
                         e: 13,
                         filename: path::Path::new(FILENAME)
                     },
-                    insert_return: false
+                    insert_return: false,
+                    returns: false
+
                 },
                 pos: Pos {
                     s: 0,
@@ -3612,7 +3625,9 @@ pub mod parser_tests {
                     e: 59,
                     filename: path::Path::new(FILENAME)
                 },
-                insert_return: false
+                insert_return: false,
+                    returns: false
+
             }),
             name: Rc::new(Namespace {
                 scopes: vec![NameID {
@@ -3751,7 +3766,9 @@ pub mod parser_tests {
                     e: 59,
                     filename: path::Path::new(FILENAME)
                 },
-                insert_return: false
+                insert_return: false,
+                    returns: false
+
             }),
             name: Rc::new(Namespace {
                 scopes: vec![NameID {
@@ -4096,7 +4113,6 @@ pub mod parser_tests {
         Parser::function_call,
         mssing_comma_function_call_2
     );
-
 
     //#[test]
     fn print_vals() {

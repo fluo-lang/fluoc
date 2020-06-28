@@ -10,3 +10,4 @@ public
 def entry() {
     core::fmt::print_long(fib(46 long));
 }
+

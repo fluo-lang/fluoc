@@ -289,6 +289,7 @@ pub struct Block<'a> {
     pub tags: Vec<Tag<'a>>, // For now, tags are just strings
     pub pos: helpers::Pos<'a>,
     pub insert_return: bool,
+    pub returns: bool,
 }
 
 impl<'a> Block<'a> {
@@ -315,6 +316,7 @@ impl<'a> Units<'a> {
             tags: Vec::new(),
             pos: self.pos,
             insert_return: false,
+            returns: false
         }
     }
 

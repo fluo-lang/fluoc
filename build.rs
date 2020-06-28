@@ -325,6 +325,11 @@ macro_rules! generate_llvm {
     ($core_path: expr, $context: expr, $func: expr, $name: expr) => {
         let mut gen = Generator::new(&$context, $context.create_module($name));
         $func(&mut gen);
+        let path = $core_path.join(format!("{}.bc", $name));
+        gen
+            .module
+            .write_bitcode_to_path(&path);       
+
         match gen
             .module
             .print_to_file($core_path.join(format!("{}.ll", $name)))

@@ -19,3 +19,8 @@ out.ll
 out.s
 
 .DS_Store
+
+test
+test.rs
+test.ll
+
