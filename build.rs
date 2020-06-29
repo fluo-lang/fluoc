@@ -326,9 +326,7 @@ macro_rules! generate_llvm {
         let mut gen = Generator::new(&$context, $context.create_module($name));
         $func(&mut gen);
         let path = $core_path.join(format!("{}.bc", $name));
-        gen
-            .module
-            .write_bitcode_to_path(&path);       
+        gen.module.write_bitcode_to_path(&path);
 
         match gen
             .module
@@ -366,3 +364,4 @@ fn main() {
     generate_llvm!(core_path, llvm_context, Generator::generate_fmt, "fmt");
     generate_llvm!(core_path, llvm_context, Generator::generate_op, "op");
 }
+
