@@ -2273,9 +2273,6 @@ impl<'a> TypeCheckSymbTab<'a> {
             None => {}
         }
 
-        println!("{} {}", namespace, other);
-        println!("{}", self);
-
         if let Some(e) = possible_error {
             return Err(e);
         } else {
