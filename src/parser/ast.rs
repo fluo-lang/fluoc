@@ -116,6 +116,17 @@ impl<'a> Literal<'a> {
 
         Ok(self.type_val.clone().unwrap_type_check())
     }
+
+    pub fn as_abs_literal<'b>(&self, other_type: &TypeCheckType<'a>, context: &'b TypeCheckSymbTab<'a>) -> Option<&'static str> {
+        match (self.type_val.unwrap_type_check_ref().cast_to_basic(context), other_type.cast_to_basic(context)) {
+            (Ok(val1), Ok(val2)) => match (&val1[..], &val2[..]) {
+                ("{number}", "int") => { Some("int") }
+                ("{number}", "long") => { Some("long") }
+                _ => None
+            }
+            _ => None
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]

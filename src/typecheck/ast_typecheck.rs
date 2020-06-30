@@ -294,7 +294,29 @@ impl<'a> TypeCheckType<'a> {
     /// Check for equivalence of types
     fn sequiv<'b>(left: &Self, right: &Self, context: &'b TypeCheckSymbTab<'a>) -> bool {
         match (left.cast_to_basic(context), right.cast_to_basic(context)) {
-            (Ok(left_ok), Ok(right_ok)) => return left_ok == right_ok,
+            (Ok(left_ok), Ok(right_ok)) => {
+                if left_ok == right_ok {
+                    return true;
+                } else {
+                    match (&left_ok[..], &right_ok[..]) {
+                        ("{number}", "int") => {
+                            return true;
+                        }
+                        ("{number}", "long") => {
+                            return true;
+                        }
+
+                        ("int", "{number}") => {
+                            return true;
+                        }
+                        ("long", "{number}") => {
+                            return true;
+                        }
+
+                        (_, _) => {}
+                    }
+                }
+            }
             _ => {}
         }
         if left.is_tuple() && right.is_tuple() {
@@ -559,6 +581,24 @@ impl<'a> TypeCheckType<'a> {
         )
     }
 
+    fn match_types<'b>(
+        val: &SymbTabObj<'a>,
+        types: &[TypeCheckType<'a>],
+        return_type: Option<&TypeCheckType<'a>>,
+        context: &'b TypeCheckSymbTab<'a>,
+    ) -> bool {
+        let func_sig = val.unwrap_function_ref().0.value.unwrap_func();
+        types
+            .iter()
+            .zip(&func_sig.0.positional)
+            .all(|(used, real)| used.can_cast(&real.1, context))
+            && if let Some(ret_val) = return_type {
+                TypeCheckType::sequiv(ret_val, func_sig.1, context)
+            } else {
+                true
+            }
+    }
+
     fn from_expr<'b>(
         val: &mut Expr<'a>,
         context: &'b mut TypeCheckSymbTab<'a>,
@@ -584,7 +624,7 @@ impl<'a> TypeCheckType<'a> {
             Expr::Literal(lit) => lit.into_type(context, return_type)?,
             Expr::FunctionCall(func_call) => {
                 // Validate function call
-                let func_call_arg_types = func_call
+                let mut func_call_arg_types = func_call
                     .arguments
                     .positional
                     .iter_mut()
@@ -592,12 +632,76 @@ impl<'a> TypeCheckType<'a> {
                     .collect::<Result<Vec<TypeCheckType<'_>>, _>>()?;
 
                 // Name of function gotten and function signature
-                let func_union_namespace = context.get_function(
-                    Rc::clone(&func_call.name),
-                    &func_call_arg_types.iter().collect::<Vec<_>>()[..],
-                    return_type,
-                )?;
-                let func = func_union_namespace.0.unwrap_function_ref();
+                let func_union_namespace = context.get_function(Rc::clone(&func_call.name))?;
+
+                let mut possibles = Vec::new();
+                let mut mangled_values = Vec::new();
+
+                for sig in func_union_namespace.0.iter() {
+                    if let SymbTabObj::Function(_, _, mangled) = sig {
+                        if !mangled {
+                            mangled_values.push(sig);
+                            continue;
+                        }
+                        if Self::match_types(sig, &func_call_arg_types[..], return_type, context) {
+                            possibles.push(sig);
+                        }
+                    }
+                }
+
+                let func = if possibles.len() == 1 {
+                    possibles.first().unwrap()
+                } else if mangled_values.len() == 1 {
+                    mangled_values.first().unwrap()
+                } else {
+                    let mut err = vec![ErrorAnnotation::new(
+                        Some(format!(
+                            "function `{}` used here",
+                            func_union_namespace.1.to_string()
+                        )),
+                        func_union_namespace.1.pos,
+                        ErrorDisplayType::Error,
+                    )];
+
+                    err.append(
+                        &mut func_union_namespace
+                            .0
+                            .iter()
+                            .map(|type_val| {
+                                let func_type =
+                                    type_val.unwrap_function_ref().0.value.unwrap_func();
+                                ErrorAnnotation::new(
+                                    Some(format!(
+                                        "possible function signature of ({}) -> {}",
+                                        func_type
+                                            .0
+                                            .positional
+                                            .iter()
+                                            .map(|(_, val)| val.to_string())
+                                            .collect::<Vec<_>>()
+                                            .join(", "),
+                                        func_type.1
+                                    )),
+                                    Rc::clone(&func_union_namespace.1).pos,
+                                    ErrorDisplayType::Error,
+                                )
+                            })
+                            .collect::<Vec<_>>(),
+                    );
+
+                    return Err(ErrorOrVec::Error(
+                        Error::new(
+                            "cannot infer return type of function call".to_string(),
+                            ErrorType::InferError,
+                            func_union_namespace.1.pos,
+                            ErrorDisplayType::Error,
+                            err,
+                            true,
+                        ),
+                        ErrorLevel::TypeError,
+                    ));
+                }
+                .unwrap_function_ref();
 
                 func_call.name = func_union_namespace.1;
 
@@ -629,7 +733,7 @@ impl<'a> TypeCheckType<'a> {
                     ));
                 };
 
-                let func_arg_types: Vec<&TypeCheckType<'_>> = func
+                let mut func_arg_types: Vec<&TypeCheckType<'_>> = func
                     .0
                     .value
                     .unwrap_func()
@@ -650,17 +754,43 @@ impl<'a> TypeCheckType<'a> {
 
                 let temp = func.0.value.clone().unwrap_func_return();
 
-                for (real_type, call_type) in func_arg_types.iter().zip(&func_call_arg_types) {
-                    // Check if called argument type matches with expected type
-                    if !TypeCheckType::sequiv(real_type, call_type, context) {
-                        return Err(TypeCheckType::generate_func_type_mismatch(
-                            func_call,
-                            &func_arg_types,
-                            func_call_arg_types,
-                        ));
+                for ((real_type, call_value), call_type) in func_arg_types
+                    .iter_mut()
+                    .zip(&mut func_call.arguments.positional)
+                    .zip(&mut func_call_arg_types)
+                {
+                    // Change literals to the proper type (limited type inference)
+                    match call_value {
+                        Expr::Literal(lit_type) => {
+                            match lit_type.as_abs_literal(real_type, context) {
+                                Some(new_literal_type) => {
+                                    let type_val = TypeCheckTypeType::SingleType(Rc::new(
+                                        NameID {
+                                            pos: lit_type.pos,
+                                            value: new_literal_type,
+                                        }
+                                        .into_namespace(),
+                                    ));
+
+                                    *call_value = Expr::Literal(Literal {
+                                        value: lit_type.value,
+                                        pos: lit_type.pos,
+                                        type_val: TypeCheckOrType::TypeCheckType(TypeCheckType {
+                                            inferred: true,
+                                            value: type_val.clone(),
+                                            pos: lit_type.type_val.unwrap_type_check_ref().pos,
+                                        }),
+                                    });
+
+                                    call_type.value = type_val;
+                                }
+                                None => unreachable!(),
+                            }
+                        }
+                        _ => {}
                     }
                 }
-
+                
                 if let None = func_call.mangled_name {
                     func_call.mangled_name = Some(func_call.name.mangle_types(
                         &func_call_arg_types.iter().collect::<Vec<_>>()[..],
@@ -2107,16 +2237,14 @@ impl<'a> TypeCheckSymbTab<'a> {
     fn get_function(
         &self,
         namespace: Rc<Namespace<'a>>,
-        types: &[&TypeCheckType<'a>],
-        return_type: Option<&TypeCheckType<'a>>,
-    ) -> Result<(&SymbTabObj<'a>, Rc<Namespace<'a>>), ErrorOrVec<'a>> {
+    ) -> Result<(Vec<&SymbTabObj<'a>>, Rc<Namespace<'a>>), ErrorOrVec<'a>> {
         let mut possible_error = None;
         match self.items.get(&(None, Rc::clone(&namespace))) {
             Some(val) => {
                 if val.len() == 1 {
                     let only_value = val.deref().first().unwrap();
                     match only_value {
-                        SymbTabObj::Function(_, _, _) => return Ok((only_value, namespace)),
+                        SymbTabObj::Function(_, _, _) => return Ok((vec![only_value], namespace)),
                         others => {
                             possible_error = Some(ErrorOrVec::Error(
                                 Error::new(
@@ -2141,69 +2269,17 @@ impl<'a> TypeCheckSymbTab<'a> {
                 } else {
                     // More than one value here
                     // TODO: try to infer type
-                    let mut possibles = Vec::new();
-                    let mut mangled_values = Vec::new();
 
-                    for sig in val {
-                        if let SymbTabObj::Function(_, _, mangled) = sig {
-                            if !*mangled {
-                                mangled_values.push((Rc::clone(&namespace), sig));
-                                continue;
-                            }
-                            if self.match_types(sig, types, return_type, self) {
-                                possibles.push((Rc::clone(&namespace), sig))
-                            }
-                        }
-                    }
+                    let filtered_cands = val
+                        .iter()
+                        .filter(|value| match value {
+                            SymbTabObj::Function(_, _, _) => true,
+                            _ => false,
+                        })
+                        .collect::<Vec<_>>();
 
-                    if possibles.len() == 1 {
-                        return Ok((possibles.first().unwrap().1, namespace));
-                    } else if mangled_values.len() == 1 {
-                        return Ok((mangled_values.first().unwrap().1, namespace));
-                    } else {
-                        let mut err = vec![ErrorAnnotation::new(
-                            Some(format!("function `{}` used here", namespace.to_string())),
-                            namespace.pos,
-                            ErrorDisplayType::Error,
-                        )];
-
-                        err.append(
-                            &mut val
-                                .into_iter()
-                                .map(|type_val| {
-                                    let func_type =
-                                        type_val.unwrap_function_ref().0.value.unwrap_func();
-                                    ErrorAnnotation::new(
-                                        Some(format!(
-                                            "possible function signature of ({}) -> {}",
-                                            func_type
-                                                .0
-                                                .positional
-                                                .iter()
-                                                .map(|(_, val)| val.to_string())
-                                                .collect::<Vec<_>>()
-                                                .join(", "),
-                                            func_type.1
-                                        )),
-                                        namespace.pos,
-                                        ErrorDisplayType::Error,
-                                    )
-                                })
-                                .collect::<Vec<_>>(),
-                        );
-
-                        // Cannot infer value to use
-                        return Err(ErrorOrVec::Error(
-                            Error::new(
-                                "cannot infer return type of function call".to_string(),
-                                ErrorType::InferError,
-                                namespace.pos,
-                                ErrorDisplayType::Error,
-                                err,
-                                true,
-                            ),
-                            ErrorLevel::TypeError,
-                        ));
+                    if !filtered_cands.is_empty() {
+                        return Ok((filtered_cands, namespace));
                     }
                 }
             }
@@ -2223,7 +2299,7 @@ impl<'a> TypeCheckSymbTab<'a> {
                     let only_value = val.deref().first().unwrap();
                     match only_value {
                         SymbTabObj::Function(_, _, _) => {
-                            return Ok((only_value, Rc::clone(&other)))
+                            return Ok((vec![only_value], Rc::clone(&other)));
                         }
                         other => {
                             // Cannot get function with and without current prefix
@@ -2248,25 +2324,16 @@ impl<'a> TypeCheckSymbTab<'a> {
                         }
                     }
                 } else {
-                    let mut possibles = Vec::new();
-                    let mut mangled_values = Vec::new();
+                    let filtered_cands = val
+                        .iter()
+                        .filter(|value| match value {
+                            SymbTabObj::Function(_, _, _) => true,
+                            _ => false,
+                        })
+                        .collect::<Vec<_>>();
 
-                    for sig in val {
-                        if let SymbTabObj::Function(_, _, mangled) = sig {
-                            if !*mangled {
-                                mangled_values.push((Rc::clone(&namespace), sig));
-                                continue;
-                            }
-                            if self.match_types(sig, types, return_type, self) {
-                                possibles.push((Rc::clone(&namespace), sig))
-                            }
-                        }
-                    }
-
-                    if possibles.len() == 1 {
-                        return Ok((possibles.first().unwrap().1, namespace));
-                    } else if mangled_values.len() == 1 {
-                        return Ok((mangled_values.first().unwrap().1, namespace));
+                    if !filtered_cands.is_empty() {
+                        return Ok((filtered_cands, namespace));
                     }
                 }
             }
@@ -2283,28 +2350,11 @@ impl<'a> TypeCheckSymbTab<'a> {
                     ErrorType::UndefinedSymbol,
                     namespace.pos,
                     ErrorDisplayType::Error,
-                    vec![
-                        ErrorAnnotation::new(
-                            Some(format!("undefined function `{}`", namespace)),
-                            namespace.pos,
-                            ErrorDisplayType::Error,
-                        ),
-                        ErrorAnnotation::new(
-                            Some(format!(
-                                "for the types of `({}) -> {}`",
-                                types
-                                    .into_iter()
-                                    .map(|x| x.to_string())
-                                    .collect::<Vec<_>>()
-                                    .join(", "),
-                                return_type
-                                    .map(|val| val.to_string())
-                                    .unwrap_or("_".to_string())
-                            )),
-                            namespace.pos,
-                            ErrorDisplayType::Error,
-                        ),
-                    ],
+                    vec![ErrorAnnotation::new(
+                        Some(format!("undefined function `{}`", namespace)),
+                        namespace.pos,
+                        ErrorDisplayType::Error,
+                    )],
                     true,
                 ),
                 ErrorLevel::NonExistentFunc,
