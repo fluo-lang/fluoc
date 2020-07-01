@@ -941,7 +941,7 @@ impl<'a> TypeCheckType<'a> {
             Expr::Infix(infix) => {
                 // TODO: add type infer based on known types of left or right
                 // Infer types based one one type or the other
-                let (mut left_type, mut right_type) = match (
+                let (left_type, right_type) = match (
                     TypeCheckType::from_expr(&mut *infix.left, context, None),
                     TypeCheckType::from_expr(&mut *infix.right, context, None),
                 ) {
@@ -976,7 +976,7 @@ impl<'a> TypeCheckType<'a> {
                     &possible_overloads[0]
                 } else if possible_overloads_len == 0 {
                     // No overloaded function
-                    let position = infix.pos;
+                    let position = infix.operator.pos;
                     return Err(ErrorOrVec::Error(
                         Error::new(
                             "no operator overload found".to_string(),
@@ -991,7 +991,7 @@ impl<'a> TypeCheckType<'a> {
                                 ),
                                 ErrorAnnotation::new(
                                     Some(format!(
-                                        "where function is ({}) -> {}",
+                                        "where overload is ({}) -> {}",
                                         types
                                             .iter()
                                             .map(|x| x.to_string())
