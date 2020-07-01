@@ -1,5 +1,5 @@
 use crate::helpers;
-use crate::lexer::{Token, TokenType};
+use crate::lexer::TokenType;
 use crate::logger::logger::{
     Error, ErrorAnnotation, ErrorDisplayType, ErrorLevel, ErrorOrVec, ErrorType,
 };
@@ -256,15 +256,6 @@ impl<'a> fmt::Display for TypeCheckType<'a> {
 }
 
 impl<'a> TypeCheckType<'a> {
-    /// Check if self can cast to other
-    fn can_cast<'b>(&self, other: &Self, context: &'b TypeCheckSymbTab<'a>) -> bool {
-        if Self::sequiv(self, other, context) {
-            true
-        } else {
-            false
-        }
-    }
-
     fn prepend_namespace(&mut self, prepend_name: &[NameID<'a>]) {
         match &mut self.value {
             TypeCheckTypeType::FunctionSig(arguments, return_type, _) => {
@@ -291,7 +282,7 @@ impl<'a> TypeCheckType<'a> {
         }
     }
 
-    /// Check for equivalence of types
+    /// Check for equivalence of types, don't modify if literal
     fn sequiv<'b>(left: &Self, right: &Self, context: &'b TypeCheckSymbTab<'a>) -> bool {
         match (left.cast_to_basic(context), right.cast_to_basic(context)) {
             (Ok(left_ok), Ok(right_ok)) => {
@@ -338,7 +329,7 @@ impl<'a> TypeCheckType<'a> {
                         .iter()
                         .zip(&right_contents.types)
                         .map(|(left_val, right_val)| {
-                            TypeCheckType::sequiv(left_val, right_val, context)
+                            TypeCheckType::sequiv(&left_val, &right_val, context)
                         })
                         .collect::<Vec<_>>() // Check if all values are ok
                         .iter()
@@ -591,7 +582,7 @@ impl<'a> TypeCheckType<'a> {
         types
             .iter()
             .zip(&func_sig.0.positional)
-            .all(|(used, real)| used.can_cast(&real.1, context))
+            .all(|(used, real)| TypeCheckType::sequiv(used, &real.1, context))
             && if let Some(ret_val) = return_type {
                 TypeCheckType::sequiv(ret_val, func_sig.1, context)
             } else {
@@ -784,13 +775,13 @@ impl<'a> TypeCheckType<'a> {
 
                                     call_type.value = type_val;
                                 }
-                                None => unreachable!(),
+                                None => {},
                             }
                         }
                         _ => {}
                     }
                 }
-                
+
                 if let None = func_call.mangled_name {
                     func_call.mangled_name = Some(func_call.name.mangle_types(
                         &func_call_arg_types.iter().collect::<Vec<_>>()[..],
@@ -950,7 +941,7 @@ impl<'a> TypeCheckType<'a> {
             Expr::Infix(infix) => {
                 // TODO: add type infer based on known types of left or right
                 // Infer types based one one type or the other
-                let (left_type, right_type) = match (
+                let (mut left_type, mut right_type) = match (
                     TypeCheckType::from_expr(&mut *infix.left, context, None),
                     TypeCheckType::from_expr(&mut *infix.right, context, None),
                 ) {
@@ -968,11 +959,136 @@ impl<'a> TypeCheckType<'a> {
                     }
                 };
 
-                let overloaded = context.get_overloaded(
-                    &[&left_type, &right_type],
-                    return_type,
-                    infix.operator,
-                )?;
+                let types = &mut [left_type, right_type];
+
+                let mut possible_overloads = Vec::new();
+                for (k, sigs) in context.get_prefix_op(infix.operator.token).into_iter() {
+                    for sig in sigs {
+                        if Self::match_types(sig, types, return_type, context) {
+                            possible_overloads.push((Rc::clone(&k), sig))
+                        }
+                    }
+                }
+
+                let possible_overloads_len = possible_overloads.len();
+
+                let overloaded = if possible_overloads_len == 1 {
+                    &possible_overloads[0]
+                } else if possible_overloads_len == 0 {
+                    // No overloaded function
+                    let position = infix.pos;
+                    return Err(ErrorOrVec::Error(
+                        Error::new(
+                            "no operator overload found".to_string(),
+                            ErrorType::InferError,
+                            position,
+                            ErrorDisplayType::Error,
+                            vec![
+                                ErrorAnnotation::new(
+                                    Some(format!("overload not found for {}", infix.operator)),
+                                    position,
+                                    ErrorDisplayType::Error,
+                                ),
+                                ErrorAnnotation::new(
+                                    Some(format!(
+                                        "where function is ({}) -> {}",
+                                        types
+                                            .iter()
+                                            .map(|x| x.to_string())
+                                            .collect::<Vec<_>>()
+                                            .join(", "),
+                                        return_type
+                                            .map(|x| x.to_string())
+                                            .unwrap_or("_".to_string())
+                                    )),
+                                    position,
+                                    ErrorDisplayType::Error,
+                                ),
+                            ],
+                            true,
+                        ),
+                        ErrorLevel::NonExistentFunc,
+                    ));
+                } else {
+                    let position = infix.pos;
+                    let mut err = vec![ErrorAnnotation::new(
+                        Some(format!("operator used here",)),
+                        position,
+                        ErrorDisplayType::Error,
+                    )];
+
+                    err.append(
+                        &mut possible_overloads
+                            .into_iter()
+                            .map(|(name, type_val)| {
+                                let ret_type = type_val
+                                    .unwrap_function_ref()
+                                    .0
+                                    .value
+                                    .unwrap_func_return_ref();
+                                // TODO: fix the `name` (write a demangler)
+                                ErrorAnnotation::new(
+                                    Some(format!(
+                                        "possible return of `{}` in `{}`",
+                                        ret_type, name
+                                    )),
+                                    position,
+                                    ErrorDisplayType::Error,
+                                )
+                            })
+                            .collect::<Vec<_>>(),
+                    );
+
+                    // Cannot infer value to use
+                    return Err(ErrorOrVec::Error(
+                        Error::new(
+                            "cannot infer return type of operator overload".to_string(),
+                            ErrorType::InferError,
+                            position,
+                            ErrorDisplayType::Error,
+                            err,
+                            true,
+                        ),
+                        ErrorLevel::NonExistentFunc,
+                    ));
+                };
+                
+                for ((real_type, call_value), call_type) in overloaded.1.unwrap_function_ref().0.value.unwrap_func().0.positional
+                    .iter()
+                    .zip(&mut [&mut infix.left, &mut infix.right])
+                    .zip(&mut *types)
+                {
+                    match &***call_value {
+                        Expr::Literal(lit_type) => {
+                            match lit_type.as_abs_literal(&real_type.1, context) {
+                                Some(new_literal_type) => {
+                                    let type_val = TypeCheckTypeType::SingleType(Rc::new(
+                                        NameID {
+                                            pos: lit_type.pos,
+                                            value: new_literal_type,
+                                        }
+                                        .into_namespace(),
+                                    ));
+
+                                    **call_value = Box::new(Expr::Literal(Literal {
+                                        value: lit_type.value,
+                                        pos: lit_type.pos,
+                                        type_val: TypeCheckOrType::TypeCheckType(TypeCheckType {
+                                            inferred: true,
+                                            value: type_val.clone(),
+                                            pos: lit_type.type_val.unwrap_type_check_ref().pos,
+                                        }),
+                                    }));
+
+                                    call_type.value = type_val;
+                                }
+                                None => {},
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+
 
                 infix.function_call = Some(FunctionCall {
                     arguments: ArgumentsRun {
@@ -986,7 +1102,7 @@ impl<'a> TypeCheckType<'a> {
                     }),
                     mangled_name: Some(
                         overloaded.0.mangle_overload(
-                            &[&left_type, &right_type],
+                            &[&types[0], &types[1]],
                             overloaded
                                 .1
                                 .unwrap_function_ref()
@@ -2116,122 +2232,6 @@ impl<'a> TypeCheckSymbTab<'a> {
             })
             .map(|(key, val)| (Rc::clone(&key.1), &val[..]))
             .collect()
-    }
-
-    fn match_types<'b>(
-        &self,
-        val: &SymbTabObj<'a>,
-        types: &[&TypeCheckType<'a>],
-        return_type: Option<&TypeCheckType<'a>>,
-        context: &'b TypeCheckSymbTab<'a>,
-    ) -> bool {
-        let func_sig = val.unwrap_function_ref().0.value.unwrap_func();
-        types
-            .iter()
-            .zip(&func_sig.0.positional)
-            .all(|(used, real)| used.can_cast(&real.1, self))
-            && if let Some(ret_val) = return_type {
-                TypeCheckType::sequiv(ret_val, func_sig.1, context)
-            } else {
-                true
-            }
-    }
-
-    fn get_overloaded<'b>(
-        &self,
-        types: &[&TypeCheckType<'a>],
-        return_type: Option<&TypeCheckType<'a>>,
-        operator: Token<'a>,
-    ) -> Result<(Rc<Namespace<'a>>, &SymbTabObj<'a>), ErrorOrVec<'a>> {
-        let mut possible_overloads = Vec::new();
-        for (k, sigs) in self.get_prefix_op(operator.token).into_iter() {
-            for sig in sigs {
-                if self.match_types(sig, types, return_type, self) {
-                    possible_overloads.push((Rc::clone(&k), sig))
-                }
-            }
-        }
-
-        let possible_overloads_len = possible_overloads.len();
-
-        if possible_overloads_len == 1 {
-            let val = &possible_overloads[0];
-            Ok((val.0.to_owned(), val.1))
-        } else if possible_overloads_len == 0 {
-            // No overloaded function
-            let position = operator.pos;
-            Err(ErrorOrVec::Error(
-                Error::new(
-                    "no operator overload found".to_string(),
-                    ErrorType::InferError,
-                    position,
-                    ErrorDisplayType::Error,
-                    vec![
-                        ErrorAnnotation::new(
-                            Some(format!("overload not found for {}", operator)),
-                            position,
-                            ErrorDisplayType::Error,
-                        ),
-                        ErrorAnnotation::new(
-                            Some(format!(
-                                "where function is ({}) -> {}",
-                                types
-                                    .iter()
-                                    .map(|x| x.to_string())
-                                    .collect::<Vec<_>>()
-                                    .join(", "),
-                                return_type
-                                    .map(|x| x.to_string())
-                                    .unwrap_or("_".to_string())
-                            )),
-                            position,
-                            ErrorDisplayType::Error,
-                        ),
-                    ],
-                    true,
-                ),
-                ErrorLevel::NonExistentFunc,
-            ))
-        } else {
-            let position = operator.pos;
-            let mut err = vec![ErrorAnnotation::new(
-                Some(format!("operator used here",)),
-                position,
-                ErrorDisplayType::Error,
-            )];
-
-            err.append(
-                &mut possible_overloads
-                    .into_iter()
-                    .map(|(name, type_val)| {
-                        let ret_type = type_val
-                            .unwrap_function_ref()
-                            .0
-                            .value
-                            .unwrap_func_return_ref();
-                        // TODO: fix the `name` (write a demangler)
-                        ErrorAnnotation::new(
-                            Some(format!("possible return of `{}` in `{}`", ret_type, name)),
-                            position,
-                            ErrorDisplayType::Error,
-                        )
-                    })
-                    .collect::<Vec<_>>(),
-            );
-
-            // Cannot infer value to use
-            Err(ErrorOrVec::Error(
-                Error::new(
-                    "cannot infer return type of operator overload".to_string(),
-                    ErrorType::InferError,
-                    position,
-                    ErrorDisplayType::Error,
-                    err,
-                    true,
-                ),
-                ErrorLevel::NonExistentFunc,
-            ))
-        }
     }
 
     fn get_function(
