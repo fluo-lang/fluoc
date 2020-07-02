@@ -1,14 +1,21 @@
-class Animal (
-    farts: int,
-    weight: int,
-) {
-    def fart() {
-        println("You have just made global warming worse!");
+struct Animal {
+    let farts: int,
+    let weight: int,
+}
+
+type kg = int;
+
+impl Animal {
+    def fart(&mut this) {
         this.farts += 1;
     }
-
-    pattern std::oop::new(weight: int) {
-        return Animal { farts = 0, weight: weight };
+    def new(weight: kg) {
+        return Animal { farts = 0, weight = weight };
     }
+}
+
+def entry() {
+    let mut cow: Animal = Animal(10);
+    cow.fart()
 }
 
