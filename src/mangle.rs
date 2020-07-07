@@ -41,7 +41,7 @@
 use crate::lexer::TokenType;
 use crate::logger::logger::ErrorOrVec;
 use crate::parser::ast;
-use crate::typecheck::ast_typecheck;
+use crate::typecheck::{ ast_typecheck, context };
 
 use std::rc::Rc;
 
@@ -98,7 +98,7 @@ impl NodeChild {
 
     fn from_type<'a, 'b>(
         type_val: &ast_typecheck::TypeCheckTypeType<'a>,
-        context: &'b ast_typecheck::TypeCheckSymbTab<'a>,
+        context: &'b context::TypeCheckSymbTab<'a>,
     ) -> Result<Node, ErrorOrVec<'a>> {
         Ok(match type_val {
             ast_typecheck::TypeCheckTypeType::SingleType(type_val) => Node {
@@ -243,7 +243,7 @@ mod demangle_tests {
 
 pub(crate) fn gen_mangled_args<'a, 'b>(
     types: &[&ast_typecheck::TypeCheckType<'a>],
-    context: &'b ast_typecheck::TypeCheckSymbTab<'a>,
+    context: &'b context::TypeCheckSymbTab<'a>,
 ) -> Result<String, ErrorOrVec<'a>> {
     let mangled_args = types
         .into_iter()
@@ -297,7 +297,7 @@ impl<'a> ast::Namespace<'a> {
         types: &[&ast_typecheck::TypeCheckType<'a>],
         return_type: &ast_typecheck::TypeCheckType<'a>,
         token: TokenType<'a>,
-        context: &'b ast_typecheck::TypeCheckSymbTab<'a>,
+        context: &'b context::TypeCheckSymbTab<'a>,
     ) -> Result<String, ErrorOrVec<'a>> {
         let mut mangled = token.mangle();
         mangled += &self.mangle()[..];
@@ -316,7 +316,7 @@ impl<'a> ast::Namespace<'a> {
         &self,
         types: &[&ast_typecheck::TypeCheckType<'a>],
         return_type: &ast_typecheck::TypeCheckType<'a>,
-        context: &'b ast_typecheck::TypeCheckSymbTab<'a>,
+        context: &'b context::TypeCheckSymbTab<'a>,
     ) -> Result<String, ErrorOrVec<'a>> {
         let mut mangled = self.mangle();
         mangled += &gen_mangled_args(types, context)?[..];
@@ -331,7 +331,7 @@ impl<'a> ast_typecheck::TypeCheckType<'a> {
     /// Mangle typecheck type
     pub(crate) fn mangle<'b>(
         &self,
-        context: &'b ast_typecheck::TypeCheckSymbTab<'a>,
+        context: &'b context::TypeCheckSymbTab<'a>,
     ) -> Result<String, ErrorOrVec<'a>> {
         Ok(match &self.value {
             ast_typecheck::TypeCheckTypeType::SingleType(val) => {

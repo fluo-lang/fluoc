@@ -17,7 +17,6 @@ pub mod typecheck;
 
 #[macro_use]
 extern crate clap;
-extern crate either;
 
 use clap::App;
 use inkwell::context::Context;

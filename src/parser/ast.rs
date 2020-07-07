@@ -1,7 +1,7 @@
 use crate::helpers;
 use crate::lexer::{Token, TokenType};
 use crate::logger::logger::ErrorOrVec;
-use crate::typecheck::ast_typecheck::{TypeCheckSymbTab, TypeCheckType};
+use crate::typecheck::{ ast_typecheck::TypeCheckType, context::TypeCheckSymbTab };
 
 use inkwell::module::Linkage;
 use std::fmt;

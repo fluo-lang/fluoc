@@ -4,7 +4,7 @@ use crate::helpers;
 use crate::logger::logger::{Error, Logger};
 use crate::parser::parser::Parser;
 use crate::parser::{ast, parser};
-use crate::typecheck::ast_typecheck;
+use crate::typecheck::{ ast_typecheck, context };
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -16,7 +16,7 @@ use std::time::Instant;
 pub struct TypeCheckModule<'a> {
     pub parser: Parser<'a>,
     pub modules: HashMap<&'a path::Path, ast::Block<'a>>,
-    pub symtab: ast_typecheck::TypeCheckSymbTab<'a>,
+    pub symtab: context::TypeCheckSymbTab<'a>,
 }
 
 impl<'a> TypeCheckModule<'a> {
@@ -34,7 +34,7 @@ impl<'a> TypeCheckModule<'a> {
         Ok(TypeCheckModule {
             parser: p,
             modules: HashMap::new(),
-            symtab: ast_typecheck::TypeCheckSymbTab::new(),
+            symtab: context::TypeCheckSymbTab::new(),
         })
     }
 
