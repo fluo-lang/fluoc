@@ -5,11 +5,11 @@ use crate::logger::logger::{
 use crate::parser::ast::*;
 use crate::typecheck::context::*;
 
+use std::borrow::BorrowMut;
 use std::borrow::Cow;
 use std::fmt;
 use std::ops::Deref;
 use std::rc::Rc;
-use std::borrow::BorrowMut;
 
 #[derive(Debug, Clone)]
 pub struct UnionType<'a> {
@@ -948,7 +948,12 @@ impl<'a> TypeCheckType<'a> {
                     .zip(&mut [&mut infix.left, &mut infix.right])
                     .zip(&mut *types)
                 {
-                    Self::infer_from_expr((**call_value).borrow_mut(), &real_type.1, call_type, context);
+                    Self::infer_from_expr(
+                        (**call_value).borrow_mut(),
+                        &real_type.1,
+                        call_type,
+                        context,
+                    );
                 }
 
                 infix.function_call = Some(FunctionCall {
