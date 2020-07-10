@@ -1112,11 +1112,12 @@ impl<'a> TypeCheck<'a> for Return<'a> {
         return_type: Option<Cow<'a, TypeCheckType<'a>>>,
         context: &'b mut TypeCheckSymbTab<'a>,
     ) -> Result<Option<TypeCheckType<'a>>, ErrorOrVec<'a>> {
-        let returned_type = TypeCheckType::from_expr(
+        let mut returned_type = TypeCheckType::from_expr(
             &mut self.expression,
             context,
             return_type.as_ref().map(|x| x.as_ref()),
         )?;
+        
         match return_type {
             Some(return_type_some) if return_type_some.is_tuple_empty() => {
                 // The block returns (), so we can implicitly do this during codegen. This is the negate case for below.
@@ -1152,10 +1153,11 @@ impl<'a> TypeCheck<'a> for Return<'a> {
             Some(value) => {
                 // Make sure returns are of the same type or can be casted
                 if TypeCheckType::sequiv(&returned_type, &value, context) {
+                    TypeCheckType::infer_from_expr(self.expression.as_mut(), &mut returned_type, &mut value.into_owned(), context);
                     // Same type
                     Ok(None)
                 } else {
-                    return Err(self.construct_err(value.into_owned(), returned_type));
+                    Err(self.construct_err(value.into_owned(), returned_type))
                 }
             }
             None => {
@@ -1700,7 +1702,7 @@ impl<'a> Conditional<'a> {
 impl<'a> TypeCheck<'a> for Conditional<'a> {
     fn type_check<'b>(
         &mut self,
-        _return_type: Option<Cow<'a, TypeCheckType<'a>>>,
+        return_type: Option<Cow<'a, TypeCheckType<'a>>>,
         context: &'b mut TypeCheckSymbTab<'a>,
     ) -> Result<Option<TypeCheckType<'a>>, ErrorOrVec<'a>> {
         let mut changed_safe_vals = Vec::new();
@@ -1711,7 +1713,7 @@ impl<'a> TypeCheck<'a> for Conditional<'a> {
 
             new_context.reset_changed_safe();
             new_context.conditional_state = CurrentContext::If(branch.pos);
-            branch.block.type_check(None, &mut new_context)?;
+            branch.block.type_check(return_type.clone(), &mut new_context)?;
             let branch_pos = branch.cond.pos();
             let actual_type = TypeCheckType::from_expr(
                 &mut branch.cond,
