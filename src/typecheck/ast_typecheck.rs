@@ -9,8 +9,7 @@ use std::borrow::Cow;
 use std::fmt;
 use std::ops::Deref;
 use std::rc::Rc;
-
-
+use std::borrow::BorrowMut;
 
 #[derive(Debug, Clone)]
 pub struct UnionType<'a> {
@@ -214,6 +213,43 @@ impl<'a> TypeCheckType<'a> {
             }
         }
         false
+    }
+
+    // Run after the "sequiv" function
+    // Infers some types
+    fn infer_from_expr<'b>(
+        expr: &mut Expr<'a>,
+        real_type: &Self,
+        proposed_type: &mut Self,
+        context: &'b TypeCheckSymbTab<'a>,
+    ) {
+        match expr {
+            Expr::Literal(lit_type) => match lit_type.as_abs_literal(real_type, context) {
+                Some(new_literal_type) => {
+                    let type_val = TypeCheckTypeType::SingleType(Rc::new(
+                        NameID {
+                            pos: lit_type.pos,
+                            value: new_literal_type,
+                        }
+                        .into_namespace(),
+                    ));
+
+                    *expr = Expr::Literal(Literal {
+                        value: lit_type.value,
+                        pos: lit_type.pos,
+                        type_val: TypeCheckOrType::TypeCheckType(TypeCheckType {
+                            inferred: true,
+                            value: type_val.clone(),
+                            pos: lit_type.type_val.unwrap_type_check_ref().pos,
+                        }),
+                    });
+
+                    proposed_type.value = type_val;
+                }
+                None => {}
+            },
+            _ => {}
+        }
     }
 
     fn is_tuple_empty(&self) -> bool {
@@ -569,7 +605,7 @@ impl<'a> TypeCheckType<'a> {
                 }
                 .unwrap_function_ref();
 
-                func_call.name = func_union_namespace.1;
+                func_call.name = Rc::clone(&func_union_namespace.1);
 
                 if func.0.value.get_visibility() == Visibility::Private
                     && func.0.pos.filename != func_call.pos.filename
@@ -626,41 +662,13 @@ impl<'a> TypeCheckType<'a> {
                     .zip(&mut func_call_arg_types)
                 {
                     // Change literals to the proper type (limited type inference)
-                    match call_value {
-                        Expr::Literal(lit_type) => {
-                            match lit_type.as_abs_literal(real_type, context) {
-                                Some(new_literal_type) => {
-                                    let type_val = TypeCheckTypeType::SingleType(Rc::new(
-                                        NameID {
-                                            pos: lit_type.pos,
-                                            value: new_literal_type,
-                                        }
-                                        .into_namespace(),
-                                    ));
-
-                                    *call_value = Expr::Literal(Literal {
-                                        value: lit_type.value,
-                                        pos: lit_type.pos,
-                                        type_val: TypeCheckOrType::TypeCheckType(TypeCheckType {
-                                            inferred: true,
-                                            value: type_val.clone(),
-                                            pos: lit_type.type_val.unwrap_type_check_ref().pos,
-                                        }),
-                                    });
-
-                                    call_type.value = type_val;
-                                }
-                                None => {}
-                            }
-                        }
-                        _ => {}
-                    }
+                    Self::infer_from_expr(call_value, real_type, call_type, context);
                 }
 
                 if let None = func_call.mangled_name {
                     func_call.mangled_name = Some(func_call.name.mangle_types(
                         &func_call_arg_types.iter().collect::<Vec<_>>()[..],
-                        func.0.value.unwrap_func_return_ref(),
+                        &temp,
                         context,
                     )?);
                 }
@@ -940,35 +948,7 @@ impl<'a> TypeCheckType<'a> {
                     .zip(&mut [&mut infix.left, &mut infix.right])
                     .zip(&mut *types)
                 {
-                    match &***call_value {
-                        Expr::Literal(lit_type) => {
-                            match lit_type.as_abs_literal(&real_type.1, context) {
-                                Some(new_literal_type) => {
-                                    let type_val = TypeCheckTypeType::SingleType(Rc::new(
-                                        NameID {
-                                            pos: lit_type.pos,
-                                            value: new_literal_type,
-                                        }
-                                        .into_namespace(),
-                                    ));
-
-                                    **call_value = Box::new(Expr::Literal(Literal {
-                                        value: lit_type.value,
-                                        pos: lit_type.pos,
-                                        type_val: TypeCheckOrType::TypeCheckType(TypeCheckType {
-                                            inferred: true,
-                                            value: type_val.clone(),
-                                            pos: lit_type.type_val.unwrap_type_check_ref().pos,
-                                        }),
-                                    }));
-
-                                    call_type.value = type_val;
-                                }
-                                None => {}
-                            }
-                        }
-                        _ => {}
-                    }
+                    Self::infer_from_expr((**call_value).borrow_mut(), &real_type.1, call_type, context);
                 }
 
                 infix.function_call = Some(FunctionCall {

@@ -1,6 +1,6 @@
 struct Animal {
     let farts: int,
-    let weight: int,
+    let weight: kg,
 }
 
 type kg = int;
@@ -9,8 +9,12 @@ impl Animal {
     def fart(&mut this) {
         this.farts += 1;
     }
-    def new(weight: kg) {
-        return Animal { farts = 0, weight = weight };
+
+    def new(weight: kg) -> Animal {
+        return Animal {
+            farts = 0, 
+            weight = weight
+        };
     }
 }
 

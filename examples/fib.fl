@@ -1,7 +1,7 @@
 
 def fib(n: long) -> long {
     if (n <= 1) {
-        return 1;
+        return 1 long;
     }
     return fib(n - 2) + fib(n - 1);
 }
