@@ -3,5 +3,5 @@ unit tests2;
 
 public
 def entry() {
-    std::fmt::print(tests2::hello(1239 int));
+    std::fmt::print(tests2::hello(1239));
 }
