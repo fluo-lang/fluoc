@@ -1,12 +1,12 @@
 def factorial(value: long) -> long {
     if (value == 0) {
         return 1;
+    } else {
+        return value * factorial(value - 1);
     }
-
-    return value * factorial(value - 1);
 }
 
 def entry() {
-    std::fmt::print(factorial(15));
+    std::fmt::print(factorial(20));
 }
 

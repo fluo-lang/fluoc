@@ -1117,7 +1117,7 @@ impl<'a> TypeCheck<'a> for Return<'a> {
             context,
             return_type.as_ref().map(|x| x.as_ref()),
         )?;
-        
+
         match return_type {
             Some(return_type_some) if return_type_some.is_tuple_empty() => {
                 // The block returns (), so we can implicitly do this during codegen. This is the negate case for below.
@@ -1153,7 +1153,12 @@ impl<'a> TypeCheck<'a> for Return<'a> {
             Some(value) => {
                 // Make sure returns are of the same type or can be casted
                 if TypeCheckType::sequiv(&returned_type, &value, context) {
-                    TypeCheckType::infer_from_expr(self.expression.as_mut(), &mut returned_type, &mut value.into_owned(), context);
+                    TypeCheckType::infer_from_expr(
+                        self.expression.as_mut(),
+                        &mut returned_type,
+                        &mut value.into_owned(),
+                        context,
+                    );
                     // Same type
                     Ok(None)
                 } else {
@@ -1302,9 +1307,16 @@ impl<'a> TypeCheck<'a> for Block<'a> {
                     errors.append(&mut e.as_vec());
                 }
             }
+            
+            match node {
+                Statement::Conditional(cond) => {
+                    self.returns = cond.all_branches_return();
+                }
+                Statement::Return(Return { expression, pos: _ }) => {
+                    ret_types.push(expression)
+                }
 
-            if let Statement::Return(Return { expression, pos: _ }) = node {
-                ret_types.push(expression)
+                _ => {}
             }
         }
 
@@ -1319,6 +1331,8 @@ impl<'a> TypeCheck<'a> for Block<'a> {
                 .collect::<Result<Vec<TypeCheckType<'a>>, ErrorOrVec<'_>>>()?;
             TypeCheckType::all_same_type(&ret_types[..], context)?;
             self.returns = true;
+            Ok(None)
+        } else if self.returns {
             Ok(None)
         } else {
             match return_type {
@@ -1673,6 +1687,18 @@ impl<'a> TypeCheck<'a> for TypeAssign<'a> {
 }
 
 impl<'a> Conditional<'a> {
+    pub fn all_branches_return(&self) -> bool {
+        self.if_branches
+            .iter()
+            .map(|if_branch| if_branch.block.returns)
+            .all(std::convert::identity)
+            && self
+                .else_branch
+                .as_ref()
+                .map(|value| value.block.returns)
+                .unwrap_or(false)
+    }
+
     fn generate_bool_err(pos: helpers::Pos<'a>, actual_type: TypeCheckType<'a>) -> ErrorOrVec<'a> {
         ErrorOrVec::Error(
             Error::new(
@@ -1713,7 +1739,9 @@ impl<'a> TypeCheck<'a> for Conditional<'a> {
 
             new_context.reset_changed_safe();
             new_context.conditional_state = CurrentContext::If(branch.pos);
-            branch.block.type_check(return_type.clone(), &mut new_context)?;
+            branch
+                .block
+                .type_check(return_type.clone(), &mut new_context)?;
             let branch_pos = branch.cond.pos();
             let actual_type = TypeCheckType::from_expr(
                 &mut branch.cond,

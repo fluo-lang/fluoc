@@ -68,7 +68,7 @@ impl<'a> Master<'a> {
             .add_file(&filename, code_gen_mod.typecheck.parser.lexer.file_contents);
 
         helpers::error_or_other(code_gen_mod.generate(), Rc::clone(&self.logger));
-        
+
         self.modules.insert(&filename, code_gen_mod);
 
         self.link_ir(&filename);

@@ -342,6 +342,12 @@ impl<'a> CodeGenModule<'a> {
         self.builder.build_return(Some(&ret_val));
     }
 
+    fn gen_if_some(&mut self, after_cond: Option<inkwell::basic_block::BasicBlock<'_>>) {
+        if let Some(after_cond) = after_cond {
+            self.builder.build_unconditional_branch(after_cond);
+        }
+    }
+
     fn gen_conditional(
         &mut self,
         conditional: &ast::Conditional<'a>,
@@ -367,7 +373,11 @@ impl<'a> CodeGenModule<'a> {
         // | ----------------------------------------------------------------- |
 
         // The block positioned after the conditionals
-        let after_cond = self.context.append_basic_block(func_val, "after_cond");
+        let after_cond = if !conditional.all_branches_return() {
+            Some(self.context.append_basic_block(func_val, "after_cond"))
+        } else {
+            None
+        };
 
         // "highest" block
         let mut highest_block = self
@@ -391,7 +401,7 @@ impl<'a> CodeGenModule<'a> {
             // Jump to next part of flow after this
             // (Only if the block doesn't return)
             if !cond.block.returns {
-                self.builder.build_unconditional_branch(after_cond);
+                self.gen_if_some(after_cond);
             }
 
             // Create conditional statement on the highest block
@@ -414,17 +424,19 @@ impl<'a> CodeGenModule<'a> {
                 // Jump to next part of flow after this
                 // (Only if the block doesn't return)
                 if !else_branch.block.returns {
-                    self.builder.build_unconditional_branch(after_cond);
+                    self.gen_if_some(after_cond);
                 }
             }
             None => {
-                // Jump to next part of flow after this
+                // Jump to next part of flow after this if theres something after, else dont
                 self.builder.position_at_end(else_block);
-                self.builder.build_unconditional_branch(after_cond);
+                self.gen_if_some(after_cond);
             }
         };
 
-        self.builder.position_at_end(after_cond);
+        if let Some(after_cond) = after_cond {
+            self.builder.position_at_end(after_cond);
+        }
     }
 
     fn get_type(
