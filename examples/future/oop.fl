@@ -1,15 +1,16 @@
-struct Animal {
+-- Patterns are like traits and interfaces
+pattern Fart {
+    def fart(&mut this);
+}
+
+struct Cow {
     let farts: int,
     let weight: kg,
 }
 
 type kg = int;
 
-impl Animal {
-    def fart(&mut this) {
-        this.farts += 1;
-    }
-
+impl Cow {
     def new(weight: kg) -> Animal {
         return Animal {
             farts = 0, 
@@ -19,7 +20,7 @@ impl Animal {
 }
 
 def entry() {
-    let mut cow: Animal = Animal(10);
+    let mut cow: Cow = Cow(10);
     cow.fart()
 }
 

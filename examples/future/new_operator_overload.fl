@@ -1,0 +1,6 @@
+-- Implement addition for in and int
+impl int: Add<int> {
+    extern
+    def add_int(int, int) -> int;
+}
+
