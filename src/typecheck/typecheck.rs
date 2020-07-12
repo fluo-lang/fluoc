@@ -28,36 +28,52 @@ impl<'a> TypeCheckModule<'a> {
         filename: &'a path::Path,
         file_contents: &'a str,
         logger: Rc<RefCell<Logger<'a>>>,
-    ) -> Result<TypeCheckModule<'a>, Vec<Error<'a>>> {
+    ) -> TypeCheckModule<'a> {
         let mut p = parser::Parser::new(filename, file_contents, logger);
         p.initialize_expr();
-        Ok(TypeCheckModule {
+        TypeCheckModule {
             parser: p,
             modules: HashMap::new(),
             symtab: context::TypeCheckSymbTab::new(),
-        })
+        }
     }
 
     pub fn type_check(&mut self) -> Result<(), Vec<Error<'a>>> {
         let parser_start = Instant::now();
         // Load core lib on outer scope
         self.parser.parse()?;
-        self.parser
-            .ast
-            .as_mut()
-            .unwrap()
-            .nodes
-            .append(&mut fluo_core::core::load_core(Rc::clone(
-                &self.parser.logger,
-            )));
+        
+        let mut leading_tags = Vec::new();
 
-        self.parser
-            .ast
-            .as_mut()
-            .unwrap()
-            .nodes
-            .append(&mut fluo_std::std::load_std(Rc::clone(&self.parser.logger)));
+        for node in self.parser.ast.as_ref().unwrap().nodes.iter() {
+            if let ast::Statement::Tag(tag) = node {
+                leading_tags.push(tag.content.value)
+            } else {
+                // We only need the first few tags
+                break
+            }
+        }
 
+        if !leading_tags.contains(&"no_std") {
+            self.parser
+                .ast
+                .as_mut()
+                .unwrap()
+                .nodes
+                .append(&mut fluo_std::std::load_std(Rc::clone(&self.parser.logger)));
+        }
+
+        if !leading_tags.contains(&"no_core") {
+            self.parser
+                .ast
+                .as_mut()
+                .unwrap()
+                .nodes
+                .append(&mut fluo_core::core::load_core(Rc::clone(
+                    &self.parser.logger,
+                )));
+        }
+        
         self.parser.logger.borrow().log_verbose(&|| {
             format!(
                 "{}: Parsed and lexed",

@@ -992,11 +992,7 @@ impl<'a> Parser<'a> {
         let position = self.token_pos;
 
         self.next(lexer::TokenType::IF, position, true)?;
-        self.next(lexer::TokenType::LP, position, false)?;
-
         let cond = self.expr(Prec::LOWEST)?;
-
-        self.next(lexer::TokenType::RP, position, false)?;
 
         let block = self.block(Scope::Block)?;
 
@@ -1012,11 +1008,8 @@ impl<'a> Parser<'a> {
 
         self.next(lexer::TokenType::ELSE, position, true)?;
         self.next(lexer::TokenType::IF, position, true)?;
-        self.next(lexer::TokenType::LP, position, false)?;
 
         let cond = self.expr(Prec::LOWEST)?;
-
-        self.next(lexer::TokenType::RP, position, false)?;
 
         let block = self.block(Scope::Block)?;
 
@@ -1523,8 +1516,8 @@ pub mod parser_tests {
                 let logger = Rc::new(RefCell::new(Logger::new(true)));
                 let mut parser = Parser::new(path::Path::new(FILENAME), $code, logger);
                 parser.initialize_expr();
-                parser.fill_token_stream()?;
-                assert_eq!($expected, $function(&mut parser)?);
+                parser.fill_token_stream().expect("Failed to lex file");
+                assert_eq!($expected, $function(&mut parser).expect("Failed to parse value"));
                 Ok(())
             }
         };
@@ -2282,7 +2275,7 @@ pub mod parser_tests {
     );
 
     parser_test!(
-        "if (true) { } else {}",
+        "if  true  { } else {}",
         Parser::conditional,
         Statement::Conditional(Conditional {
             if_branches: vec![IfBranch {
@@ -2363,7 +2356,7 @@ pub mod parser_tests {
     );
 
     parser_test!(
-        "if (true) { } else if (true) {} else {}",
+        "if  true  { } else if  true  {} else {}",
         Parser::conditional,
         Statement::Conditional(Conditional {
             if_branches: vec![
@@ -2497,7 +2490,7 @@ pub mod parser_tests {
     );
 
     parser_test!(
-        "if (true) { }",
+        "if  true  { }",
         Parser::conditional,
         Statement::Conditional(Conditional {
             if_branches: vec![IfBranch {

@@ -5,7 +5,7 @@ use std::cmp::{max, Reverse};
 use std::collections::{hash_map::Entry, HashMap, HashSet};
 use std::path;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 /// An error type, i.e `Syntax` error or `UnexpectedToken` error
 pub enum ErrorType {
     Syntax,
@@ -186,7 +186,7 @@ pub struct Error<'a> {
     /// Error message
     message: String,
     /// Error type
-    error: ErrorType,
+    pub error: ErrorType,
     /// Error position
     pub position: Pos<'a>,
     /// Error display mode

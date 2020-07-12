@@ -66,17 +66,17 @@ impl<'a> CodeGenModule<'a> {
         logger: Rc<RefCell<Logger<'a>>>,
         output_ir: &'a path::Path,
         output_obj: &'a path::Path,
-    ) -> Result<CodeGenModule<'a>, Vec<Error<'a>>> {
+    ) -> CodeGenModule<'a> {
         let typecheck = typecheck::TypeCheckModule::new(filename, file_contents, logger);
-        Ok(CodeGenModule {
+        CodeGenModule {
             module,
             context,
-            typecheck: typecheck?,
+            typecheck,
             builder: context.create_builder(),
             symbtab: CodeGenSymbTab::new(),
             output_ir,
             output_obj,
-        })
+        }
     }
 
     pub fn generate(&mut self) -> Result<(), Vec<Error<'a>>> {

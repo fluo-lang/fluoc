@@ -49,17 +49,14 @@ impl<'a> Master<'a> {
         let default_triple = TargetMachine::get_default_triple();
         module.set_triple(&default_triple);
 
-        let mut code_gen_mod = helpers::error_or_other(
-            CodeGenModule::new(
-                module,
-                self.context,
-                &filename,
-                file_contents,
-                Rc::clone(&self.logger),
-                output_file_ir,
-                output_file_obj,
-            ),
+        let mut code_gen_mod = CodeGenModule::new(
+            module,
+            self.context,
+            &filename,
+            file_contents,
             Rc::clone(&self.logger),
+            output_file_ir,
+            output_file_obj,
         );
 
         self.logger
