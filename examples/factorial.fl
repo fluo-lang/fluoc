@@ -1,5 +1,5 @@
 def factorial(value: long) -> long {
-    if (value == 0) {
+    if value == 0 {
         return 1;
     } else {
         return value * factorial(value - 1);

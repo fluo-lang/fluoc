@@ -13,8 +13,7 @@ mod typecheck_tests {
                 let logger = Rc::new(RefCell::new(Logger::new(true)));
                 let filename = path::Path::new("this_is_another_filename_test.fl");
                 let mut typechecker = TypeCheckModule::new(filename, concat!("@[no_std]\n@[no_core]\n", $code), logger);
-                println!("{:?}", typechecker.type_check());
-                //assert_eq!(typechecker.type_check().expect_err("Failed to typecheck").into_iter().map(|err| err.error).collect::<Vec<_>>(), $expected_error);
+                assert_eq!(typechecker.type_check().expect_err("Failed to typecheck").into_iter().map(|err| err.error).collect::<Vec<_>>(), $expected_error);
             }
         }
     }
