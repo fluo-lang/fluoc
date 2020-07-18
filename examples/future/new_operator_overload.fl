@@ -7,7 +7,7 @@ impl int: Add<int, int> {
 
 
 -- The Add interface is something like
-interface Add<left, right> {
+pattern Add<left, right> {
     type output;
 
     def add_int(left, right) -> output;
