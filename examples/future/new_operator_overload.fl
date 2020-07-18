@@ -1,6 +1,15 @@
--- Implement addition for in and int
-impl int: Add<int> {
-    extern
-    def add_int(int, int) -> int;
+-- Implement addition for int and int
+impl int: Add<int, int> {
+    type output = int;
+
+    extern def add_int(int, int) -> output;
+}
+
+
+-- The Add interface is something like
+interface Add<left, right> {
+    type output;
+
+    def add_int(left, right) -> output;
 }
 
