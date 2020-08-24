@@ -1,7 +1,8 @@
 
-unit tests2;
+--unit tests2;
 
 public
 def entry() {
+    return ((let x: int = 10, x = 10, hello, 1, "another_test"));
     std::fmt::print(tests2::hello(1239));
 }

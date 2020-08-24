@@ -1,215 +1,152 @@
 use crate::helpers;
 use crate::lexer::{Token, TokenType};
-use crate::logger::logger::ErrorOrVec;
-use crate::typecheck::{ ast_typecheck::TypeCheckType, context::TypeCheckSymbTab };
+use crate::sourcemap::SourceMap;
+use crate::tags::UnitTags;
 
 use inkwell::module::Linkage;
-use std::fmt;
+
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
-
-#[derive(Debug, PartialEq, Clone)]
-/// TypecheckType or TypeType
-pub enum TypeCheckOrType<'a> {
-    Type(Rc<Type<'a>>),
-    TypeCheckType(TypeCheckType<'a>),
-}
-
-impl<'a> TypeCheckOrType<'a> {
-    pub(crate) fn unwrap_type(&self) -> Rc<Type<'a>> {
-        match self {
-            TypeCheckOrType::Type(val) => Rc::clone(val),
-            TypeCheckOrType::TypeCheckType(_) => panic!("TypeCheckType failed to unwrap on type"),
-        }
-    }
-
-    pub(crate) fn unwrap_type_check(self) -> TypeCheckType<'a> {
-        match self {
-            TypeCheckOrType::Type(_) => panic!("TypeCheckType failed to unwrap on type"),
-            TypeCheckOrType::TypeCheckType(val) => val,
-        }
-    }
-
-    pub(crate) fn unwrap_type_check_ref<'b>(&'b self) -> &TypeCheckType<'a> {
-        match self {
-            TypeCheckOrType::Type(_) => panic!("TypeCheckType failed to unwrap on type"),
-            TypeCheckOrType::TypeCheckType(val) => val,
-        }
-    }
-
-    pub(crate) fn as_typecheck_type<'b, 'c>(
-        _self: std::borrow::Cow<'b, Self>,
-        context: &'c mut TypeCheckSymbTab<'a>,
-    ) -> Result<TypeCheckType<'a>, ErrorOrVec<'a>> {
-        match _self {
-            std::borrow::Cow::Borrowed(value) => match value {
-                TypeCheckOrType::Type(val) => {
-                    TypeCheckType::from_type(Rc::clone(&val), context, false)
-                }
-                TypeCheckOrType::TypeCheckType(val) => Ok(val.clone()),
-            },
-            std::borrow::Cow::Owned(value) => match value {
-                TypeCheckOrType::Type(val) => {
-                    TypeCheckType::from_type(Rc::clone(&val), context, false)
-                }
-                TypeCheckOrType::TypeCheckType(val) => Ok(val),
-            },
-        }
-    }
-}
 
 // EXPRESSIONS ---------------------------------------
 
 #[derive(Debug, Clone, PartialEq)]
 /// Empty Placeholder value
-pub struct Empty<'a> {
-    pub pos: helpers::Pos<'a>,
+pub struct Empty {
+    pub pos: helpers::Pos,
 }
 
-#[derive(Debug, Clone, PartialEq, Copy)]
+#[derive(Debug, Clone, PartialEq)]
 /// Special Compiler Tags
-pub struct Tag<'a> {
-    pub content: NameID<'a>,
-    pub pos: helpers::Pos<'a>,
+pub struct Tag {
+    pub content: NameID,
+    pub pos: helpers::Pos,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Literal<'a> {
-    pub value: &'a str,
-    pub type_val: TypeCheckOrType<'a>,
-    pub pos: helpers::Pos<'a>,
-}
-
-impl<'a> Literal<'a> {
-    pub fn into_type<'b>(
-        &mut self,
-        context: &'b mut TypeCheckSymbTab<'a>,
-        ret_type: Option<&TypeCheckType<'a>>,
-    ) -> Result<TypeCheckType<'a>, ErrorOrVec<'a>> {
-        let type_val = TypeCheckOrType::as_typecheck_type(
-            std::borrow::Cow::Borrowed(&self.type_val),
-            context,
-        )?;
-
-        self.type_val = TypeCheckOrType::TypeCheckType(match ret_type {
-            Some(ret_type) => match (
-                ret_type.cast_to_basic(context),
-                type_val.cast_to_basic(context),
-            ) {
-                (Ok(val1), Ok(val2)) => match (&val1[..], &val2[..]) {
-                    ("int", "{number}") => ret_type.clone(),
-                    ("long", "{number}") => ret_type.clone(),
-                    (_, _) => ret_type.clone(),
-                },
-                (Err(e), _) => panic!(
-                    "Tried to cast non basic literal to basic. Should not happen!! {:?}",
-                    e
-                ),
-                (_, Err(e)) => panic!(
-                    "Tried to cast non basic literal to basic. Should not happen!! {:?}",
-                    e
-                ),
-            },
-            None => type_val.clone(),
-        });
-
-        Ok(self.type_val.clone().unwrap_type_check())
-    }
-
-    pub fn as_abs_literal<'b>(&self, other_type: &TypeCheckType<'a>, context: &'b TypeCheckSymbTab<'a>) -> Option<&'static str> {
-        match (self.type_val.unwrap_type_check_ref().cast_to_basic(context), other_type.cast_to_basic(context)) {
-            (Ok(val1), Ok(val2)) => match (&val1[..], &val2[..]) {
-                ("{number}", "int") => { Some("int") }
-                ("{number}", "long") => { Some("long") }
-                _ => None
-            }
-            _ => None
-        }
-    }
+pub enum LiteralType {
+    Integer,
+    String,
+    Bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Import<'a> {
-    pub namespace: Namespace<'a>,
-    pub pos: helpers::Pos<'a>,
+pub struct Literal {
+    pub literal_type: LiteralType,
+    pub pos: helpers::Pos,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Import {
+    pub namespace: Namespace,
+    pub pos: helpers::Pos,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 /// Tuple node
-pub struct Tuple<'a> {
-    pub values: Vec<Expr<'a>>,
-    pub type_val: Option<TypeCheckType<'a>>,
-    pub pos: helpers::Pos<'a>,
+pub struct Tuple {
+    pub values: Vec<Expr>,
+    pub pos: helpers::Pos,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 /// Dollar sign id (i.e. `$myvar`) node
-pub struct DollarID<'a> {
-    pub value: Rc<Namespace<'a>>,
-    pub type_val: Option<TypeCheckType<'a>>,
-    pub pos: helpers::Pos<'a>,
+pub struct DollarID {
+    pub value: Rc<Namespace>,
+    pub pos: helpers::Pos,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 /// Reference ID (i.e. pass by value) node
-pub struct RefID<'a> {
-    pub value: Rc<Namespace<'a>>,
-    pub type_val: Option<TypeCheckType<'a>>,
-    pub pos: helpers::Pos<'a>,
+pub struct RefID {
+    pub value: Rc<Namespace>,
+    pub pos: helpers::Pos,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 /// Reference (i.e. pass by reference) node
-pub struct Reference<'a> {
-    pub value: RefID<'a>,
-    pub type_val: Option<TypeCheckType<'a>>,
-    pub pos: helpers::Pos<'a>,
+pub struct Reference {
+    pub value: RefID,
+    pub pos: helpers::Pos,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Infix<'a> {
-    pub left: Box<Expr<'a>>,
-    pub right: Box<Expr<'a>>,
-    pub function_call: Option<FunctionCall<'a>>,
-    pub operator: Token<'a>,
-    pub pos: helpers::Pos<'a>,
+pub struct Infix {
+    pub left: Box<Expr>,
+    pub right: Box<Expr>,
+    pub function_call: Option<FunctionCall>,
+    pub operator: Token,
+    pub pos: helpers::Pos,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Prefix<'a> {
-    pub val: Box<Expr<'a>>,
-    pub operator: Token<'a>,
-    pub type_val: Option<TypeCheckType<'a>>,
-    pub pos: helpers::Pos<'a>,
+pub struct Prefix {
+    pub val: Box<Expr>,
+    pub operator: Token,
+    pub pos: helpers::Pos,
 }
 
 // NODES ---------------------------------------
 
-#[derive(Debug, Eq, Clone, Copy)]
+#[derive(Debug)]
 /// Name ID node
-pub struct NameID<'a> {
-    pub value: &'a str,
-    pub pos: helpers::Pos<'a>,
+pub struct NameID {
+    pub sourcemap: SourceMap,
+    pub pos: helpers::Pos,
 }
 
-impl<'a> Hash for NameID<'a> {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.value.hash(state);
-    }
-}
-
-impl<'a> PartialEq for NameID<'a> {
-    fn eq(&self, other: &Self) -> bool {
-        self.value == other.value
-    }
-}
-
-impl<'a> NameID<'a> {
-    pub fn into_namespace(self) -> Namespace<'a> {
-        Namespace {
-            scopes: vec![self],
+impl Clone for NameID {
+    fn clone(&self) -> Self {
+        Self {
+            sourcemap: Rc::clone(&self.sourcemap),
             pos: self.pos,
+        }
+    }
+}
+
+#[cfg(test)]
+mod name_id_test {
+    use super::*;
+    use std::path::PathBuf;
+    use crate::sourcemap::SourceMapInner;
+
+    #[test]
+    fn eq() {
+        let sourcemap = SourceMapInner::new();
+        sourcemap.borrow_mut().insert_file(PathBuf::from("teset.fl"), "hello_hello".to_string());
+        let first = NameID { 
+            sourcemap: Rc::clone(&sourcemap),
+            pos: helpers::Pos::new(0, 3, 0)
+        };
+        let second = NameID { 
+            sourcemap,
+            pos: helpers::Pos::new(4, 3, 0)
+        };
+        assert_eq!(first, second);
+        assert_eq!(second, first);
+    }
+}
+
+impl Hash for NameID {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.sourcemap.borrow().get_segment(self.pos).hash(state);
+    }
+}
+
+impl PartialEq for NameID {
+    fn eq(&self, other: &Self) -> bool {
+        self.sourcemap.borrow().get_segment(self.pos) == self.sourcemap.borrow().get_segment(other.pos)
+    }
+}
+
+impl Eq for NameID {}
+
+impl NameID {
+    pub fn into_namespace(self) -> Namespace {
+        Namespace {
+            pos: self.pos,
+            scopes: vec![self],
         }
     }
 }
@@ -218,92 +155,91 @@ impl<'a> NameID<'a> {
 /// Variable Assign i.e.:
 ///
 /// x = 10;
-pub struct VariableAssign<'a> {
-    pub name: Rc<Namespace<'a>>,
-    pub expr: Box<Expr<'a>>,
-    pub type_val: Option<TypeCheckType<'a>>,
-    pub pos: helpers::Pos<'a>,
+pub struct VariableAssign {
+    pub name: Rc<Namespace>,
+    pub expr: Box<Expr>,
+    pub pos: helpers::Pos,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 /// Type Assign i.e.:
 ///
 /// type km = int;
-pub struct TypeAssign<'a> {
-    pub name: Rc<Namespace<'a>>,
-    pub value: TypeCheckOrType<'a>,
+pub struct TypeAssign {
+    pub name: Rc<Namespace>,
+    pub value: Type,
     pub visibility: Visibility,
-    pub pos: helpers::Pos<'a>,
+    pub pos: helpers::Pos,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 /// Variable Assign + Declaration i.e.:
 ///
 /// let x: int = 10;
-pub struct VariableAssignDeclaration<'a> {
-    pub t: TypeCheckOrType<'a>,
-    pub name: Rc<Namespace<'a>>,
-    pub expr: Box<Expr<'a>>,
-    pub pos: helpers::Pos<'a>,
+pub struct VariableAssignDeclaration {
+    pub t: Type,
+    pub name: Rc<Namespace>,
+    pub expr: Box<Expr>,
+    pub pos: helpers::Pos,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 /// Variable Declaration i.e.:
 ///
 /// let x: int;
-pub struct VariableDeclaration<'a> {
-    pub t: TypeCheckOrType<'a>,
-    pub name: Rc<Namespace<'a>>,
-    pub pos: helpers::Pos<'a>,
+pub struct VariableDeclaration {
+    pub t: Type,
+    pub name: Rc<Namespace>,
+    pub pos: helpers::Pos,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Unit<'a> {
-    pub name: Namespace<'a>,
-    pub pos: helpers::Pos<'a>,
-    pub block: Block<'a>,
+pub struct Unit {
+    pub name: Namespace,
+    pub pos: helpers::Pos,
+    pub block: Block,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 /// Arguments for function
-pub struct Arguments<'a> {
-    pub positional: Vec<(NameID<'a>, TypeCheckOrType<'a>)>,
-    pub pos: helpers::Pos<'a>, // TODO: Add more types of arguments
+pub struct Arguments {
+    pub positional: Vec<(NameID, Type)>,
+    pub pos: helpers::Pos, // TODO: Add more types of arguments
 }
 
 #[derive(Debug, Clone, PartialEq)]
 /// If/else if conditional branch
-pub struct IfBranch<'a> {
-    pub cond: Expr<'a>,
-    pub block: Block<'a>,
-    pub pos: helpers::Pos<'a>,
+pub struct IfBranch {
+    pub cond: Expr,
+    pub block: Block,
+    pub pos: helpers::Pos,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 /// Else conditional branch
-pub struct ElseBranch<'a> {
-    pub block: Block<'a>,
-    pub pos: helpers::Pos<'a>,
+pub struct ElseBranch {
+    pub block: Block,
+    pub pos: helpers::Pos,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Conditional<'a> {
-    pub if_branches: Vec<IfBranch<'a>>,
-    pub else_branch: Option<ElseBranch<'a>>,
-    pub pos: helpers::Pos<'a>,
+pub struct Conditional {
+    pub if_branches: Vec<IfBranch>,
+    pub else_branch: Option<ElseBranch>,
+    pub pos: helpers::Pos,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 /// Block of code
-pub struct Block<'a> {
-    pub nodes: Vec<Statement<'a>>,
-    pub tags: Vec<Tag<'a>>, // For now, tags are just strings
-    pub pos: helpers::Pos<'a>,
+pub struct Block {
+    pub nodes: Vec<Statement>,
+    pub tags: UnitTags,
+    pub pos: helpers::Pos,
     pub insert_return: bool,
     pub returns: bool,
 }
 
-impl<'a> Block<'a> {
+impl Block {
     pub fn to_string(&self) -> String {
         let mut val = String::new();
         for node in &self.nodes {
@@ -315,23 +251,23 @@ impl<'a> Block<'a> {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Units<'a> {
-    pub units: Vec<Unit<'a>>,
-    pub pos: helpers::Pos<'a>,
+pub struct Units {
+    pub units: Vec<Unit>,
+    pub pos: helpers::Pos,
 }
 
-impl<'a> Units<'a> {
-    pub fn into_block(self) -> Block<'a> {
+impl Units {
+    pub fn into_block(self) -> Block {
         Block {
             nodes: self.units.into_iter().map(|x| Statement::Unit(x)).collect(),
-            tags: Vec::new(),
+            tags: UnitTags::new(),
             pos: self.pos,
             insert_return: false,
-            returns: false
+            returns: false,
         }
     }
 
-    pub fn into_statements(self) -> Vec<Statement<'a>> {
+    pub fn into_statements(self) -> Vec<Statement> {
         self.units.into_iter().map(|x| Statement::Unit(x)).collect()
     }
 }
@@ -342,16 +278,12 @@ pub enum Visibility {
     Private,
 }
 
-impl fmt::Display for Visibility {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Visibility::Public => "public",
-                Visibility::Private => "private",
-            }
-        )
+impl Visibility {
+    pub fn f(&self, sourcemap: SourceMap) -> &'static str {
+        match self {
+            Visibility::Public => "public",
+            Visibility::Private => "private",
+        }
     }
 }
 
@@ -366,69 +298,69 @@ impl Visibility {
 
 #[derive(Debug, Clone, PartialEq)]
 /// Function definition
-pub struct FunctionDefine<'a> {
-    pub return_type: TypeCheckOrType<'a>,
-    pub arguments: Arguments<'a>,
-    pub block: Option<Block<'a>>, // Option if is an extern
-    pub name: Rc<Namespace<'a>>,
+pub struct FunctionDefine {
+    pub return_type: Type,
+    pub arguments: Arguments,
+    pub block: Option<Block>, // Option if is an extern
+    pub name: Rc<Namespace>,
     pub mangled_name: Option<String>,
     pub visibility: Visibility,
-    pub overload_operator: Option<TokenType<'a>>,
-    pub pos: helpers::Pos<'a>,
-}
-#[derive(Debug, Clone, PartialEq)]
-pub struct ArgumentsRun<'a> {
-    pub positional: Vec<Expr<'a>>,
-    pub pos: helpers::Pos<'a>, // TODO: Add more types of arguments
+    pub overload_operator: Option<TokenType>,
+    pub pos: helpers::Pos,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Return<'a> {
-    pub expression: Box<Expr<'a>>,
-    pub pos: helpers::Pos<'a>,
+pub struct ArgumentsRun {
+    pub positional: Vec<Expr>,
+    pub pos: helpers::Pos, // TODO: Add more types of arguments
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Return {
+    pub expression: Box<Expr>,
+    pub pos: helpers::Pos,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 /// Function definition
-pub struct FunctionCall<'a> {
-    pub arguments: ArgumentsRun<'a>,
-    pub name: Rc<Namespace<'a>>,
+pub struct FunctionCall {
+    pub arguments: ArgumentsRun,
+    pub name: Rc<Namespace>,
     pub mangled_name: Option<String>,
     pub mangle: bool,
-    pub pos: helpers::Pos<'a>,
+    pub pos: helpers::Pos,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct ExpressionStatement<'a> {
-    pub expression: Box<Expr<'a>>,
-    pub pos: helpers::Pos<'a>,
+pub struct ExpressionStatement {
+    pub expression: Box<Expr>,
+    pub pos: helpers::Pos,
 }
 
 #[derive(Debug, PartialEq, Clone)]
 /// Type Types
-pub enum TypeType<'a> {
-    Type(Rc<Namespace<'a>>),
-    Tuple(Vec<Rc<Type<'a>>>),
+pub enum TypeType {
+    Type(Rc<Namespace>),
+    Tuple(Vec<Rc<Type>>),
 }
 
-impl<'a> fmt::Display for TypeType<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let rep = match &self {
-            TypeType::Type(namespace) => namespace.to_string(),
+impl TypeType {
+    pub fn f(&self, sourcemap: SourceMap) -> String {
+        match &self {
+            TypeType::Type(namespace) => namespace.f(sourcemap),
             TypeType::Tuple(types) => {
                 let mut final_string = String::new();
                 for type_val in types.iter() {
-                    final_string.push_str(&type_val.to_string()[..]);
+                    final_string.push_str(&type_val.f(Rc::clone(&sourcemap))[..]);
                 }
                 final_string
             }
-        };
-        write!(f, "{}", rep)
+        }
     }
 }
 
-impl<'a> TypeType<'a> {
-    pub fn unwrap_type(&self) -> Rc<Namespace<'a>> {
+impl TypeType {
+    pub fn unwrap_type(&self) -> Rc<Namespace> {
         match self {
             TypeType::Type(val) => Rc::clone(val),
             TypeType::Tuple(_) => panic!("Tried to unwrap type from typetype, found tuple"),
@@ -438,38 +370,38 @@ impl<'a> TypeType<'a> {
 
 #[derive(Debug, Clone)]
 /// Type Node
-pub struct Type<'a> {
-    pub value: TypeType<'a>,
+pub struct Type {
+    pub value: TypeType,
     pub inferred: bool,
-    pub pos: helpers::Pos<'a>,
+    pub pos: helpers::Pos,
 }
 
-impl<'a> PartialEq for Type<'a> {
+impl PartialEq for Type {
     fn eq(&self, other: &Self) -> bool {
         self.value == other.value
     }
 }
 
-impl<'a> fmt::Display for Type<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.value)
+impl Type {
+    pub fn f(&self, sourcemap: SourceMap) -> String {
+        self.value.f(sourcemap)
     }
 }
 
 #[derive(Debug, Eq, Clone)]
 /// This::is::a::namespace!
-pub struct Namespace<'a> {
-    pub scopes: Vec<NameID<'a>>,
-    pub pos: helpers::Pos<'a>,
+pub struct Namespace {
+    pub scopes: Vec<NameID>,
+    pub pos: helpers::Pos,
 }
 
-impl<'a> PartialEq for Namespace<'a> {
+impl PartialEq for Namespace {
     fn eq(&self, other: &Self) -> bool {
         self.scopes == other.scopes
     }
 }
 
-impl<'a> Hash for Namespace<'a> {
+impl Hash for Namespace {
     fn hash<H: Hasher>(&self, state: &mut H) {
         for scope in &self.scopes {
             scope.hash(state);
@@ -477,51 +409,52 @@ impl<'a> Hash for Namespace<'a> {
     }
 }
 
-impl<'a> fmt::Display for Namespace<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            self.scopes
-                .iter()
-                .map(|value| value.value)
-                .collect::<Vec<&str>>()
-                .join("::")
-        )
+impl Namespace {
+    pub fn f(&self, sourcemap: SourceMap) -> String {
+        let mut result = String::new();
+        let mut iter = self.scopes.iter();
+        result.push_str(sourcemap.borrow().get_segment(iter.next().unwrap().pos));
+
+        for id in iter {
+            result.push_str("::");
+            result.push_str(sourcemap.borrow().get_segment(id.pos));
+        }
+
+        result
     }
 }
 
-impl<'a> Namespace<'a> {
-    pub fn from_name_id(value: NameID<'a>) -> Rc<Namespace<'a>> {
+impl Namespace {
+    pub fn from_name_id(value: NameID) -> Rc<Namespace> {
         Rc::new(Namespace {
             pos: value.pos,
             scopes: vec![value],
         })
     }
 
-    pub fn as_vec_nameid(&mut self) -> &mut Vec<NameID<'a>> {
+    pub fn as_vec_nameid(&mut self) -> &mut Vec<NameID> {
         &mut self.scopes
     }
 
-    pub fn prepend_namespace(&mut self, other: &mut Vec<NameID<'a>>) -> Namespace<'a> {
+    pub fn prepend_namespace(&mut self, other: &mut Vec<NameID>) -> Namespace {
         std::mem::swap(&mut self.scopes, other); // Put into other
         self.scopes.append(other); // Append self.scopes
         self.clone()
     }
 
-    pub fn prepend_namespace_rc(&self, other: &[NameID<'a>]) -> Namespace<'a> {
+    pub fn prepend_namespace_rc(&self, other: &[NameID]) -> Namespace {
         Namespace {
             scopes: other
                 .iter()
                 .chain(&self.scopes)
-                .map(|x| *x)
+                .map(|x| x.clone())
                 .collect::<Vec<_>>(),
             pos: self.pos,
         }
     }
 
-    pub fn starts_with(&self, other: Rc<Namespace<'a>>) -> bool {
-        if &self.scopes[0..other.scopes.len()-1] == &other.scopes[..] {
+    pub fn starts_with(&self, other: Rc<Namespace>) -> bool {
+        if &self.scopes[0..other.scopes.len() - 1] == &other.scopes[..] {
             true
         } else {
             false
@@ -530,9 +463,9 @@ impl<'a> Namespace<'a> {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Nodes<'a> {
-    pub nodes: Vec<Node<'a>>,
-    pub pos: helpers::Pos<'a>,
+pub struct Nodes {
+    pub nodes: Vec<Node>,
+    pub pos: helpers::Pos,
 }
 
 #[derive(Debug, Clone)]
@@ -553,68 +486,68 @@ impl PartialEq for Scope {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Node<'a> {
-    RefID(RefID<'a>),
-    Reference(Reference<'a>),
-    NameID(NameID<'a>),
+pub enum Node {
+    RefID(RefID),
+    Reference(Reference),
+    NameID(NameID),
 
-    VariableAssign(VariableAssign<'a>),
-    VariableAssignDeclaration(VariableAssignDeclaration<'a>),
-    VariableDeclaration(VariableDeclaration<'a>),
+    VariableAssign(VariableAssign),
+    VariableAssignDeclaration(VariableAssignDeclaration),
+    VariableDeclaration(VariableDeclaration),
 
-    TypeAssign(TypeAssign<'a>),
+    TypeAssign(TypeAssign),
 
-    Type(Type<'a>),
-    Arguments(Arguments<'a>),
-    Block(Block<'a>),
+    Type(Type),
+    Arguments(Arguments),
+    Block(Block),
 
-    Infix(Infix<'a>),
-    Prefix(Prefix<'a>),
+    Infix(Infix),
+    Prefix(Prefix),
 
-    Tuple(Tuple<'a>),
+    Tuple(Tuple),
 
-    Tag(Tag<'a>),
+    Tag(Tag),
 
-    ExpressionStatement(ExpressionStatement<'a>),
+    ExpressionStatement(ExpressionStatement),
 
-    FunctionDefine(FunctionDefine<'a>),
-    FunctionCall(FunctionCall<'a>),
+    FunctionDefine(FunctionDefine),
+    FunctionCall(FunctionCall),
 
-    Conditional(Conditional<'a>),
+    Conditional(Conditional),
 
-    Unit(Unit<'a>),
+    Unit(Unit),
 
-    Import(Import<'a>),
+    Import(Import),
 
-    Literal(Literal<'a>),
-    DollarID(DollarID<'a>),
-    Nodes(Nodes<'a>),
-    Return(Return<'a>),
+    Literal(Literal),
+    DollarID(DollarID),
+    Nodes(Nodes),
+    Return(Return),
 
-    Empty(Empty<'a>),
-    Units(Units<'a>),
+    Empty(Empty),
+    Units(Units),
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Statement<'a> {
-    ExpressionStatement(ExpressionStatement<'a>),
-    VariableDeclaration(VariableDeclaration<'a>),
+pub enum Statement {
+    ExpressionStatement(ExpressionStatement),
+    VariableDeclaration(VariableDeclaration),
 
-    FunctionDefine(FunctionDefine<'a>),
+    FunctionDefine(FunctionDefine),
 
-    Conditional(Conditional<'a>),
+    Conditional(Conditional),
 
-    Return(Return<'a>),
-    Unit(Unit<'a>),
-    TypeAssign(TypeAssign<'a>),
-    Import(Import<'a>),
+    Return(Return),
+    Unit(Unit),
+    TypeAssign(TypeAssign),
+    Import(Import),
 
-    Empty(Empty<'a>),
-    Tag(Tag<'a>),
+    Empty(Empty),
+    Tag(Tag),
 }
 
-impl<'a> Statement<'a> {
-    pub fn pos(&self) -> helpers::Pos<'a> {
+impl Statement {
+    pub fn pos(&self) -> helpers::Pos {
         match &self {
             Statement::ExpressionStatement(val) => val.pos,
             Statement::VariableDeclaration(val) => val.pos,
@@ -652,11 +585,11 @@ impl<'a> Statement<'a> {
         }
     }
 
-    pub fn in_scope(&'a self, check_scope: &Scope) -> bool {
+    pub fn in_scope(&self, check_scope: &Scope) -> bool {
         Statement::get_scope(self) == check_scope
     }
 
-    pub fn get_scope(statement: &Statement<'_>) -> &'a Scope {
+    pub fn get_scope(statement: &Statement) -> &Scope {
         match statement {
             Statement::ExpressionStatement(_) => &Scope::Block,
             Statement::VariableDeclaration(_) => &Scope::Block,
@@ -675,7 +608,7 @@ impl<'a> Statement<'a> {
         }
     }
 
-    pub fn into_node(self) -> Node<'a> {
+    pub fn into_node(self) -> Node {
         match self {
             Statement::ExpressionStatement(val) => Node::ExpressionStatement(val),
             Statement::VariableDeclaration(val) => Node::VariableDeclaration(val),
@@ -696,28 +629,28 @@ impl<'a> Statement<'a> {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Expr<'a> {
-    Literal(Literal<'a>),
+pub enum Expr {
+    Literal(Literal),
 
-    RefID(RefID<'a>),
-    Reference(Reference<'a>),
-    VariableAssign(VariableAssign<'a>),
-    VariableAssignDeclaration(VariableAssignDeclaration<'a>),
-    FunctionCall(FunctionCall<'a>),
+    RefID(RefID),
+    Reference(Reference),
+    VariableAssign(VariableAssign),
+    VariableAssignDeclaration(VariableAssignDeclaration),
+    FunctionCall(FunctionCall),
 
-    Infix(Infix<'a>),
-    Prefix(Prefix<'a>),
-    Tuple(Tuple<'a>),
+    Infix(Infix),
+    Prefix(Prefix),
+    Tuple(Tuple),
 
-    DollarID(DollarID<'a>),
+    DollarID(DollarID),
 
-    Empty(Empty<'a>),
+    Empty(Empty),
 
-    FunctionDefine(FunctionDefine<'a>),
+    FunctionDefine(FunctionDefine),
 }
 
-impl<'a> Expr<'a> {
-    pub fn pos(&self) -> helpers::Pos<'a> {
+impl Expr {
+    pub fn pos(&self) -> helpers::Pos {
         match &self {
             Expr::Literal(val) => val.pos,
             Expr::RefID(val) => val.pos,
@@ -736,7 +669,7 @@ impl<'a> Expr<'a> {
         }
     }
 
-    pub fn type_val(&self) -> helpers::Pos<'a> {
+    pub fn type_val(&self) -> helpers::Pos {
         match &self {
             Expr::Literal(type_val) => type_val.pos,
             Expr::RefID(type_val) => type_val.pos,
@@ -755,7 +688,7 @@ impl<'a> Expr<'a> {
         }
     }
 
-    pub fn to_str(&'a self) -> &'a str {
+    pub fn to_str(&self) -> &str {
         match self {
             Expr::Literal(_) => "literal",
             Expr::RefID(_) => "ID",

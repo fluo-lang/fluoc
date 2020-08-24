@@ -1,7 +1,8 @@
 use crate::helpers;
 use crate::logger::logger::{Error, Logger};
 use crate::parser::ast;
-use crate::typecheck::{ast_typecheck, typecheck};
+use crate::typecheck::TypeCheckModule;
+use crate::sourcemap::SourceMap;
 
 use inkwell::types::BasicType;
 use inkwell::values::BasicValue;
@@ -17,7 +18,7 @@ use std::time::Instant;
 
 #[derive(Clone)]
 pub struct CodeGenSymbTab<'a> {
-    items: HashMap<Rc<ast::Namespace<'a>>, values::BasicValueEnum<'a>>,
+    items: HashMap<Rc<ast::Namespace>, values::BasicValueEnum<'a>>,
 }
 
 impl<'a> CodeGenSymbTab<'a> {
@@ -31,43 +32,41 @@ impl<'a> CodeGenSymbTab<'a> {
         self.items.clear();
     }
 
-    fn insert(&mut self, name: Rc<ast::Namespace<'a>>, value: values::BasicValueEnum<'a>) {
+    fn insert(&mut self, name: Rc<ast::Namespace>, value: values::BasicValueEnum<'a>) {
         self.items.insert(name, value);
     }
 
-    fn get(&mut self, name: Rc<ast::Namespace<'a>>) -> values::BasicValueEnum<'a> {
+    fn get(&mut self, name: Rc<ast::Namespace>) -> values::BasicValueEnum<'a> {
         *self.items.get(&name).unwrap()
     }
 }
 
 /// Module object
 ///
-/// There is one module object per file (yes, each file has its own codegen, parser, lexer object).
+/// There is one module object per unit
 pub struct CodeGenModule<'a> {
     pub module: module::Module<'a>,
-    pub context: &'a context::Context,
-    pub typecheck: typecheck::TypeCheckModule<'a>,
-    pub builder: builder::Builder<'a>,
-    pub symbtab: CodeGenSymbTab<'a>,
-    pub output_ir: &'a path::Path,
+    context: &'a context::Context,
+    typecheck: TypeCheckModule,
+    builder: builder::Builder<'a>,
+    symbtab: CodeGenSymbTab<'a>,
+    output_ir: &'a path::Path,
     pub output_obj: &'a path::Path,
+    sourcemap: SourceMap
 }
 
 impl<'a> CodeGenModule<'a> {
     /// Return new module object.
-    ///
-    /// Arguments
-    /// * `filename` - the filename of the file to read
     pub fn new(
         module: module::Module<'a>,
         context: &'a context::Context,
-        filename: &'a path::Path,
-        file_contents: &'a str,
-        logger: Rc<RefCell<Logger<'a>>>,
+        sourcemap: SourceMap,
+        filename_id: usize,
+        logger: Logger,
         output_ir: &'a path::Path,
         output_obj: &'a path::Path,
     ) -> CodeGenModule<'a> {
-        let typecheck = typecheck::TypeCheckModule::new(filename, file_contents, logger);
+        let typecheck = TypeCheckModule::new(filename_id, Rc::clone(&logger), Rc::clone(&sourcemap));
         CodeGenModule {
             module,
             context,
@@ -76,12 +75,14 @@ impl<'a> CodeGenModule<'a> {
             symbtab: CodeGenSymbTab::new(),
             output_ir,
             output_obj,
+            sourcemap,
         }
     }
 
-    pub fn generate(&mut self) -> Result<(), Vec<Error<'a>>> {
+    pub fn generate(&mut self) -> Result<(), Vec<Error>> {
         self.typecheck.type_check()?;
 
+        /*
         let gen_start = Instant::now();
 
         let mut statements = None;
@@ -102,11 +103,14 @@ impl<'a> CodeGenModule<'a> {
                 helpers::display_duration(gen_start.elapsed())
             )
         }); // Lazily run it so no impact on performance
+        */
 
         Ok(())
     }
 
-    fn gen_stmt_pass_1(&mut self, statement: &ast::Statement<'a>) {
+    /*
+
+    fn gen_stmt_pass_1(&mut self, statement: &ast::Statement) {
         match statement {
             ast::Statement::FunctionDefine(func_def) => self.gen_function_prototype(func_def),
             ast::Statement::Unit(unit) => self.get_unit_proto(unit),
@@ -114,7 +118,7 @@ impl<'a> CodeGenModule<'a> {
         }
     }
 
-    fn gen_stmt_pass_2(&mut self, statement: &ast::Statement<'a>) {
+    fn gen_stmt_pass_2(&mut self, statement: &ast::Statement) {
         match statement {
             ast::Statement::FunctionDefine(func_def) => self.gen_function_define(
                 func_def,
@@ -129,7 +133,7 @@ impl<'a> CodeGenModule<'a> {
 
     fn generate_inner_block(
         &mut self,
-        block: &ast::Block<'a>,
+        block: &ast::Block,
         function: inkwell::values::FunctionValue<'a>,
     ) {
         for stmt in &block.nodes {
@@ -139,7 +143,7 @@ impl<'a> CodeGenModule<'a> {
 
     fn gen_inner_stmt(
         &mut self,
-        statement: &ast::Statement<'a>,
+        statement: &ast::Statement,
         function: inkwell::values::FunctionValue<'a>,
     ) {
         match statement {
@@ -158,7 +162,7 @@ impl<'a> CodeGenModule<'a> {
         };
     }
 
-    fn eval_expr(&mut self, expr: &ast::Expr<'a>) -> values::BasicValueEnum<'a> {
+    fn eval_expr(&mut self, expr: &ast::Expr) -> values::BasicValueEnum<'a> {
         match expr {
             ast::Expr::VariableAssignDeclaration(variable_assign_dec) => {
                 self.eval_variable_assignment_dec(variable_assign_dec)
@@ -180,11 +184,11 @@ impl<'a> CodeGenModule<'a> {
         }
     }
 
-    fn eval_infix(&mut self, infix: &ast::Infix<'a>) -> values::BasicValueEnum<'a> {
+    fn eval_infix(&mut self, infix: &ast::Infix) -> values::BasicValueEnum<'a> {
         self.eval_func_call(infix.function_call.as_ref().unwrap())
     }
 
-    fn eval_tuple(&mut self, tuple: &ast::Tuple<'a>) -> values::BasicValueEnum<'a> {
+    fn eval_tuple(&mut self, tuple: &ast::Tuple) -> values::BasicValueEnum<'a> {
         let values: Vec<values::BasicValueEnum<'_>> = tuple
             .values
             .iter()
@@ -196,7 +200,7 @@ impl<'a> CodeGenModule<'a> {
             .into()
     }
 
-    fn eval_func_call(&mut self, func_call: &ast::FunctionCall<'a>) -> values::BasicValueEnum<'a> {
+    fn eval_func_call(&mut self, func_call: &ast::FunctionCall) -> values::BasicValueEnum<'a> {
         let arguments: Vec<values::BasicValueEnum<'a>> = func_call
             .arguments
             .positional
@@ -218,7 +222,7 @@ impl<'a> CodeGenModule<'a> {
 
     fn eval_variable_assign(
         &mut self,
-        var_assign: &ast::VariableAssign<'a>,
+        var_assign: &ast::VariableAssign,
     ) -> values::BasicValueEnum<'a> {
         let addr = self
             .symbtab
@@ -231,7 +235,7 @@ impl<'a> CodeGenModule<'a> {
         addr.as_basic_value_enum()
     }
 
-    fn eval_literal(&mut self, literal: &ast::Literal<'a>) -> values::BasicValueEnum<'a> {
+    fn eval_literal(&mut self, literal: &ast::Literal) -> values::BasicValueEnum<'a> {
         match self.get_type(&literal.type_val.unwrap_type_check_ref()) {
             int_val if int_val.is_int_type() => std::convert::From::from(
                 int_val.into_int_type().const_int(
@@ -248,7 +252,7 @@ impl<'a> CodeGenModule<'a> {
 
     fn eval_variable_assignment_dec(
         &mut self,
-        variable_assign_dec: &ast::VariableAssignDeclaration<'a>,
+        variable_assign_dec: &ast::VariableAssignDeclaration,
     ) -> values::BasicValueEnum<'a> {
         let assigned_type = self.get_type(variable_assign_dec.t.unwrap_type_check_ref());
         let expr_alloca = self.builder.build_alloca(
@@ -264,7 +268,7 @@ impl<'a> CodeGenModule<'a> {
         expr_alloca.as_basic_value_enum()
     }
 
-    fn gen_variable_dec(&mut self, var_dec: &ast::VariableDeclaration<'a>) {
+    fn gen_variable_dec(&mut self, var_dec: &ast::VariableDeclaration) {
         let var_type = self.get_type(var_dec.t.unwrap_type_check_ref());
         let var_addr = self
             .builder
@@ -273,13 +277,13 @@ impl<'a> CodeGenModule<'a> {
             .insert(Rc::clone(&var_dec.name), std::convert::From::from(var_addr));
     }
 
-    fn get_unit_proto(&mut self, unit: &ast::Unit<'a>) {
+    fn get_unit_proto(&mut self, unit: &ast::Unit) {
         for node in &unit.block.nodes {
             self.gen_stmt_pass_1(node);
         }
     }
 
-    fn get_unit(&mut self, unit: &ast::Unit<'a>) {
+    fn get_unit(&mut self, unit: &ast::Unit) {
         for node in &unit.block.nodes {
             self.gen_stmt_pass_2(node);
         }
@@ -304,7 +308,7 @@ impl<'a> CodeGenModule<'a> {
 
     fn gen_function_define(
         &mut self,
-        func_def: &ast::FunctionDefine<'a>,
+        func_def: &ast::FunctionDefine,
         func_val: values::FunctionValue<'a>,
     ) {
         match &func_def.block {
@@ -337,7 +341,7 @@ impl<'a> CodeGenModule<'a> {
         }
     }
 
-    fn gen_return(&mut self, ret: &ast::Return<'a>) {
+    fn gen_return(&mut self, ret: &ast::Return) {
         let ret_val = self.eval_expr(&ret.expression);
         self.builder.build_return(Some(&ret_val));
     }
@@ -350,7 +354,7 @@ impl<'a> CodeGenModule<'a> {
 
     fn gen_conditional(
         &mut self,
-        conditional: &ast::Conditional<'a>,
+        conditional: &ast::Conditional,
         func_val: inkwell::values::FunctionValue<'a>,
     ) {
         // fluo: if {}
@@ -439,10 +443,7 @@ impl<'a> CodeGenModule<'a> {
         }
     }
 
-    fn get_type(
-        &mut self,
-        type_ast: &ast_typecheck::TypeCheckType<'_>,
-    ) -> types::BasicTypeEnum<'a> {
+    fn get_type(&mut self, type_ast: &ast_typecheck::TypeCheckType) -> types::BasicTypeEnum<'a> {
         match &type_ast.value {
             ast_typecheck::TypeCheckTypeType::SingleType(value) => match &value.to_string()[..] {
                 "int" => self.context.i32_type().into(),
@@ -472,5 +473,5 @@ impl<'a> CodeGenModule<'a> {
                 panic!("Tried to turn placeholder value into llvm type")
             }
         }
-    }
+    }*/
 }

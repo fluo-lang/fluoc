@@ -1,17 +1,18 @@
 use crate::helpers;
 use crate::logger::logger::{Error, ErrorAnnotation, ErrorDisplayType, ErrorType};
+use crate::segmentation::{Grapheme, GraphemeIdxs};
+use crate::sourcemap::SourceMap;
 
-use std::fmt;
-use std::path;
+use std::rc::Rc;
 
-/// EOF Character
-const EOF_CHAR: char = '\0';
+const EOF: char = '\0';
+const EOF_STR: &'static str = "\0";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 /// Type of tokens
-pub enum TokenType<'a> {
-    STRING(&'a str),
-    CODEVALUE(&'a str),
+pub enum TokenType {
+    STRING,
+    CODEVALUE,
 
     DEF,
     TYPE,
@@ -34,8 +35,8 @@ pub enum TokenType<'a> {
     IF,
     ELSE,
 
-    IDENTIFIER(&'a str),
-    NUMBER(&'a str),
+    IDENTIFIER,
+    NUMBER,
 
     DIV,
     MOD,
@@ -69,57 +70,56 @@ pub enum TokenType<'a> {
     COMMA,
     EOF,
 
-    BOOL(&'a str),
+    TRUE,
+    FALSE,
 
-    UNKNOWN(&'a str),
+    UNKNOWN,
     LINECOMMENT(usize),
     BLOCKCOMMENT(usize),
     WHITESPACE(usize),
 }
 
-impl fmt::Display for TokenType<'_> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let result = match &self {
-            TokenType::STRING(_) => "string".to_string(),
-            TokenType::IDENTIFIER(_) => "identifier".to_string(),
-            TokenType::NUMBER(_) => "integer".to_string(),
-            TokenType::UNKNOWN(_) => "unknown token".to_string(),
+impl TokenType {
+    pub fn f(&self, sourcemap: SourceMap) -> String {
+        match &self {
+            TokenType::STRING => "string".to_string(),
+            TokenType::IDENTIFIER => "identifier".to_string(),
+            TokenType::NUMBER => "integer".to_string(),
+            TokenType::UNKNOWN => "unknown token".to_string(),
 
             other => format!(
                 "{}",
                 Token {
                     token: **other,
-                    pos: helpers::Pos::new(0, 0, path::Path::new(""))
+                    pos: helpers::Pos::new(0, 0, 0)
                 }
+                .f(sourcemap)
             ),
-        };
-        write!(f, "{}", result)
+        }
     }
 }
 
 #[derive(Debug, Clone, Copy)]
 /// Token object
-pub struct Token<'a> {
-    pub token: TokenType<'a>,
-    pub pos: helpers::Pos<'a>,
+pub struct Token {
+    pub token: TokenType,
+    pub pos: helpers::Pos,
 }
 
-impl<'a> fmt::Display for Token<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let result = match &self.token {
-            TokenType::STRING(val) => format!("string `{}`", val),
-            TokenType::CODEVALUE(val) => format!("code value `{}`", val),
-            TokenType::IDENTIFIER(val) => format!("identifier `{}`", val),
-            TokenType::NUMBER(val) => format!("number `{}`", val),
+impl Token {
+    pub fn f(&self, sourcemap: SourceMap) -> String {
+        match self.token {
+            TokenType::STRING => format!("string `{}`", sourcemap.borrow().get_segment(self.pos)),
+            TokenType::CODEVALUE => {
+                format!("code value `{}`", sourcemap.borrow().get_segment(self.pos))
+            }
+            TokenType::IDENTIFIER => {
+                format!("identifier `{}`", sourcemap.borrow().get_segment(self.pos))
+            }
+            TokenType::NUMBER => format!("number `{}`", sourcemap.borrow().get_segment(self.pos)),
 
-            TokenType::BOOL(val) => format!(
-                "bool literal `{}`",
-                match *val {
-                    "0" => "false",
-                    "1" => "true",
-                    _ => panic!("Bool was not of 0 or 1"),
-                }
-            ),
+            TokenType::TRUE => "bool literal `true`".to_string(),
+            TokenType::FALSE => "bool literal `false`".to_string(),
 
             TokenType::DEF => "keyword `def`".to_string(),
             TokenType::RETURN => "keyword `return`".to_string(),
@@ -168,18 +168,20 @@ impl<'a> fmt::Display for Token<'a> {
             TokenType::SEMI => "terminator `;`".to_string(),
             TokenType::COMMA => "token `,`".to_string(),
             TokenType::EOF => "end of file".to_string(),
-            TokenType::UNKNOWN(val) => format!("unknown token `{}`", val),
+            TokenType::UNKNOWN => format!(
+                "unknown token `{}`",
+                sourcemap.borrow().get_segment(self.pos)
+            ),
 
             TokenType::LINECOMMENT(_) => "line comment".to_string(),
             TokenType::BLOCKCOMMENT(_) => "block comment".to_string(),
             TokenType::WHITESPACE(_) => "whitespace".to_string(),
-        };
-        write!(f, "{}", result)
+        }
     }
 }
 
-impl<'a> PartialEq for Token<'a> {
-    fn eq(&self, other: &Token<'_>) -> bool {
+impl<'a> PartialEq for Token {
+    fn eq(&self, other: &Token) -> bool {
         self.pos.e == other.pos.e && self.pos.s == other.pos.s && self.token == other.token
     }
 }
@@ -209,15 +211,17 @@ pub fn is_whitespace(c: char) -> bool {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 /// Lexer object
-pub struct Lexer<'a> {
-    pub filename: &'a path::Path,
-    pub file_contents: &'a str,
-    file_iter: std::iter::Peekable<std::str::Chars<'a>>,
+pub struct Lexer {
+    pub filename: usize,
     pub position: usize,
-    pub current_token: Token<'a>,
+    pub current_token: Token,
+
+    unicode_iter: std::iter::Peekable<GraphemeIdxs>,
+
     change_peek: bool,
+    sourcemap: SourceMap,
 }
 
 /// Check if ID is continue
@@ -225,26 +229,26 @@ fn is_id_continue(c: char) -> bool {
     ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || ('0' <= c && c <= '9') || c == '_'
 }
 
-impl<'a> Lexer<'a> {
+impl Lexer {
     /// Return new lexer object.
     ///
     /// Arguments
     /// * `filename` - the filename of the file to read
-    pub fn new(filename: &'a path::Path, file_contents: &'a str) -> Lexer<'a> {
+    pub fn new(filename: usize, sourcemap: SourceMap) -> Lexer {
         Lexer {
             filename,
-            file_contents,
-            file_iter: file_contents.chars().peekable(),
             position: 0,
             current_token: Token {
                 token: TokenType::EOF,
                 pos: helpers::Pos::new(0, 0, filename),
             },
+            unicode_iter: GraphemeIdxs::new(Rc::clone(&sourcemap), filename).peekable(),
             change_peek: true,
+            sourcemap,
         }
     }
 
-    /// generate a unit test for the lexer
+    /// Generate a unit test for the lexer
     pub fn get_unit_test(&mut self) {
         loop {
             let token = self.peek();
@@ -264,23 +268,32 @@ impl<'a> Lexer<'a> {
     }
 
     /// Get next chat in input stream
-    fn peek_char(&mut self) -> char {
-        *self.file_iter.peek().unwrap_or(&EOF_CHAR)
+    fn peek_char(&mut self) -> Grapheme {
+        match self.unicode_iter.peek() {
+            Some(grapheme) => grapheme.clone(),
+            None => Grapheme::new(EOF_STR, 0), // EOF is 0 length
+        }
     }
+
     /// Move position forward
-    fn bump(&mut self) -> char {
-        let c = self.file_iter.nth(0).unwrap_or(EOF_CHAR);
-        self.position += 1;
+    fn bump(&mut self) -> Grapheme {
+        let c = match self.unicode_iter.next() {
+            Some(grapheme) => grapheme.clone(),
+            None => Grapheme::new(EOF_STR, 0), // EOF is 0 length
+        };
+
+        self.position += c.len();
         c
     }
 
     /// Get next token in input stream's type
-    fn get_next_tok_type(&mut self) -> Result<(TokenType<'a>, usize), Error<'a>> {
+    fn get_next_tok_type(&mut self) -> Result<(TokenType, usize), Error> {
         let first_char = self.bump();
         let pos = self.position;
+
         Ok((
-            match first_char {
-                '-' => match self.peek_char() {
+            match first_char.front {
+                '-' => match self.peek_char().front {
                     '-' => {
                         self.line_comment()?;
                         self.bump(); // Eat the \n
@@ -304,7 +317,7 @@ impl<'a> Lexer<'a> {
 
                 '*' => TokenType::MUL,
                 '+' => TokenType::ADD,
-                '/' => match self.peek_char() {
+                '/' => match self.peek_char().front {
                     '*' => {
                         self.bump();
                         self.block_comment()?;
@@ -313,19 +326,19 @@ impl<'a> Lexer<'a> {
                     _ => TokenType::DIV,
                 },
 
-                '%' => match self.peek_char() {
+                '%' => match self.peek_char().front {
                     '%' => TokenType::DMOD,
                     _ => TokenType::MOD,
                 },
                 '$' => TokenType::DOLLAR,
-                '>' => match self.peek_char() {
+                '>' => match self.peek_char().front {
                     '=' => {
                         self.bump();
                         TokenType::GE
                     }
                     _ => TokenType::GT,
                 },
-                '<' => match self.peek_char() {
+                '<' => match self.peek_char().front {
                     '=' => {
                         self.bump();
                         TokenType::LE
@@ -344,7 +357,7 @@ impl<'a> Lexer<'a> {
 
                 '.' => TokenType::DOT,
                 ';' => TokenType::SEMI,
-                '=' => match self.peek_char() {
+                '=' => match self.peek_char().front {
                     '=' => {
                         self.bump();
                         TokenType::EQ
@@ -354,7 +367,7 @@ impl<'a> Lexer<'a> {
 
                 '?' => TokenType::QUESTION,
                 ',' => TokenType::COMMA,
-                ':' => match self.peek_char() {
+                ':' => match self.peek_char().front {
                     ':' => {
                         self.bump();
                         TokenType::DOUBLECOLON
@@ -364,16 +377,13 @@ impl<'a> Lexer<'a> {
                 '@' => TokenType::AT,
 
                 '"' => self.string('"', "string")?,
-                EOF_CHAR => {
-                    self.position -= 1;
-                    TokenType::EOF
-                }
+                EOF => TokenType::EOF,
 
                 unknown => {
                     let pos = helpers::Pos {
                         s: self.position - 1,
                         e: self.position,
-                        filename: self.filename,
+                        filename_id: self.filename,
                     };
                     return Err(Error::new(
                         format!("Unknown character `{}`", unknown.to_string()),
@@ -389,18 +399,18 @@ impl<'a> Lexer<'a> {
         ))
     }
 
-    pub fn advance(&mut self) -> Result<Token<'a>, Error<'a>> {
+    pub fn advance(&mut self) -> Result<Token, Error> {
         self.peek()?;
         Ok(self.eat())
     }
 
-    pub fn eat(&mut self) -> Token<'a> {
+    pub fn eat(&mut self) -> Token {
         self.change_peek = true;
         self.current_token
     }
 
     /// Get next token in input stream, but don't advance
-    pub fn peek(&mut self) -> Result<Token<'a>, Error<'a>> {
+    pub fn peek(&mut self) -> Result<Token, Error> {
         if self.change_peek {
             let (token_kind, start_pos) = self.get_next_tok_type()?;
             let end_pos = self.position;
@@ -416,12 +426,11 @@ impl<'a> Lexer<'a> {
     }
 
     /// Tokenize integer
-    fn number(&mut self) -> Result<TokenType<'a>, Error<'a>> {
+    fn number(&mut self) -> Result<TokenType, Error> {
         let position = self.position;
 
         let num = self.eat_while(|c| '0' <= c && c <= '9');
-let real_captured = &self.file_contents[(position - 1)..(position + num.0)];
-        Ok(TokenType::NUMBER(real_captured))
+        Ok(TokenType::NUMBER)
     }
 
     /// Get start of ID (excluding number)
@@ -430,12 +439,15 @@ let real_captured = &self.file_contents[(position - 1)..(position + num.0)];
     }
 
     /// Tokenize identifier and keywords
-    fn identifier(&mut self) -> Result<TokenType<'a>, Error<'a>> {
+    fn identifier(&mut self) -> Result<TokenType, Error> {
         let position = self.position;
         let id = self.eat_while(is_id_continue);
-        let real_captured = &self.file_contents[(position - 1)..(position + id.0)];
 
-        match real_captured {
+        match self.sourcemap.borrow().get_segment(helpers::Pos::new(
+            position - 1,
+            position + id,
+            self.filename,
+        )) {
             "def" => Ok(TokenType::DEF),
             "let" => Ok(TokenType::LET),
             "impl" => Ok(TokenType::IMPL),
@@ -445,30 +457,28 @@ let real_captured = &self.file_contents[(position - 1)..(position + num.0)];
             "type" => Ok(TokenType::TYPE),
             "public" => Ok(TokenType::PUBLIC),
             "unit" => Ok(TokenType::UNIT),
-            "true" => Ok(TokenType::BOOL("1")),
-            "false" => Ok(TokenType::BOOL("0")),
+            "true" => Ok(TokenType::TRUE),
+            "false" => Ok(TokenType::FALSE),
             "extern" => Ok(TokenType::EXTERN),
             "if" => Ok(TokenType::IF),
             "else" => Ok(TokenType::ELSE),
             "overload" => Ok(TokenType::OVERLOAD),
-            _ => Ok(TokenType::IDENTIFIER(real_captured)),
+            _ => Ok(TokenType::IDENTIFIER),
         }
     }
 
     /// Validate string like
-    fn string(&mut self, marker: char, name: &'static str) -> Result<TokenType<'a>, Error<'a>> {
+    fn string(&mut self, marker: char, name: &'static str) -> Result<TokenType, Error> {
         let pos = self.position;
-        let mut c = self.bump();
+        let mut c = self.bump().front;
 
-        while c != EOF_CHAR {
+        while c != EOF {
             match c {
                 _ if c == marker => {
-                    return Ok(TokenType::STRING(
-                        &self.file_contents[pos - 1..self.position],
-                    ));
+                    return Ok(TokenType::STRING);
                 }
                 val => {
-                    let first = self.peek_char();
+                    let first = self.peek_char().front;
                     if (first == '\\' || first == marker) && val == '\\' {
                         // Bump again to skip escaped character
                         self.bump();
@@ -476,13 +486,13 @@ let real_captured = &self.file_contents[(position - 1)..(position + num.0)];
                     }
                 }
             }
-            c = self.bump();
+            c = self.bump().front;
         }
 
         let position_err = helpers::Pos {
             s: pos - 1,
             e: self.position - 1,
-            filename: self.filename,
+            filename_id: self.filename,
         };
 
         Err(Error::new(
@@ -500,13 +510,13 @@ let real_captured = &self.file_contents[(position - 1)..(position + num.0)];
     }
 
     /// Tokenize block comment
-    fn block_comment(&mut self) -> Result<TokenType<'a>, Error<'a>> {
+    fn block_comment(&mut self) -> Result<TokenType, Error> {
         let position = self.position;
 
         let mut depth = 1usize;
-        while self.peek_char() != EOF_CHAR {
-            let c = self.bump();
-            let o = self.peek_char();
+        while self.peek_char().front != EOF {
+            let c = self.bump().front;
+            let o = self.peek_char().front;
             match c {
                 '/' if o == '*' => {
                     self.bump();
@@ -531,36 +541,29 @@ let real_captured = &self.file_contents[(position - 1)..(position + num.0)];
     }
 
     /// Tokenize line comment
-    fn line_comment(&mut self) -> Result<TokenType<'a>, Error<'a>> {
+    fn line_comment(&mut self) -> Result<TokenType, Error> {
         self.bump();
-        Ok(TokenType::LINECOMMENT(self.eat_while(|c| c != '\n').0 + 2))
+        Ok(TokenType::LINECOMMENT(self.eat_while(|c| c != '\n') + 2))
     }
 
     /// Tokenize whitespace
-    fn whitespace(&mut self) -> Result<TokenType<'a>, Error<'a>> {
-        Ok(TokenType::WHITESPACE(self.eat_while(is_whitespace).0 + 1))
+    fn whitespace(&mut self) -> Result<TokenType, Error> {
+        Ok(TokenType::WHITESPACE(self.eat_while(is_whitespace) + 1))
     }
 
     /// Eat while condition is true utility
-    fn eat_while<F>(&mut self, mut predicate: F) -> (usize, &'a str)
+    fn eat_while<F>(&mut self, mut predicate: F) -> usize
     where
         F: FnMut(char) -> bool,
     {
         let mut eaten: usize = 0;
         let pos = self.position;
         let mut val = self.peek_char();
-        while predicate(val) && val != EOF_CHAR {
+        while predicate(val.front) && val.front != EOF {
             self.bump();
             eaten += 1;
             val = self.peek_char();
         }
-        (
-            eaten,
-            if val != EOF_CHAR {
-                &self.file_contents[pos..pos + eaten + 1]
-            } else {
-                &self.file_contents[pos..pos + eaten]
-            },
-        )
+        eaten
     }
 }

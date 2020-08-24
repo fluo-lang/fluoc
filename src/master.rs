@@ -1,10 +1,10 @@
-use crate::codegen::module_codegen::CodeGenModule;
+use crate::codegen::CodeGenModule;
 use crate::helpers;
-use crate::logger;
-use crate::logger::buffer_writer::color;
+use crate::logger::logger::{Logger, LoggerInner};
 use crate::paths;
+use crate::sourcemap::{SourceMap, SourceMapInner};
+use crate::logger::buffer_writer::{Font, Color};
 
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::fs;
@@ -22,23 +22,26 @@ use inkwell::targets::TargetMachine;
 
 pub struct Master<'a> {
     context: &'a Context,
-    pub logger: Rc<RefCell<logger::logger::Logger<'a>>>,
-    modules: HashMap<&'a path::Path, CodeGenModule<'a>>,
+    pub logger: Logger,
+    modules: HashMap<usize, CodeGenModule<'a>>,
+    sourcemap: SourceMap,
 }
 
 impl<'a> Master<'a> {
     pub fn new(context: &'a Context, verbose: bool) -> Master<'a> {
+        let sourcemap = SourceMapInner::new();
         Master {
             context,
             modules: HashMap::new(),
-            logger: Rc::new(RefCell::new(logger::logger::Logger::new(verbose))),
+            logger: LoggerInner::new(verbose, Rc::clone(&sourcemap)),
+            sourcemap,
         }
     }
 
     pub fn generate_file(
         &mut self,
-        filename: &'a path::Path,
-        file_contents: &'a str,
+        filename: path::PathBuf,
+        contents: String,
         output_file_ir: &'a path::Path,
         output_file_obj: &'a path::Path,
     ) {
@@ -49,33 +52,30 @@ impl<'a> Master<'a> {
         let default_triple = TargetMachine::get_default_triple();
         module.set_triple(&default_triple);
 
+        let filename_id = insert_file!(self.sourcemap, filename, contents);
+
         let mut code_gen_mod = CodeGenModule::new(
             module,
             self.context,
-            &filename,
-            file_contents,
+            Rc::clone(&self.sourcemap),
+            filename_id,
             Rc::clone(&self.logger),
             output_file_ir,
             output_file_obj,
         );
 
-        self.logger
-            .as_ref()
-            .borrow_mut()
-            .add_file(&filename, code_gen_mod.typecheck.parser.lexer.file_contents);
-
         helpers::error_or_other(code_gen_mod.generate(), Rc::clone(&self.logger));
 
-        self.modules.insert(&filename, code_gen_mod);
+        self.modules.insert(filename_id, code_gen_mod);
 
-        self.link_ir(&filename);
+        self.link_ir(filename_id);
 
         let pass_manager = self.init_passes();
-        pass_manager.run_on(&self.modules[filename].module);
+        pass_manager.run_on(&self.modules[&filename_id].module);
         //println!("{}", &self.modules[filename].module.print_to_string().to_str().unwrap());
-        
-        self.link_to_obj(&filename, self.modules[filename].module.print_to_string());
-        self.link_objs(&filename);
+
+        self.link_to_obj(filename_id, self.modules[&filename_id].module.print_to_string());
+        self.link_objs(filename_id);
     }
 
     fn init_passes(&self) -> PassManager<module::Module<'a>> {
@@ -95,9 +95,9 @@ impl<'a> Master<'a> {
         return fpm;
     }
 
-    fn link_ir(&self, filename: &'a path::Path) {
+    fn link_ir(&self, filename_id: usize) {
         let write_obj_start = Instant::now();
-        let module = self.modules.get(filename).unwrap();
+        let module = self.modules.get(&filename_id).unwrap();
 
         let mut core_loc: path::PathBuf = helpers::CORE_LOC.to_owned();
         core_loc.pop();
@@ -120,10 +120,14 @@ impl<'a> Master<'a> {
                         == OsStr::new("bc"))
             })
             .map(|obj_path| paths::pathbuf_to_string(obj_path.unwrap().path()))
-            {
-                let lib_module = inkwell::module::Module::parse_bitcode_from_path(path, self.context).expect("Library IR failed to convert");
-                module.module.link_in_module(lib_module).expect("Failed to link llvm ir");
-            }
+        {
+            let lib_module = inkwell::module::Module::parse_bitcode_from_path(path, self.context)
+                .expect("Library IR failed to convert");
+            module
+                .module
+                .link_in_module(lib_module)
+                .expect("Failed to link llvm ir");
+        }
 
         self.logger.borrow().log_verbose(&|| {
             format!(
@@ -133,9 +137,9 @@ impl<'a> Master<'a> {
         });
     }
 
-    fn link_to_obj(&self, filename: &'a path::Path, pipe: inkwell::support::LLVMString) {
+    fn link_to_obj(&self, filename_id: usize, pipe: inkwell::support::LLVMString) {
         let ir_to_asm = Instant::now();
-        let module = self.modules.get(filename).unwrap();
+        let module = self.modules.get(&filename_id).unwrap();
 
         match Command::new("llc")
             .args(&[
@@ -160,8 +164,8 @@ impl<'a> Master<'a> {
                     Err(e) => {
                         eprintln!(
                             "{}Error when turning LLVM into asm:{} {}",
-                            color::RED,
-                            color::RESET,
+                            Color::Red,
+                            Font::Reset,
                             e
                         );
                         process::exit(1);
@@ -171,8 +175,8 @@ impl<'a> Master<'a> {
             Err(e) => {
                 eprintln!(
                     "{}Error when turning LLVM into asm:{} {}",
-                    color::RED,
-                    color::RESET,
+                    Color::Red,
+                    Font::Reset,
                     e
                 );
                 process::exit(1);
@@ -187,10 +191,9 @@ impl<'a> Master<'a> {
         });
     }
 
-    fn link_objs(&self, filename: &'a path::Path) {
-        // DYLD_LIBRARY_PATH="$(rustc --print sysroot)/lib:$DYLD_LIBRARY_PATH" ./a.out
+    fn link_objs(&self, filename_id: usize) {
         let link_start = Instant::now();
-        let module = self.modules.get(filename).unwrap();
+        let module = self.modules.get(&filename_id).unwrap();
 
         let args = vec![
             paths::path_to_str(&module.output_obj).to_string(),
@@ -202,12 +205,12 @@ impl<'a> Master<'a> {
             Ok(mut child) => match child.wait() {
                 Ok(_) => {}
                 Err(e) => {
-                    eprintln!("{}Error when linking:{} {}", color::RED, color::RESET, e);
+                    eprintln!("{}Error when linking:{} {}", Color::Red, Font::Reset, e);
                     process::exit(1);
                 }
             },
             Err(e) => {
-                eprintln!("{}Error when linking:{} {}", color::RED, color::RESET, e);
+                eprintln!("{}Error when linking:{} {}", Color::Red, Font::Reset, e);
                 process::exit(1);
             }
         };
@@ -215,7 +218,7 @@ impl<'a> Master<'a> {
         self.logger.borrow().log_verbose(&|| {
             format!(
                 "Linker command invoked: {}`gcc {}`",
-                color::RESET,
+                Font::Reset,
                 args.join(" ")
             )
         });

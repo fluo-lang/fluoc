@@ -13,7 +13,7 @@ use std::rc::Rc;
 ///
 /// Used to keep track of all tokens and nodes.
 /// Note that there are no line numbers, a `\n` character counts as on character.
-pub struct Pos<'a> {
+pub struct Pos {
     /// Start position in characters
     pub s: usize,
 
@@ -21,12 +21,13 @@ pub struct Pos<'a> {
     pub e: usize,
 
     /// Filename of pos
-    pub filename: &'a path::Path,
+    /// The file comes from looking it up on the sourcemap
+    pub filename_id: usize,
 }
 
-impl<'a> Pos<'a> {
-    pub fn new(s: usize, e: usize, filename: &'a path::Path) -> Pos<'_> {
-        Pos { s, e, filename }
+impl Pos {
+    pub fn new(s: usize, e: usize, filename_id: usize) -> Pos {
+        Pos { s, e, filename_id }
     }
 
     pub fn to_tuple(&self) -> (usize, usize) {
@@ -34,7 +35,7 @@ impl<'a> Pos<'a> {
     }
 }
 
-pub fn get_high_priority<'a>(errors: Vec<(Error<'a>, ErrorLevel)>) -> Vec<Error<'a>> {
+pub fn get_high_priority<'a>(errors: Vec<(Error, ErrorLevel)>) -> Vec<Error> {
     // The different errors to have different priorities
     // We want to show the errors with the highest priority
     // Show all of the errors that have the the same priority
@@ -46,9 +47,9 @@ pub fn get_high_priority<'a>(errors: Vec<(Error<'a>, ErrorLevel)>) -> Vec<Error<
         .collect()
 }
 
-pub fn error_or_other<'a, T>(
-    value: Result<T, Vec<Error<'a>>>,
-    logger: Rc<RefCell<logger::logger::Logger<'a>>>,
+pub fn error_or_other<T>(
+    value: Result<T, Vec<Error>>,
+    logger: logger::logger::Logger,
 ) -> T {
     match value {
         Ok(val) => val,

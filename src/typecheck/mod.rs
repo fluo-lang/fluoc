@@ -1,5 +1,5 @@
-pub mod ast_typecheck;
-pub mod typecheck;
 pub mod context;
-pub use context::*;
-
+pub mod mir;
+pub mod types;
+pub mod typecheck_module;
+pub use typecheck_module::TypeCheckModule;

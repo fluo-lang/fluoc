@@ -41,7 +41,6 @@
 use crate::lexer::TokenType;
 use crate::logger::logger::ErrorOrVec;
 use crate::parser::ast;
-use crate::typecheck::{ ast_typecheck, context };
 
 use std::rc::Rc;
 
@@ -66,7 +65,7 @@ impl Node {
     }
 
     fn from_type<'a>(
-        namespace: &ast::Namespace<'a>,
+        namespace: &ast::Namespace,
         arguments: &ast_typecheck::ArgumentsTypeCheck<'a>,
         ret_type: &ast_typecheck::TypeCheckType<'a>,
     ) -> Node {
@@ -256,7 +255,7 @@ pub(crate) fn gen_mangled_args<'a, 'b>(
     Ok(format!("_A{}{}", mangled_args.len(), mangled_args))
 }
 
-impl<'a> TokenType<'a> {
+impl TokenType {
     pub(crate) fn mangle(&self) -> String {
         let mangled_op = match self {
             TokenType::SUB => "sub",
@@ -296,7 +295,7 @@ impl<'a> ast::Namespace<'a> {
         &self,
         types: &[&ast_typecheck::TypeCheckType<'a>],
         return_type: &ast_typecheck::TypeCheckType<'a>,
-        token: TokenType<'a>,
+        token: TokenType,
         context: &'b context::TypeCheckSymbTab<'a>,
     ) -> Result<String, ErrorOrVec<'a>> {
         let mut mangled = token.mangle();

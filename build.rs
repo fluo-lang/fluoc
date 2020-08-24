@@ -364,4 +364,3 @@ fn main() {
     generate_llvm!(core_path, llvm_context, Generator::generate_fmt, "fmt");
     generate_llvm!(core_path, llvm_context, Generator::generate_op, "op");
 }
-

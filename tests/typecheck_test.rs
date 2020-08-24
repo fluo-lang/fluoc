@@ -1,21 +1,38 @@
 #[cfg(test)]
 mod typecheck_tests {
-    use lib::logger::logger::{ ErrorType, Logger };
-    use lib::typecheck::typecheck::TypeCheckModule;
+    use lib::logger::logger::{ErrorType, LoggerInner};
+    use lib::typecheck::TypeCheckModule;
+    use lib::sourcemap::SourceMapInner;
+
     use std::path;
     use std::rc::Rc;
-    use std::cell::RefCell;
 
     macro_rules! assert_error {
         ($code: expr, $expected_error: expr, $name: ident) => {
             #[test]
             fn $name() {
-                let logger = Rc::new(RefCell::new(Logger::new(true)));
-                let filename = path::Path::new("this_is_another_filename_test.fl");
-                let mut typechecker = TypeCheckModule::new(filename, concat!("@[no_std]\n@[no_core]\n", $code), logger);
-                assert_eq!(typechecker.type_check().expect_err("Failed to typecheck").into_iter().map(|err| err.error).collect::<Vec<_>>(), $expected_error);
+                let filename = path::PathBuf::from("this_is_another_filename_test.fl");
+                let mut sourcemap = SourceMapInner::new();
+                let filename_id = sourcemap.borrow_mut().insert_file(filename, concat!("@[no_std]\n@[no_core]\n", $code).to_string());
+
+                let logger = LoggerInner::new(true, Rc::clone(&sourcemap));
+
+                let mut typechecker = TypeCheckModule::new(
+                    filename_id,
+                    logger,
+                    sourcemap,
+                );
+                assert_eq!(
+                    typechecker
+                        .type_check()
+                        .expect_err("Failed to typecheck")
+                        .into_iter()
+                        .map(|err| err.error)
+                        .collect::<Vec<_>>(),
+                    $expected_error
+                );
             }
-        }
+        };
     }
 
     assert_error!(
@@ -25,9 +42,8 @@ mod typecheck_tests {
         x = 0;
     }
     let y: int = x;
-}"#, 
+}"#,
         vec![ErrorType::PossibleUninitVal],
         if_cond_no_else
     );
 }
-

@@ -1,9 +1,13 @@
 use crate::helpers::Pos;
-use crate::logger::buffer_writer::{color, Buffer, Color, Font, Style};
+use crate::logger::buffer_writer::{Buffer, Color, Font, Style};
 
+use std::cell::RefCell;
 use std::cmp::{max, Reverse};
 use std::collections::{hash_map::Entry, HashMap, HashSet};
 use std::path;
+use std::rc::Rc;
+
+use crate::sourcemap::SourceMap;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 /// An error type, i.e `Syntax` error or `UnexpectedToken` error
@@ -85,17 +89,18 @@ impl ErrorDisplayType {
 
     fn get_color(self) -> &'static str {
         match self {
-            ErrorDisplayType::Error => color::RED,
-            ErrorDisplayType::Warning => color::YELLOW,
-            ErrorDisplayType::Info => color::BLUE,
+            ErrorDisplayType::Error => Color::Red,
+            ErrorDisplayType::Warning => Color::Yellow,
+            ErrorDisplayType::Info => Color::Blue,
         }
+        .as_str()
     }
 
     fn get_color_class(self) -> Color {
         match self {
-            ErrorDisplayType::Error => Color::RED,
-            ErrorDisplayType::Warning => Color::YELLOW,
-            ErrorDisplayType::Info => Color::BLUE,
+            ErrorDisplayType::Error => Color::Red,
+            ErrorDisplayType::Warning => Color::Yellow,
+            ErrorDisplayType::Info => Color::Blue,
         }
     }
 }
@@ -112,27 +117,27 @@ pub enum ErrorLevel {
 }
 
 #[derive(Debug, Clone)]
-pub enum ErrorOrVec<'a> {
-    Error(Error<'a>, ErrorLevel),
-    ErrorVec(Vec<(Error<'a>, ErrorLevel)>),
+pub enum ErrorOrVec {
+    Error(Error, ErrorLevel),
+    ErrorVec(Vec<(Error, ErrorLevel)>),
 }
 
-impl<'a> ErrorOrVec<'a> {
-    pub fn unwrap_error(self) -> (Error<'a>, ErrorLevel) {
+impl ErrorOrVec {
+    pub fn unwrap_error(self) -> (Error, ErrorLevel) {
         match self {
             ErrorOrVec::Error(e, level) => (e, level),
             ErrorOrVec::ErrorVec(_) => panic!("Tried to unwrap ErrorVec value"),
         }
     }
 
-    pub fn unwrap_vec(self) -> Vec<(Error<'a>, ErrorLevel)> {
+    pub fn unwrap_vec(self) -> Vec<(Error, ErrorLevel)> {
         match self {
             ErrorOrVec::Error(_, _) => panic!("Tried to unwrap Error value"),
             ErrorOrVec::ErrorVec(e) => e,
         }
     }
 
-    pub fn as_vec(self) -> Vec<(Error<'a>, ErrorLevel)> {
+    pub fn as_vec(self) -> Vec<(Error, ErrorLevel)> {
         match self {
             ErrorOrVec::Error(e, level) => vec![(e, level)],
             ErrorOrVec::ErrorVec(e) => e,
@@ -142,18 +147,18 @@ impl<'a> ErrorOrVec<'a> {
 
 #[derive(Debug, Clone)]
 /// Underlines and such
-pub struct ErrorAnnotation<'a> {
+pub struct ErrorAnnotation {
     /// Error message
     message: Option<String>,
     /// Error position
-    position: Pos<'a>,
+    position: Pos,
     /// Error display mode
     mode: ErrorDisplayType,
     /// Position
     position_rel: ((usize, usize), (usize, usize)),
 }
 
-impl<'a> ErrorAnnotation<'a> {
+impl ErrorAnnotation {
     /// Returns an error annotation
     ///
     /// Arguments
@@ -162,11 +167,7 @@ impl<'a> ErrorAnnotation<'a> {
     /// * `position`: position of error
     /// * `mode`: mode of error report
     /// * `filename`: filename of annotation
-    pub fn new(
-        message: Option<String>,
-        position: Pos<'a>,
-        mode: ErrorDisplayType,
-    ) -> ErrorAnnotation<'a> {
+    pub fn new(message: Option<String>, position: Pos, mode: ErrorDisplayType) -> ErrorAnnotation {
         ErrorAnnotation {
             message,
             position,
@@ -182,22 +183,22 @@ impl<'a> ErrorAnnotation<'a> {
 
 #[derive(Debug, Clone)]
 /// An full on error containing useful info.
-pub struct Error<'a> {
+pub struct Error {
     /// Error message
     message: String,
     /// Error type
     pub error: ErrorType,
     /// Error position
-    pub position: Pos<'a>,
+    pub position: Pos,
     /// Error display mode
     mode: ErrorDisplayType,
     /// Annotations
-    pub annotations: Vec<ErrorAnnotation<'a>>,
+    pub annotations: Vec<ErrorAnnotation>,
     /// Urgent error: raise even if another function parses further
     pub urgent: bool,
 }
 
-impl Error<'_> {
+impl Error {
     /// Returns an error object
     ///
     /// # Arguments
@@ -210,11 +211,11 @@ impl Error<'_> {
     pub fn new<'a, 'b>(
         message: String,
         error: ErrorType,
-        position: Pos<'a>,
+        position: Pos,
         mode: ErrorDisplayType,
-        annotations: Vec<ErrorAnnotation<'a>>,
+        annotations: Vec<ErrorAnnotation>,
         urgent: bool,
-    ) -> Error<'a> {
+    ) -> Error {
         Error {
             message,
             error,
@@ -230,53 +231,48 @@ impl Error<'_> {
     }
 }
 
+pub type Logger = Rc<RefCell<LoggerInner>>;
+
 #[derive(Clone)]
 /// Logger object for one file
-pub struct Logger<'a> {
+pub struct LoggerInner {
     /// Vector of errors
-    errors: Vec<Error<'a>>,
-    /// Filename + file contents the logger serves
-    pub filename_contents: HashMap<&'a path::Path, &'a str>,
+    errors: Vec<Error>,
     /// Amount of indentation used for error
     indentation: String,
     /// Buffer object
     buffer: Buffer,
     verbose: bool,
+    sourcemap: SourceMap,
+
+    printed_lines: HashMap<usize, HashSet<usize>>,
 }
 
-impl<'a> Logger<'a> {
-    pub fn new(verbose: bool) -> Logger<'a> {
-        Logger {
+impl LoggerInner {
+    pub fn new(verbose: bool, sourcemap: SourceMap) -> Logger {
+        Rc::new(RefCell::new(LoggerInner {
             errors: Vec::new(),
-            filename_contents: HashMap::new(),
             indentation: "  ".to_string(),
             buffer: Buffer::new(),
             verbose,
-        }
-    }
+            sourcemap,
 
-    /// Adds a file to the logger hash map
-    ///
-    /// Arguments
-    ///
-    /// * `filename`: filename of the file
-    /// * `file_contents`: contents of the file
-    pub fn add_file(&mut self, filename: &'a path::Path, file_contents: &'a str) {
-        self.filename_contents.insert(filename, file_contents);
+            printed_lines: HashMap::new(),
+        }))
     }
 
     /// Pushes an error onto the error vector.
-    pub fn error(&mut self, error: Error<'a>) {
+    pub fn error(&mut self, error: Error) {
         self.errors.push(error);
     }
 
     pub fn log(&self, logged_val: String) {
         println!(
             "{}> {}{}{}",
-            color::CYAN,
-            color::GREEN,
+            Color::Cyan,
+            Color::Green,
             logged_val,
-            color::RESET
+            Font::Reset
         );
     }
 
@@ -284,18 +280,18 @@ impl<'a> Logger<'a> {
         if self.verbose {
             println!(
                 "{}> {}{}{}",
-                color::CYAN,
-                color::GREEN,
+                Color::Cyan,
+                Color::Green,
                 logged_val(),
-                color::RESET
+                Font::Reset
             );
         }
     }
 
-    fn get_lineno(&mut self, pos: usize, filename: &'a path::Path) -> (usize, usize) {
+    fn get_lineno<'a>(&mut self, pos: usize, filename: usize) -> (usize, usize) {
         let mut lineno = 1;
         let mut relative_pos = 1;
-        for c in (&self.filename_contents[filename][..pos]).chars() {
+        for c in (&get_file!(self.sourcemap, filename)[..pos]).chars() {
             relative_pos += 1;
             if c == '\n' {
                 lineno += 1;
@@ -306,7 +302,7 @@ impl<'a> Logger<'a> {
         (lineno, relative_pos)
     }
 
-    fn get_max_line_size(&mut self, errors: &[ErrorAnnotation<'_>]) -> usize {
+    fn get_max_line_size(&mut self, errors: &[ErrorAnnotation]) -> usize {
         let mut max_line_size = 0;
         for error in errors {
             let temp = (error.position_rel.1)
@@ -326,7 +322,7 @@ impl<'a> Logger<'a> {
         &mut self,
         ln: usize,
         max_line_size: usize,
-        vertical_annotations: &HashMap<usize, ErrorAnnotation<'_>>,
+        vertical_annotations: &HashMap<usize, ErrorAnnotation>,
         lineno: usize,
         end: bool,
     ) -> (usize, usize) {
@@ -338,10 +334,10 @@ impl<'a> Logger<'a> {
             ln,
             max_line_size + self.indentation.len() * 2,
             "|",
-            Style::new(Some(Color::LINENOCOLOR), Some(Font::BOLD)),
+            Style::new(Some(Color::LinenoColor), Some(Font::Bold)),
         );
 
-        let mut vertical_annotations: Vec<(&usize, &ErrorAnnotation<'_>)> =
+        let mut vertical_annotations: Vec<(&usize, &ErrorAnnotation)> =
             vertical_annotations.iter().collect();
         vertical_annotations.sort_by_key(|a| Reverse(a.0));
         let mut span_no = 0;
@@ -354,7 +350,7 @@ impl<'a> Logger<'a> {
                     ln,
                     temp_pos.1 + span_no,
                     "|",
-                    Style::new(Some(annotation.mode.get_color_class()), Some(Font::BOLD)),
+                    Style::new(Some(annotation.mode.get_color_class()), Some(Font::Bold)),
                 );
                 span_no += 1;
             }
@@ -367,7 +363,7 @@ impl<'a> Logger<'a> {
             ln,
             max_line_size + self.indentation.len() * 2,
             "|",
-            Style::new(Some(Color::LINENOCOLOR), Some(Font::BOLD)),
+            Style::new(Some(Color::LinenoColor), Some(Font::Bold)),
         )
     }
 
@@ -376,12 +372,12 @@ impl<'a> Logger<'a> {
             ln - 1,
             self.indentation.len() + max_line_size + 1 - line_no.to_string().len(),
             &format!("{}", line_no),
-            Style::new(Some(Color::LINENOCOLOR), Some(Font::BOLD)),
+            Style::new(Some(Color::LinenoColor), Some(Font::Bold)),
         );
     }
 
-    fn get_line_string(&mut self, ln: usize, filename: &'a path::Path) -> String {
-        self.filename_contents[filename]
+    fn get_line_string<'a>(&mut self, ln: usize, filename: usize) -> String {
+        get_file!(self.sourcemap, filename)
             .split('\n')
             .nth(ln - 1)
             .unwrap()
@@ -399,8 +395,8 @@ impl<'a> Logger<'a> {
         (b_start..b_end + extra).contains(&a_start) || (a_start..a_end + extra).contains(&b_start)
     }
 
-    fn overlaps(a1: &ErrorAnnotation<'_>, a2: &ErrorAnnotation<'_>, padding: usize) -> bool {
-        Logger::num_overlap(
+    fn overlaps(a1: &ErrorAnnotation, a2: &ErrorAnnotation, padding: usize) -> bool {
+        Self::num_overlap(
             a1.position.s,
             a1.position.e + padding,
             a2.position.s,
@@ -412,10 +408,10 @@ impl<'a> Logger<'a> {
     fn draw_last_multiline(
         &mut self,
         writer_pos: &mut (usize, usize),
-        annotation: &ErrorAnnotation<'_>,
+        annotation: &ErrorAnnotation,
         max_line_size: usize,
         line_offset: &mut usize,
-        vertical_annotations: &HashMap<usize, ErrorAnnotation<'_>>,
+        vertical_annotations: &HashMap<usize, ErrorAnnotation>,
         lineno: usize,
         span_width: usize,
         span_number: usize,
@@ -427,7 +423,7 @@ impl<'a> Logger<'a> {
             writer_pos.0 - 1,
             max_line_size + self.indentation.len() + 4 + span_width - span_number,
             &format!("|{}", "_".repeat(repeat - 1)),
-            Style::new(Some(annotation.mode.get_color_class()), Some(Font::BOLD)),
+            Style::new(Some(annotation.mode.get_color_class()), Some(Font::Bold)),
         );
 
         *writer_pos = self.buffer.writel(
@@ -437,14 +433,14 @@ impl<'a> Logger<'a> {
                 .mode
                 .get_underline()
                 .repeat((annotation.position_rel.1).1 - 1),
-            Style::new(Some(annotation.mode.get_color_class()), Some(Font::BOLD)),
+            Style::new(Some(annotation.mode.get_color_class()), Some(Font::Bold)),
         );
 
         *writer_pos = self.buffer.writel(
             writer_pos.0 - 1,
             writer_pos.1,
             &annotation.message.as_ref().unwrap_or(&"".to_string()),
-            Style::new(Some(annotation.mode.get_color_class()), Some(Font::BOLD)),
+            Style::new(Some(annotation.mode.get_color_class()), Some(Font::Bold)),
         );
 
         writer_pos.0 += 1;
@@ -465,18 +461,17 @@ impl<'a> Logger<'a> {
         *line_offset += 2;
     }
 
-    fn draw_line(
+    fn draw_line<'a>(
         &mut self,
         writer_pos: &mut (usize, usize),
-        annotation: &&ErrorAnnotation<'a>,
+        annotation: &&ErrorAnnotation,
         max_line_size: usize,
         span_thickness: usize,
-        lineno: (usize, &'a path::Path),
-        prev_line: &mut (usize, Option<&'a path::Path>),
-        printed_lines: &mut HashMap<&'a path::Path, HashSet<usize>>,
+        lineno: (usize, usize),
+        prev_line: &mut (usize, Option<usize>),
         first: bool,
         line_offset: &mut usize,
-        vertical_annotations: &HashMap<usize, ErrorAnnotation<'a>>,
+        vertical_annotations: &HashMap<usize, ErrorAnnotation>,
     ) {
         // Add pipe on the left
         *writer_pos = self.add_pipe(
@@ -488,7 +483,7 @@ impl<'a> Logger<'a> {
         );
 
         writer_pos.1 += 1; // add two proceeding spaces
-        let line = self.get_line_string(lineno.0, annotation.position.filename); // get line of code
+        let line = self.get_line_string(lineno.0, annotation.position.filename_id); // get line of code
 
         if !first && (Some(lineno.1) != prev_line.1) {
             // Add a line arrow if its a different file
@@ -507,13 +502,13 @@ impl<'a> Logger<'a> {
                 writer_pos.0 - 2,
                 max_line_size + self.indentation.len() - 1,
                 "...",
-                Style::new(Some(Color::BLUE), None),
+                Style::new(Some(Color::Blue), None),
             );
             self.buffer.writech(
                 writer_pos.0 - 2,
                 max_line_size + self.indentation.len() + 2,
                 ' ',
-                Style::new(Some(Color::BLUE), None),
+                Style::new(Some(Color::Blue), None),
             );
         }
 
@@ -537,15 +532,19 @@ impl<'a> Logger<'a> {
         *line_offset += 1;
 
         // remember we did this, so we don't need to do it again
-        if printed_lines.contains_key(annotation.position.filename) {
-            printed_lines
-                .get_mut(annotation.position.filename)
+        if self
+            .printed_lines
+            .contains_key(&annotation.position.filename_id)
+        {
+            self.printed_lines
+                .get_mut(&annotation.position.filename_id)
                 .unwrap()
                 .insert(lineno.0);
         } else {
             let mut lines: HashSet<usize> = HashSet::new();
             lines.insert(lineno.0);
-            printed_lines.insert(annotation.position.filename, lines);
+            self.printed_lines
+                .insert(annotation.position.filename_id, lines);
         }
 
         // Store previous line
@@ -554,15 +553,14 @@ impl<'a> Logger<'a> {
 
     fn format_line(
         &mut self,
-        mut annotations: Vec<ErrorAnnotation<'a>>,
+        mut annotations: Vec<ErrorAnnotation>,
         writer_pos: &mut (usize, usize),
         span_thickness: usize,
         max_line_size: usize,
     ) {
-        let mut printed_lines: HashMap<&path::Path, HashSet<usize>> = HashMap::new();
         let start_line = writer_pos.0 + 1;
-        let mut annotations_by_line: Vec<Vec<ErrorAnnotation<'_>>> = Vec::new();
-        let mut temp: Vec<ErrorAnnotation<'_>> = Vec::new();
+        let mut annotations_by_line: Vec<Vec<ErrorAnnotation>> = Vec::new();
+        let mut temp: Vec<ErrorAnnotation> = Vec::new();
         let mut first = true;
 
         annotations.sort_by_key(|x| (x.position_rel.0).0);
@@ -582,10 +580,10 @@ impl<'a> Logger<'a> {
         annotations_by_line.push(temp.clone());
         temp.clear();
         let mut line_offset: usize = 0;
-        let mut prev_line: (usize, Option<&path::Path>) = (0, None);
+        let mut prev_line: (usize, Option<usize>) = (0, None);
         let mut prev_line_2: usize = 0;
         let mut first = true;
-        let mut vertical_annotations: HashMap<usize, ErrorAnnotation<'_>> = HashMap::new(); // for last part of multi-line block annotation
+        let mut vertical_annotations: HashMap<usize, ErrorAnnotation> = HashMap::new(); // for last part of multi-line block annotation
         let mut span_no = 0;
 
         let first_val = annotations_by_line.first().unwrap().first().unwrap();
@@ -593,7 +591,7 @@ impl<'a> Logger<'a> {
         writer_pos.1 = max_line_size;
         // Add filename + position annotation
         *writer_pos = self.add_filename_pos(
-            first_val.position.filename,
+            first_val.position.filename_id,
             &first_val.position_rel,
             max_line_size,
             writer_pos,
@@ -612,7 +610,7 @@ impl<'a> Logger<'a> {
             let mut line_len = 0;
             for (i, annotation) in annotations.iter().enumerate() {
                 for (j, next) in annotations.iter().enumerate() {
-                    if Logger::overlaps(next, annotation, 0)
+                    if Self::overlaps(next, annotation, 0)
                         && annotation.has_label()
                         && j > i
                         && p == 0
@@ -624,7 +622,7 @@ impl<'a> Logger<'a> {
                             continue;
                         }
 
-                        // This annotation needs a new line in the output.
+                        // This annotation needs a new line in the output
                         p += 1;
                         break;
                     }
@@ -634,13 +632,13 @@ impl<'a> Logger<'a> {
                 for (j, next) in annotations.iter().enumerate() {
                     if j > i {
                         let l = next.message.as_ref().map_or(0, |label| label.len() + 2);
-                        if Logger::overlaps(next, annotation, l)
+                        if Self::overlaps(next, annotation, l)
                             && annotation.has_label()
                             && next.has_label()
                             || (self.is_multiline(annotation) && next.has_label())
                             || (annotation.has_label() && self.is_multiline(next))
                             || (self.is_multiline(annotation) && self.is_multiline(next))
-                            || (Logger::overlaps(next, annotation, l)
+                            || (Self::overlaps(next, annotation, l)
                                 && next.position.e <= annotation.position.e
                                 && next.has_label()
                                 && p == 0)
@@ -660,9 +658,12 @@ impl<'a> Logger<'a> {
                     writer_pos.1 = 0;
 
                     // Draw line
-                    if !(printed_lines.contains_key(annotation.position.filename)
-                        && printed_lines
-                            .get(annotation.position.filename)
+                    if !(self
+                        .printed_lines
+                        .contains_key(&annotation.position.filename_id)
+                        && self
+                            .printed_lines
+                            .get(&annotation.position.filename_id)
                             .unwrap_or(&HashSet::new())
                             .contains(&lineno))
                     {
@@ -671,9 +672,8 @@ impl<'a> Logger<'a> {
                             annotation,
                             max_line_size,
                             span_thickness,
-                            (lineno, annotation.position.filename),
+                            (lineno, annotation.position.filename_id),
                             &mut prev_line,
-                            &mut printed_lines,
                             first,
                             &mut line_offset,
                             &vertical_annotations,
@@ -720,7 +720,7 @@ impl<'a> Logger<'a> {
                                 ),
                                 Style::new(
                                     Some(annotation.mode.get_color_class()),
-                                    Some(Font::BOLD),
+                                    Some(Font::Bold),
                                 ),
                             );
                             if vertical_pos == &0 {
@@ -730,7 +730,7 @@ impl<'a> Logger<'a> {
                                     &annotation.message.as_ref().unwrap_or(&"".to_string()),
                                     Style::new(
                                         Some(annotation.mode.get_color_class()),
-                                        Some(Font::BOLD),
+                                        Some(Font::Bold),
                                     ),
                                 );
                             } else {
@@ -759,7 +759,7 @@ impl<'a> Logger<'a> {
                                     &annotation.message.as_ref().unwrap_or(&"".to_string()),
                                     Style::new(
                                         Some(annotation.mode.get_color_class()),
-                                        Some(Font::BOLD),
+                                        Some(Font::Bold),
                                     ),
                                 );
                             }
@@ -844,7 +844,7 @@ impl<'a> Logger<'a> {
                                             annotation.mode.get_underline(),
                                             Style::new(
                                                 Some(annotation.mode.get_color_class()),
-                                                Some(Font::BOLD),
+                                                Some(Font::Bold),
                                             ),
                                         );
                                         writer_pos.0 += 1;
@@ -862,7 +862,7 @@ impl<'a> Logger<'a> {
                                             ),
                                             Style::new(
                                                 Some(annotation.mode.get_color_class()),
-                                                Some(Font::BOLD),
+                                                Some(Font::Bold),
                                             ),
                                         );
 
@@ -876,7 +876,7 @@ impl<'a> Logger<'a> {
                                                 '|',
                                                 Style::new(
                                                     Some(annotation.mode.get_color_class()),
-                                                    Some(Font::BOLD),
+                                                    Some(Font::Bold),
                                                 ),
                                             );
                                         }
@@ -908,7 +908,7 @@ impl<'a> Logger<'a> {
                                             '/',
                                             Style::new(
                                                 Some(annotation.mode.get_color_class()),
-                                                Some(Font::BOLD),
+                                                Some(Font::Bold),
                                             ),
                                         );
                                     }
@@ -932,7 +932,7 @@ impl<'a> Logger<'a> {
                                             "|",
                                             Style::new(
                                                 Some(annotation.mode.get_color_class()),
-                                                Some(Font::BOLD),
+                                                Some(Font::Bold),
                                             ),
                                         );
                                         writer_pos.0 += 1
@@ -948,7 +948,7 @@ impl<'a> Logger<'a> {
                                         ),
                                         Style::new(
                                             Some(annotation.mode.get_color_class()),
-                                            Some(Font::BOLD),
+                                            Some(Font::Bold),
                                         ),
                                     );
 
@@ -962,7 +962,7 @@ impl<'a> Logger<'a> {
                                             '|',
                                             Style::new(
                                                 Some(annotation.mode.get_color_class()),
-                                                Some(Font::BOLD),
+                                                Some(Font::Bold),
                                             ),
                                         );
                                     }
@@ -1004,7 +1004,7 @@ impl<'a> Logger<'a> {
                                     '|',
                                     Style::new(
                                         Some(annotation.mode.get_color_class()),
-                                        Some(Font::BOLD),
+                                        Some(Font::Bold),
                                     ),
                                 );
                                 writer_pos.0 += 1;
@@ -1020,7 +1020,7 @@ impl<'a> Logger<'a> {
         }
         if !vertical_annotations.is_empty() {
             // Fill in last multiline annotations
-            let mut vertical_annotations_sorted: Vec<(usize, ErrorAnnotation<'_>)> =
+            let mut vertical_annotations_sorted: Vec<(usize, ErrorAnnotation)> =
                 vertical_annotations.clone().into_iter().collect();
             vertical_annotations_sorted.sort_by_key(|a| a.0);
             span_no = 1;
@@ -1031,9 +1031,8 @@ impl<'a> Logger<'a> {
                     &&annotation,
                     max_line_size,
                     span_thickness,
-                    (lineno, annotation.position.filename),
+                    (lineno, annotation.position.filename_id),
                     &mut prev_line,
-                    &mut printed_lines,
                     first,
                     &mut line_offset,
                     &vertical_annotations,
@@ -1064,9 +1063,9 @@ impl<'a> Logger<'a> {
         writer_pos.0 += 1;
     }
 
-    fn add_filename_pos(
+    fn add_filename_pos<'a>(
         &mut self,
-        filename: &'a path::Path,
+        filename: usize,
         position: &((usize, usize), (usize, usize)),
         max_line_size: usize,
         writer_pos: &mut (usize, usize),
@@ -1081,16 +1080,19 @@ impl<'a> Logger<'a> {
             writer_pos.0 - 1,
             writer_pos.1 + max_line_size + self.indentation.len(),
             "--> ",
-            Style::new(Some(Color::LINENOCOLOR), Some(Font::BOLD)),
+            Style::new(Some(Color::LinenoColor), Some(Font::Bold)),
         );
+
+        let sourcemap_borrowed = self.sourcemap.borrow();
+        let original_path = sourcemap_borrowed.get_filename(filename);
         self.buffer.writeln(
             writer_pos.0 - 1,
             writer_pos.1 - 1,
             &format!(
                 "{}:{}:{}",
-                &filename
+                original_path
                     .strip_prefix(std::env::current_dir().unwrap_or(path::PathBuf::new()))
-                    .unwrap_or(filename)
+                    .unwrap_or(original_path)
                     .display(),
                 (position.0).0,
                 (position.0).1
@@ -1099,11 +1101,11 @@ impl<'a> Logger<'a> {
         )
     }
 
-    fn is_multiline(&mut self, annotation: &ErrorAnnotation<'_>) -> bool {
+    fn is_multiline(&mut self, annotation: &ErrorAnnotation) -> bool {
         (annotation.position_rel.0).0 != (annotation.position_rel.1).0
     }
 
-    fn get_code(&mut self, error: Error<'a>) {
+    fn get_code(&mut self, error: Error) {
         let mut annotations = error.annotations;
         let max_line_size: usize = self.get_max_line_size(&annotations);
 
@@ -1111,17 +1113,17 @@ impl<'a> Logger<'a> {
 
         for mut annotation in &mut annotations {
             annotation.position_rel = (
-                self.get_lineno(annotation.position.s, annotation.position.filename),
-                self.get_lineno(annotation.position.e, annotation.position.filename),
+                self.get_lineno(annotation.position.s, annotation.position.filename_id),
+                self.get_lineno(annotation.position.e, annotation.position.filename_id),
             );
         }
 
-        let mut annotations_filtered: HashMap<&path::Path, (usize, Vec<ErrorAnnotation<'_>>)> =
+        let mut annotations_filtered: HashMap<usize, (usize, Vec<ErrorAnnotation>)> =
             HashMap::new(); // Usize is span thickness
 
         // Filter so that each annotation in each file is together
         for annotation in annotations.into_iter() {
-            match annotations_filtered.entry(annotation.position.filename) {
+            match annotations_filtered.entry(annotation.position.filename_id) {
                 Entry::Occupied(mut val) => {
                     if self.is_multiline(&annotation) {
                         val.get_mut().0 += 1
@@ -1142,20 +1144,20 @@ impl<'a> Logger<'a> {
         }
     }
 
-    fn raise_type(&mut self, errors: Vec<Error<'a>>, message_type: ErrorDisplayType) {
+    fn raise_type(&mut self, errors: Vec<Error>, message_type: ErrorDisplayType) {
         let display = !errors.is_empty();
         let length = errors.len();
         for error in errors {
             eprintln!(
                 "{}{}{}{}{}: {}{}{}",
                 self.indentation,
-                color::BOLD,
+                Font::Bold,
                 message_type.get_color(),
                 error.error.as_str(),
-                color::RESET,
-                color::BOLD,
+                Font::Reset,
+                Font::Bold,
                 error.message,
-                color::RESET
+                Font::Reset
             );
             self.get_code(error);
             eprintln!("{}", self.buffer.render());
@@ -1166,25 +1168,23 @@ impl<'a> Logger<'a> {
                 "{}{}{}{}{} {} Detected{}\n",
                 self.indentation,
                 message_type.get_color(),
-                color::UNDERLINE,
-                color::BOLD,
+                Font::Underline,
+                Font::Bold,
                 length,
                 if length == 1 {
                     message_type.singular()
                 } else {
                     message_type.plural()
                 },
-                color::RESET
+                Font::Reset
             );
-        } else {
-            return;
         }
     }
 
     /// Raises all the errors on the error vector.
     /// Note: doesn't exit out of the program.
     pub fn raise(&mut self) {
-        let warnings: Vec<Error<'_>> = self
+        let warnings: Vec<Error> = self
             .errors
             .iter()
             .cloned()
@@ -1199,7 +1199,7 @@ impl<'a> Logger<'a> {
 
         self.raise_type(warnings, ErrorDisplayType::Warning);
 
-        let errors: Vec<Error<'_>> = self
+        let errors: Vec<Error> = self
             .errors
             .iter()
             .cloned()
@@ -1217,7 +1217,7 @@ impl<'a> Logger<'a> {
 
     /// Static method for error that parses the furthest.
     /// Useful when you have multiple errors and want to know which one is the most accurate.
-    pub fn longest(errors: Vec<Error<'a>>) -> Error<'a> {
+    pub fn longest(errors: Vec<Error>) -> Error {
         let mut errors = errors;
         errors.sort_by_key(|x| {
             (

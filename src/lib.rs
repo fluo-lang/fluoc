@@ -2,13 +2,16 @@
 #[macro_use]
 extern crate lazy_static;
 
+#[macro_use]
+pub mod sourcemap;
+
 pub mod codegen;
-pub mod fluo_core;
-pub mod fluo_std;
 pub mod helpers;
 pub mod lexer;
 pub mod logger;
-pub mod mangle;
+//pub mod mangle;
 pub mod parser;
 pub mod paths;
 pub mod typecheck;
+pub mod segmentation;
+pub mod tags;

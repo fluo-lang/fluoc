@@ -1,4 +1,4 @@
-use crate::logger::buffer_writer::color;
+use crate::logger::buffer_writer::{Font, Color};
 
 use std::fs;
 use std::path;
@@ -7,13 +7,13 @@ use std::process;
 pub fn file_error(message: impl std::fmt::Display, filename: impl std::fmt::Display) -> ! {
     eprintln!(
         "{}{}Fluo: Fatal Error{}{}: {}: {}{}",
-        color::RED,
-        color::BOLD,
-        color::RESET,
-        color::BOLD,
+        Color::Red,
+        Font::Bold,
+        Font::Reset,
+        Font::Bold,
         message,
         filename,
-        color::RESET
+        Font::Reset
     );
     process::exit(1);
 }
