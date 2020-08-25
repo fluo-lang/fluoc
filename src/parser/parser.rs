@@ -1166,16 +1166,16 @@ impl Parser {
 
         run_all! {
             self,
-            Parser::variable_assign_full,
             Parser::number_type,
             Parser::integer,
             Parser::string_literal,
-            Parser::dollar_expr,
+            Parser::bool_expr,
             Parser::function_call,
+            Parser::variable_assign_full,
             Parser::variable_assign,
-            Parser::ref_expr,
             Parser::tuple_expr,
-            Parser::bool_expr
+            Parser::dollar_expr,
+            Parser::ref_expr
         }
 
         if let lexer::TokenType::LP = self.forward().token {
