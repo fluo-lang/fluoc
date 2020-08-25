@@ -1,7 +1,7 @@
 use super::context::Context;
 use super::types;
 
-use crate::logger::Error;
+use crate::logger::ErrorValue;
 use crate::helpers;
 use crate::parser::ast::LiteralType;
 
@@ -33,7 +33,7 @@ impl MirExpr {
         &self,
         context: &mut Context,
         expected_value: Option<types::MirType>,
-    ) -> Result<types::MirType, Error> {
+    ) -> Result<types::MirType, ErrorValue> {
         panic!();
     }
 }
@@ -43,7 +43,7 @@ pub enum MirStmt {
 }
 
 impl MirStmt {
-    fn typecheck(&self, context: &mut Context) -> Result<(), Error> {
+    fn typecheck(&self, context: &mut Context) -> Result<(), ErrorValue> {
         panic!();
     }
 }

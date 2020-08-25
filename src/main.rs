@@ -24,7 +24,7 @@ extern crate clap;
 use clap::App;
 use inkwell::context::Context;
 
-use logger::buffer_writer::{Color, Font};
+use logger::{Color, Font};
 
 use std::backtrace;
 use std::panic;

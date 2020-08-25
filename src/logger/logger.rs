@@ -1,5 +1,5 @@
-use crate::helpers::Pos;
-use crate::logger::buffer_writer::{Buffer, Color, Font, Style};
+use super::buffer_writer::{Style, Buffer};
+use super::{Color, Font, ErrorValue, ErrorAnnotation, ErrorDisplayType};
 
 use std::cell::RefCell;
 use std::cmp::{max, Reverse};
@@ -9,235 +9,13 @@ use std::rc::Rc;
 
 use crate::sourcemap::SourceMap;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-/// An error type, i.e `Syntax` error or `UnexpectedToken` error
-pub enum ErrorType {
-    Syntax,
-    UnexpectedToken,
-    UnterminatedString,
-    UnknownCharacter,
-    UndefinedSyntax,
-    SyntaxTypeError,
-    UndefinedTypeError,
-    TypeMismatch,
-    UndefinedSymbol,
-    TypeCastError,
-    PossibleUninitVal,
-    ScopeError,
-    InferError,
-    VisibilityError,
-    ImportError,
-}
-
-impl ErrorType {
-    fn as_str(&self) -> &str {
-        match *self {
-            ErrorType::Syntax => "syntax_error",
-            ErrorType::UnexpectedToken => "unexpected_token",
-            ErrorType::UnterminatedString => "unterminated_string",
-            ErrorType::UnknownCharacter => "unknown_character",
-            ErrorType::UndefinedSyntax => "undefined_syntax",
-            ErrorType::SyntaxTypeError => "syntax_type",
-            ErrorType::UndefinedTypeError => "undefined_type",
-            ErrorType::TypeMismatch => "type_mismatch",
-            ErrorType::UndefinedSymbol => "undefined_symbol",
-            ErrorType::TypeCastError => "type_case",
-            ErrorType::PossibleUninitVal => "possible_initialized",
-            ErrorType::VisibilityError => "visibility_error",
-            ErrorType::ImportError => "import_error",
-            ErrorType::InferError => "infer_error",
-            ErrorType::ScopeError => "scope_error",
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-/// Error display mode
-pub enum ErrorDisplayType {
-    /// "Error" mode, make underline red and text red
-    Error,
-    /// "Warning" mode, make underline yellow and text yellow
-    Warning,
-    /// "Info" mode, make underline Blue and text blue
-    Info,
-}
-
-impl ErrorDisplayType {
-    fn plural(&self) -> &str {
-        match self {
-            ErrorDisplayType::Error => "Errors",
-            ErrorDisplayType::Warning => "Warnings",
-            _ => "Errors",
-        }
-    }
-
-    fn singular(&self) -> &str {
-        match self {
-            ErrorDisplayType::Error => "Error",
-            ErrorDisplayType::Warning => "Warning",
-            _ => "Error",
-        }
-    }
-
-    fn get_underline(&self) -> &str {
-        match self {
-            ErrorDisplayType::Error => "^",
-            ErrorDisplayType::Warning => "~",
-            ErrorDisplayType::Info => "-",
-        }
-    }
-
-    fn get_color(self) -> &'static str {
-        match self {
-            ErrorDisplayType::Error => Color::Red,
-            ErrorDisplayType::Warning => Color::Yellow,
-            ErrorDisplayType::Info => Color::Blue,
-        }
-        .as_str()
-    }
-
-    fn get_color_class(self) -> Color {
-        match self {
-            ErrorDisplayType::Error => Color::Red,
-            ErrorDisplayType::Warning => Color::Yellow,
-            ErrorDisplayType::Info => Color::Blue,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-/// For incremental error reporting so we don't have weird unnecessary errors caused by another error.
-/// I.e. so we don't' have a undefined variable error because of a type error in the declaration.
-pub enum ErrorLevel {
-    NonExistentVar = 0,
-    NonExistentFunc = 1,
-    NonExistentType = 2,
-    TypeError = 3,
-    CoreError = 4,
-}
-
-#[derive(Debug, Clone)]
-pub enum ErrorOrVec {
-    Error(Error, ErrorLevel),
-    ErrorVec(Vec<(Error, ErrorLevel)>),
-}
-
-impl ErrorOrVec {
-    pub fn unwrap_error(self) -> (Error, ErrorLevel) {
-        match self {
-            ErrorOrVec::Error(e, level) => (e, level),
-            ErrorOrVec::ErrorVec(_) => panic!("Tried to unwrap ErrorVec value"),
-        }
-    }
-
-    pub fn unwrap_vec(self) -> Vec<(Error, ErrorLevel)> {
-        match self {
-            ErrorOrVec::Error(_, _) => panic!("Tried to unwrap Error value"),
-            ErrorOrVec::ErrorVec(e) => e,
-        }
-    }
-
-    pub fn as_vec(self) -> Vec<(Error, ErrorLevel)> {
-        match self {
-            ErrorOrVec::Error(e, level) => vec![(e, level)],
-            ErrorOrVec::ErrorVec(e) => e,
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-/// Underlines and such
-pub struct ErrorAnnotation {
-    /// Error message
-    message: Option<String>,
-    /// Error position
-    position: Pos,
-    /// Error display mode
-    mode: ErrorDisplayType,
-    /// Position
-    position_rel: ((usize, usize), (usize, usize)),
-}
-
-impl ErrorAnnotation {
-    /// Returns an error annotation
-    ///
-    /// Arguments
-    ///
-    /// * `message`: error message
-    /// * `position`: position of error
-    /// * `mode`: mode of error report
-    /// * `filename`: filename of annotation
-    pub fn new(message: Option<String>, position: Pos, mode: ErrorDisplayType) -> ErrorAnnotation {
-        ErrorAnnotation {
-            message,
-            position,
-            mode,
-            position_rel: ((0, 0), (0, 0)),
-        }
-    }
-
-    pub fn has_label(&self) -> bool {
-        self.message.is_some()
-    }
-}
-
-#[derive(Debug, Clone)]
-/// An full on error containing useful info.
-pub struct Error {
-    /// Error message
-    message: String,
-    /// Error type
-    pub error: ErrorType,
-    /// Error position
-    pub position: Pos,
-    /// Error display mode
-    mode: ErrorDisplayType,
-    /// Annotations
-    pub annotations: Vec<ErrorAnnotation>,
-    /// Urgent error: raise even if another function parses further
-    pub urgent: bool,
-}
-
-impl Error {
-    /// Returns an error object
-    ///
-    /// # Arguments
-    ///
-    /// * `message`: error message
-    /// * `error`: error type
-    /// * `position`: position of error
-    /// * `token`: optional token associated with error
-    /// * `mode`: mode of error report
-    pub fn new<'a, 'b>(
-        message: String,
-        error: ErrorType,
-        position: Pos,
-        mode: ErrorDisplayType,
-        annotations: Vec<ErrorAnnotation>,
-        urgent: bool,
-    ) -> Error {
-        Error {
-            message,
-            error,
-            position,
-            mode,
-            annotations,
-            urgent,
-        }
-    }
-
-    pub fn is_priority(&self) -> bool {
-        self.urgent
-    }
-}
-
 pub type Logger = Rc<RefCell<LoggerInner>>;
 
 #[derive(Clone)]
 /// Logger object for one file
 pub struct LoggerInner {
     /// Vector of errors
-    errors: Vec<Error>,
+    errors: Vec<ErrorValue>,
     /// Amount of indentation used for error
     indentation: String,
     /// Buffer object
@@ -262,7 +40,7 @@ impl LoggerInner {
     }
 
     /// Pushes an error onto the error vector.
-    pub fn error(&mut self, error: Error) {
+    pub fn error(&mut self, error: ErrorValue) {
         self.errors.push(error);
     }
 
@@ -1105,7 +883,7 @@ impl LoggerInner {
         (annotation.position_rel.0).0 != (annotation.position_rel.1).0
     }
 
-    fn get_code(&mut self, error: Error) {
+    fn get_code(&mut self, error: ErrorValue) {
         let mut annotations = error.annotations;
         let max_line_size: usize = self.get_max_line_size(&annotations);
 
@@ -1144,7 +922,7 @@ impl LoggerInner {
         }
     }
 
-    fn raise_type(&mut self, errors: Vec<Error>, message_type: ErrorDisplayType) {
+    fn raise_type(&mut self, errors: Vec<ErrorValue>, message_type: ErrorDisplayType) {
         let display = !errors.is_empty();
         let length = errors.len();
         for error in errors {
@@ -1184,7 +962,7 @@ impl LoggerInner {
     /// Raises all the errors on the error vector.
     /// Note: doesn't exit out of the program.
     pub fn raise(&mut self) {
-        let warnings: Vec<Error> = self
+        let warnings: Vec<ErrorValue> = self
             .errors
             .iter()
             .cloned()
@@ -1199,7 +977,7 @@ impl LoggerInner {
 
         self.raise_type(warnings, ErrorDisplayType::Warning);
 
-        let errors: Vec<Error> = self
+        let errors: Vec<ErrorValue> = self
             .errors
             .iter()
             .cloned()
@@ -1217,7 +995,7 @@ impl LoggerInner {
 
     /// Static method for error that parses the furthest.
     /// Useful when you have multiple errors and want to know which one is the most accurate.
-    pub fn longest(errors: Vec<Error>) -> Error {
+    pub fn longest(errors: Vec<ErrorValue>) -> ErrorValue {
         let mut errors = errors;
         errors.sort_by_key(|x| {
             (

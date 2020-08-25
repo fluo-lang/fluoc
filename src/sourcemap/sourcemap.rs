@@ -1,9 +1,9 @@
+use crate::helpers;
+
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::path;
 use std::rc::Rc;
-
-use crate::helpers;
 
 /// Convenience type for general usage
 pub type SourceMap = Rc<RefCell<SourceMapInner>>;

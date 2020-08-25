@@ -24,3 +24,6 @@ test
 test.rs
 test.ll
 
+perf.data
+flamegraph.svg
+

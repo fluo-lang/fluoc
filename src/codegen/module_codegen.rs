@@ -1,5 +1,5 @@
 use crate::helpers;
-use crate::logger::logger::{Error, Logger};
+use crate::logger::{ErrorValue, Logger};
 use crate::parser::ast;
 use crate::typecheck::TypeCheckModule;
 use crate::sourcemap::SourceMap;
@@ -79,7 +79,7 @@ impl<'a> CodeGenModule<'a> {
         }
     }
 
-    pub fn generate(&mut self) -> Result<(), Vec<Error>> {
+    pub fn generate(&mut self) -> Result<(), Vec<ErrorValue>> {
         self.typecheck.type_check()?;
 
         /*

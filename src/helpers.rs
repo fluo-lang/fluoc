@@ -1,12 +1,9 @@
-use crate::logger;
-use crate::logger::logger::{Error, ErrorLevel};
+use crate::logger::{ErrorValue, ErrorLevel, Logger};
 use crate::paths;
 
-use std::cell::RefCell;
 use std::env::current_exe;
 use std::path;
 use std::process;
-use std::rc::Rc;
 
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 /// Position helper struct
@@ -35,7 +32,7 @@ impl Pos {
     }
 }
 
-pub fn get_high_priority<'a>(errors: Vec<(Error, ErrorLevel)>) -> Vec<Error> {
+pub fn get_high_priority<'a>(errors: Vec<(ErrorValue, ErrorLevel)>) -> Vec<ErrorValue> {
     // The different errors to have different priorities
     // We want to show the errors with the highest priority
     // Show all of the errors that have the the same priority
@@ -48,8 +45,8 @@ pub fn get_high_priority<'a>(errors: Vec<(Error, ErrorLevel)>) -> Vec<Error> {
 }
 
 pub fn error_or_other<T>(
-    value: Result<T, Vec<Error>>,
-    logger: logger::logger::Logger,
+    value: Result<T, Vec<ErrorValue>>,
+    logger: Logger,
 ) -> T {
     match value {
         Ok(val) => val,

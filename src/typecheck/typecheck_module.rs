@@ -1,9 +1,8 @@
 use super::context;
 
 use crate::helpers;
-use crate::logger::logger::{Error, Logger};
-use crate::parser::{ast, parser};
-use crate::parser::Parser;
+use crate::logger::{ErrorValue, Logger};
+use crate::parser::{ast, Parser};
 use crate::sourcemap::SourceMap;
 
 use std::collections::HashMap;
@@ -26,7 +25,7 @@ impl TypeCheckModule {
         logger: Logger,
         sourcemap: SourceMap,
     ) -> TypeCheckModule {
-        let mut p = parser::Parser::new(filename_id, Rc::clone(&logger), Rc::clone(&sourcemap));
+        let mut p = Parser::new(filename_id, Rc::clone(&logger), Rc::clone(&sourcemap));
         p.initialize_expr();
         TypeCheckModule {
             logger,
@@ -37,7 +36,7 @@ impl TypeCheckModule {
         }
     }
 
-    pub fn type_check(&mut self) -> Result<(), Vec<Error>> {
+    pub fn type_check(&mut self) -> Result<(), Vec<ErrorValue>> {
         let parser_start = Instant::now();
         // Load core lib on outer scope
         self.parser.parse()?;

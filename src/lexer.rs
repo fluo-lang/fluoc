@@ -1,5 +1,5 @@
 use crate::helpers;
-use crate::logger::logger::{Error, ErrorAnnotation, ErrorDisplayType, ErrorType};
+use crate::logger::{ErrorValue, ErrorAnnotation, ErrorDisplayType, ErrorType};
 use crate::segmentation::{Grapheme, GraphemeIdxs};
 use crate::sourcemap::SourceMap;
 
@@ -287,7 +287,7 @@ impl Lexer {
     }
 
     /// Get next token in input stream's type
-    fn get_next_tok_type(&mut self) -> Result<(TokenType, usize), Error> {
+    fn get_next_tok_type(&mut self) -> Result<(TokenType, usize), ErrorValue> {
         let first_char = self.bump();
         let pos = self.position;
 
@@ -385,7 +385,7 @@ impl Lexer {
                         e: self.position,
                         filename_id: self.filename,
                     };
-                    return Err(Error::new(
+                    return Err(ErrorValue::new(
                         format!("Unknown character `{}`", unknown.to_string()),
                         ErrorType::UnknownCharacter,
                         pos,
@@ -399,7 +399,7 @@ impl Lexer {
         ))
     }
 
-    pub fn advance(&mut self) -> Result<Token, Error> {
+    pub fn advance(&mut self) -> Result<Token, ErrorValue> {
         self.peek()?;
         Ok(self.eat())
     }
@@ -410,7 +410,7 @@ impl Lexer {
     }
 
     /// Get next token in input stream, but don't advance
-    pub fn peek(&mut self) -> Result<Token, Error> {
+    pub fn peek(&mut self) -> Result<Token, ErrorValue> {
         if self.change_peek {
             let (token_kind, start_pos) = self.get_next_tok_type()?;
             let end_pos = self.position;
@@ -426,7 +426,7 @@ impl Lexer {
     }
 
     /// Tokenize integer
-    fn number(&mut self) -> Result<TokenType, Error> {
+    fn number(&mut self) -> Result<TokenType, ErrorValue> {
         let position = self.position;
 
         let num = self.eat_while(|c| '0' <= c && c <= '9');
@@ -439,7 +439,7 @@ impl Lexer {
     }
 
     /// Tokenize identifier and keywords
-    fn identifier(&mut self) -> Result<TokenType, Error> {
+    fn identifier(&mut self) -> Result<TokenType, ErrorValue> {
         let position = self.position;
         let id = self.eat_while(is_id_continue);
 
@@ -468,7 +468,7 @@ impl Lexer {
     }
 
     /// Validate string like
-    fn string(&mut self, marker: char, name: &'static str) -> Result<TokenType, Error> {
+    fn string(&mut self, marker: char, name: &'static str) -> Result<TokenType, ErrorValue> {
         let pos = self.position;
         let mut c = self.bump().front;
 
@@ -495,7 +495,7 @@ impl Lexer {
             filename_id: self.filename,
         };
 
-        Err(Error::new(
+        Err(ErrorValue::new(
             format!("Unterminated {}", name),
             ErrorType::UnterminatedString,
             position_err,
@@ -510,7 +510,7 @@ impl Lexer {
     }
 
     /// Tokenize block comment
-    fn block_comment(&mut self) -> Result<TokenType, Error> {
+    fn block_comment(&mut self) -> Result<TokenType, ErrorValue> {
         let position = self.position;
 
         let mut depth = 1usize;
@@ -541,13 +541,13 @@ impl Lexer {
     }
 
     /// Tokenize line comment
-    fn line_comment(&mut self) -> Result<TokenType, Error> {
+    fn line_comment(&mut self) -> Result<TokenType, ErrorValue> {
         self.bump();
         Ok(TokenType::LINECOMMENT(self.eat_while(|c| c != '\n') + 2))
     }
 
     /// Tokenize whitespace
-    fn whitespace(&mut self) -> Result<TokenType, Error> {
+    fn whitespace(&mut self) -> Result<TokenType, ErrorValue> {
         Ok(TokenType::WHITESPACE(self.eat_while(is_whitespace) + 1))
     }
 

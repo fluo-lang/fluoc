@@ -3,13 +3,13 @@ mod lexer_tests {
     use lib::helpers::Pos;
     use lib::lexer::TokenType::*;
     use lib::lexer::*;
-    use lib::sourcemap::{SourceMap, SourceMapInner};
+    use lib::sourcemap::SourceMapInner;
 
     use std::path;
 
     #[test]
     fn lex_test() -> Result<(), ()> {
-        let mut sourcemap = SourceMapInner::new();
+        let sourcemap = SourceMapInner::new();
         let filename_id = sourcemap.borrow_mut().insert_file(
             path::PathBuf::from("./tests/lexer_test.fluo"),
             r#"-- lexer test (code shouldn't work)

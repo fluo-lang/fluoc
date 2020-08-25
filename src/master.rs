@@ -1,9 +1,8 @@
 use crate::codegen::CodeGenModule;
 use crate::helpers;
-use crate::logger::logger::{Logger, LoggerInner};
 use crate::paths;
 use crate::sourcemap::{SourceMap, SourceMapInner};
-use crate::logger::buffer_writer::{Font, Color};
+use crate::logger::{Font, Color, Logger, LoggerInner};
 
 use std::collections::HashMap;
 use std::ffi::OsStr;

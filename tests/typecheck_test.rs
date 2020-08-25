@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod typecheck_tests {
-    use lib::logger::logger::{ErrorType, LoggerInner};
+    use lib::logger::{ErrorType, LoggerInner};
     use lib::typecheck::TypeCheckModule;
     use lib::sourcemap::SourceMapInner;
 

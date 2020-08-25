@@ -39,7 +39,7 @@
 // O3add_N8add_ints_R5V3int_A15P5V3int_P5V3int
 
 use crate::lexer::TokenType;
-use crate::logger::logger::ErrorOrVec;
+use crate::logger::ErrorOrVec;
 use crate::parser::ast;
 
 use std::rc::Rc;

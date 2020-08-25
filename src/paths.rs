@@ -1,4 +1,4 @@
-use crate::logger::buffer_writer::{Font, Color};
+use crate::logger::{Font, Color};
 
 use std::fs;
 use std::path;
