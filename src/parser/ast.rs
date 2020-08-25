@@ -5,7 +5,8 @@ use crate::tags::UnitTags;
 
 use inkwell::module::Linkage;
 
-use std::fmt::Debug;
+use std::fmt;
+use std::fmt::{Debug, Display};
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
@@ -108,20 +109,22 @@ impl Clone for NameID {
 #[cfg(test)]
 mod name_id_test {
     use super::*;
-    use std::path::PathBuf;
     use crate::sourcemap::SourceMapInner;
+    use std::path::PathBuf;
 
     #[test]
     fn eq() {
         let sourcemap = SourceMapInner::new();
-        sourcemap.borrow_mut().insert_file(PathBuf::from("teset.fl"), "hello_hello".to_string());
-        let first = NameID { 
+        sourcemap
+            .borrow_mut()
+            .insert_file(PathBuf::from("teset.fl"), "hello_hello".to_string());
+        let first = NameID {
             sourcemap: Rc::clone(&sourcemap),
-            pos: helpers::Pos::new(0, 3, 0)
+            pos: helpers::Pos::new(0, 5, 0),
         };
-        let second = NameID { 
+        let second = NameID {
             sourcemap,
-            pos: helpers::Pos::new(4, 3, 0)
+            pos: helpers::Pos::new(6, 11, 0),
         };
         assert_eq!(first, second);
         assert_eq!(second, first);
@@ -136,7 +139,8 @@ impl Hash for NameID {
 
 impl PartialEq for NameID {
     fn eq(&self, other: &Self) -> bool {
-        self.sourcemap.borrow().get_segment(self.pos) == self.sourcemap.borrow().get_segment(other.pos)
+        self.sourcemap.borrow().get_segment(self.pos)
+            == self.sourcemap.borrow().get_segment(other.pos)
     }
 }
 
@@ -347,7 +351,7 @@ pub enum TypeType {
 impl TypeType {
     pub fn f(&self, sourcemap: SourceMap) -> String {
         match &self {
-            TypeType::Type(namespace) => namespace.f(sourcemap),
+            TypeType::Type(namespace) => namespace.to_string(),
             TypeType::Tuple(types) => {
                 let mut final_string = String::new();
                 for type_val in types.iter() {
@@ -409,18 +413,18 @@ impl Hash for Namespace {
     }
 }
 
-impl Namespace {
-    pub fn f(&self, sourcemap: SourceMap) -> String {
-        let mut result = String::new();
-        let mut iter = self.scopes.iter();
-        result.push_str(sourcemap.borrow().get_segment(iter.next().unwrap().pos));
-
-        for id in iter {
-            result.push_str("::");
-            result.push_str(sourcemap.borrow().get_segment(id.pos));
-        }
-
-        result
+impl Display for Namespace {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let sourcemap_borrowed = self.scopes.first().unwrap().sourcemap.borrow();
+        write!(
+            f,
+            "{}",
+            self.scopes
+                .iter()
+                .map(|id| sourcemap_borrowed.get_segment(id.pos))
+                .collect::<Vec<_>>()
+                .join("::")
+        )
     }
 }
 

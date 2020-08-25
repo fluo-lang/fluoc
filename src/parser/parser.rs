@@ -7,10 +7,15 @@ use crate::paths;
 use crate::sourcemap::SourceMap;
 use crate::tags::UnitTags;
 
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::path;
 use std::rc::Rc;
+
+macro_rules! run_all {
+    ( $self: expr, $($e:expr),+ ) => {
+        $(ignore_or_return!($e($self));)+
+    };
+}
 
 macro_rules! ignore_or_return {
     ( $e:expr ) => {
@@ -252,10 +257,6 @@ impl Parser {
     pub fn parse(&mut self) -> Result<(), Vec<Error>> {
         if let Err(e) = self.fill_token_stream() {
             return Err(vec![e]);
-        }
-
-        for tok in &self.tokens {
-            println!("{}", tok.f(Rc::clone(&self.sourcemap)));
         }
 
         // Set our scope to outside
@@ -1163,20 +1164,18 @@ impl Parser {
             }));
         }
 
-        let exprs = [
+        run_all! {
+            self,
+            Parser::variable_assign_full,
             Parser::number_type,
             Parser::integer,
             Parser::string_literal,
             Parser::dollar_expr,
             Parser::function_call,
             Parser::variable_assign,
-            Parser::variable_assign_full,
             Parser::ref_expr,
             Parser::tuple_expr,
-            Parser::bool_expr,
-        ];
-        for expr in exprs.iter() {
-            ignore_or_return!(expr(self));
+            Parser::bool_expr
         }
 
         if let lexer::TokenType::LP = self.forward().token {

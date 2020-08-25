@@ -13,7 +13,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("parser simple", |b| {
         b.iter(|| {
             let mut my_parser = parser::parser::Parser::new(
-                black_box(path::Path::new("my_long_filename_test_this_is_really_long_but_its_for_a_Test_so_who_cares.fluo")),
+                black_box(path::Path::new("my_long_filename_test_this_is_really_long_but_its_for_a_Test_so_who_cares.fl")),
                 black_box(r#"/*	
 hlleoa1234567890qwertyuiopasdfghjklzxcvbnm,./?><;'":[]\|}{=-0987654321`~!@#$%^&*()_+	
 one two	
