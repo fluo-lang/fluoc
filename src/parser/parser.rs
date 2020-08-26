@@ -3,7 +3,9 @@ use super::ast::{Expr, LiteralType, Scope, Statement};
 
 use crate::helpers;
 use crate::lexer;
-use crate::logger::{ErrorValue, ErrorAnnotation, ErrorDisplayType, ErrorType, Logger, LoggerInner};
+use crate::logger::{
+    ErrorAnnotation, ErrorDisplayType, ErrorGen, ErrorType, ErrorValue, Logger, LoggerInner,
+};
 use crate::paths;
 use crate::sourcemap::SourceMap;
 use crate::tags::UnitTags;
@@ -23,7 +25,7 @@ macro_rules! ignore_or_return {
         match $e {
             Ok(x) => return Ok(x),
             Err(e) => {
-                if e.is_priority() {
+                if e.urgent {
                     return Err(e);
                 }
             }
@@ -59,7 +61,7 @@ pub struct Parser {
     pub ast: Option<ast::Block>,
     logger: Logger,
 
-    statements: [fn(&mut Self) -> Result<Statement, ErrorValue>; 12],
+    statements: [fn(&mut Self) -> Result<Statement, ErrorGen>; 12],
     prefix_op: HashMap<lexer::TokenType, Prec>,
     infix_op: HashMap<lexer::TokenType, Prec>,
     tokens: Vec<lexer::Token>,
@@ -98,38 +100,56 @@ impl Parser {
     }
 
     pub fn load_from_path<'a>(&mut self, source_path: &'a path::Path) {
-        let mut contents = paths::read_file(&source_path);
-        let file_id = self.sourcemap.borrow_mut().insert_file(source_path.to_path_buf(), contents);
+        let contents = paths::read_file(&source_path);
+        let file_id = self
+            .sourcemap
+            .borrow_mut()
+            .insert_file(source_path.to_path_buf(), contents);
 
         let mut parser = Parser::new(file_id, Rc::clone(&self.logger), Rc::clone(&self.sourcemap));
         parser.initialize_expr();
         helpers::error_or_other(parser.parse(), Rc::clone(&self.logger));
 
-        self.ast.as_mut().unwrap().nodes.append(&mut parser.ast.unwrap().nodes);
+        self.ast
+            .as_mut()
+            .unwrap()
+            .nodes
+            .append(&mut parser.ast.unwrap().nodes);
     }
 
     /// Template for syntax error
     pub fn syntax_error(
         &self,
-        t: lexer::Token,
-        message: &str,
+        real_token: lexer::Token,
+        expected_token: lexer::TokenType,
         is_keyword: bool,
         urgent: bool,
-    ) -> ErrorValue {
-        ErrorValue::new(
-            if !is_keyword {
-                format!("{}, found {}", message, t.f(Rc::clone(&self.sourcemap)))
-            } else {
-                format!("unexpected {}", t.f(Rc::clone(&self.sourcemap)))
-            },
-            ErrorType::Syntax,
-            t.pos,
-            ErrorDisplayType::Error,
-            vec![ErrorAnnotation::new(
-                Some("unexpected token".to_string()),
-                t.pos,
-                ErrorDisplayType::Error,
-            )],
+    ) -> ErrorGen {
+        let cloned_sourcemap = Rc::clone(&self.sourcemap);
+        ErrorGen::new(
+            Box::new(move || {
+                let real_token_display = real_token.f(Rc::clone(&cloned_sourcemap));
+                ErrorValue::new(
+                    if !is_keyword {
+                        format!(
+                            "expected {}, found {}",
+                            expected_token.f(),
+                            real_token_display
+                        )
+                    } else {
+                        format!("unexpected {}", real_token_display)
+                    },
+                    ErrorType::Syntax,
+                    real_token.pos,
+                    ErrorDisplayType::Error,
+                    vec![ErrorAnnotation::new(
+                        Some("unexpected token".to_string()),
+                        real_token.pos,
+                        ErrorDisplayType::Error,
+                    )],
+                )
+            }),
+            real_token.pos,
             urgent,
         )
     }
@@ -140,26 +160,12 @@ impl Parser {
         token_type: lexer::TokenType,
         position: usize,
         is_keyword: bool,
-    ) -> Result<(), ErrorValue> {
+    ) -> Result<(), ErrorGen> {
         let prev_pos = self.token_pos;
         let t = self.forward();
 
         if t.token != token_type {
-            let error = format!("expected {}", token_type.f(Rc::clone(&self.sourcemap)));
-            let temp = match token_type {
-                lexer::TokenType::SEMI => {
-                    // Special case for semicolon error
-                    let mut semi_error = self.syntax_error(t, &error[..], is_keyword, false);
-                    let position_e = self.tokens[prev_pos - 1].pos.e;
-                    semi_error.annotations.push(ErrorAnnotation::new(
-                        Some("did you mean to put a `;` here?".to_string()),
-                        helpers::Pos::new(position_e - 1, position_e, self.lexer.filename),
-                        ErrorDisplayType::Info,
-                    ));
-                    Err(semi_error)
-                }
-                _ => Err(self.syntax_error(t, &error[..], is_keyword, false)),
-            };
+            let temp = Err(self.syntax_error(t, token_type, is_keyword, false));
 
             self.set_pos(position);
             temp
@@ -269,7 +275,7 @@ impl Parser {
         let next = self.peek();
         if next.token != lexer::TokenType::EOF {
             loop {
-                let mut errors: Vec<ErrorValue> = Vec::new();
+                let mut errors: Vec<ErrorGen> = Vec::new();
                 let mut fail = true;
                 for i in 0..self.statements.len() {
                     let statement_ast = self.statements[i](self);
@@ -281,24 +287,30 @@ impl Parser {
                                 ast_list.push(ast_production);
                                 break;
                             } else {
-                                errors.push(ErrorValue::new(
-                                    "unexpected statement in outer scope".to_string(),
-                                    ErrorType::Syntax,
-                                    ast_production.pos(),
-                                    ErrorDisplayType::Error,
-                                    vec![ErrorAnnotation::new(
-                                        Some("unexpected statement".to_string()),
-                                        ast_production.pos(),
-                                        ErrorDisplayType::Error,
-                                    )],
+                                let ast_pos = ast_production.pos();
+                                errors.push(ErrorGen::new(
+                                    Box::new(move || {
+                                        ErrorValue::new(
+                                            "unexpected statement in outer scope".to_string(),
+                                            ErrorType::Syntax,
+                                            ast_pos,
+                                            ErrorDisplayType::Error,
+                                            vec![ErrorAnnotation::new(
+                                                Some("unexpected statement".to_string()),
+                                                ast_pos,
+                                                ErrorDisplayType::Error,
+                                            )],
+                                        )
+                                    }),
+                                    ast_pos,
                                     true,
                                 ));
                                 break;
                             }
                         }
                         Err(e) => {
-                            if e.is_priority() {
-                                return Err(vec![e]);
+                            if e.urgent {
+                                return Err(vec![e.into()]);
                             }
                             errors.push(e);
                         }
@@ -310,7 +322,7 @@ impl Parser {
                     break;
                 } else if !errors.is_empty() && fail {
                     // We've found an error, raise the error
-                    return Err(vec![LoggerInner::longest(errors)]);
+                    return Err(vec![LoggerInner::longest(errors).into()]);
                 }
             }
         }
@@ -327,13 +339,13 @@ impl Parser {
     }
 
     /// Parse basic block
-    pub fn block(&mut self, scope: Scope) -> Result<ast::Block, ErrorValue> {
+    pub fn block(&mut self, scope: Scope) -> Result<ast::Block, ErrorGen> {
         let position = self.token_pos;
         self.next(lexer::TokenType::LCP, position, false)?;
 
         let mut ast_list: Vec<Statement> = Vec::new();
         loop {
-            let mut errors: Vec<ErrorValue> = Vec::new();
+            let mut errors: Vec<ErrorGen> = Vec::new();
             let mut fail = true;
             for i in 0..self.statements.len() {
                 let statement_ast = self.statements[i](self);
@@ -345,16 +357,22 @@ impl Parser {
                             ast_list.push(ast_production);
                             break;
                         } else {
-                            errors.push(ErrorValue::new(
-                                "unexpected statement in inner scope".to_string(),
-                                ErrorType::Syntax,
-                                ast_production.pos(),
-                                ErrorDisplayType::Error,
-                                vec![ErrorAnnotation::new(
-                                    Some("unexpected statement".to_string()),
-                                    ast_production.pos(),
-                                    ErrorDisplayType::Error,
-                                )],
+                            let ast_pos = ast_production.pos();
+                            errors.push(ErrorGen::new(
+                                Box::new(move || {
+                                    ErrorValue::new(
+                                        "unexpected statement in inner scope".to_string(),
+                                        ErrorType::Syntax,
+                                        ast_pos,
+                                        ErrorDisplayType::Error,
+                                        vec![ErrorAnnotation::new(
+                                            Some("unexpected statement".to_string()),
+                                            ast_pos,
+                                            ErrorDisplayType::Error,
+                                        )],
+                                    )
+                                }),
+                                ast_pos,
                                 true,
                             ));
                             break;
@@ -390,7 +408,7 @@ impl Parser {
         })
     }
 
-    fn parse_arguments(&mut self) -> Result<ast::Arguments, ErrorValue> {
+    fn parse_arguments(&mut self) -> Result<ast::Arguments, ErrorGen> {
         let position = self.token_pos;
         let mut positional_args: Vec<(ast::NameID, ast::Type)> = Vec::new();
 
@@ -420,7 +438,7 @@ impl Parser {
         })
     }
 
-    fn type_assign(&mut self) -> Result<Statement, ErrorValue> {
+    fn type_assign(&mut self) -> Result<Statement, ErrorGen> {
         let position = self.token_pos;
 
         let visibility = if self.peek().token == lexer::TokenType::PUBLIC {
@@ -447,7 +465,7 @@ impl Parser {
         }))
     }
 
-    fn unit(&mut self) -> Result<Statement, ErrorValue> {
+    fn unit(&mut self) -> Result<Statement, ErrorGen> {
         let position = self.token_pos;
         self.next(lexer::TokenType::UNIT, position, true)?;
         let name = self.namespace()?;
@@ -461,9 +479,8 @@ impl Parser {
         }))
     }
 
-    fn add_file(&mut self, name: &mut ast::Namespace) -> Result<Statement, ErrorValue> {
-        let mut scopes = Vec::new();
-        std::mem::swap(&mut scopes, &mut name.scopes);
+    fn add_file(&mut self, name: ast::Namespace) -> Result<Statement, ErrorGen> {
+        let mut scopes = name.scopes;
 
         let mut import_path = path::PathBuf::new();
         import_path.push(get_filename!(self.sourcemap, self.lexer.filename));
@@ -479,7 +496,10 @@ impl Parser {
                 // We've reached a file, break
                 last_idx = idx + 1;
                 break;
-            } else if import_path.join(get_segment!(self.sourcemap, op.pos)).is_dir() {
+            } else if import_path
+                .join(get_segment!(self.sourcemap, op.pos))
+                .is_dir()
+            {
                 // We've reached a directory
                 import_path.push(get_segment!(self.sourcemap, op.pos));
             } else {
@@ -497,19 +517,26 @@ impl Parser {
             .to_path_buf();
 
         if !import_path.is_file() {
-            Err(ErrorValue::new(
-                "file does not exist".to_string(),
-                ErrorType::ImportError,
-                last.pos,
-                ErrorDisplayType::Error,
-                vec![ErrorAnnotation::new(
-                    Some(format!("file `{}` does not exist", {
-                        import_path.push(format!("{}.fl", get_segment!(self.sourcemap, last.pos)));
-                        import_path.display()
-                    })),
-                    last.pos,
-                    ErrorDisplayType::Error,
-                )],
+            let cloned_sourcemap = Rc::clone(&self.sourcemap);
+            import_path.push(format!("{}.fl", get_segment!(cloned_sourcemap, last.pos)));
+            let last_pos = last.pos;
+            Err(ErrorGen::new(
+                Box::new(move || {
+                    ErrorValue::new(
+                        "file does not exist".to_string(),
+                        ErrorType::ImportError,
+                        last_pos,
+                        ErrorDisplayType::Error,
+                        vec![ErrorAnnotation::new(
+                            Some(format!("file `{}` does not exist", {
+                                import_path.display()
+                            })),
+                            last.pos,
+                            ErrorDisplayType::Error,
+                        )],
+                    )
+                }),
+                last_pos,
                 true,
             ))
         } else if scopes.is_empty() {
@@ -524,9 +551,9 @@ impl Parser {
             match parser.parse() {
                 Ok(_) => {}
                 Err(e) => {
-                    let mut error = e.into_iter().nth(0).unwrap();
-                    error.urgent = true;
-                    return Err(error);
+                    // Error in other file
+                    self.logger.borrow_mut().append_errors(e);
+                    return Ok(Statement::Empty(ast::Empty { pos: last.pos }));
                 }
             };
 
@@ -536,44 +563,50 @@ impl Parser {
                 block: parser.ast.unwrap(),
             }))
         } else {
-            Err(ErrorValue::new(
-                "cannot declare a unit any further than file".to_string(),
-                ErrorType::ImportError,
-                name.pos,
-                ErrorDisplayType::Error,
-                vec![
-                    ErrorAnnotation::new(
-                        Some(format!(
-                            "cannot declare unit more from `{}`",
-                            import_path.display()
-                        )),
-                        name.pos,
+            let name_pos = name.pos;
+            Err(ErrorGen::new(
+                Box::new(move || {
+                    ErrorValue::new(
+                        "cannot declare a unit any further than file".to_string(),
+                        ErrorType::ImportError,
+                        name_pos,
                         ErrorDisplayType::Error,
-                    ),
-                    ErrorAnnotation::new(
-                        Some("help: did you mean to alias?".to_string()),
-                        name.pos,
-                        ErrorDisplayType::Info,
-                    ),
-                ],
+                        vec![
+                            ErrorAnnotation::new(
+                                Some(format!(
+                                    "cannot declare unit more from `{}`",
+                                    import_path.display()
+                                )),
+                                name_pos,
+                                ErrorDisplayType::Error,
+                            ),
+                            ErrorAnnotation::new(
+                                Some("help: did you mean to alias?".to_string()),
+                                name_pos,
+                                ErrorDisplayType::Info,
+                            ),
+                        ],
+                    )
+                }),
+                name_pos,
                 true,
             ))
         }
     }
 
     /// Imports
-    fn import(&mut self) -> Result<Statement, ErrorValue> {
+    fn import(&mut self) -> Result<Statement, ErrorGen> {
         let position = self.token_pos;
         self.next(lexer::TokenType::UNIT, position, true)?;
 
-        let mut namespace = self.namespace()?;
+        let namespace = self.namespace()?;
 
         self.next(lexer::TokenType::SEMI, position, false)?;
 
-        self.add_file(&mut namespace)
+        self.add_file(namespace)
     }
 
-    fn compiler_tag(&mut self) -> Result<Statement, ErrorValue> {
+    fn compiler_tag(&mut self) -> Result<Statement, ErrorGen> {
         let position = self.token_pos;
 
         self.next(lexer::TokenType::AT, position, true)?;
@@ -591,7 +624,7 @@ impl Parser {
     }
 
     /// Parse function definition
-    fn function_define(&mut self) -> Result<Statement, ErrorValue> {
+    fn function_define(&mut self) -> Result<Statement, ErrorGen> {
         let position = self.token_pos;
 
         let visibility = if self.peek().token == lexer::TokenType::PUBLIC {
@@ -645,7 +678,7 @@ impl Parser {
         }))
     }
 
-    fn extern_def(&mut self) -> Result<Statement, ErrorValue> {
+    fn extern_def(&mut self) -> Result<Statement, ErrorGen> {
         let position = self.token_pos;
 
         let visibility = if self.peek().token == lexer::TokenType::PUBLIC {
@@ -692,7 +725,7 @@ impl Parser {
         }))
     }
 
-    fn overload_define(&mut self) -> Result<Statement, ErrorValue> {
+    fn overload_define(&mut self) -> Result<Statement, ErrorGen> {
         let position = self.token_pos;
 
         let visibility = if self.peek().token == lexer::TokenType::PUBLIC {
@@ -748,7 +781,7 @@ impl Parser {
         }))
     }
 
-    fn overload_extern(&mut self) -> Result<Statement, ErrorValue> {
+    fn overload_extern(&mut self) -> Result<Statement, ErrorGen> {
         let position = self.token_pos;
 
         let visibility = if self.peek().token == lexer::TokenType::PUBLIC {
@@ -797,7 +830,7 @@ impl Parser {
         }))
     }
 
-    fn parse_extern_arguments(&mut self) -> Result<ast::Arguments, ErrorValue> {
+    fn parse_extern_arguments(&mut self) -> Result<ast::Arguments, ErrorGen> {
         let position = self.token_pos;
         let mut positional_args: Vec<(ast::NameID, ast::Type)> = Vec::new();
 
@@ -843,7 +876,7 @@ impl Parser {
     }
 
     /// Return statement
-    fn return_statement(&mut self) -> Result<Statement, ErrorValue> {
+    fn return_statement(&mut self) -> Result<Statement, ErrorGen> {
         let position = self.token_pos;
 
         self.next(lexer::TokenType::RETURN, position, true)?;
@@ -858,7 +891,7 @@ impl Parser {
     }
 
     /// Expressions statement
-    fn expression_statement(&mut self) -> Result<Statement, ErrorValue> {
+    fn expression_statement(&mut self) -> Result<Statement, ErrorGen> {
         let position = self.token_pos;
         let expr = self.expr(Prec::LOWEST)?;
 
@@ -873,7 +906,7 @@ impl Parser {
     }
 
     /// Arguments of function call
-    fn arguments_call(&mut self) -> Result<ast::ArgumentsRun, ErrorValue> {
+    fn arguments_call(&mut self) -> Result<ast::ArgumentsRun, ErrorGen> {
         let position = self.token_pos;
         let mut positional_args: Vec<Expr> = Vec::new();
 
@@ -900,7 +933,7 @@ impl Parser {
     }
 
     /// Function calls
-    fn function_call(&mut self) -> Result<Expr, ErrorValue> {
+    fn function_call(&mut self) -> Result<Expr, ErrorGen> {
         let position = self.token_pos;
 
         let namespace = self.namespace()?;
@@ -921,7 +954,7 @@ impl Parser {
     }
 
     /// Ful variable assign with type declaration and expression
-    fn variable_assign_full(&mut self) -> Result<Expr, ErrorValue> {
+    fn variable_assign_full(&mut self) -> Result<Expr, ErrorGen> {
         let position = self.token_pos;
         self.next(lexer::TokenType::LET, position, true)?;
 
@@ -944,7 +977,7 @@ impl Parser {
     }
 
     /// Variable Declaration
-    fn variable_declaration(&mut self) -> Result<Statement, ErrorValue> {
+    fn variable_declaration(&mut self) -> Result<Statement, ErrorGen> {
         let position = self.token_pos;
         self.next(lexer::TokenType::LET, position, true)?;
 
@@ -965,7 +998,7 @@ impl Parser {
     }
 
     /// Variable assign with only expression
-    fn variable_assign(&mut self) -> Result<Expr, ErrorValue> {
+    fn variable_assign(&mut self) -> Result<Expr, ErrorGen> {
         let position = self.token_pos;
 
         let namespace = self.namespace()?;
@@ -981,7 +1014,7 @@ impl Parser {
         }))
     }
 
-    fn conditional(&mut self) -> Result<Statement, ErrorValue> {
+    fn conditional(&mut self) -> Result<Statement, ErrorGen> {
         let position = self.token_pos;
 
         // Required
@@ -1007,7 +1040,7 @@ impl Parser {
         }))
     }
 
-    fn if_cond(&mut self) -> Result<ast::IfBranch, ErrorValue> {
+    fn if_cond(&mut self) -> Result<ast::IfBranch, ErrorGen> {
         let position = self.token_pos;
 
         self.next(lexer::TokenType::IF, position, true)?;
@@ -1022,7 +1055,7 @@ impl Parser {
         })
     }
 
-    fn else_if_cond(&mut self) -> Result<ast::IfBranch, ErrorValue> {
+    fn else_if_cond(&mut self) -> Result<ast::IfBranch, ErrorGen> {
         let position = self.token_pos;
 
         self.next(lexer::TokenType::ELSE, position, true)?;
@@ -1039,7 +1072,7 @@ impl Parser {
         })
     }
 
-    fn else_cond(&mut self) -> Result<ast::ElseBranch, ErrorValue> {
+    fn else_cond(&mut self) -> Result<ast::ElseBranch, ErrorGen> {
         let position = self.token_pos;
 
         self.next(lexer::TokenType::ELSE, position, true)?;
@@ -1052,7 +1085,7 @@ impl Parser {
     }
 
     /// Top level expression
-    fn expr(&mut self, prec: Prec) -> Result<Expr, ErrorValue> {
+    fn expr(&mut self, prec: Prec) -> Result<Expr, ErrorGen> {
         let mut left = self.item()?;
         let mut operator;
 
@@ -1085,7 +1118,7 @@ impl Parser {
         Ok(left)
     }
 
-    fn get_operator_infix(&mut self) -> Result<lexer::Token, ErrorValue> {
+    fn get_operator_infix(&mut self) -> Result<lexer::Token, ErrorGen> {
         let position = self.token_pos;
         let potential_op = self.forward();
         for op in self.infix_op.keys() {
@@ -1093,16 +1126,18 @@ impl Parser {
                 return Ok(potential_op);
             }
         }
-        let temp = Err(ErrorValue::new(
-            "Expected an operator".to_string(),
-            ErrorType::Syntax,
-            self.get_relative_pos(position),
-            ErrorDisplayType::Error,
-            vec![ErrorAnnotation::new(
-                None,
-                self.get_relative_pos(position),
-                ErrorDisplayType::Error,
-            )],
+        let pos = self.get_relative_pos(position);
+        let temp = Err(ErrorGen::new(
+            Box::new(move || {
+                ErrorValue::new(
+                    "Expected an operator".to_string(),
+                    ErrorType::Syntax,
+                    pos,
+                    ErrorDisplayType::Error,
+                    vec![ErrorAnnotation::new(None, pos, ErrorDisplayType::Error)],
+                )
+            }),
+            pos,
             false,
         ));
 
@@ -1110,7 +1145,7 @@ impl Parser {
         temp
     }
 
-    fn get_operator_prefix(&mut self) -> Result<lexer::Token, ErrorValue> {
+    fn get_operator_prefix(&mut self) -> Result<lexer::Token, ErrorGen> {
         let position = self.token_pos;
         let potential_op = self.forward();
         for op in self.prefix_op.keys() {
@@ -1119,16 +1154,19 @@ impl Parser {
             }
         }
 
-        let temp = Err(ErrorValue::new(
-            "Expected a prefix".to_string(),
-            ErrorType::Syntax,
-            self.get_relative_pos(position),
-            ErrorDisplayType::Error,
-            vec![ErrorAnnotation::new(
-                None,
-                self.get_relative_pos(position),
-                ErrorDisplayType::Error,
-            )],
+        let pos = self.get_relative_pos(position);
+
+        let temp = Err(ErrorGen::new(
+            Box::new(move || {
+                ErrorValue::new(
+                    "Expected a prefix".to_string(),
+                    ErrorType::Syntax,
+                    pos,
+                    ErrorDisplayType::Error,
+                    vec![ErrorAnnotation::new(None, pos, ErrorDisplayType::Error)],
+                )
+            }),
+            pos,
             false,
         ));
 
@@ -1140,7 +1178,7 @@ impl Parser {
         self.infix_op[token_type]
     }
 
-    fn led(&mut self, left: Expr, operator: lexer::Token) -> Result<Expr, ErrorValue> {
+    fn led(&mut self, left: Expr, operator: lexer::Token) -> Result<Expr, ErrorGen> {
         let position = self.token_pos;
         let binding_power = self.binding_power(&operator.token);
 
@@ -1153,7 +1191,7 @@ impl Parser {
         }))
     }
 
-    fn item(&mut self) -> Result<Expr, ErrorValue> {
+    fn item(&mut self) -> Result<Expr, ErrorGen> {
         let position = self.token_pos;
 
         if let Ok(prefix) = self.get_operator_prefix() {
@@ -1185,30 +1223,39 @@ impl Parser {
                 return Ok(expr);
             }
             let next_tok = self.peek();
-            return Err(self.syntax_error(next_tok, "expected `)`", false, false));
+            return Err(self.syntax_error(next_tok, lexer::TokenType::RP, false, false));
         }
 
         let next = self.peek();
-        let temp = Err(ErrorValue::new(
-            "Missing expression".to_string(),
-            ErrorType::Syntax,
-            self.get_relative_pos(position),
-            ErrorDisplayType::Error,
-            vec![ErrorAnnotation::new(
-                Some(format!(
-                    "Expected expression, found {}",
-                    next.f(Rc::clone(&self.sourcemap))
-                )),
-                self.get_relative_pos(position),
-                ErrorDisplayType::Error,
-            )],
+        let pos = self.get_relative_pos(position);
+
+        let cloned_sourcemap = Rc::clone(&self.sourcemap);
+
+        let temp = Err(ErrorGen::new(
+            Box::new(move || {
+                ErrorValue::new(
+                    "Missing expression".to_string(),
+                    ErrorType::Syntax,
+                    pos,
+                    ErrorDisplayType::Error,
+                    vec![ErrorAnnotation::new(
+                        Some(format!(
+                            "Expected expression, found {}",
+                            next.f(Rc::clone(&cloned_sourcemap))
+                        )),
+                        pos,
+                        ErrorDisplayType::Error,
+                    )],
+                )
+            }),
+            pos,
             false,
         ));
         self.set_pos(position);
         temp
     }
 
-    fn bool_expr(&mut self) -> Result<Expr, ErrorValue> {
+    fn bool_expr(&mut self) -> Result<Expr, ErrorGen> {
         let position = self.token_pos;
 
         let possible_bool = self.forward();
@@ -1220,13 +1267,13 @@ impl Parser {
                 pos: possible_bool.pos,
             }))
         } else {
-            let temp = Err(self.syntax_error(possible_bool, "expected bool", false, false));
+            let temp = Err(self.syntax_error(possible_bool, lexer::TokenType::TRUE, false, false));
             self.set_pos(position);
             temp
         }
     }
 
-    fn integer(&mut self) -> Result<Expr, ErrorValue> {
+    fn integer(&mut self) -> Result<Expr, ErrorGen> {
         let position = self.token_pos;
 
         let int = self.forward();
@@ -1236,13 +1283,13 @@ impl Parser {
                 pos: int.pos,
             }))
         } else {
-            let temp = Err(self.syntax_error(int, "expected integer", false, false));
+            let temp = Err(self.syntax_error(int, lexer::TokenType::NUMBER, false, false));
             self.set_pos(position);
             temp
         }
     }
 
-    fn string_literal(&mut self) -> Result<Expr, ErrorValue> {
+    fn string_literal(&mut self) -> Result<Expr, ErrorGen> {
         let position = self.token_pos;
 
         let string = self.forward();
@@ -1252,13 +1299,13 @@ impl Parser {
                 literal_type: LiteralType::String,
             }))
         } else {
-            let temp = Err(self.syntax_error(string, "expected string literal", false, false));
+            let temp = Err(self.syntax_error(string, lexer::TokenType::STRING, false, false));
             self.set_pos(position);
             temp
         }
     }
 
-    fn namespace(&mut self) -> Result<ast::Namespace, ErrorValue> {
+    fn namespace(&mut self) -> Result<ast::Namespace, ErrorGen> {
         let position = self.token_pos;
         let mut ids: Vec<ast::NameID> = Vec::new();
         let id = self.name_id()?;
@@ -1290,7 +1337,7 @@ impl Parser {
     }
 
     /// Parse name identifier (i.e. function name)
-    fn name_id(&mut self) -> Result<ast::NameID, ErrorValue> {
+    fn name_id(&mut self) -> Result<ast::NameID, ErrorGen> {
         let position = self.token_pos;
         let id = self.forward();
         if lexer::TokenType::IDENTIFIER == id.token {
@@ -1299,18 +1346,18 @@ impl Parser {
                 pos: id.pos,
             })
         } else {
-            let temp = Err(self.syntax_error(id, "expected identifier", false, false));
+            let temp = Err(self.syntax_error(id, lexer::TokenType::IDENTIFIER, false, false));
             self.set_pos(position);
             temp
         }
     }
 
-    fn ref_expr(&mut self) -> Result<Expr, ErrorValue> {
+    fn ref_expr(&mut self) -> Result<Expr, ErrorGen> {
         Ok(Expr::RefID(self.ref_id()?))
     }
 
     /// Parse ref identifier (i.e. variable refrence (not &))
-    fn ref_id(&mut self) -> Result<ast::RefID, ErrorValue> {
+    fn ref_id(&mut self) -> Result<ast::RefID, ErrorGen> {
         let value = self.namespace()?;
         Ok(ast::RefID {
             pos: value.pos,
@@ -1318,11 +1365,11 @@ impl Parser {
         })
     }
 
-    fn tuple_expr(&mut self) -> Result<Expr, ErrorValue> {
+    fn tuple_expr(&mut self) -> Result<Expr, ErrorGen> {
         Ok(Expr::Tuple(self.tuple()?))
     }
 
-    fn tuple(&mut self) -> Result<ast::Tuple, ErrorValue> {
+    fn tuple(&mut self) -> Result<ast::Tuple, ErrorGen> {
         let position = self.token_pos;
 
         self.next(lexer::TokenType::LP, position, false)?;
@@ -1356,7 +1403,7 @@ impl Parser {
         })
     }
 
-    fn items(&mut self) -> Result<Vec<Expr>, ErrorValue> {
+    fn items(&mut self) -> Result<Vec<Expr>, ErrorGen> {
         let mut items: Vec<Expr> = Vec::new();
 
         let expr = self.expr(Prec::LOWEST)?;
@@ -1381,9 +1428,9 @@ impl Parser {
     }
 
     /// Parse type expression
-    fn type_expr(&mut self) -> Result<ast::Type, ErrorValue> {
+    fn type_expr(&mut self) -> Result<ast::Type, ErrorGen> {
         let position = self.token_pos;
-        let mut errors: Vec<ErrorValue> = Vec::new();
+        let mut errors: Vec<ErrorGen> = Vec::new();
 
         match self.namespace_type() {
             Ok(namespace) => return Ok(namespace),
@@ -1398,7 +1445,7 @@ impl Parser {
         Err(LoggerInner::longest(errors))
     }
 
-    fn namespace_type(&mut self) -> Result<ast::Type, ErrorValue> {
+    fn namespace_type(&mut self) -> Result<ast::Type, ErrorGen> {
         let namespace = self.namespace()?;
 
         Ok(ast::Type {
@@ -1408,7 +1455,7 @@ impl Parser {
         })
     }
 
-    fn tuple_type(&mut self) -> Result<ast::Type, ErrorValue> {
+    fn tuple_type(&mut self) -> Result<ast::Type, ErrorGen> {
         let position = self.token_pos;
 
         self.next(lexer::TokenType::LP, position, false)?;
@@ -1443,7 +1490,7 @@ impl Parser {
         })
     }
 
-    fn items_type(&mut self) -> Result<Vec<Rc<ast::Type>>, ErrorValue> {
+    fn items_type(&mut self) -> Result<Vec<Rc<ast::Type>>, ErrorGen> {
         let mut items: Vec<Rc<ast::Type>> = Vec::new();
 
         let type_type = self.type_expr()?;
@@ -1467,12 +1514,12 @@ impl Parser {
         Ok(items)
     }
 
-    fn dollar_expr(&mut self) -> Result<Expr, ErrorValue> {
+    fn dollar_expr(&mut self) -> Result<Expr, ErrorGen> {
         Ok(Expr::DollarID(self.dollar_id()?))
     }
 
     /// Parse dollar id
-    fn dollar_id(&mut self) -> Result<ast::DollarID, ErrorValue> {
+    fn dollar_id(&mut self) -> Result<ast::DollarID, ErrorGen> {
         let position = self.token_pos;
 
         self.next(lexer::TokenType::DOLLAR, position, false)?;
@@ -1496,7 +1543,8 @@ pub mod parser_tests {
             #[test]
             fn $name() -> Result<(), ErrorValue> {
                 let sourcemap = SourceMapInner::new();
-                let filename_code = insert_file!(sourcemap, path::PathBuf::from(FILENAME), $code.to_string());
+                let filename_code =
+                    insert_file!(sourcemap, path::PathBuf::from(FILENAME), $code.to_string());
                 let logger = LoggerInner::new(true, Rc::clone(&sourcemap));
                 let mut parser = Parser::new(filename_code, logger, sourcemap);
                 parser.initialize_expr();
@@ -1731,7 +1779,8 @@ pub mod parser_tests {
             #[test]
             fn $name() -> Result<(), ErrorValue> {
                 let sourcemap = SourceMapInner::new();
-                let filename_code = insert_file!(sourcemap, path::PathBuf::from(FILENAME), $code.to_string());
+                let filename_code =
+                    insert_file!(sourcemap, path::PathBuf::from(FILENAME), $code.to_string());
                 let logger = LoggerInner::new(true, Rc::clone(&sourcemap));
                 let mut parser = Parser::new(filename_code, logger, sourcemap);
 
@@ -1795,15 +1844,24 @@ pub mod parser_tests {
         parser
             .fill_token_stream()
             .expect("Failed to fill token stream");
-        let output = format!("{:?}", parser.import().expect("failed to parse"))
-            .replace("[", "vec![")
-            .replace(
-                "\"a_really_long_parser_filename_for_this_test.fl\"",
-                "path::Path::new(FILENAME)",
-            )
-            .replace("SingleType(", "TypeCheckTypeType::SingleType(")
-            .replace("Literal(", "Expr::Literal(")
-            .replace("TypeCheckType(", "TypeCheckOrType::TypeCheckType(");
+        let output = format!(
+            "{:?}",
+            match parser.import() {
+                Ok(val) => val,
+                Err(e) => panic!("Failed to parse: {:?}", {
+                    let err: ErrorValue = e.into();
+                    err
+                }),
+            }
+        )
+        .replace("[", "vec![")
+        .replace(
+            "\"a_really_long_parser_filename_for_this_test.fl\"",
+            "path::Path::new(FILENAME)",
+        )
+        .replace("SingleType(", "TypeCheckTypeType::SingleType(")
+        .replace("Literal(", "Expr::Literal(")
+        .replace("TypeCheckType(", "TypeCheckOrType::TypeCheckType(");
         println!("{}", output);
         panic!("awd");
     }

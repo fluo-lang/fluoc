@@ -44,14 +44,15 @@ def other() {
 
     c.bench_function("parser simple", |b| {
         b.iter(|| {
-            let mut my_parser = parser::parser::Parser::new(0, Rc::clone(&logger), Rc::clone(&sourcemap));
+            let mut my_parser =
+                parser::parser::Parser::new(0, Rc::clone(&logger), Rc::clone(&sourcemap));
             my_parser.initialize_expr();
             my_parser.parse();
         })
     });
 }
 
-criterion_group!{
+criterion_group! {
     name = benches;
     config = Criterion::default().sample_size(10);
     targets = criterion_benchmark

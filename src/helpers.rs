@@ -1,4 +1,4 @@
-use crate::logger::{ErrorValue, ErrorLevel, Logger};
+use crate::logger::{ErrorLevel, ErrorValue, Logger};
 use crate::paths;
 
 use std::env::current_exe;
@@ -44,10 +44,7 @@ pub fn get_high_priority<'a>(errors: Vec<(ErrorValue, ErrorLevel)>) -> Vec<Error
         .collect()
 }
 
-pub fn error_or_other<T>(
-    value: Result<T, Vec<ErrorValue>>,
-    logger: Logger,
-) -> T {
+pub fn error_or_other<T>(value: Result<T, Vec<ErrorValue>>, logger: Logger) -> T {
     match value {
         Ok(val) => val,
         Err(errors) => {

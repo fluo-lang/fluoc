@@ -15,8 +15,7 @@ pub struct Context {
 impl Context {
     pub fn new() -> Self {
         Context {
-            objects: HashMap::new()
+            objects: HashMap::new(),
         }
     }
 }
-

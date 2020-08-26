@@ -186,41 +186,48 @@ pub struct ErrorValue {
     pub mode: ErrorDisplayType,
     /// Annotations
     pub annotations: Vec<ErrorAnnotation>,
-    /// Urgent error: raise even if another function parses further
-    pub urgent: bool,
 }
 
 impl ErrorValue {
     /// Returns an error object
-    ///
-    /// # Arguments
-    ///
-    /// * `message`: error message
-    /// * `error`: error type
-    /// * `position`: position of error
-    /// * `token`: optional token associated with error
-    /// * `mode`: mode of error report
-    pub fn new<'a, 'b>(
+    pub fn new(
         message: String,
         error: ErrorType,
         position: Pos,
         mode: ErrorDisplayType,
         annotations: Vec<ErrorAnnotation>,
-        urgent: bool,
-    ) -> ErrorValue {
-        ErrorValue {
+    ) -> Self {
+        Self {
             message,
             error,
             position,
             mode,
             annotations,
-            urgent,
         }
-    }
-
-    pub fn is_priority(&self) -> bool {
-        self.urgent
     }
 }
 
+/// A lazy representation of an error
+pub struct ErrorGen {
+    /// Closure to create an error lazily
+    make_err: Box<dyn Fn() -> ErrorValue>,
+    /// Urgent error: raise even if another function parses further
+    pub urgent: bool,
+    pub position: Pos,
+}
 
+impl ErrorGen {
+    pub fn new(make_err: Box<dyn Fn() -> ErrorValue>, position: Pos, urgent: bool) -> Self {
+        Self {
+            urgent,
+            position,
+            make_err,
+        }
+    }
+}
+
+impl From<ErrorGen> for ErrorValue {
+    fn from(error: ErrorGen) -> ErrorValue {
+        (error.make_err)()
+    }
+}

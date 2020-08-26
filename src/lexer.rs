@@ -1,8 +1,9 @@
 use crate::helpers;
-use crate::logger::{ErrorValue, ErrorAnnotation, ErrorDisplayType, ErrorType};
+use crate::logger::{ErrorAnnotation, ErrorDisplayType, ErrorType, ErrorValue};
 use crate::segmentation::{Grapheme, GraphemeIdxs};
 use crate::sourcemap::SourceMap;
 
+use std::borrow::Cow;
 use std::rc::Rc;
 
 const EOF: char = '\0';
@@ -80,21 +81,69 @@ pub enum TokenType {
 }
 
 impl TokenType {
-    pub fn f(&self, sourcemap: SourceMap) -> String {
-        match &self {
-            TokenType::STRING => "string".to_string(),
-            TokenType::IDENTIFIER => "identifier".to_string(),
-            TokenType::NUMBER => "integer".to_string(),
-            TokenType::UNKNOWN => "unknown token".to_string(),
+    /// Format with no sourcemap
+    pub fn f(&self) -> &'static str {
+        match self {
+            TokenType::TRUE => "bool literal",
+            TokenType::FALSE => "bool literal",
 
-            other => format!(
-                "{}",
-                Token {
-                    token: **other,
-                    pos: helpers::Pos::new(0, 0, 0)
-                }
-                .f(sourcemap)
-            ),
+            TokenType::DEF => "keyword `def`",
+            TokenType::RETURN => "keyword `return`",
+            TokenType::LET => "keyword `let`",
+            TokenType::IMPL => "keyword `impl`",
+            TokenType::PATTERN => "keyword `pattern`",
+            TokenType::TYPE => "keyword `type`",
+            TokenType::PUBLIC => "keyword `public`",
+            TokenType::UNIT => "keyword `unit`",
+            TokenType::EXTERN => "keyword `extern`",
+            TokenType::IF => "keyword `if`",
+            TokenType::ELSE => "keyword `else`",
+            TokenType::OVERLOAD => "keyword `overload`",
+
+            TokenType::AS => "operator `as`",
+            TokenType::DIV => "operator `/`",
+            TokenType::MOD => "operator `%`",
+            TokenType::MUL => "operator `*`",
+            TokenType::ADD => "operator `+`",
+            TokenType::SUB => "operator `-`",
+            TokenType::DMOD => "operator `%%`",
+            TokenType::GT => "operator `>`",
+            TokenType::LT => "operator `<`",
+            TokenType::GE => "operator `>=`",
+            TokenType::LE => "operator `<=`",
+            TokenType::EQ => "operator `==`",
+
+            TokenType::DOLLAR => "token `$`",
+            TokenType::AT => "token `@`",
+
+            TokenType::DOUBLECOLON => "token `::`",
+
+            TokenType::ARROW => "token `=>`",
+
+            TokenType::LP => "token `(`",
+            TokenType::RP => "token `)`",
+            TokenType::LCP => "token `{`",
+            TokenType::RCP => "token `}`",
+            TokenType::LB => "token `[`",
+            TokenType::RB => "token `]`",
+
+            TokenType::QUESTION => "token `?`",
+            TokenType::DOT => "token `.`",
+            TokenType::EQUALS => "token `=`",
+            TokenType::COLON => "token `:`",
+            TokenType::SEMI => "terminator `;`",
+            TokenType::COMMA => "token `,`",
+            TokenType::EOF => "end of file",
+
+            TokenType::LINECOMMENT(_) => "line comment",
+            TokenType::BLOCKCOMMENT(_) => "block comment",
+            TokenType::WHITESPACE(_) => "whitespace",
+
+            TokenType::STRING => "string literal",
+            TokenType::CODEVALUE => "code value",
+            TokenType::IDENTIFIER => "identifier",
+            TokenType::NUMBER => "number",
+            TokenType::UNKNOWN => "unknown token",
         }
     }
 }
@@ -107,9 +156,12 @@ pub struct Token {
 }
 
 impl Token {
-    pub fn f(&self, sourcemap: SourceMap) -> String {
-        match self.token {
-            TokenType::STRING => format!("string `{}`", sourcemap.borrow().get_segment(self.pos)),
+    pub fn f(&self, sourcemap: SourceMap) -> Cow<'static, str> {
+        Cow::Owned(match self.token {
+            TokenType::STRING => format!(
+                "string literal `{}`",
+                sourcemap.borrow().get_segment(self.pos)
+            ),
             TokenType::CODEVALUE => {
                 format!("code value `{}`", sourcemap.borrow().get_segment(self.pos))
             }
@@ -118,65 +170,12 @@ impl Token {
             }
             TokenType::NUMBER => format!("number `{}`", sourcemap.borrow().get_segment(self.pos)),
 
-            TokenType::TRUE => "bool literal `true`".to_string(),
-            TokenType::FALSE => "bool literal `false`".to_string(),
-
-            TokenType::DEF => "keyword `def`".to_string(),
-            TokenType::RETURN => "keyword `return`".to_string(),
-            TokenType::LET => "keyword `let`".to_string(),
-            TokenType::IMPL => "keyword `impl`".to_string(),
-            TokenType::PATTERN => "keyword `pattern`".to_string(),
-            TokenType::TYPE => "keyword `type`".to_string(),
-            TokenType::PUBLIC => "keyword `public`".to_string(),
-            TokenType::UNIT => "keyword `unit`".to_string(),
-            TokenType::EXTERN => "keyword `extern`".to_string(),
-            TokenType::IF => "keyword `if`".to_string(),
-            TokenType::ELSE => "keyword `else`".to_string(),
-            TokenType::OVERLOAD => "keyword `overload`".to_string(),
-
-            TokenType::AS => "operator `as`".to_string(),
-            TokenType::DIV => "operator `/`".to_string(),
-            TokenType::MOD => "operator `%`".to_string(),
-            TokenType::MUL => "operator `*`".to_string(),
-            TokenType::ADD => "operator `+`".to_string(),
-            TokenType::SUB => "operator `-`".to_string(),
-            TokenType::DMOD => "operator `%%`".to_string(),
-            TokenType::GT => "operator `>`".to_string(),
-            TokenType::LT => "operator `<`".to_string(),
-            TokenType::GE => "operator `>=`".to_string(),
-            TokenType::LE => "operator `<=`".to_string(),
-            TokenType::EQ => "operator `==`".to_string(),
-
-            TokenType::DOLLAR => "token `$`".to_string(),
-            TokenType::AT => "token `@`".to_string(),
-
-            TokenType::DOUBLECOLON => "token `::`".to_string(),
-
-            TokenType::ARROW => "token `=>`".to_string(),
-
-            TokenType::LP => "token `(`".to_string(),
-            TokenType::RP => "token `)`".to_string(),
-            TokenType::LCP => "token `{`".to_string(),
-            TokenType::RCP => "token `}`".to_string(),
-            TokenType::LB => "token `[`".to_string(),
-            TokenType::RB => "token `]`".to_string(),
-
-            TokenType::QUESTION => "token `?`".to_string(),
-            TokenType::DOT => "token `.`".to_string(),
-            TokenType::EQUALS => "token `=`".to_string(),
-            TokenType::COLON => "token `:`".to_string(),
-            TokenType::SEMI => "terminator `;`".to_string(),
-            TokenType::COMMA => "token `,`".to_string(),
-            TokenType::EOF => "end of file".to_string(),
             TokenType::UNKNOWN => format!(
                 "unknown token `{}`",
                 sourcemap.borrow().get_segment(self.pos)
             ),
-
-            TokenType::LINECOMMENT(_) => "line comment".to_string(),
-            TokenType::BLOCKCOMMENT(_) => "block comment".to_string(),
-            TokenType::WHITESPACE(_) => "whitespace".to_string(),
-        }
+            val => return Cow::Borrowed(val.f()),
+        })
     }
 }
 
@@ -391,7 +390,6 @@ impl Lexer {
                         pos,
                         ErrorDisplayType::Error,
                         vec![ErrorAnnotation::new(None, pos, ErrorDisplayType::Error)],
-                        true,
                     ));
                 }
             },
@@ -505,7 +503,6 @@ impl Lexer {
                 position_err,
                 ErrorDisplayType::Error,
             )],
-            true,
         ))
     }
 
@@ -557,7 +554,6 @@ impl Lexer {
         F: FnMut(char) -> bool,
     {
         let mut eaten: usize = 0;
-        let pos = self.position;
         let mut val = self.peek_char();
         while predicate(val.front) && val.front != EOF {
             self.bump();

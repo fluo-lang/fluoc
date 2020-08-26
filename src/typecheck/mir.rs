@@ -1,8 +1,8 @@
 use super::context::Context;
 use super::types;
 
-use crate::logger::ErrorValue;
 use crate::helpers;
+use crate::logger::ErrorValue;
 use crate::parser::ast::LiteralType;
 
 pub struct Namespace {}
@@ -12,19 +12,19 @@ pub struct FunctionDefine {}
 pub struct FunctionSig {
     pos_args: Vec<types::MirType>,
     return_type: types::MirType,
-    pos: helpers::Pos
+    pos: helpers::Pos,
 }
 
 pub struct VariableAssign {}
 
 pub struct Literal {
     literal_type: LiteralType,
-    pos: helpers::Pos
+    pos: helpers::Pos,
 }
 
 pub enum MirExpr {
     Variable(Namespace),
-    Literal(Literal)
+    Literal(Literal),
 }
 
 impl MirExpr {
@@ -39,7 +39,7 @@ impl MirExpr {
 }
 
 pub enum MirStmt {
-    FunctionDefine(FunctionDefine)
+    FunctionDefine(FunctionDefine),
 }
 
 impl MirStmt {
@@ -47,4 +47,3 @@ impl MirStmt {
         panic!();
     }
 }
-

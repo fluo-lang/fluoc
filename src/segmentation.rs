@@ -50,10 +50,12 @@ impl Iterator for GraphemeIdxs {
             .next_boundary(self.sourcemap.borrow().get_file(self.filename_id), 0)
             .unwrap()
             .unwrap();
-        Some(Grapheme::new(&get_file!(self.sourcemap, self.filename_id)[start..next], next-start))
+        Some(Grapheme::new(
+            &get_file!(self.sourcemap, self.filename_id)[start..next],
+            next - start,
+        ))
     }
 }
-
 
 #[derive(Clone)]
 pub struct Grapheme {

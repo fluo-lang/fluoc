@@ -20,11 +20,7 @@ pub struct TypeCheckModule {
 
 impl TypeCheckModule {
     /// Return new module object.
-    pub fn new(
-        filename_id: usize,
-        logger: Logger,
-        sourcemap: SourceMap,
-    ) -> TypeCheckModule {
+    pub fn new(filename_id: usize, logger: Logger, sourcemap: SourceMap) -> TypeCheckModule {
         let mut p = Parser::new(filename_id, Rc::clone(&logger), Rc::clone(&sourcemap));
         p.initialize_expr();
         TypeCheckModule {
@@ -40,7 +36,7 @@ impl TypeCheckModule {
         let parser_start = Instant::now();
         // Load core lib on outer scope
         self.parser.parse()?;
-        
+
         self.logger.borrow().log_verbose(&|| {
             format!(
                 "{}: Parsed and lexed",

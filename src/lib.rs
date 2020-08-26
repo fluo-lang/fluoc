@@ -12,6 +12,6 @@ pub mod logger;
 //pub mod mangle;
 pub mod parser;
 pub mod paths;
-pub mod typecheck;
 pub mod segmentation;
 pub mod tags;
+pub mod typecheck;

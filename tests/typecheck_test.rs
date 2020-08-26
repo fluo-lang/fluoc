@@ -1,8 +1,8 @@
 #[cfg(test)]
 mod typecheck_tests {
     use lib::logger::{ErrorType, LoggerInner};
-    use lib::typecheck::TypeCheckModule;
     use lib::sourcemap::SourceMapInner;
+    use lib::typecheck::TypeCheckModule;
 
     use std::path;
     use std::rc::Rc;
@@ -13,15 +13,14 @@ mod typecheck_tests {
             fn $name() {
                 let filename = path::PathBuf::from("this_is_another_filename_test.fl");
                 let mut sourcemap = SourceMapInner::new();
-                let filename_id = sourcemap.borrow_mut().insert_file(filename, concat!("@[no_std]\n@[no_core]\n", $code).to_string());
+                let filename_id = sourcemap.borrow_mut().insert_file(
+                    filename,
+                    concat!("@[no_std]\n@[no_core]\n", $code).to_string(),
+                );
 
                 let logger = LoggerInner::new(true, Rc::clone(&sourcemap));
 
-                let mut typechecker = TypeCheckModule::new(
-                    filename_id,
-                    logger,
-                    sourcemap,
-                );
+                let mut typechecker = TypeCheckModule::new(filename_id, logger, sourcemap);
                 assert_eq!(
                     typechecker
                         .type_check()

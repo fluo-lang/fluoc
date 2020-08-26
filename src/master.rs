@@ -1,8 +1,8 @@
 use crate::codegen::CodeGenModule;
 use crate::helpers;
+use crate::logger::{Color, Font, Logger, LoggerInner};
 use crate::paths;
 use crate::sourcemap::{SourceMap, SourceMapInner};
-use crate::logger::{Font, Color, Logger, LoggerInner};
 
 use std::collections::HashMap;
 use std::ffi::OsStr;
@@ -73,7 +73,10 @@ impl<'a> Master<'a> {
         pass_manager.run_on(&self.modules[&filename_id].module);
         //println!("{}", &self.modules[filename].module.print_to_string().to_str().unwrap());
 
-        self.link_to_obj(filename_id, self.modules[&filename_id].module.print_to_string());
+        self.link_to_obj(
+            filename_id,
+            self.modules[&filename_id].module.print_to_string(),
+        );
         self.link_objs(filename_id);
     }
 

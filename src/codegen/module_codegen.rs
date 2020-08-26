@@ -1,8 +1,8 @@
 use crate::helpers;
 use crate::logger::{ErrorValue, Logger};
 use crate::parser::ast;
-use crate::typecheck::TypeCheckModule;
 use crate::sourcemap::SourceMap;
+use crate::typecheck::TypeCheckModule;
 
 use inkwell::types::BasicType;
 use inkwell::values::BasicValue;
@@ -52,7 +52,7 @@ pub struct CodeGenModule<'a> {
     symbtab: CodeGenSymbTab<'a>,
     output_ir: &'a path::Path,
     pub output_obj: &'a path::Path,
-    sourcemap: SourceMap
+    sourcemap: SourceMap,
 }
 
 impl<'a> CodeGenModule<'a> {
@@ -66,7 +66,8 @@ impl<'a> CodeGenModule<'a> {
         output_ir: &'a path::Path,
         output_obj: &'a path::Path,
     ) -> CodeGenModule<'a> {
-        let typecheck = TypeCheckModule::new(filename_id, Rc::clone(&logger), Rc::clone(&sourcemap));
+        let typecheck =
+            TypeCheckModule::new(filename_id, Rc::clone(&logger), Rc::clone(&sourcemap));
         CodeGenModule {
             module,
             context,

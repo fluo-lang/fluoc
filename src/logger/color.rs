@@ -59,5 +59,3 @@ impl fmt::Display for Font {
         write!(f, "{}", self.as_str())
     }
 }
-
-

@@ -283,7 +283,7 @@ pub enum Visibility {
 }
 
 impl Visibility {
-    pub fn f(&self, sourcemap: SourceMap) -> &'static str {
+    pub fn f(&self) -> &'static str {
         match self {
             Visibility::Public => "public",
             Visibility::Private => "private",

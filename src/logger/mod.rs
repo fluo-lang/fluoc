@@ -1,8 +1,8 @@
 pub mod buffer_writer;
-pub mod logger;
-pub mod error;
 pub mod color;
+pub mod error;
+pub mod logger;
 
-pub use logger::*;
-pub use error::*;
 pub use color::*;
+pub use error::*;
+pub use logger::*;

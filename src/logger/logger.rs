@@ -1,5 +1,5 @@
-use super::buffer_writer::{Style, Buffer};
-use super::{Color, Font, ErrorValue, ErrorAnnotation, ErrorDisplayType};
+use super::buffer_writer::{Buffer, Style};
+use super::{Color, ErrorAnnotation, ErrorDisplayType, ErrorGen, ErrorValue, Font};
 
 use std::cell::RefCell;
 use std::cmp::{max, Reverse};
@@ -42,6 +42,11 @@ impl LoggerInner {
     /// Pushes an error onto the error vector.
     pub fn error(&mut self, error: ErrorValue) {
         self.errors.push(error);
+    }
+
+    /// Push multiple errors onto the error vector
+    pub fn append_errors(&mut self, mut errors: Vec<ErrorValue>) {
+        self.errors.append(&mut errors);
     }
 
     pub fn log(&self, logged_val: String) {
@@ -995,8 +1000,7 @@ impl LoggerInner {
 
     /// Static method for error that parses the furthest.
     /// Useful when you have multiple errors and want to know which one is the most accurate.
-    pub fn longest(errors: Vec<ErrorValue>) -> ErrorValue {
-        let mut errors = errors;
+    pub fn longest(mut errors: Vec<ErrorGen>) -> ErrorGen {
         errors.sort_by_key(|x| {
             (
                 // Urgents have a greater priority (i.e. a wrong scope error)
@@ -1007,6 +1011,6 @@ impl LoggerInner {
                 x.position.e,
             )
         });
-        errors.last().unwrap().clone()
+        errors.pop().unwrap()
     }
 }

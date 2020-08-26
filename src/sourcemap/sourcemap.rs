@@ -52,24 +52,23 @@ impl SourceMapInner {
 macro_rules! get_filename {
     ($sourcemap: expr, $idx: expr) => {
         $sourcemap.borrow().get_filename($idx)
-    }
+    };
 }
 
 macro_rules! get_file {
     ($sourcemap: expr, $idx: expr) => {
         $sourcemap.borrow().get_file($idx)
-    }
+    };
 }
 
 macro_rules! get_segment {
     ($sourcemap: expr, $pos: expr) => {
         $sourcemap.borrow().get_segment($pos)
-    }
+    };
 }
 
 macro_rules! insert_file {
     ($sourcemap: expr, $filename: expr, $contents: expr) => {
         $sourcemap.borrow_mut().insert_file($filename, $contents)
-    }
+    };
 }
-

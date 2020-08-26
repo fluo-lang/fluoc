@@ -3,7 +3,7 @@ use crate::helpers;
 
 pub struct Tuple {
     types: Vec<MirType>,
-    pos: helpers::Pos
+    pos: helpers::Pos,
 }
 
 pub enum MirType {
@@ -12,4 +12,3 @@ pub enum MirType {
     /// Namespace types. E.g., str, int, my::type
     Namespace(mir::Namespace),
 }
-

@@ -1,4 +1,3 @@
-
 #[derive(Clone, Copy, PartialEq, Debug)]
 /// Unit level tags
 pub struct UnitTags {
@@ -14,4 +13,3 @@ impl UnitTags {
         }
     }
 }
-

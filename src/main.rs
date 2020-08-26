@@ -1,5 +1,6 @@
 #![feature(backtrace)]
 #![warn(rust_2018_idioms)]
+
 #[macro_use]
 extern crate lazy_static;
 
@@ -14,9 +15,9 @@ pub mod logger;
 pub mod master;
 pub mod parser;
 pub mod paths;
-pub mod typecheck;
 pub mod segmentation;
 pub mod tags;
+pub mod typecheck;
 
 #[macro_use]
 extern crate clap;
