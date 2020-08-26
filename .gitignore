@@ -25,5 +25,6 @@ test.rs
 test.ll
 
 perf.data
+perf.data.old
 flamegraph.svg
 
