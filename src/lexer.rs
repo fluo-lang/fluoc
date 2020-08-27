@@ -230,9 +230,6 @@ fn is_id_continue(c: char) -> bool {
 
 impl Lexer {
     /// Return new lexer object.
-    ///
-    /// Arguments
-    /// * `filename` - the filename of the file to read
     pub fn new(filename: usize, sourcemap: SourceMap) -> Lexer {
         Lexer {
             filename,

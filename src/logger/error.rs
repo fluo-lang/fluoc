@@ -9,16 +9,15 @@ pub enum ErrorType {
     UnterminatedString,
     UnknownCharacter,
     UndefinedSyntax,
-    SyntaxTypeError,
-    UndefinedTypeError,
+    SyntaxType,
+    UndefinedType,
     TypeMismatch,
     UndefinedSymbol,
-    TypeCastError,
+    TypeCast,
     PossibleUninitVal,
-    ScopeError,
-    InferError,
-    VisibilityError,
-    ImportError,
+    Infer,
+    Visibility,
+    Import,
 }
 
 impl ErrorType {
@@ -29,16 +28,15 @@ impl ErrorType {
             ErrorType::UnterminatedString => "unterminated_string",
             ErrorType::UnknownCharacter => "unknown_character",
             ErrorType::UndefinedSyntax => "undefined_syntax",
-            ErrorType::SyntaxTypeError => "syntax_type",
-            ErrorType::UndefinedTypeError => "undefined_type",
+            ErrorType::SyntaxType => "syntax_type",
+            ErrorType::UndefinedType=> "undefined_type",
             ErrorType::TypeMismatch => "type_mismatch",
             ErrorType::UndefinedSymbol => "undefined_symbol",
-            ErrorType::TypeCastError => "type_case",
-            ErrorType::PossibleUninitVal => "possible_initialized",
-            ErrorType::VisibilityError => "visibility_error",
-            ErrorType::ImportError => "import_error",
-            ErrorType::InferError => "infer_error",
-            ErrorType::ScopeError => "scope_error",
+            ErrorType::TypeCast => "type_cast",
+            ErrorType::PossibleUninitVal => "possible_uninitialized",
+            ErrorType::Visibility => "visibility_error",
+            ErrorType::Import => "import_error",
+            ErrorType::Infer => "infer_error",
         }
     }
 }
@@ -207,6 +205,12 @@ impl ErrorValue {
     }
 }
 
+impl Into<Vec<ErrorValue>> for ErrorValue {
+    fn into(self) -> Vec<ErrorValue> {
+        vec![self]
+    }
+}
+
 /// A lazy representation of an error
 pub struct ErrorGen {
     /// Closure to create an error lazily
@@ -231,3 +235,4 @@ impl From<ErrorGen> for ErrorValue {
         (error.make_err)()
     }
 }
+

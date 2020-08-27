@@ -27,7 +27,8 @@ pub struct Tag {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum LiteralType {
-    Integer,
+    Custom(helpers::Pos),
+    Number,
     String,
     Bool,
 }
@@ -201,7 +202,7 @@ pub struct VariableDeclaration {
 pub struct Unit {
     pub name: Namespace,
     pub pos: helpers::Pos,
-    pub block: Block,
+    pub block: Vec<Statement>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -346,6 +347,7 @@ pub struct ExpressionStatement {
 pub enum TypeType {
     Type(Rc<Namespace>),
     Tuple(Vec<Rc<Type>>),
+    Unknown,
 }
 
 impl TypeType {
@@ -359,15 +361,9 @@ impl TypeType {
                 }
                 final_string
             }
-        }
-    }
-}
-
-impl TypeType {
-    pub fn unwrap_type(&self) -> Rc<Namespace> {
-        match self {
-            TypeType::Type(val) => Rc::clone(val),
-            TypeType::Tuple(_) => panic!("Tried to unwrap type from typetype, found tuple"),
+            TypeType::Unknown => {
+                "<unknown>".to_string()
+            }
         }
     }
 }
@@ -376,7 +372,6 @@ impl TypeType {
 /// Type Node
 pub struct Type {
     pub value: TypeType,
-    pub inferred: bool,
     pub pos: helpers::Pos,
 }
 
@@ -539,8 +534,6 @@ pub enum Statement {
 
     FunctionDefine(FunctionDefine),
 
-    Conditional(Conditional),
-
     Return(Return),
     Unit(Unit),
     TypeAssign(TypeAssign),
@@ -558,7 +551,6 @@ impl Statement {
 
             Statement::FunctionDefine(val) => val.pos,
 
-            Statement::Conditional(val) => val.pos,
 
             Statement::Return(val) => val.pos,
             Statement::Unit(val) => val.pos,
@@ -570,22 +562,21 @@ impl Statement {
         }
     }
 
-    pub fn to_string(&self) -> String {
+    pub fn to_string(&self) -> &str {
         match &self {
-            Statement::ExpressionStatement(val) => val.expression.to_str().to_string(),
-            Statement::VariableDeclaration(_) => "variable declaration".to_string(),
+            Statement::ExpressionStatement(val) => val.expression.to_str(),
+            Statement::VariableDeclaration(_) => "variable declaration",
 
-            Statement::FunctionDefine(_) => "function define".to_string(),
+            Statement::FunctionDefine(_) => "function define",
 
-            Statement::Conditional(_) => "conditional".to_string(),
 
-            Statement::Unit(_) => "unit".to_string(),
-            Statement::Import(_) => "import".to_string(),
-            Statement::Return(_) => "return statement".to_string(),
-            Statement::TypeAssign(_) => "type assignment".to_string(),
-            Statement::Tag(_) => "compiler tag".to_string(),
+            Statement::Unit(_) => "unit",
+            Statement::Import(_) => "import",
+            Statement::Return(_) => "return statement",
+            Statement::TypeAssign(_) => "type assignment",
+            Statement::Tag(_) => "compiler tag",
 
-            Statement::Empty(_) => "empty statement".to_string(),
+            Statement::Empty(_) => "empty statement",
         }
     }
 
@@ -599,8 +590,6 @@ impl Statement {
             Statement::VariableDeclaration(_) => &Scope::Block,
 
             Statement::FunctionDefine(_) => &Scope::All,
-
-            Statement::Conditional(_) => &Scope::Block,
 
             Statement::Return(_) => &Scope::Block,
             Statement::TypeAssign(_) => &Scope::All,
@@ -618,8 +607,6 @@ impl Statement {
             Statement::VariableDeclaration(val) => Node::VariableDeclaration(val),
 
             Statement::FunctionDefine(val) => Node::FunctionDefine(val),
-
-            Statement::Conditional(val) => Node::Conditional(val),
 
             Statement::Return(val) => Node::Return(val),
             Statement::TypeAssign(val) => Node::TypeAssign(val),
@@ -651,6 +638,7 @@ pub enum Expr {
     Empty(Empty),
 
     FunctionDefine(FunctionDefine),
+    Conditional(Conditional),
 }
 
 impl Expr {
@@ -665,30 +653,13 @@ impl Expr {
             Expr::FunctionCall(val) => val.pos,
             Expr::Tuple(val) => val.pos,
 
+            Expr::Conditional(val) => val.pos,
+
             Expr::Infix(val) => val.pos,
             Expr::Prefix(val) => val.pos,
 
             Expr::Empty(val) => val.pos,
             Expr::FunctionDefine(val) => val.pos,
-        }
-    }
-
-    pub fn type_val(&self) -> helpers::Pos {
-        match &self {
-            Expr::Literal(type_val) => type_val.pos,
-            Expr::RefID(type_val) => type_val.pos,
-            Expr::DollarID(type_val) => type_val.pos,
-            Expr::Reference(type_val) => type_val.pos,
-            Expr::VariableAssign(type_val) => type_val.pos,
-            Expr::VariableAssignDeclaration(type_val) => type_val.pos,
-            Expr::FunctionCall(type_val) => type_val.pos,
-            Expr::Tuple(type_val) => type_val.pos,
-
-            Expr::Infix(type_val) => type_val.pos,
-            Expr::Prefix(type_val) => type_val.pos,
-
-            Expr::Empty(type_val) => type_val.pos,
-            Expr::FunctionDefine(type_val) => type_val.pos,
         }
     }
 
@@ -702,6 +673,8 @@ impl Expr {
             Expr::VariableAssignDeclaration(_) => "variable assignment declaration",
             Expr::FunctionCall(_) => "function call",
             Expr::Tuple(_) => "tuple",
+
+            Expr::Conditional(_) => "conditional",
 
             Expr::Infix(_) => "infix",
             Expr::Prefix(_) => "prefix",

@@ -1,15 +1,18 @@
 use super::mir;
+use super::types;
+
+use crate::parser::ast;
 
 use std::collections::HashMap;
 
 enum ContextObj {
-    Function(mir::FunctionSig),
-    Expr(),
+    Function(types::FunctionSig),
+    Expr(mir::MirExpr),
 }
 
 /// Context storing defines types, variables, functions, etc
 pub struct Context {
-    objects: HashMap<mir::Namespace, ContextObj>,
+    objects: HashMap<ast::Namespace, ContextObj>,
 }
 
 impl Context {

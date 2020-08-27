@@ -58,10 +58,10 @@ pub struct Parser {
     /// Lexer object
     pub lexer: lexer::Lexer,
     /// Abstract syntax tree
-    pub ast: Option<ast::Block>,
+    pub ast: Option<Vec<ast::Statement>>,
     logger: Logger,
 
-    statements: [fn(&mut Self) -> Result<Statement, ErrorGen>; 12],
+    statements: [fn(&mut Self) -> Result<Statement, ErrorGen>; 11],
     prefix_op: HashMap<lexer::TokenType, Prec>,
     infix_op: HashMap<lexer::TokenType, Prec>,
     tokens: Vec<lexer::Token>,
@@ -86,7 +86,6 @@ impl Parser {
                 Parser::type_assign,
                 Parser::compiler_tag,
                 Parser::extern_def,
-                Parser::conditional,
                 Parser::overload_define,
                 Parser::overload_extern,
             ],
@@ -113,8 +112,7 @@ impl Parser {
         self.ast
             .as_mut()
             .unwrap()
-            .nodes
-            .append(&mut parser.ast.unwrap().nodes);
+            .append(&mut parser.ast.unwrap());
     }
 
     /// Template for syntax error
@@ -327,14 +325,7 @@ impl Parser {
             }
         }
 
-        let block = ast::Block {
-            nodes: ast_list,
-            tags: UnitTags::new(),
-            pos: self.get_relative_pos(position),
-            insert_return: false,
-            returns: false,
-        };
-        self.ast = Some(block);
+        self.ast = Some(ast_list);
         Ok(())
     }
 
@@ -474,7 +465,7 @@ impl Parser {
 
         Ok(Statement::Unit(ast::Unit {
             name,
-            block,
+            block: block.nodes,
             pos: self.get_relative_pos(position),
         }))
     }
@@ -524,7 +515,7 @@ impl Parser {
                 Box::new(move || {
                     ErrorValue::new(
                         "file does not exist".to_string(),
-                        ErrorType::ImportError,
+                        ErrorType::Import,
                         last_pos,
                         ErrorDisplayType::Error,
                         vec![ErrorAnnotation::new(
@@ -568,7 +559,7 @@ impl Parser {
                 Box::new(move || {
                     ErrorValue::new(
                         "cannot declare a unit any further than file".to_string(),
-                        ErrorType::ImportError,
+                        ErrorType::Import,
                         name_pos,
                         ErrorDisplayType::Error,
                         vec![
@@ -655,13 +646,11 @@ impl Parser {
         } {
             ast::Type {
                 value: ast::TypeType::Tuple(Vec::new()),
-                inferred: true,
                 pos: block.pos,
             }
         } else {
             ast::Type {
                 value: ast::TypeType::Tuple(Vec::new()),
-                inferred: true,
                 pos: block.pos,
             }
         };
@@ -706,7 +695,6 @@ impl Parser {
             self.forward();
             ast::Type {
                 value: ast::TypeType::Tuple(Vec::new()),
-                inferred: true,
                 pos: self.get_relative_pos(position),
             }
         };
@@ -758,13 +746,11 @@ impl Parser {
         } {
             ast::Type {
                 value: ast::TypeType::Tuple(Vec::new()),
-                inferred: true,
                 pos: block.pos,
             }
         } else {
             ast::Type {
                 value: ast::TypeType::Tuple(Vec::new()),
-                inferred: true,
                 pos: block.pos,
             }
         };
@@ -811,7 +797,6 @@ impl Parser {
             self.forward();
             ast::Type {
                 value: ast::TypeType::Tuple(Vec::new()),
-                inferred: true,
                 pos: self.get_relative_pos(position),
             }
         };
@@ -960,8 +945,15 @@ impl Parser {
 
         let namespace = self.namespace()?;
 
-        self.next(lexer::TokenType::COLON, position, false)?;
-        let var_type = self.type_expr()?;
+        let var_type = if lexer::TokenType::COLON == self.peek().token {
+            self.forward();
+            self.type_expr()?
+        } else {
+            ast::Type {
+                value: ast::TypeType::Unknown,
+                pos: namespace.pos
+            }
+        };
 
         self.next(lexer::TokenType::EQUALS, position, false)?;
         let expr = self.expr(Prec::LOWEST)?;
@@ -983,8 +975,15 @@ impl Parser {
 
         let namespace = self.namespace()?;
 
-        self.next(lexer::TokenType::COLON, position, false)?;
-        let var_type = self.type_expr()?;
+        let var_type = if lexer::TokenType::COLON == self.peek().token {
+            self.forward();
+            self.type_expr()?
+        } else {
+            ast::Type {
+                value: ast::TypeType::Unknown,
+                pos: namespace.pos
+            }
+        };
 
         self.next(lexer::TokenType::SEMI, position, false)?;
 
@@ -1014,7 +1013,7 @@ impl Parser {
         }))
     }
 
-    fn conditional(&mut self) -> Result<Statement, ErrorGen> {
+    fn conditional(&mut self) -> Result<Expr, ErrorGen> {
         let position = self.token_pos;
 
         // Required
@@ -1033,7 +1032,7 @@ impl Parser {
             Err(_) => None,
         };
 
-        Ok(ast::Statement::Conditional(ast::Conditional {
+        Ok(ast::Expr::Conditional(ast::Conditional {
             if_branches,
             else_branch,
             pos: self.get_relative_pos(position),
@@ -1279,7 +1278,7 @@ impl Parser {
         let int = self.forward();
         if lexer::TokenType::NUMBER == int.token {
             Ok(ast::Expr::Literal(ast::Literal {
-                literal_type: LiteralType::Integer,
+                literal_type: LiteralType::Number,
                 pos: int.pos,
             }))
         } else {
@@ -1450,7 +1449,6 @@ impl Parser {
 
         Ok(ast::Type {
             pos: namespace.pos,
-            inferred: false,
             value: ast::TypeType::Type(Rc::new(namespace)),
         })
     }
@@ -1485,7 +1483,6 @@ impl Parser {
 
         Ok(ast::Type {
             value: ast::TypeType::Tuple(values),
-            inferred: false,
             pos: self.get_relative_pos(position),
         })
     }
