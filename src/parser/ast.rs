@@ -240,8 +240,6 @@ pub struct Block {
     pub nodes: Vec<Statement>,
     pub tags: UnitTags,
     pub pos: helpers::Pos,
-    pub insert_return: bool,
-    pub returns: bool,
 }
 
 impl Block {
@@ -267,8 +265,6 @@ impl Units {
             nodes: self.units.into_iter().map(|x| Statement::Unit(x)).collect(),
             tags: UnitTags::new(),
             pos: self.pos,
-            insert_return: false,
-            returns: false,
         }
     }
 
@@ -321,8 +317,14 @@ pub struct ArgumentsRun {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct Yield {
+    pub expression: Expr,
+    pub pos: helpers::Pos,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct Return {
-    pub expression: Box<Expr>,
+    pub expression: Expr,
     pub pos: helpers::Pos,
 }
 
@@ -521,7 +523,9 @@ pub enum Node {
     Literal(Literal),
     DollarID(DollarID),
     Nodes(Nodes),
+
     Return(Return),
+    Yield(Yield),
 
     Empty(Empty),
     Units(Units),
@@ -535,6 +539,7 @@ pub enum Statement {
     FunctionDefine(FunctionDefine),
 
     Return(Return),
+    Yield(Yield),
     Unit(Unit),
     TypeAssign(TypeAssign),
     Import(Import),
@@ -551,8 +556,9 @@ impl Statement {
 
             Statement::FunctionDefine(val) => val.pos,
 
-
             Statement::Return(val) => val.pos,
+            Statement::Yield(val) => val.pos,
+
             Statement::Unit(val) => val.pos,
             Statement::TypeAssign(val) => val.pos,
             Statement::Import(val) => val.pos,
@@ -569,10 +575,11 @@ impl Statement {
 
             Statement::FunctionDefine(_) => "function define",
 
+            Statement::Return(_) => "return statement",
+            Statement::Yield(_) => "yield statement",
 
             Statement::Unit(_) => "unit",
             Statement::Import(_) => "import",
-            Statement::Return(_) => "return statement",
             Statement::TypeAssign(_) => "type assignment",
             Statement::Tag(_) => "compiler tag",
 
@@ -592,6 +599,8 @@ impl Statement {
             Statement::FunctionDefine(_) => &Scope::All,
 
             Statement::Return(_) => &Scope::Block,
+            Statement::Yield(_) => &Scope::Block,
+
             Statement::TypeAssign(_) => &Scope::All,
             Statement::Unit(_) => &Scope::Outer,
             Statement::Import(_) => &Scope::Outer,
@@ -609,6 +618,8 @@ impl Statement {
             Statement::FunctionDefine(val) => Node::FunctionDefine(val),
 
             Statement::Return(val) => Node::Return(val),
+            Statement::Yield(val) => Node::Yield(val),
+
             Statement::TypeAssign(val) => Node::TypeAssign(val),
             Statement::Import(val) => Node::Import(val),
             Statement::Unit(val) => Node::Unit(val),

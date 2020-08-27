@@ -6,10 +6,19 @@ use unicode_segmentation::GraphemeCursor;
 #[derive(Clone)]
 /// Custom version of unicode_segmentation Graphemes
 /// ```
-/// use crate::sourcemap::SourceMapInner;
+/// use lib::sourcemap::SourceMapInner;
+/// use lib::segmentation::GraphemeIdxs;
+///
+/// use std::path;
+/// use std::rc::Rc;
+///
+/// let string = "👨‍👩‍👧‍👧".to_string();
 /// let sourcemap = SourceMapInner::new();
-/// sourcemap.borrow_mut().insert_file();
-/// let graphemes = GraphemeIdxs::new(sourcemap, 0);
+/// sourcemap.borrow_mut().insert_file(path::PathBuf::from("test.fl"), string.clone());
+/// let mut graphemes = GraphemeIdxs::new(Rc::clone(&sourcemap), 0);
+///
+/// assert_eq!(graphemes.next().unwrap().len(), 25);
+/// assert_eq!(sourcemap.borrow().get_file(0)[0..25], string);
 /// ```
 pub struct GraphemeIdxs {
     sourcemap: SourceMap,

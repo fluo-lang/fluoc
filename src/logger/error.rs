@@ -41,7 +41,7 @@ impl ErrorType {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 /// Error display mode
 pub enum ErrorDisplayType {
     /// "Error" mode, make underline red and text red
@@ -135,7 +135,7 @@ impl ErrorOrVec {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 /// Underlines and such
 pub struct ErrorAnnotation {
     /// Error message
@@ -171,7 +171,7 @@ impl ErrorAnnotation {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 /// An full on error containing useful info.
 pub struct ErrorValue {
     /// Error message

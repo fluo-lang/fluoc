@@ -1,7 +1,7 @@
 use super::AnnotationType;
 
 use crate::typecheck::context::Context;
-use crate::parser::ast;
+use crate::parser::{ast, ast::Statement};
 use crate::logger::ErrorValue;
 
 pub struct Annotator {
@@ -19,8 +19,20 @@ impl Annotator {
     }
 
     pub fn annotate(&mut self, ast: Vec<ast::Statement>) -> Result<Vec<super::TypedStmt>, ErrorValue> {
-        Ok(Vec::new())
+        let mut statements = Vec::with_capacity(ast.len());
+
+        for stmt in ast {
+            //statements.push(self.annotate_stmt(stmt)?);
+        }
+
+        Ok(statements)
     }
+
+    /*
+    fn annotate_stmt(&mut self, stmt: ast::Statement) -> Result<super::TypedStmt, ErrorValue> {
+        match stmt {
+        }
+    }*/
 
     pub fn unique(&mut self) -> AnnotationType {
         self.type_counter += 1;

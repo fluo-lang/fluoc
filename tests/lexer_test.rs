@@ -1,588 +1,87 @@
 #[cfg(test)]
 mod lexer_tests {
     use lib::helpers::Pos;
-    use lib::lexer::TokenType::*;
+    use lib::lexer::TokenType;
     use lib::lexer::*;
     use lib::sourcemap::SourceMapInner;
 
     use std::path;
 
-    #[test]
-    fn lex_test() -> Result<(), ()> {
-        let sourcemap = SourceMapInner::new();
-        let filename_id = sourcemap.borrow_mut().insert_file(
-            path::PathBuf::from("./tests/lexer_test.fluo"),
-            r#"-- lexer test (code shouldn't work)
+    macro_rules! lex_assert {
+        ($source: expr, $token: expr, $name: ident) => {
+            #[test]
+            fn $name() {
+                let sourcemap = SourceMapInner::new();
+                let filename_id = sourcemap.borrow_mut().insert_file(
+                    path::PathBuf::from("test_fl.fl"),
+                    $source.to_string(),
+                );
 
-def entry(one, two) {
-    let x: int = 10;
-
-    -- hello work 12342824\n924910djwi2wkfjar2riar
-    /* ajwd asjf*/
-    return 1+192*20/(120 + "2319")%10/203911234567890;
-
-
-
-    let _qwertyuiopasdfghjklzxcvbnm;
-    _qwertyuiopasdfghjklzxcvbnm = "hi";
-
-}
-
-/*
-hlleoa1234567890qwertyuiopasdfghjklzxcvbnm,./?><;'":[]\|}{=-0987654321`~!@#$%^&*()_+
-one two
-djawd
-sfghsdjajdksajfiwjijfa
-*/
-
-def _123awfawjfaifjaiwjf(one, two) {
-
-
-}
-"#
-            .to_string(),
-        );
-        let mut l = Lexer::new(filename_id, sourcemap);
-
-        assert_eq!(
-            l.advance().unwrap(),
-            Token {
-                token: DEF,
-                pos: Pos {
-                    s: 37,
-                    e: 40,
-                    filename_id: 0,
-                }
+                let mut l = Lexer::new(filename_id, sourcemap);
+                assert_eq!(l.advance().map(|tok| tok.token), Ok($token))
             }
-        );
-        assert_eq!(
-            l.advance().unwrap(),
-            Token {
-                token: IDENTIFIER,
-                pos: Pos {
-                    s: 41,
-                    e: 46,
-                    filename_id: 0,
-                }
-            }
-        );
-        assert_eq!(
-            l.advance().unwrap(),
-            Token {
-                token: LP,
-                pos: Pos {
-                    s: 46,
-                    e: 47,
-                    filename_id: 0,
-                }
-            }
-        );
-        assert_eq!(
-            l.advance().unwrap(),
-            Token {
-                token: IDENTIFIER,
-                pos: Pos {
-                    s: 47,
-                    e: 50,
-                    filename_id: 0,
-                }
-            }
-        );
-        assert_eq!(
-            l.advance().unwrap(),
-            Token {
-                token: COMMA,
-                pos: Pos {
-                    s: 50,
-                    e: 51,
-                    filename_id: 0,
-                }
-            }
-        );
-        assert_eq!(
-            l.advance().unwrap(),
-            Token {
-                token: IDENTIFIER,
-                pos: Pos {
-                    s: 52,
-                    e: 55,
-                    filename_id: 0,
-                }
-            }
-        );
-        assert_eq!(
-            l.advance().unwrap(),
-            Token {
-                token: RP,
-                pos: Pos {
-                    s: 55,
-                    e: 56,
-                    filename_id: 0,
-                }
-            }
-        );
-        assert_eq!(
-            l.advance().unwrap(),
-            Token {
-                token: LCP,
-                pos: Pos {
-                    s: 57,
-                    e: 58,
-                    filename_id: 0,
-                }
-            }
-        );
-        assert_eq!(
-            l.advance().unwrap(),
-            Token {
-                token: LET,
-                pos: Pos {
-                    s: 63,
-                    e: 66,
-                    filename_id: 0,
-                }
-            }
-        );
-        assert_eq!(
-            l.advance().unwrap(),
-            Token {
-                token: IDENTIFIER,
-                pos: Pos {
-                    s: 67,
-                    e: 68,
-                    filename_id: 0,
-                }
-            }
-        );
-        assert_eq!(
-            l.advance().unwrap(),
-            Token {
-                token: COLON,
-                pos: Pos {
-                    s: 68,
-                    e: 69,
-                    filename_id: 0,
-                }
-            }
-        );
-        assert_eq!(
-            l.advance().unwrap(),
-            Token {
-                token: IDENTIFIER,
-                pos: Pos {
-                    s: 70,
-                    e: 73,
-                    filename_id: 0,
-                }
-            }
-        );
-        assert_eq!(
-            l.advance().unwrap(),
-            Token {
-                token: EQUALS,
-                pos: Pos {
-                    s: 74,
-                    e: 75,
-                    filename_id: 0,
-                }
-            }
-        );
-        assert_eq!(
-            l.advance().unwrap(),
-            Token {
-                token: NUMBER,
-                pos: Pos {
-                    s: 76,
-                    e: 78,
-                    filename_id: 0,
-                }
-            }
-        );
-        assert_eq!(
-            l.advance().unwrap(),
-            Token {
-                token: SEMI,
-                pos: Pos {
-                    s: 78,
-                    e: 79,
-                    filename_id: 0,
-                }
-            }
-        );
-        assert_eq!(
-            l.advance().unwrap(),
-            Token {
-                token: RETURN,
-                pos: Pos {
-                    s: 155,
-                    e: 161,
-                    filename_id: 0,
-                }
-            }
-        );
-        assert_eq!(
-            l.advance().unwrap(),
-            Token {
-                token: NUMBER,
-                pos: Pos {
-                    s: 162,
-                    e: 163,
-                    filename_id: 0,
-                }
-            }
-        );
-        assert_eq!(
-            l.advance().unwrap(),
-            Token {
-                token: ADD,
-                pos: Pos {
-                    s: 163,
-                    e: 164,
-                    filename_id: 0,
-                }
-            }
-        );
-        assert_eq!(
-            l.advance().unwrap(),
-            Token {
-                token: NUMBER,
-                pos: Pos {
-                    s: 164,
-                    e: 167,
-                    filename_id: 0,
-                }
-            }
-        );
-        assert_eq!(
-            l.advance().unwrap(),
-            Token {
-                token: MUL,
-                pos: Pos {
-                    s: 167,
-                    e: 168,
-                    filename_id: 0,
-                }
-            }
-        );
-        assert_eq!(
-            l.advance().unwrap(),
-            Token {
-                token: NUMBER,
-                pos: Pos {
-                    s: 168,
-                    e: 170,
-                    filename_id: 0,
-                }
-            }
-        );
-        assert_eq!(
-            l.advance().unwrap(),
-            Token {
-                token: DIV,
-                pos: Pos {
-                    s: 170,
-                    e: 171,
-                    filename_id: 0,
-                }
-            }
-        );
-        assert_eq!(
-            l.advance().unwrap(),
-            Token {
-                token: LP,
-                pos: Pos {
-                    s: 171,
-                    e: 172,
-                    filename_id: 0,
-                }
-            }
-        );
-        assert_eq!(
-            l.advance().unwrap(),
-            Token {
-                token: NUMBER,
-                pos: Pos {
-                    s: 172,
-                    e: 175,
-                    filename_id: 0,
-                }
-            }
-        );
-        assert_eq!(
-            l.advance().unwrap(),
-            Token {
-                token: ADD,
-                pos: Pos {
-                    s: 176,
-                    e: 177,
-                    filename_id: 0,
-                }
-            }
-        );
-        assert_eq!(
-            l.advance().unwrap(),
-            Token {
-                token: STRING,
-                pos: Pos {
-                    s: 178,
-                    e: 184,
-                    filename_id: 0,
-                }
-            }
-        );
-        assert_eq!(
-            l.advance().unwrap(),
-            Token {
-                token: RP,
-                pos: Pos {
-                    s: 184,
-                    e: 185,
-                    filename_id: 0,
-                }
-            }
-        );
-        assert_eq!(
-            l.advance().unwrap(),
-            Token {
-                token: MOD,
-                pos: Pos {
-                    s: 185,
-                    e: 186,
-                    filename_id: 0,
-                }
-            }
-        );
-        assert_eq!(
-            l.advance().unwrap(),
-            Token {
-                token: NUMBER,
-                pos: Pos {
-                    s: 186,
-                    e: 188,
-                    filename_id: 0,
-                }
-            }
-        );
-        assert_eq!(
-            l.advance().unwrap(),
-            Token {
-                token: DIV,
-                pos: Pos {
-                    s: 188,
-                    e: 189,
-                    filename_id: 0,
-                }
-            }
-        );
-        assert_eq!(
-            l.advance().unwrap(),
-            Token {
-                token: NUMBER,
-                pos: Pos {
-                    s: 189,
-                    e: 204,
-                    filename_id: 0,
-                }
-            }
-        );
-        assert_eq!(
-            l.advance().unwrap(),
-            Token {
-                token: SEMI,
-                pos: Pos {
-                    s: 204,
-                    e: 205,
-                    filename_id: 0,
-                }
-            }
-        );
-        assert_eq!(
-            l.advance().unwrap(),
-            Token {
-                token: LET,
-                pos: Pos {
-                    s: 213,
-                    e: 216,
-                    filename_id: 0,
-                }
-            }
-        );
-        assert_eq!(
-            l.advance().unwrap(),
-            Token {
-                token: IDENTIFIER,
-                pos: Pos {
-                    s: 217,
-                    e: 244,
-                    filename_id: 0,
-                }
-            }
-        );
-        assert_eq!(
-            l.advance().unwrap(),
-            Token {
-                token: SEMI,
-                pos: Pos {
-                    s: 244,
-                    e: 245,
-                    filename_id: 0,
-                }
-            }
-        );
-        assert_eq!(
-            l.advance().unwrap(),
-            Token {
-                token: IDENTIFIER,
-                pos: Pos {
-                    s: 250,
-                    e: 277,
-                    filename_id: 0,
-                }
-            }
-        );
-        assert_eq!(
-            l.advance().unwrap(),
-            Token {
-                token: EQUALS,
-                pos: Pos {
-                    s: 278,
-                    e: 279,
-                    filename_id: 0,
-                }
-            }
-        );
-        assert_eq!(
-            l.advance().unwrap(),
-            Token {
-                token: STRING,
-                pos: Pos {
-                    s: 280,
-                    e: 284,
-                    filename_id: 0,
-                }
-            }
-        );
-        assert_eq!(
-            l.advance().unwrap(),
-            Token {
-                token: SEMI,
-                pos: Pos {
-                    s: 284,
-                    e: 285,
-                    filename_id: 0,
-                }
-            }
-        );
-        assert_eq!(
-            l.advance().unwrap(),
-            Token {
-                token: RCP,
-                pos: Pos {
-                    s: 287,
-                    e: 288,
-                    filename_id: 0,
-                }
-            }
-        );
-        assert_eq!(
-            l.advance().unwrap(),
-            Token {
-                token: DEF,
-                pos: Pos {
-                    s: 419,
-                    e: 422,
-                    filename_id: 0,
-                }
-            }
-        );
-        assert_eq!(
-            l.advance().unwrap(),
-            Token {
-                token: IDENTIFIER,
-                pos: Pos {
-                    s: 423,
-                    e: 443,
-                    filename_id: 0,
-                }
-            }
-        );
-        assert_eq!(
-            l.advance().unwrap(),
-            Token {
-                token: LP,
-                pos: Pos {
-                    s: 443,
-                    e: 444,
-                    filename_id: 0,
-                }
-            }
-        );
-        assert_eq!(
-            l.advance().unwrap(),
-            Token {
-                token: IDENTIFIER,
-                pos: Pos {
-                    s: 444,
-                    e: 447,
-                    filename_id: 0,
-                }
-            }
-        );
-        assert_eq!(
-            l.advance().unwrap(),
-            Token {
-                token: COMMA,
-                pos: Pos {
-                    s: 447,
-                    e: 448,
-                    filename_id: 0,
-                }
-            }
-        );
-        assert_eq!(
-            l.advance().unwrap(),
-            Token {
-                token: IDENTIFIER,
-                pos: Pos {
-                    s: 449,
-                    e: 452,
-                    filename_id: 0,
-                }
-            }
-        );
-        assert_eq!(
-            l.advance().unwrap(),
-            Token {
-                token: RP,
-                pos: Pos {
-                    s: 452,
-                    e: 453,
-                    filename_id: 0,
-                }
-            }
-        );
-        assert_eq!(
-            l.advance().unwrap(),
-            Token {
-                token: LCP,
-                pos: Pos {
-                    s: 454,
-                    e: 455,
-                    filename_id: 0,
-                }
-            }
-        );
-        assert_eq!(
-            l.advance().unwrap(),
-            Token {
-                token: RCP,
-                pos: Pos {
-                    s: 458,
-                    e: 459,
-                    filename_id: 0,
-                }
-            }
-        );
-        Ok(())
+        }
     }
+
+    lex_assert!(" true", TokenType::True, true_test);
+    lex_assert!(" false", TokenType::False, false_test);
+
+    lex_assert!(" \"hello \"", TokenType::String, string_test);
+    lex_assert!(" \"12d8a9fh3nffandjs \\\" \"", TokenType::String, string_escape_test);
+
+    lex_assert!(" def", TokenType::Def, def_test);
+    lex_assert!(" type", TokenType::Type, type_test);
+    lex_assert!(" overload", TokenType::Overload, overload_test);
+    lex_assert!(" impl", TokenType::Impl, impl_test);
+    lex_assert!(" pattern", TokenType::Pattern, pattern_test);
+    lex_assert!(" unit", TokenType::Unit, unit_test);
+    lex_assert!(" let", TokenType::Let, let_test);
+    lex_assert!(" as", TokenType::As, as_test);
+    lex_assert!(" return", TokenType::Return, return_test);
+    lex_assert!(" yield", TokenType::Yield, yield_test);
+    lex_assert!(" public", TokenType::Public, public_test);
+    lex_assert!(" extern", TokenType::Extern, extern_test);
+
+    lex_assert!(" @", TokenType::At, at_test);
+
+    lex_assert!(" if", TokenType::If, if_test);
+    lex_assert!(" else", TokenType::Else, else_test);
+
+    lex_assert!(" _13292_293dh_238", TokenType::Identifier, ident_test_1);
+    lex_assert!(" i1dw23", TokenType::Identifier, ident_test_2);
+
+    lex_assert!(" 1", TokenType::Number, number_test_1);
+    lex_assert!(" 1287321234567890", TokenType::Number, number_test_2);
+
+    lex_assert!(" /", TokenType::Div, div_test);
+    lex_assert!(" %", TokenType::Mod, mod_test);
+    lex_assert!(" *", TokenType::Mul, mul_test);
+    lex_assert!(" +", TokenType::Add, add_test);
+    lex_assert!(" -", TokenType::Sub, sub_test);
+    lex_assert!(" %%", TokenType::DMod, dmod_test);
+
+    lex_assert!(" >", TokenType::GT, gt_test);
+    lex_assert!(" <", TokenType::LT, lt_test);
+    lex_assert!(" >=", TokenType::GE, ge_test);
+    lex_assert!(" <=", TokenType::LE, le_test);
+    lex_assert!(" ==", TokenType::EQ, eq_test);
+
+    lex_assert!(" =>", TokenType::Arrow, arrow_test);
+
+
+    lex_assert!(" (", TokenType::LP, lp_test);
+    lex_assert!(" )", TokenType::RP, rp_test);
+    lex_assert!(" {", TokenType::LCP, lcp_test);
+    lex_assert!(" }", TokenType::RCP, rcp_test);
+    lex_assert!(" [", TokenType::LB, lb_test);
+    lex_assert!(" ]", TokenType::RB, rb_test);
+    lex_assert!(" ?", TokenType::Question, question_test);
+    lex_assert!(" .", TokenType::Dot, dot_test);
+    lex_assert!(" =", TokenType::Equals, equals_test);
+    lex_assert!(" :", TokenType::Colon, color_test);
+    lex_assert!(" ::", TokenType::DoubleColon, double_colon_test);
+    lex_assert!(" $", TokenType::Dollar, dollar_test);
+    lex_assert!(" ;", TokenType::Semi, semi_test);
+    lex_assert!(" ,", TokenType::Comma, comma_test);
+    lex_assert!("", TokenType::EOF, eof_test);
 }

@@ -12,39 +12,41 @@ const EOF_STR: &'static str = "\0";
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 /// Type of tokens
 pub enum TokenType {
-    STRING,
-    CODEVALUE,
+    String,
+    CodeValue,
 
-    DEF,
-    TYPE,
-    OVERLOAD,
-    IMPL,
-    PATTERN,
+    Def,
+    Type,
+    Overload,
+    Impl,
+    Pattern,
 
-    UNIT,
+    Unit,
 
-    LET,
-    AS,
-    RETURN,
+    Let,
+    As,
 
-    PUBLIC,
+    Return,
+    Yield,
 
-    EXTERN,
+    Public,
 
-    AT,
+    Extern,
 
-    IF,
-    ELSE,
+    At,
 
-    IDENTIFIER,
-    NUMBER,
+    If,
+    Else,
 
-    DIV,
-    MOD,
-    MUL,
-    ADD,
-    SUB,
-    DMOD,
+    Identifier,
+    Number,
+
+    Div,
+    Mod,
+    Mul,
+    Add,
+    Sub,
+    DMod,
 
     GT, // > Greater than
     LT, // < Less than
@@ -52,7 +54,7 @@ pub enum TokenType {
     LE, // <= Less than or equal to
     EQ, // == Equal to
 
-    ARROW,
+    Arrow,
 
     LP,
     RP,
@@ -61,64 +63,65 @@ pub enum TokenType {
     LB,
     RB,
 
-    QUESTION,
-    DOT,
-    EQUALS,
-    COLON,
-    DOUBLECOLON,
-    DOLLAR,
-    SEMI,
-    COMMA,
+    Question,
+    Dot,
+    Equals,
+    Colon,
+    DoubleColon,
+    Dollar,
+    Semi,
+    Comma,
     EOF,
 
-    TRUE,
-    FALSE,
+    True,
+    False,
 
-    UNKNOWN,
-    LINECOMMENT(usize),
-    BLOCKCOMMENT(usize),
-    WHITESPACE(usize),
+    Unknown,
+    LineComment(usize),
+    BlockComment(usize),
+    Whitespace(usize),
 }
 
 impl TokenType {
     /// Format with no sourcemap
     pub fn f(&self) -> &'static str {
         match self {
-            TokenType::TRUE => "bool literal",
-            TokenType::FALSE => "bool literal",
+            TokenType::True => "bool literal",
+            TokenType::False => "bool literal",
 
-            TokenType::DEF => "keyword `def`",
-            TokenType::RETURN => "keyword `return`",
-            TokenType::LET => "keyword `let`",
-            TokenType::IMPL => "keyword `impl`",
-            TokenType::PATTERN => "keyword `pattern`",
-            TokenType::TYPE => "keyword `type`",
-            TokenType::PUBLIC => "keyword `public`",
-            TokenType::UNIT => "keyword `unit`",
-            TokenType::EXTERN => "keyword `extern`",
-            TokenType::IF => "keyword `if`",
-            TokenType::ELSE => "keyword `else`",
-            TokenType::OVERLOAD => "keyword `overload`",
+            TokenType::Def => "keyword `def`",
+            TokenType::Return => "keyword `return`",
+            TokenType::Yield => "keyword `yield`",
+            TokenType::Let => "keyword `let`",
+            TokenType::Impl => "keyword `impl`",
+            TokenType::Pattern => "keyword `pattern`",
+            TokenType::Type => "keyword `type`",
+            TokenType::Public => "keyword `public`",
+            TokenType::Unit => "keyword `unit`",
+            TokenType::Extern => "keyword `extern`",
+            TokenType::If => "keyword `if`",
+            TokenType::Else => "keyword `else`",
+            TokenType::Overload => "keyword `overload`",
 
-            TokenType::AS => "operator `as`",
-            TokenType::DIV => "operator `/`",
-            TokenType::MOD => "operator `%`",
-            TokenType::MUL => "operator `*`",
-            TokenType::ADD => "operator `+`",
-            TokenType::SUB => "operator `-`",
-            TokenType::DMOD => "operator `%%`",
+            TokenType::As => "operator `as`",
+            TokenType::Div => "operator `/`",
+            TokenType::Mod => "operator `%`",
+            TokenType::Mul => "operator `*`",
+            TokenType::Add => "operator `+`",
+            TokenType::Sub => "operator `-`",
+            TokenType::DMod => "operator `%%`",
             TokenType::GT => "operator `>`",
             TokenType::LT => "operator `<`",
             TokenType::GE => "operator `>=`",
             TokenType::LE => "operator `<=`",
             TokenType::EQ => "operator `==`",
 
-            TokenType::DOLLAR => "token `$`",
-            TokenType::AT => "token `@`",
+            TokenType::Dollar => "token `$`",
+            TokenType::At => "token `@`",
 
-            TokenType::DOUBLECOLON => "token `::`",
+            TokenType::DoubleColon => "token `::`",
 
-            TokenType::ARROW => "token `=>`",
+            TokenType::Arrow => "token `=>`",
 
             TokenType::LP => "token `(`",
             TokenType::RP => "token `)`",
@@ -127,23 +130,23 @@ impl TokenType {
             TokenType::LB => "token `[`",
             TokenType::RB => "token `]`",
 
-            TokenType::QUESTION => "token `?`",
-            TokenType::DOT => "token `.`",
-            TokenType::EQUALS => "token `=`",
-            TokenType::COLON => "token `:`",
-            TokenType::SEMI => "terminator `;`",
-            TokenType::COMMA => "token `,`",
+            TokenType::Question => "token `?`",
+            TokenType::Dot => "token `.`",
+            TokenType::Equals => "token `=`",
+            TokenType::Colon => "token `:`",
+            TokenType::Semi => "terminator `;`",
+            TokenType::Comma => "token `,`",
             TokenType::EOF => "end of file",
 
-            TokenType::LINECOMMENT(_) => "line comment",
-            TokenType::BLOCKCOMMENT(_) => "block comment",
-            TokenType::WHITESPACE(_) => "whitespace",
+            TokenType::LineComment(_) => "line comment",
+            TokenType::BlockComment(_) => "block comment",
+            TokenType::Whitespace(_) => "whitespace",
 
-            TokenType::STRING => "string literal",
-            TokenType::CODEVALUE => "code value",
-            TokenType::IDENTIFIER => "identifier",
-            TokenType::NUMBER => "number",
-            TokenType::UNKNOWN => "unknown token",
+            TokenType::String => "string literal",
+            TokenType::CodeValue => "code value",
+            TokenType::Identifier => "identifier",
+            TokenType::Number => "number",
+            TokenType::Unknown => "unknown token",
         }
     }
 }
@@ -158,19 +161,19 @@ pub struct Token {
 impl Token {
     pub fn f(&self, sourcemap: SourceMap) -> Cow<'static, str> {
         Cow::Owned(match self.token {
-            TokenType::STRING => format!(
+            TokenType::String => format!(
                 "string literal `{}`",
                 sourcemap.borrow().get_segment(self.pos)
             ),
-            TokenType::CODEVALUE => {
+            TokenType::CodeValue => {
                 format!("code value `{}`", sourcemap.borrow().get_segment(self.pos))
             }
-            TokenType::IDENTIFIER => {
+            TokenType::Identifier => {
                 format!("identifier `{}`", sourcemap.borrow().get_segment(self.pos))
             }
-            TokenType::NUMBER => format!("number `{}`", sourcemap.borrow().get_segment(self.pos)),
+            TokenType::Number => format!("number `{}`", sourcemap.borrow().get_segment(self.pos)),
 
-            TokenType::UNKNOWN => format!(
+            TokenType::Unknown => format!(
                 "unknown token `{}`",
                 sourcemap.borrow().get_segment(self.pos)
             ),
@@ -297,9 +300,9 @@ impl Lexer {
                     }
                     '>' => {
                         self.bump();
-                        TokenType::ARROW
+                        TokenType::Arrow
                     }
-                    _ => TokenType::SUB,
+                    _ => TokenType::Sub,
                 },
 
                 c if is_whitespace(c) => {
@@ -311,22 +314,22 @@ impl Lexer {
 
                 '0'..='9' => self.number()?,
 
-                '*' => TokenType::MUL,
-                '+' => TokenType::ADD,
+                '*' => TokenType::Mul,
+                '+' => TokenType::Add,
                 '/' => match self.peek_char().front {
                     '*' => {
                         self.bump();
                         self.block_comment()?;
                         return self.get_next_tok_type();
                     }
-                    _ => TokenType::DIV,
+                    _ => TokenType::Div,
                 },
 
                 '%' => match self.peek_char().front {
-                    '%' => TokenType::DMOD,
-                    _ => TokenType::MOD,
+                    '%' => TokenType::DMod,
+                    _ => TokenType::Mod,
                 },
-                '$' => TokenType::DOLLAR,
+                '$' => TokenType::Dollar,
                 '>' => match self.peek_char().front {
                     '=' => {
                         self.bump();
@@ -351,26 +354,30 @@ impl Lexer {
                 '[' => TokenType::LB,
                 ']' => TokenType::RB,
 
-                '.' => TokenType::DOT,
-                ';' => TokenType::SEMI,
+                '.' => TokenType::Dot,
+                ';' => TokenType::Semi,
                 '=' => match self.peek_char().front {
                     '=' => {
                         self.bump();
                         TokenType::EQ
                     }
-                    _ => TokenType::EQUALS,
+                    '>' => {
+                        self.bump();
+                        TokenType::Arrow
+                    }
+                    _ => TokenType::Equals,
                 },
 
-                '?' => TokenType::QUESTION,
-                ',' => TokenType::COMMA,
+                '?' => TokenType::Question,
+                ',' => TokenType::Comma,
                 ':' => match self.peek_char().front {
                     ':' => {
                         self.bump();
-                        TokenType::DOUBLECOLON
+                        TokenType::DoubleColon
                     }
-                    _ => TokenType::COLON,
+                    _ => TokenType::Colon,
                 },
-                '@' => TokenType::AT,
+                '@' => TokenType::At,
 
                 '"' => self.string('"', "string")?,
                 EOF => TokenType::EOF,
@@ -407,8 +414,10 @@ impl Lexer {
     /// Get next token in input stream, but don't advance
     pub fn peek(&mut self) -> Result<Token, ErrorValue> {
         if self.change_peek {
-            let (token_kind, start_pos) = self.get_next_tok_type()?;
+            let (token_kind, mut start_pos) = self.get_next_tok_type()?;
             let end_pos = self.position;
+
+            if start_pos == 0 { start_pos += 1; }
 
             self.current_token = Token {
                 pos: helpers::Pos::new(start_pos - 1, end_pos, self.filename),
@@ -425,7 +434,7 @@ impl Lexer {
         let position = self.position;
 
         let num = self.eat_while(|c| '0' <= c && c <= '9');
-        Ok(TokenType::NUMBER)
+        Ok(TokenType::Number)
     }
 
     /// Get start of ID (excluding number)
@@ -443,22 +452,23 @@ impl Lexer {
             position + id,
             self.filename,
         )) {
-            "def" => Ok(TokenType::DEF),
-            "let" => Ok(TokenType::LET),
-            "impl" => Ok(TokenType::IMPL),
-            "pattern" => Ok(TokenType::PATTERN),
-            "return" => Ok(TokenType::RETURN),
-            "as" => Ok(TokenType::AS),
-            "type" => Ok(TokenType::TYPE),
-            "public" => Ok(TokenType::PUBLIC),
-            "unit" => Ok(TokenType::UNIT),
-            "true" => Ok(TokenType::TRUE),
-            "false" => Ok(TokenType::FALSE),
-            "extern" => Ok(TokenType::EXTERN),
-            "if" => Ok(TokenType::IF),
-            "else" => Ok(TokenType::ELSE),
-            "overload" => Ok(TokenType::OVERLOAD),
-            _ => Ok(TokenType::IDENTIFIER),
+            "def" => Ok(TokenType::Def),
+            "let" => Ok(TokenType::Let),
+            "impl" => Ok(TokenType::Impl),
+            "pattern" => Ok(TokenType::Pattern),
+            "return" => Ok(TokenType::Return),
+            "yield" => Ok(TokenType::Yield),
+            "as" => Ok(TokenType::As),
+            "type" => Ok(TokenType::Type),
+            "public" => Ok(TokenType::Public),
+            "unit" => Ok(TokenType::Unit),
+            "true" => Ok(TokenType::True),
+            "false" => Ok(TokenType::False),
+            "extern" => Ok(TokenType::Extern),
+            "if" => Ok(TokenType::If),
+            "else" => Ok(TokenType::Else),
+            "overload" => Ok(TokenType::Overload),
+            _ => Ok(TokenType::Identifier),
         }
     }
 
@@ -470,7 +480,7 @@ impl Lexer {
         while c != EOF {
             match c {
                 _ if c == marker => {
-                    return Ok(TokenType::STRING);
+                    return Ok(TokenType::String);
                 }
                 val => {
                     let first = self.peek_char().front;
@@ -531,18 +541,18 @@ impl Lexer {
         // TODO: Error reporting: propagate back?
         if depth != 0 {}
 
-        Ok(TokenType::BLOCKCOMMENT(self.position - position))
+        Ok(TokenType::BlockComment(self.position - position))
     }
 
     /// Tokenize line comment
     fn line_comment(&mut self) -> Result<TokenType, ErrorValue> {
         self.bump();
-        Ok(TokenType::LINECOMMENT(self.eat_while(|c| c != '\n') + 2))
+        Ok(TokenType::LineComment(self.eat_while(|c| c != '\n') + 2))
     }
 
     /// Tokenize whitespace
     fn whitespace(&mut self) -> Result<TokenType, ErrorValue> {
-        Ok(TokenType::WHITESPACE(self.eat_while(is_whitespace) + 1))
+        Ok(TokenType::Whitespace(self.eat_while(is_whitespace) + 1))
     }
 
     /// Eat while condition is true utility
@@ -560,3 +570,4 @@ impl Lexer {
         eaten
     }
 }
+
