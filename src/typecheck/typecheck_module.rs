@@ -1,5 +1,5 @@
 use super::annotation;
-use super::context;
+use super::context::Context;
 use super::solver;
 use super::substitution;
 use super::substitution::mir;
@@ -17,7 +17,6 @@ use std::time::Instant;
 pub struct TypeCheckModule {
     parser: Parser,
     modules: HashMap<usize, ast::Block>,
-    symtab: context::Context,
     sourcemap: SourceMap,
     logger: Logger,
 }
@@ -31,7 +30,6 @@ impl TypeCheckModule {
             logger,
             parser: p,
             modules: HashMap::new(),
-            symtab: context::Context::new(),
             sourcemap,
         }
     }
@@ -57,11 +55,16 @@ impl TypeCheckModule {
             )
         }); // Lazily run it so no impact on performance
 
+        let mut context = Context::new();
+
         // Generate annotations for the ast
         let mut annotator = annotation::Annotator::new();
         // Ast with types (has some unknowns)
         let typed_ast: Vec<annotation::TypedStmt> = annotator
-            .annotate(std::mem::replace(&mut self.parser.ast, None).unwrap())
+            .annotate(
+                std::mem::replace(&mut self.parser.ast, None).unwrap(),
+                &mut context,
+            )
             .map_err(|e| vec![e])?;
 
         let constraint_gen = solver::ConstraintGenerator::new();
@@ -70,7 +73,7 @@ impl TypeCheckModule {
         let constraint_solver = solver::ConstraintSolver::new();
         let solved_constraints = constraint_solver.solve(constraints);
 
-        let substitutor = substitution::TypedAstLower::new();
-        Ok(substitutor.lower(typed_ast, solved_constraints))
+        let substituter = substitution::TypedAstLower::new();
+        Ok(substituter.lower(typed_ast, solved_constraints))
     }
 }

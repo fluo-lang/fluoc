@@ -29,7 +29,7 @@ impl ErrorType {
             ErrorType::UnknownCharacter => "unknown_character",
             ErrorType::UndefinedSyntax => "undefined_syntax",
             ErrorType::SyntaxType => "syntax_type",
-            ErrorType::UndefinedType=> "undefined_type",
+            ErrorType::UndefinedType => "undefined_type",
             ErrorType::TypeMismatch => "type_mismatch",
             ErrorType::UndefinedSymbol => "undefined_symbol",
             ErrorType::TypeCast => "type_cast",
@@ -235,4 +235,3 @@ impl From<ErrorGen> for ErrorValue {
         (error.make_err)()
     }
 }
-

@@ -76,6 +76,8 @@ pub enum TokenType {
     True,
     False,
 
+    Underscore,
+
     Unknown,
     LineComment(usize),
     BlockComment(usize),
@@ -137,6 +139,7 @@ impl TokenType {
             TokenType::Semi => "terminator `;`",
             TokenType::Comma => "token `,`",
             TokenType::EOF => "end of file",
+            TokenType::Underscore => "underscore",
 
             TokenType::LineComment(_) => "line comment",
             TokenType::BlockComment(_) => "block comment",
@@ -417,7 +420,9 @@ impl Lexer {
             let (token_kind, mut start_pos) = self.get_next_tok_type()?;
             let end_pos = self.position;
 
-            if start_pos == 0 { start_pos += 1; }
+            if start_pos == 0 {
+                start_pos += 1;
+            }
 
             self.current_token = Token {
                 pos: helpers::Pos::new(start_pos - 1, end_pos, self.filename),
@@ -468,6 +473,7 @@ impl Lexer {
             "if" => Ok(TokenType::If),
             "else" => Ok(TokenType::Else),
             "overload" => Ok(TokenType::Overload),
+            "_" => Ok(TokenType::Underscore),
             _ => Ok(TokenType::Identifier),
         }
     }
@@ -570,4 +576,3 @@ impl Lexer {
         eaten
     }
 }
-

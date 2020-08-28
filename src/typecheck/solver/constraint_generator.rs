@@ -1,4 +1,4 @@
-use crate::typecheck::annotation::{AnnotationType, TypedStmt, TypedExpr};
+use crate::typecheck::annotation::{AnnotationType, TypedExpr, TypedStmt};
 
 use std::collections::HashSet;
 
@@ -20,4 +20,3 @@ impl ConstraintGenerator {
         Constraints::new()
     }
 }
-

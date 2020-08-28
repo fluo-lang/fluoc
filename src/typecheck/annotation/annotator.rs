@@ -1,38 +1,76 @@
-use super::AnnotationType;
+use super::{typed_ast, AnnotationType};
 
-use crate::typecheck::context::Context;
-use crate::parser::{ast, ast::Statement};
+use crate::helpers::Pos;
 use crate::logger::ErrorValue;
+use crate::parser::{ast, ast::Statement};
+use crate::typecheck::{context::Context, types};
+
+use std::rc::Rc;
 
 pub struct Annotator {
     /// Assign unique unknown types to be solved
     type_counter: usize,
-    context: Context,
 }
 
 impl Annotator {
     pub fn new() -> Self {
-        Annotator {
-            type_counter: 0,
-            context: Context::new()
-        }
+        Annotator { type_counter: 0 }
     }
 
-    pub fn annotate(&mut self, ast: Vec<ast::Statement>) -> Result<Vec<super::TypedStmt>, ErrorValue> {
+    pub fn annotate(
+        &mut self,
+        ast: Vec<ast::Statement>,
+        context: &mut Context<AnnotationType>,
+    ) -> Result<Vec<super::TypedStmt>, ErrorValue> {
         let mut statements = Vec::with_capacity(ast.len());
 
-        for stmt in ast {
-            //statements.push(self.annotate_stmt(stmt)?);
+        for stmt in ast.iter() {
+            self.annotate_stmt_1(stmt, context)?;
+        }
+
+        for stmt in ast.into_iter() {
+            statements.push(self.annotate_stmt_2(stmt, context)?);
         }
 
         Ok(statements)
     }
 
-    /*
-    fn annotate_stmt(&mut self, stmt: ast::Statement) -> Result<super::TypedStmt, ErrorValue> {
+    fn annotate_stmt_1(
+        &mut self,
+        stmt: &Statement,
+        context: &mut Context<AnnotationType>,
+    ) -> Result<(), ErrorValue> {
         match stmt {
+            Statement::FunctionDefine(func_def) => func_def.pass_1(self, context),
+            _ => Ok(()),
         }
-    }*/
+    }
+
+    fn annotate_stmt_2(
+        &mut self,
+        stmt: Statement,
+        context: &mut Context<AnnotationType>,
+    ) -> Result<typed_ast::TypedStmt, ErrorValue> {
+        match stmt {
+            Statement::FunctionDefine(func_def) => func_def.pass_2(self, context),
+            _ => unimplemented!()
+        }
+    }
+
+    pub fn annon_type(&mut self, ty: &ast::Type) -> AnnotationType {
+        match &ty.value {
+            // The important part!
+            ast::TypeType::Unknown => self.unique(),
+
+            ast::TypeType::Type(namespace) => AnnotationType::Type(Rc::clone(namespace)),
+            ast::TypeType::Tuple(tuple) => AnnotationType::Tuple(
+                tuple
+                    .into_iter()
+                    .map(|item| self.annon_type(&item))
+                    .collect(),
+            ),
+        }
+    }
 
     pub fn unique(&mut self) -> AnnotationType {
         self.type_counter += 1;
@@ -43,16 +81,16 @@ impl Annotator {
 #[cfg(test)]
 pub mod AnnotatorTests {
     use super::*;
-    
+
     macro_rules! assert_infer {
         ($left: expr, $right: expr) => {
             match $right {
                 AnnotationType::Infer(value) => {
                     assert_eq!($left, value);
                 }
-                _ => panic!("Not an infer node")
+                _ => panic!("Not an infer node"),
             }
-        }
+        };
     }
 
     #[test]

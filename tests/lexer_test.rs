@@ -12,22 +12,25 @@ mod lexer_tests {
             #[test]
             fn $name() {
                 let sourcemap = SourceMapInner::new();
-                let filename_id = sourcemap.borrow_mut().insert_file(
-                    path::PathBuf::from("test_fl.fl"),
-                    $source.to_string(),
-                );
+                let filename_id = sourcemap
+                    .borrow_mut()
+                    .insert_file(path::PathBuf::from("test_fl.fl"), $source.to_string());
 
                 let mut l = Lexer::new(filename_id, sourcemap);
                 assert_eq!(l.advance().map(|tok| tok.token), Ok($token))
             }
-        }
+        };
     }
 
     lex_assert!(" true", TokenType::True, true_test);
     lex_assert!(" false", TokenType::False, false_test);
 
     lex_assert!(" \"hello \"", TokenType::String, string_test);
-    lex_assert!(" \"12d8a9fh3nffandjs \\\" \"", TokenType::String, string_escape_test);
+    lex_assert!(
+        " \"12d8a9fh3nffandjs \\\" \"",
+        TokenType::String,
+        string_escape_test
+    );
 
     lex_assert!(" def", TokenType::Def, def_test);
     lex_assert!(" type", TokenType::Type, type_test);
@@ -68,7 +71,6 @@ mod lexer_tests {
 
     lex_assert!(" =>", TokenType::Arrow, arrow_test);
 
-
     lex_assert!(" (", TokenType::LP, lp_test);
     lex_assert!(" )", TokenType::RP, rp_test);
     lex_assert!(" {", TokenType::LCP, lcp_test);
@@ -83,5 +85,6 @@ mod lexer_tests {
     lex_assert!(" $", TokenType::Dollar, dollar_test);
     lex_assert!(" ;", TokenType::Semi, semi_test);
     lex_assert!(" ,", TokenType::Comma, comma_test);
+    lex_assert!(" _", TokenType::Underscore, underscore_test);
     lex_assert!("", TokenType::EOF, eof_test);
 }

@@ -77,7 +77,6 @@ pub struct Reference {
 pub struct Infix {
     pub left: Box<Expr>,
     pub right: Box<Expr>,
-    pub function_call: Option<FunctionCall>,
     pub operator: Token,
     pub pos: helpers::Pos,
 }
@@ -182,7 +181,7 @@ pub struct TypeAssign {
 ///
 /// let x: int = 10;
 pub struct VariableAssignDeclaration {
-    pub t: Type,
+    pub ty: Type,
     pub name: Rc<Namespace>,
     pub expr: Box<Expr>,
     pub pos: helpers::Pos,
@@ -193,7 +192,7 @@ pub struct VariableAssignDeclaration {
 ///
 /// let x: int;
 pub struct VariableDeclaration {
-    pub t: Type,
+    pub ty: Type,
     pub name: Rc<Namespace>,
     pub pos: helpers::Pos,
 }
@@ -208,7 +207,7 @@ pub struct Unit {
 #[derive(Debug, Clone, PartialEq)]
 /// Arguments for function
 pub struct Arguments {
-    pub positional: Vec<(NameID, Type)>,
+    pub positional: Vec<(Rc<Namespace>, Type)>,
     pub pos: helpers::Pos, // TODO: Add more types of arguments
 }
 
@@ -304,7 +303,6 @@ pub struct FunctionDefine {
     pub arguments: Arguments,
     pub block: Option<Block>, // Option if is an extern
     pub name: Rc<Namespace>,
-    pub mangled_name: Option<String>,
     pub visibility: Visibility,
     pub overload_operator: Option<TokenType>,
     pub pos: helpers::Pos,
@@ -348,7 +346,7 @@ pub struct ExpressionStatement {
 /// Type Types
 pub enum TypeType {
     Type(Rc<Namespace>),
-    Tuple(Vec<Rc<Type>>),
+    Tuple(Vec<Type>),
     Unknown,
 }
 
@@ -363,9 +361,7 @@ impl TypeType {
                 }
                 final_string
             }
-            TypeType::Unknown => {
-                "<unknown>".to_string()
-            }
+            TypeType::Unknown => "<unknown>".to_string(),
         }
     }
 }

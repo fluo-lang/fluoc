@@ -28,12 +28,12 @@ pub struct Conditional {
     pub if_b: IfBranch,
     // Else Branch
     pub else_b: ElseBranch,
-    pub pos: helpers::Pos
+    pub pos: helpers::Pos,
 }
 
 #[derive(Debug, Clone)]
 pub struct BlockMetadata {
-    pub returns: bool
+    pub returns: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -76,17 +76,6 @@ pub struct MirExpr {
     ty: types::MirType,
 }
 
-impl MirExpr {
-    /// Get the type of an expression
-    fn get_type(
-        &self,
-        context: &mut Context,
-        expected_value: Option<types::MirType>,
-    ) -> Result<types::MirType, ErrorValue> {
-        panic!();
-    }
-}
-
 #[derive(Debug, Clone)]
 pub enum MirStmt {
     FunctionDefine(FunctionDefine),
@@ -94,10 +83,4 @@ pub enum MirStmt {
     VariableDeclaration(VariableDeclaration),
     VariableAssignDeclaration(VariableAssignDeclaration),
     Conditional(Conditional),
-}
-
-impl MirStmt {
-    fn typecheck(&self, context: &mut Context) -> Result<(), ErrorValue> {
-        panic!();
-    }
 }

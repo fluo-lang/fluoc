@@ -61,7 +61,7 @@ pub struct Parser {
     pub ast: Option<Vec<ast::Statement>>,
     logger: Logger,
 
-    statements: [fn(&mut Self) -> Result<Statement, ErrorGen>; 11],
+    statements: [fn(&mut Self) -> Result<Statement, ErrorGen>; 12],
     prefix_op: HashMap<lexer::TokenType, Prec>,
     infix_op: HashMap<lexer::TokenType, Prec>,
     tokens: Vec<lexer::Token>,
@@ -88,6 +88,7 @@ impl Parser {
                 Parser::extern_def,
                 Parser::overload_define,
                 Parser::overload_extern,
+                Parser::yield_statement,
             ],
             prefix_op: HashMap::new(),
             infix_op: HashMap::new(),
@@ -109,10 +110,7 @@ impl Parser {
         parser.initialize_expr();
         helpers::error_or_other(parser.parse(), Rc::clone(&self.logger));
 
-        self.ast
-            .as_mut()
-            .unwrap()
-            .append(&mut parser.ast.unwrap());
+        self.ast.as_mut().unwrap().append(&mut parser.ast.unwrap());
     }
 
     /// Template for syntax error
@@ -158,7 +156,7 @@ impl Parser {
         token_type: lexer::TokenType,
         position: usize,
         is_keyword: bool,
-    ) -> Result<(), ErrorGen> {
+    ) -> Result<helpers::Pos, ErrorGen> {
         let prev_pos = self.token_pos;
         let t = self.forward();
 
@@ -168,7 +166,7 @@ impl Parser {
             self.set_pos(position);
             temp
         } else {
-            Ok(())
+            Ok(t.pos)
         }
     }
 
@@ -399,7 +397,7 @@ impl Parser {
 
     fn parse_arguments(&mut self) -> Result<ast::Arguments, ErrorGen> {
         let position = self.token_pos;
-        let mut positional_args: Vec<(ast::NameID, ast::Type)> = Vec::new();
+        let mut positional_args: Vec<(Rc<ast::Namespace>, ast::Type)> = Vec::new();
 
         loop {
             if self.peek().token == lexer::TokenType::RP {
@@ -407,13 +405,13 @@ impl Parser {
                 break;
             }
 
-            let id = self.name_id()?;
+            let id = self.namespace()?;
 
             self.next(lexer::TokenType::Colon, position, false)?;
 
             let arg_type = self.type_expr()?;
 
-            positional_args.push((id, arg_type));
+            positional_args.push((Rc::new(id), arg_type));
             if self.peek().token == lexer::TokenType::Comma {
                 self.forward();
             } else {
@@ -659,7 +657,6 @@ impl Parser {
             block: Some(block),
             visibility,
             name,
-            mangled_name: None,
             pos: self.get_relative_pos(position),
             overload_operator: None,
         }))
@@ -704,7 +701,6 @@ impl Parser {
             arguments,
             visibility,
             name,
-            mangled_name: None,
             pos: self.get_relative_pos(position),
             block: None, // No block on external function
             overload_operator: None,
@@ -759,7 +755,6 @@ impl Parser {
             block: Some(block),
             visibility,
             name,
-            mangled_name: None,
             pos: self.get_relative_pos(position),
             overload_operator,
         }))
@@ -806,7 +801,6 @@ impl Parser {
             arguments,
             visibility,
             name,
-            mangled_name: None,
             pos: self.get_relative_pos(position),
             block: None, // No block on external function
             overload_operator,
@@ -815,7 +809,7 @@ impl Parser {
 
     fn parse_extern_arguments(&mut self) -> Result<ast::Arguments, ErrorGen> {
         let position = self.token_pos;
-        let mut positional_args: Vec<(ast::NameID, ast::Type)> = Vec::new();
+        let mut positional_args: Vec<(Rc<ast::Namespace>, ast::Type)> = Vec::new();
 
         loop {
             if self.peek().token == lexer::TokenType::RP {
@@ -824,23 +818,23 @@ impl Parser {
             }
 
             let position = self.token_pos;
-            let id = self.name_id();
+            let id = self.namespace();
 
-            if let (Ok(id_val), lexer::TokenType::Colon) = (&id, self.peek().token) {
+            if let (Ok(id_val), lexer::TokenType::Colon) = (id, self.peek().token) {
                 // There is a name id, eat it; its optional
                 self.forward();
 
                 let arg_type = self.type_expr()?;
-                positional_args.push((id_val.clone(), arg_type));
+                positional_args.push((Rc::new(id_val), arg_type));
             } else {
                 // No name id, its optional so this is fine
                 self.token_pos = position;
                 let arg_type = self.type_expr()?;
                 positional_args.push((
-                    ast::NameID {
-                        sourcemap: Rc::clone(&self.sourcemap),
+                    Rc::new(ast::Namespace {
+                        scopes: Vec::new(),
                         pos: self.get_relative_pos(position),
-                    },
+                    }),
                     arg_type,
                 ));
             }
@@ -934,7 +928,7 @@ impl Parser {
     fn function_call(&mut self) -> Result<Expr, ErrorGen> {
         let position = self.token_pos;
 
-        let namespace = self.namespace()?;
+        let namespace = Rc::new(self.namespace()?);
 
         self.next(lexer::TokenType::LP, position, false)?;
 
@@ -944,7 +938,7 @@ impl Parser {
 
         Ok(ast::Expr::FunctionCall(ast::FunctionCall {
             arguments,
-            name: Rc::new(namespace),
+            name: namespace,
             pos: self.get_relative_pos(position),
             mangled_name: None,
             mangle: true,
@@ -964,7 +958,7 @@ impl Parser {
         } else {
             ast::Type {
                 value: ast::TypeType::Unknown,
-                pos: namespace.pos
+                pos: namespace.pos,
             }
         };
 
@@ -973,7 +967,7 @@ impl Parser {
 
         Ok(ast::Expr::VariableAssignDeclaration(
             ast::VariableAssignDeclaration {
-                t: var_type,
+                ty: var_type,
                 name: Rc::new(namespace),
                 expr: Box::new(expr),
                 pos: self.get_relative_pos(position),
@@ -994,7 +988,7 @@ impl Parser {
         } else {
             ast::Type {
                 value: ast::TypeType::Unknown,
-                pos: namespace.pos
+                pos: namespace.pos,
             }
         };
 
@@ -1002,7 +996,7 @@ impl Parser {
 
         Ok(ast::Statement::VariableDeclaration(
             ast::VariableDeclaration {
-                t: var_type,
+                ty: var_type,
                 name: Rc::new(namespace),
                 pos: self.get_relative_pos(position),
             },
@@ -1198,7 +1192,6 @@ impl Parser {
             left: Box::new(left),
             operator,
             right: Box::new(self.expr(binding_power)?),
-            function_call: None,
             pos: self.get_relative_pos(position),
         }))
     }
@@ -1226,7 +1219,8 @@ impl Parser {
             Parser::variable_assign,
             Parser::tuple_expr,
             Parser::dollar_expr,
-            Parser::ref_expr
+            Parser::ref_expr,
+            Parser::conditional
         }
 
         if let lexer::TokenType::LP = self.forward().token {
@@ -1453,8 +1447,23 @@ impl Parser {
             Ok(tuple) => return Ok(tuple),
             Err(e) => errors.push(e),
         }
+
+        match self.underscore_type() {
+            Ok(underscore) => return Ok(underscore),
+            Err(e) => errors.push(e),
+        }
+
         self.set_pos(position);
         Err(LoggerInner::longest(errors))
+    }
+
+    fn underscore_type(&mut self) -> Result<ast::Type, ErrorGen> {
+        let pos = self.next(lexer::TokenType::Underscore, self.token_pos, false)?;
+
+        Ok(ast::Type {
+            pos,
+            value: ast::TypeType::Unknown,
+        })
     }
 
     fn namespace_type(&mut self) -> Result<ast::Type, ErrorGen> {
@@ -1500,18 +1509,18 @@ impl Parser {
         })
     }
 
-    fn items_type(&mut self) -> Result<Vec<Rc<ast::Type>>, ErrorGen> {
-        let mut items: Vec<Rc<ast::Type>> = Vec::new();
+    fn items_type(&mut self) -> Result<Vec<ast::Type>, ErrorGen> {
+        let mut items: Vec<ast::Type> = Vec::new();
 
         let type_type = self.type_expr()?;
-        items.push(Rc::new(type_type));
+        items.push(type_type);
 
         loop {
             let position = self.token_pos;
             if let lexer::TokenType::Comma = self.peek().token {
                 self.forward();
                 if let Ok(type_type) = self.type_expr() {
-                    items.push(Rc::new(type_type));
+                    items.push(type_type);
                 } else {
                     self.set_pos(position);
                     break;
@@ -1566,15 +1575,11 @@ pub mod parser_tests {
     }
 
     parser_run!("$heloa1234_123", Parser::dollar_id, dollar_id);
-
     parser_run!("$heloa1234_123", Parser::dollar_expr, dollar_expr);
 
     parser_run!("(int, int, str)", Parser::tuple_type, tuple_type_4);
-
     parser_run!("(int,)", Parser::tuple_type, tuple_type_3);
-
     parser_run!("()", Parser::tuple_type, tuple_type_1);
-
     parser_run!("(,)", Parser::tuple_type, tuple_type_2);
 
     parser_run!(
@@ -1582,17 +1587,13 @@ pub mod parser_tests {
         Parser::namespace_type,
         namespace_type_1
     );
-
     parser_run!("awd::a12_12a", Parser::namespace_type, namespace_type_2);
 
     parser_run!("()", Parser::tuple, tuple_1);
-
     parser_run!("(,)", Parser::tuple, tuple_2);
-
     parser_run!("(120, 123, \"ad\")", Parser::tuple, tuple_3);
 
     parser_run!("test12_1249", Parser::ref_id, ref_id);
-
     parser_run!("a123ajd_test_test", Parser::ref_expr, ref_expr);
 
     parser_run!(
@@ -1600,43 +1601,37 @@ pub mod parser_tests {
         Parser::name_id,
         name_id_1
     );
-
     parser_run!("a", Parser::name_id, name_id_2);
+
+    parser_run!("_", Parser::type_expr, underscore_type);
 
     parser_run!(
         "\"a123ajd_test_test\"",
         Parser::string_literal,
         string_literal_1
     );
-
     parser_run!("\"a\"", Parser::string_literal, string_literal_2);
 
     parser_run!("12930", Parser::integer, integer_literal_1);
-
     parser_run!("1", Parser::integer, integer_literal_2);
 
     parser_run!("true", Parser::bool_expr, bool_true);
-
     parser_run!("false", Parser::bool_expr, bool_false);
 
     parser_run!("if  true  { } else {}", Parser::conditional, conditional_1);
-
     parser_run!(
         "if  true  { } else if  true  {} else {}",
         Parser::conditional,
         conditional_2
     );
-
     parser_run!("if  true  { }", Parser::conditional, conditional_3);
 
     parser_run!("x = 10", Parser::variable_assign, variable_assign);
-
     parser_run!(
         "let x: (int, int) = 10",
         Parser::variable_assign_full,
         variable_assign_full
     );
-
     parser_run!(
         "let x: int;",
         Parser::variable_declaration,
@@ -1648,7 +1643,6 @@ pub mod parser_tests {
         Parser::function_call,
         function_call
     );
-
     parser_run!(
         "tests::j12::hello()",
         Parser::function_call,
@@ -1659,6 +1653,12 @@ pub mod parser_tests {
         "return ((let x: int = 10, x = 10, hello, 1, \"another_test\"));",
         Parser::return_statement,
         return_statement
+    );
+
+    parser_run!(
+        "yield ((let x: int = 10, x = 10, hello, 1, \"another_test\"));",
+        Parser::yield_statement,
+        yield_statement
     );
 
     parser_run!(
@@ -1714,6 +1714,13 @@ pub mod parser_tests {
 
     parser_run!("(let x: int = 5)", Parser::item, variable_assign_full_paren);
     parser_run!("let x: int = 5", Parser::item, variable_assign_full_item);
+
+    parser_run!("let x = 5", Parser::item, variable_assign_full_item_no_type);
+    parser_run!(
+        "let x = 5;",
+        Parser::expression_statement,
+        variable_assign_full_item_no_type_stmt
+    );
 
     parser_run!("(i)", Parser::item, ref_id_paren);
     parser_run!("i3_hello_world", Parser::item, ref_id_item);

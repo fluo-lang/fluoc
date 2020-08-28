@@ -1,4 +1,7 @@
-use crate::typecheck::types;
+use super::typed_ast;
+use crate::parser::ast;
+
+use std::rc::Rc;
 
 #[derive(Clone, Debug)]
 /// An annotation type
@@ -7,7 +10,9 @@ use crate::typecheck::types;
 /// At the end of the typechecking process, all the types should be `Concrete`.
 /// We will then be able to convert it back into a pure `types::MirType` for codegen.
 pub enum AnnotationType {
-    Concrete(types::MirType),
+    Type(Rc<ast::Namespace>),
+    Tuple(Vec<AnnotationType>),
+    Function(Rc<Vec<typed_ast::TypedBinder>>, Box<AnnotationType>),
     Infer(usize),
 }
 

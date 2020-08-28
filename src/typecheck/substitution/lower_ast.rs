@@ -1,9 +1,9 @@
 //! Lower TypedAst to mir (middle intermediate representation)
 
 use super::mir;
-use crate::typecheck::annotation::{TypedStmt, TypedExpr};
-use crate::typecheck::solver::Substitution;
 use crate::helpers;
+use crate::typecheck::annotation::{TypedExpr, TypedStmt};
+use crate::typecheck::solver::Substitution;
 
 pub struct TypedAstLower {}
 
@@ -16,4 +16,3 @@ impl TypedAstLower {
         Vec::new()
     }
 }
-

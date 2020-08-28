@@ -4,5 +4,5 @@
 public
 def entry() -> i32 {
     let hello = 10;
-    return hello;
+    --yield hello;
 }

@@ -23,12 +23,20 @@ pub struct Pos {
 }
 
 impl Pos {
-    pub fn new(s: usize, e: usize, filename_id: usize) -> Pos {
-        Pos { s, e, filename_id }
+    pub fn new(s: usize, e: usize, filename_id: usize) -> Self {
+        Self { s, e, filename_id }
     }
 
     pub fn to_tuple(&self) -> (usize, usize) {
         (self.s, self.e)
+    }
+
+    pub fn calc(lower: Self, higher: Self) -> Self {
+        Self {
+            s: lower.s,
+            e: higher.e,
+            filename_id: lower.filename_id,
+        }
     }
 }
 

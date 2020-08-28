@@ -9,17 +9,17 @@ mod typecheck_tests {
 
     macro_rules! set_up_typecheck {
         ($code: expr) => {{
-                let filename = path::PathBuf::from("this_is_another_filename_test.fl");
-                let sourcemap = SourceMapInner::new();
-                let filename_id = sourcemap.borrow_mut().insert_file(
-                    filename,
-                    concat!("@[no_std]\n@[no_core]\n", $code).to_string(),
-                );
+            let filename = path::PathBuf::from("this_is_another_filename_test.fl");
+            let sourcemap = SourceMapInner::new();
+            let filename_id = sourcemap.borrow_mut().insert_file(
+                filename,
+                concat!("@[no_std]\n@[no_core]\n", $code).to_string(),
+            );
 
-                let logger = LoggerInner::new(true, Rc::clone(&sourcemap));
+            let logger = LoggerInner::new(true, Rc::clone(&sourcemap));
 
-                TypeCheckModule::new(filename_id, logger, sourcemap)
-        }}
+            TypeCheckModule::new(filename_id, logger, sourcemap)
+        }};
     }
 
     macro_rules! assert_error {
@@ -45,70 +45,65 @@ mod typecheck_tests {
             #[test]
             fn $name() {
                 let mut typechecker = set_up_typecheck!($code);
-                assert!(
-                    typechecker
-                        .type_check()
-                        .is_ok()
-                );
+                assert!(typechecker.type_check().is_ok());
             }
         };
     }
 
-
     /*assert_error!(
-        r#"def entry() -> () {
-    return 1923;
-}"#,
-        vec![ErrorType::TypeMismatch],
-        explicit_return_mismatch
-    );
+            r#"def entry() -> () {
+        return 1923;
+    }"#,
+            vec![ErrorType::TypeMismatch],
+            explicit_return_mismatch
+        );
 
-    assert_error!(
-        r#"def entry() -> () {
-    x;
-    return (); 
-}"#,
-        vec![ErrorType::UndefinedSymbol],
-        undef_var
-    );
+        assert_error!(
+            r#"def entry() -> () {
+        x;
+        return ();
+    }"#,
+            vec![ErrorType::UndefinedSymbol],
+            undef_var
+        );
 
-    assert_error!(
-        r#"def entry() {
-    return 1923;
-}"#,
-        vec![ErrorType::TypeMismatch],
-        implicit_return_mismatch
-    );
+        assert_error!(
+            r#"def entry() {
+        return 1923;
+    }"#,
+            vec![ErrorType::TypeMismatch],
+            implicit_return_mismatch
+        );
 
-    assert_error!(
-        r#"def entry() {
-    let x: i32;
-    if false {
-        x = 0;
-    }
-    let y: i32 = x;
-}"#,
-        vec![ErrorType::PossibleUninitVal],
-        if_cond_no_else
-    );
+        assert_error!(
+            r#"def entry() {
+        let x: i32;
+        if false {
+            x = 0;
+        }
+        let y: i32 = x;
+    }"#,
+            vec![ErrorType::PossibleUninitVal],
+            if_cond_no_else
+        );
 
-    assert_error!(
-        r#"type Km = i32;
-def entry() {
-    let x: Miles;
-}"#,
-        vec![ErrorType::UndefinedType],
-        undef_type
-    );
+        assert_error!(
+            r#"type Km = i32;
+    def entry() {
+        let x: Miles;
+    }"#,
+            vec![ErrorType::UndefinedType],
+            undef_type
+        );
 
-    assert_error!(
-        r#"type Km = i32;
-def entry() {
-    let x: i64 = (10 as Km) as i64;
-}"#,
-        vec![ErrorType::TypeCast],
-        type_cast_error
-    );*/
+        assert_error!(
+            r#"type Km = i32;
+    def entry() {
+        let x: i64 = (10 as Km) as i64;
+    }"#,
+            vec![ErrorType::TypeCast],
+            type_cast_error
+        );*/
 
     assert_ok!(
         r#"def entry() -> i32 {

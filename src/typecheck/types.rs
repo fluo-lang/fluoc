@@ -27,8 +27,8 @@ pub enum MirType {
     Tuple(Tuple),
 
     /// Primitives
-    Primitive(ast::NameID),
-    
+    Primitive(ast::Namespace),
+
     /// Function Signatures
-    FunctionSig(FunctionSig)
+    FunctionSig(FunctionSig),
 }
