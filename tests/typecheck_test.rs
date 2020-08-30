@@ -105,6 +105,14 @@ mod typecheck_tests {
             type_cast_error
         );*/
 
+        assert_error!(
+            r#"def entry() -> i32 {
+        return 1923 is i64;
+    }"#,
+            vec![ErrorType::TypeMismatch],
+            return_is_mismatch
+        );
+
     assert_ok!(
         r#"def entry() -> i32 {
     let x = 10;

@@ -24,7 +24,9 @@ pub enum TokenType {
     Unit,
 
     Let,
+
     As,
+    Is,
 
     Return,
     Yield,
@@ -106,6 +108,8 @@ impl TokenType {
             TokenType::Overload => "keyword `overload`",
 
             TokenType::As => "operator `as`",
+            TokenType::Is => "operator`is`",
+
             TokenType::Div => "operator `/`",
             TokenType::Mod => "operator `%`",
             TokenType::Mul => "operator `*`",
@@ -329,7 +333,10 @@ impl Lexer {
                 },
 
                 '%' => match self.peek_char().front {
-                    '%' => TokenType::DMod,
+                    '%' => {
+                        self.bump();
+                        TokenType::DMod
+                    },
                     _ => TokenType::Mod,
                 },
                 '$' => TokenType::Dollar,
@@ -474,6 +481,7 @@ impl Lexer {
             "else" => Ok(TokenType::Else),
             "overload" => Ok(TokenType::Overload),
             "_" => Ok(TokenType::Underscore),
+            "is" => Ok(TokenType::Is),
             _ => Ok(TokenType::Identifier),
         }
     }

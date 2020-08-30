@@ -1,8 +1,13 @@
 
 --unit tests2;
 
-public
-def entry() -> i32 {
+public def entry() -> i32 {
+    - 1 - 1 + 1 / 1 % 1 %% 1 * 1 as 1 > 1 is 1 < 1 >= 1 <= 1 == 1;
     let hello = 10;
-    --yield hello;
+    yield hello;
 }
+
+public def another_error() -> i64 {
+    yield 10 is i32;
+}
+

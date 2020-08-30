@@ -40,6 +40,7 @@ mod lexer_tests {
     lex_assert!(" unit", TokenType::Unit, unit_test);
     lex_assert!(" let", TokenType::Let, let_test);
     lex_assert!(" as", TokenType::As, as_test);
+    lex_assert!(" is", TokenType::Is, is_test);
     lex_assert!(" return", TokenType::Return, return_test);
     lex_assert!(" yield", TokenType::Yield, yield_test);
     lex_assert!(" public", TokenType::Public, public_test);

@@ -204,6 +204,8 @@ impl Parser {
 
         // `as` keyword
         self.register_infix(lexer::TokenType::As, Prec::CONV);
+        // `is` keyword
+        self.register_infix(lexer::TokenType::Is, Prec::CONV);
 
         // `>`
         self.register_infix(lexer::TokenType::GT, Prec::COMP);
@@ -1573,6 +1575,8 @@ pub mod parser_tests {
             }
         };
     }
+
+    parser_run!("- 1 - 1 + 1 / 1 % 1 %% 1 * 1 as 1 > 1 is 1 < 1 >= 1 <= 1 == 1", move |value| Parser::expr(value, Prec::LOWEST), expr);
 
     parser_run!("$heloa1234_123", Parser::dollar_id, dollar_id);
     parser_run!("$heloa1234_123", Parser::dollar_expr, dollar_expr);
