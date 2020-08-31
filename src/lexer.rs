@@ -336,7 +336,7 @@ impl Lexer {
                     '%' => {
                         self.bump();
                         TokenType::DMod
-                    },
+                    }
                     _ => TokenType::Mod,
                 },
                 '$' => TokenType::Dollar,

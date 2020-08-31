@@ -4,8 +4,8 @@ use super::types;
 use crate::parser::ast;
 
 use std::collections::HashMap;
-use std::rc::Rc;
 use std::ops::{Deref, DerefMut};
+use std::rc::Rc;
 
 pub struct TOption<T>(Option<T>);
 

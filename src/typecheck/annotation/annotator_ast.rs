@@ -12,7 +12,7 @@ impl<'a> TOption<&'a AnnotationType> {
         match *self {
             Some(value) => match value {
                 AnnotationType::Function(args, ret) => (Rc::clone(&args), &*ret),
-                _ => panic!("Annon type was not a function")
+                _ => panic!("Annon type was not a function"),
             },
             None => panic!("Unwrapped none values on unwrap_function"),
         }
@@ -55,19 +55,16 @@ impl<'a> TOption<&'a AnnotationType> {
         match *self {
             Some(value) => match value {
                 AnnotationType::Function(args, ret) => Ok((Rc::clone(args), &*ret)),
-                _ => Err(Self::not_a_err(name, "function"))
+                _ => Err(Self::not_a_err(name, "function")),
             },
-            None => Err(Self::undefined_symbol(name))
+            None => Err(Self::undefined_symbol(name)),
         }
     }
 
-    fn symbol(
-        self,
-        name: &Rc<ast::Namespace>,
-    ) -> Result<&'a AnnotationType, ErrorValue> {
+    fn symbol(self, name: &Rc<ast::Namespace>) -> Result<&'a AnnotationType, ErrorValue> {
         match *self {
             Some(value) => Ok(value),
-            None => Err(Self::undefined_symbol(name))
+            None => Err(Self::undefined_symbol(name)),
         }
     }
 }
@@ -82,17 +79,19 @@ impl ast::FunctionDefine {
             Rc::clone(&self.name),
             AnnotationType::Function(
                 // Generate typed binder
-                Rc::new(self.arguments
-                    .positional
-                    .iter()
-                    .map(|(name, ty)| {
-                        TypedBinder::new(
-                            Rc::clone(name),
-                            annotator.annon_type(ty),
-                            Pos::calc(name.pos, ty.pos),
-                        )
-                    })
-                    .collect()),
+                Rc::new(
+                    self.arguments
+                        .positional
+                        .iter()
+                        .map(|(name, ty)| {
+                            TypedBinder::new(
+                                Rc::clone(name),
+                                annotator.annon_type(ty),
+                                Pos::calc(name.pos, ty.pos),
+                            )
+                        })
+                        .collect(),
+                ),
                 Box::new(annotator.annon_type(&self.return_type)),
             ),
         );
@@ -111,10 +110,8 @@ impl ast::FunctionDefine {
         }
 
         let typed_block = match self.block {
-            Some(block) => {
-                Some(block.pass_2(annotator, &mut new_context)?)
-            }
-            None => None
+            Some(block) => Some(block.pass_2(annotator, &mut new_context)?),
+            None => None,
         };
 
         Ok(TypedStmt {
@@ -122,7 +119,6 @@ impl ast::FunctionDefine {
                 block: typed_block,
                 arguments: Rc::clone(&typed.0),
                 return_ty: typed.1.clone(),
-                pos: self.pos
             }),
             pos: self.pos,
         })
@@ -136,9 +132,13 @@ impl ast::Block {
         context: &mut Context<AnnotationType>,
     ) -> Result<TypedBlock, ErrorValue> {
         Ok(TypedBlock {
-            stmts: self.nodes.into_iter().map(|node| node.pass_2(annotator, context)).collect::<Result<Vec<_>, _>>()?,
+            stmts: self
+                .nodes
+                .into_iter()
+                .map(|node| node.pass_2(annotator, context))
+                .collect::<Result<Vec<_>, _>>()?,
             ty: annotator.unique(),
-            pos: self.pos
+            pos: self.pos,
         })
     }
 }
@@ -146,7 +146,7 @@ impl ast::Block {
 impl ast::RefID {
     fn pass_2(
         self,
-        annotator: &mut Annotator,
+        _annotator: &mut Annotator,
         context: &mut Context<AnnotationType>,
     ) -> Result<TypedExpr, ErrorValue> {
         Ok(TypedExpr {
@@ -154,7 +154,7 @@ impl ast::RefID {
             expr: TypedExprEnum::RefID(TypedRefID {
                 ty: context.get_local(&self.value).symbol(&self.value)?.clone(),
                 name: self.value,
-            })
+            }),
         })
     }
 }
@@ -165,17 +165,21 @@ impl ast::VariableAssignDeclaration {
         annotator: &mut Annotator,
         context: &mut Context<AnnotationType>,
     ) -> Result<TypedExpr, ErrorValue> {
+        let typed_type = annotator.annon_type(&self.ty);
         let typed_expr = self.expr.pass_2(annotator, context)?;
+
+        context.set_local(Rc::clone(&self.name), typed_type.clone());
+
         Ok(TypedExpr {
             pos: self.pos,
             expr: TypedExprEnum::VariableAssignDeclaration(TypedAssign {
                 expr: Box::new(typed_expr),
                 binder: TypedBinder {
                     name: Rc::clone(&self.name),
-                    ty: annotator.annon_type(&self.ty),
-                    pos: self.pos
-                }
-            })
+                    ty: typed_type,
+                    pos: self.pos,
+                },
+            }),
         })
     }
 }
@@ -184,9 +188,56 @@ impl ast::Literal {
     fn pass_2(
         self,
         annotator: &mut Annotator,
+        _context: &mut Context<AnnotationType>,
+    ) -> Result<TypedExpr, ErrorValue> {
+        Ok(TypedExpr {
+            pos: self.pos,
+            expr: TypedExprEnum::Literal(TypedLiteral {
+                ty: annotator.unique(),
+                value: self,
+            }),
+        })
+    }
+}
+
+impl ast::FunctionCall {
+    fn pass_2(
+        self,
+        annotator: &mut Annotator,
         context: &mut Context<AnnotationType>,
     ) -> Result<TypedExpr, ErrorValue> {
-        unimplemented!()
+        let func_sig = context.get_local(&self.name);
+        let ret_ty = func_sig.function(&self.name)?.1.clone();
+
+        Ok(TypedExpr {
+            pos: self.pos,
+            expr: TypedExprEnum::FunctionCall(TypedFunctionCall {
+                ty: ret_ty,
+                name: Rc::clone(&self.name),
+                arguments: self
+                    .arguments
+                    .positional
+                    .into_iter()
+                    .map(|expr| expr.pass_2(annotator, context))
+                    .collect::<Result<Vec<_>, _>>()?,
+            }),
+        })
+    }
+}
+
+impl ast::IsExpr {
+    fn pass_2(
+        self,
+        annotator: &mut Annotator,
+        context: &mut Context<AnnotationType>,
+    ) -> Result<TypedExpr, ErrorValue> {
+        Ok(TypedExpr {
+            pos: self.pos,
+            expr: TypedExprEnum::Is(TypedIs {
+                ty: annotator.annon_type(&self.ty),
+                expr: Box::new(self.expr.pass_2(annotator, context)?),
+            }),
+        })
     }
 }
 
@@ -200,10 +251,11 @@ impl ast::Expr {
             ast::Expr::RefID(id) => id.pass_2(annotator, context),
             ast::Expr::VariableAssignDeclaration(var_dec) => var_dec.pass_2(annotator, context),
             ast::Expr::Literal(lit) => lit.pass_2(annotator, context),
-            _ => unimplemented!()
+            ast::Expr::Is(is) => is.pass_2(annotator, context),
+            ast::Expr::FunctionCall(func_call) => func_call.pass_2(annotator, context),
+            _ => panic!("Unimplemented {}", self.as_str()),
         }
     }
-
 }
 
 impl ast::ExpressionStatement {
@@ -214,7 +266,39 @@ impl ast::ExpressionStatement {
     ) -> Result<TypedStmt, ErrorValue> {
         Ok(TypedStmt {
             pos: self.pos,
-            stmt: TypedStmtEnum::Expression(self.expression.pass_2(annotator, context)?)
+            stmt: TypedStmtEnum::Expression(self.expression.pass_2(annotator, context)?),
+        })
+    }
+}
+
+impl ast::Return {
+    fn pass_2(
+        self,
+        annotator: &mut Annotator,
+        context: &mut Context<AnnotationType>,
+    ) -> Result<TypedStmt, ErrorValue> {
+        Ok(TypedStmt {
+            pos: self.pos,
+            stmt: TypedStmtEnum::Return(TypedReturn {
+                expr: self.expression.pass_2(annotator, context)?,
+                pos: self.pos,
+            }),
+        })
+    }
+}
+
+impl ast::Yield {
+    fn pass_2(
+        self,
+        annotator: &mut Annotator,
+        context: &mut Context<AnnotationType>,
+    ) -> Result<TypedStmt, ErrorValue> {
+        Ok(TypedStmt {
+            pos: self.pos,
+            stmt: TypedStmtEnum::Yield(TypedYield {
+                expr: self.expression.pass_2(annotator, context)?,
+                pos: self.pos,
+            }),
         })
     }
 }
@@ -228,8 +312,9 @@ impl ast::Statement {
         match self {
             ast::Statement::FunctionDefine(func_def) => func_def.pass_2(annotator, context),
             ast::Statement::ExpressionStatement(expr_stmt) => expr_stmt.pass_2(annotator, context),
-            _ => unimplemented!()
+            ast::Statement::Yield(yield_val) => yield_val.pass_2(annotator, context),
+            ast::Statement::Return(return_val) => return_val.pass_2(annotator, context),
+            _ => panic!("Unimplemented {}", self.as_str()),
         }
     }
 }
-

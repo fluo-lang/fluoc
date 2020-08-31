@@ -46,7 +46,7 @@ pub enum Prec {
     /// `*` and `/` and `%`
     FACTOR = 3,
 
-    /// `as` operator (CONVersion operator)
+    /// `as` and `is` operator (CONVersion operator)
     CONV = 4,
 
     /// `-` (negate) and others (i.e. `!` logical negate)
@@ -150,6 +150,7 @@ impl Parser {
         )
     }
 
+    #[inline]
     /// Validate next token
     pub fn next(
         &mut self,
@@ -170,6 +171,7 @@ impl Parser {
         }
     }
 
+    #[inline]
     pub fn get_relative_pos(&mut self, position: usize) -> helpers::Pos {
         helpers::Pos {
             s: self.tokens[position].pos.s,
@@ -202,9 +204,9 @@ impl Parser {
         // `%%`
         self.register_infix(lexer::TokenType::DMod, Prec::FACTOR);
 
-        // `as` keyword
+        // `as`
         self.register_infix(lexer::TokenType::As, Prec::CONV);
-        // `is` keyword
+        // `is`
         self.register_infix(lexer::TokenType::Is, Prec::CONV);
 
         // `>`
@@ -219,10 +221,12 @@ impl Parser {
         self.register_infix(lexer::TokenType::EQ, Prec::COMP);
     }
 
+    #[inline]
     pub fn register_prefix(&mut self, token: lexer::TokenType, prec: Prec) {
         self.prefix_op.insert(token, prec);
     }
 
+    #[inline]
     pub fn register_infix(&mut self, token: lexer::TokenType, prec: Prec) {
         self.infix_op.insert(token, prec);
     }
@@ -243,16 +247,19 @@ impl Parser {
         Ok(())
     }
 
+    #[inline]
     fn peek(&self) -> lexer::Token {
         self.tokens[self.token_pos]
     }
 
+    #[inline]
     fn forward(&mut self) -> lexer::Token {
         let temp = self.tokens[self.token_pos];
         self.token_pos += 1;
         temp
     }
 
+    #[inline]
     fn set_pos(&mut self, pos: usize) {
         self.token_pos = pos;
     }
@@ -1107,11 +1114,13 @@ impl Parser {
                 }
             }
             let binding_power = self.binding_power(&operator.token) as u8;
-            // Unmatched expression if Err(), raise error (priority mode)
+
             match self.led(left, operator) {
                 Ok(val) => {
                     left = val;
                 }
+
+                // Unmatched expression if Err(), raise error (priority mode)
                 Err(mut e) => {
                     e.urgent = true;
                     e.position.e += 1;
@@ -1129,11 +1138,11 @@ impl Parser {
     fn get_operator_infix(&mut self) -> Result<lexer::Token, ErrorGen> {
         let position = self.token_pos;
         let potential_op = self.forward();
-        for op in self.infix_op.keys() {
-            if &potential_op.token == op {
-                return Ok(potential_op);
-            }
+
+        if self.infix_op.get(&potential_op.token).is_some() {
+            return Ok(potential_op);
         }
+
         let pos = self.get_relative_pos(position);
         let temp = Err(ErrorGen::new(
             Box::new(move || {
@@ -1156,10 +1165,8 @@ impl Parser {
     fn get_operator_prefix(&mut self) -> Result<lexer::Token, ErrorGen> {
         let position = self.token_pos;
         let potential_op = self.forward();
-        for op in self.prefix_op.keys() {
-            if &potential_op.token == op {
-                return Ok(potential_op);
-            }
+        if self.prefix_op.get(&potential_op.token).is_some() {
+            return Ok(potential_op);
         }
 
         let pos = self.get_relative_pos(position);
@@ -1182,20 +1189,35 @@ impl Parser {
         temp
     }
 
+    #[inline]
     fn binding_power(&mut self, token_type: &lexer::TokenType) -> Prec {
         self.infix_op[token_type]
     }
 
     fn led(&mut self, left: Expr, operator: lexer::Token) -> Result<Expr, ErrorGen> {
         let position = self.token_pos;
-        let binding_power = self.binding_power(&operator.token);
 
-        Ok(Expr::Infix(ast::Infix {
-            left: Box::new(left),
-            operator,
-            right: Box::new(self.expr(binding_power)?),
-            pos: self.get_relative_pos(position),
-        }))
+        match operator.token {
+            lexer::TokenType::As => Ok(Expr::As(ast::AsExpr {
+                expr: Box::new(left),
+                ty: self.type_expr()?,
+                pos: self.get_relative_pos(position),
+            })),
+            lexer::TokenType::Is => Ok(Expr::Is(ast::IsExpr {
+                expr: Box::new(left),
+                ty: self.type_expr()?,
+                pos: self.get_relative_pos(position),
+            })),
+            _ => {
+                let bp = self.binding_power(&operator.token);
+                Ok(Expr::Infix(ast::Infix {
+                    left: Box::new(left),
+                    operator,
+                    right: Box::new(self.expr(bp)?),
+                    pos: self.get_relative_pos(position),
+                }))
+            }
+        }
     }
 
     fn item(&mut self) -> Result<Expr, ErrorGen> {
@@ -1211,6 +1233,10 @@ impl Parser {
             }));
         }
 
+        self.item_single(position)
+    }
+
+    fn item_single(&mut self, position: usize) -> Result<Expr, ErrorGen> {
         run_all! {
             self,
             Parser::integer,
@@ -1223,7 +1249,7 @@ impl Parser {
             Parser::dollar_expr,
             Parser::ref_expr,
             Parser::conditional
-        }
+        };
 
         if let lexer::TokenType::LP = self.forward().token {
             let expr = self.expr(Prec::LOWEST)?;
@@ -1438,25 +1464,41 @@ impl Parser {
     /// Parse type expression
     fn type_expr(&mut self) -> Result<ast::Type, ErrorGen> {
         let position = self.token_pos;
-        let mut errors: Vec<ErrorGen> = Vec::new();
 
-        match self.namespace_type() {
-            Ok(namespace) => return Ok(namespace),
-            Err(e) => errors.push(e),
+        run_all! {
+            self,
+            Parser::namespace_type,
+            Parser::tuple_type,
+            Parser::underscore_type
         }
 
-        match self.tuple_type() {
-            Ok(tuple) => return Ok(tuple),
-            Err(e) => errors.push(e),
-        }
+        let pos = self.get_relative_pos(position);
+        let cloned_sourcemap = Rc::clone(&self.sourcemap);
 
-        match self.underscore_type() {
-            Ok(underscore) => return Ok(underscore),
-            Err(e) => errors.push(e),
-        }
+        let next = self.peek();
 
+        let temp = Err(ErrorGen::new(
+            Box::new(move || {
+                ErrorValue::new(
+                    "Missing type".to_string(),
+                    ErrorType::Syntax,
+                    pos,
+                    ErrorDisplayType::Error,
+                    vec![ErrorAnnotation::new(
+                        Some(format!(
+                            "Expected type, found {}",
+                            next.f(Rc::clone(&cloned_sourcemap))
+                        )),
+                        pos,
+                        ErrorDisplayType::Error,
+                    )],
+                )
+            }),
+            pos,
+            false,
+        ));
         self.set_pos(position);
-        Err(LoggerInner::longest(errors))
+        temp
     }
 
     fn underscore_type(&mut self) -> Result<ast::Type, ErrorGen> {
@@ -1576,7 +1618,11 @@ pub mod parser_tests {
         };
     }
 
-    parser_run!("- 1 - 1 + 1 / 1 % 1 %% 1 * 1 as 1 > 1 is 1 < 1 >= 1 <= 1 == 1", move |value| Parser::expr(value, Prec::LOWEST), expr);
+    parser_run!(
+        "- 1 - 1 + 1 / 1 % 1 %% 1 * 1 as i32 > 1 is i32 < 1 >= 1 <= 1 == 1",
+        move |value| Parser::expr(value, Prec::LOWEST),
+        expr
+    );
 
     parser_run!("$heloa1234_123", Parser::dollar_id, dollar_id);
     parser_run!("$heloa1234_123", Parser::dollar_expr, dollar_expr);

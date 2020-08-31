@@ -53,7 +53,11 @@ impl Annotator {
     ) -> Result<typed_ast::TypedStmt, ErrorValue> {
         match stmt {
             Statement::FunctionDefine(func_def) => func_def.pass_2(self, context),
-            _ => unimplemented!()
+            Statement::Tag(tag) => Ok(typed_ast::TypedStmt {
+                pos: tag.pos,
+                stmt: typed_ast::TypedStmtEnum::Tag(tag),
+            }),
+            _ => unimplemented!(),
         }
     }
 

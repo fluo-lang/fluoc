@@ -15,4 +15,3 @@ pub enum AnnotationType {
     Function(Rc<Vec<typed_ast::TypedBinder>>, Box<AnnotationType>),
     Infer(usize),
 }
-

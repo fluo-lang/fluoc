@@ -88,6 +88,20 @@ pub struct Prefix {
     pub pos: helpers::Pos,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct AsExpr {
+    pub expr: Box<Expr>,
+    pub ty: Type,
+    pub pos: helpers::Pos,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct IsExpr {
+    pub expr: Box<Expr>,
+    pub ty: Type,
+    pub pos: helpers::Pos,
+}
+
 // NODES ---------------------------------------
 
 #[derive(Debug)]
@@ -245,7 +259,7 @@ impl Block {
     pub fn to_string(&self) -> String {
         let mut val = String::new();
         for node in &self.nodes {
-            val += &node.to_string();
+            val += &node.as_str();
             val += "\n";
         }
         val
@@ -564,9 +578,9 @@ impl Statement {
         }
     }
 
-    pub fn to_string(&self) -> &str {
+    pub fn as_str(&self) -> &str {
         match &self {
-            Statement::ExpressionStatement(val) => val.expression.to_str(),
+            Statement::ExpressionStatement(val) => val.expression.as_str(),
             Statement::VariableDeclaration(_) => "variable declaration",
 
             Statement::FunctionDefine(_) => "function define",
@@ -638,6 +652,10 @@ pub enum Expr {
 
     Infix(Infix),
     Prefix(Prefix),
+
+    As(AsExpr),
+    Is(IsExpr),
+
     Tuple(Tuple),
 
     DollarID(DollarID),
@@ -665,12 +683,15 @@ impl Expr {
             Expr::Infix(val) => val.pos,
             Expr::Prefix(val) => val.pos,
 
+            Expr::As(val) => val.pos,
+            Expr::Is(val) => val.pos,
+
             Expr::Empty(val) => val.pos,
             Expr::FunctionDefine(val) => val.pos,
         }
     }
 
-    pub fn to_str(&self) -> &str {
+    pub fn as_str(&self) -> &str {
         match self {
             Expr::Literal(_) => "literal",
             Expr::RefID(_) => "ID",
@@ -685,6 +706,9 @@ impl Expr {
 
             Expr::Infix(_) => "infix",
             Expr::Prefix(_) => "prefix",
+
+            Expr::As(_) => "as cast",
+            Expr::Is(_) => "is cast",
 
             Expr::Empty(_) => "empty",
             Expr::FunctionDefine(_) => "function define",
