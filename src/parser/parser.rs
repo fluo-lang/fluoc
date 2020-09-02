@@ -631,27 +631,27 @@ impl Parser {
         let return_type: ast::Type = if self.peek().token == lexer::TokenType::Arrow {
             self.forward();
             let temp = self.type_expr()?;
-            block = self.block(Scope::Block)?;
+            block = Expr::Block(self.block(Scope::Block)?);
             temp
         } else if {
-            block = self.block(Scope::Block)?;
+            block = Expr::Block(self.block(Scope::Block)?);
             true
         } {
             ast::Type {
                 value: ast::TypeType::Tuple(Vec::new()),
-                pos: block.pos,
+                pos: block.pos(),
             }
         } else {
             ast::Type {
                 value: ast::TypeType::Tuple(Vec::new()),
-                pos: block.pos,
+                pos: block.pos(),
             }
         };
 
         Ok(Expr::Function(ast::Function {
             return_type,
             arguments,
-            block,
+            block: Box::new(block),
             pos: self.get_relative_pos(position),
         }))
     }
@@ -1070,6 +1070,11 @@ impl Parser {
             Parser::return_expr,
             Parser::yield_expr
         };
+
+        match self.block(Scope::Block) {
+            Ok(block) => return Ok(Expr::Block(block)),
+            Err(_) => {}
+        }
 
         if let lexer::TokenType::LP = self.forward().token {
             let expr = self.expr(Prec::LOWEST)?;
@@ -1711,6 +1716,9 @@ pub mod parser_tests {
 
     parser_run!("(x = 5);", Parser::item, variable_assign_paren_stmt);
     parser_run!("x = 5;", Parser::item, variable_assign_item_stmt);
+
+    parser_run!("{x = 5;};", Parser::expression_statement, block_expr_stmt_1);
+    parser_run!("{yield x = 5;};", Parser::expression_statement, block_expr_stmt_2);
 
     parser_run!(
         "(let x: int = 5);",

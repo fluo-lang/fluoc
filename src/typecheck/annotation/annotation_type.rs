@@ -14,6 +14,7 @@ pub enum AnnotationType {
     Type(Rc<ast::Namespace>),
     Tuple(Vec<AnnotationType>),
     Function(Rc<Vec<typed_ast::TypedBinder>>, Box<AnnotationType>),
+    Never,
     Infer(usize),
 }
 
@@ -30,6 +31,7 @@ impl fmt::Display for AnnotationType {
                     .collect::<Vec<_>>()
                     .join(", ")
             ),
+            AnnotationType::Never => write!(f, "<never>"),
             AnnotationType::Function(args, ret) => write!(
                 f,
                 "fn ({}) => {}",

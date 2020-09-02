@@ -27,6 +27,7 @@ pub struct TypedIs {
 
 #[derive(Clone, Debug)]
 pub struct TypedFunctionCall {
+    pub func_ty: AnnotationType,
     pub ty: AnnotationType,
     pub name: Rc<ast::Namespace>,
     pub arguments: Vec<TypedExpr>,
@@ -50,6 +51,28 @@ pub enum TypedExprEnum {
 pub struct TypedExpr {
     pub expr: TypedExprEnum,
     pub pos: helpers::Pos,
+}
+
+impl TypedExpr {
+    pub fn ty(&self) -> &AnnotationType {
+        match &self.expr {
+            TypedExprEnum::Block(val) => &val.ty,
+
+            TypedExprEnum::VariableAssign(val) => &val.binder.ty,
+            TypedExprEnum::VariableAssignDeclaration(val) => &val.binder.ty,
+
+            TypedExprEnum::Literal(val) => &val.ty,
+            TypedExprEnum::RefID(val) => &val.ty,
+
+            TypedExprEnum::Is(val) => &val.ty,
+
+            TypedExprEnum::FunctionCall(val) => &val.ty,
+            TypedExprEnum::Function(val) => &val.ty,
+
+            TypedExprEnum::Yield(_) => &AnnotationType::Never,
+            TypedExprEnum::Return(_) => &AnnotationType::Never,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq)]
@@ -93,7 +116,7 @@ pub struct TypedAssign {
 #[derive(Clone, Debug)]
 pub struct TypedFunction {
     pub ty: AnnotationType,
-    pub block: TypedBlock,
+    pub block: Box<TypedExpr>,
 }
 
 #[derive(Clone, Debug)]
@@ -123,5 +146,4 @@ pub struct TypedStmt {
 pub struct TypedBlock {
     pub stmts: Vec<TypedStmt>,
     pub ty: AnnotationType,
-    pub pos: helpers::Pos,
 }

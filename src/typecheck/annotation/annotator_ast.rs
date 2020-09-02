@@ -1,7 +1,7 @@
 use super::{typed_ast::*, AnnotationType, Annotator};
 
 use crate::helpers::Pos;
-use crate::logger::{ErrorAnnotation, ErrorDisplayType, ErrorType, ErrorValue};
+use crate::logger::{not_a_err, ErrorAnnotation, ErrorDisplayType, ErrorType, ErrorValue};
 use crate::parser::ast;
 use crate::typecheck::context::{Context, TOption};
 
@@ -72,7 +72,7 @@ impl ast::Function {
                     Rc::new(args),
                     Box::new(annotator.annon_type(&self.return_type)),
                 ),
-                block,
+                block: Box::new(block),
             }),
             pos: self.pos,
         })
@@ -96,14 +96,16 @@ impl ast::Block {
         self,
         annotator: &mut Annotator,
         context: &mut Context<AnnotationType>,
-    ) -> Result<TypedBlock, ErrorValue> {
-        Ok(TypedBlock {
-            stmts: self
-                .nodes
-                .into_iter()
-                .map(|node| node.pass_2(annotator, context))
-                .collect::<Result<Vec<_>, _>>()?,
-            ty: annotator.unique(),
+    ) -> Result<TypedExpr, ErrorValue> {
+        Ok(TypedExpr {
+            expr: TypedExprEnum::Block(TypedBlock {
+                ty: annotator.unique(),
+                stmts: self
+                    .nodes
+                    .into_iter()
+                    .map(|node| node.pass_2(annotator, context))
+                    .collect::<Result<Vec<_>, _>>()?,
+            }),
             pos: self.pos,
         })
     }
@@ -185,12 +187,26 @@ impl ast::FunctionCall {
         context: &mut Context<AnnotationType>,
     ) -> Result<TypedExpr, ErrorValue> {
         let func_sig = context.get_local(&self.name);
-        let ret_ty = func_sig.symbol(&self.name)?.clone();
+        let func_ty = func_sig.symbol(&self.name)?.clone();
+         
+        let ret_ty = match func_ty {
+            AnnotationType::Function(_, ref ret) => {
+                *ret.clone()
+            }
+            AnnotationType::Infer(_) => {
+                annotator.unique()
+            }
+            AnnotationType::Never => {
+                AnnotationType::Never
+            }
+            _ => return Err(not_a_err(&self.name, "function"))
+        };
 
         Ok(TypedExpr {
             pos: self.pos,
             expr: TypedExprEnum::FunctionCall(TypedFunctionCall {
                 ty: ret_ty,
+                func_ty,
                 name: Rc::clone(&self.name),
                 arguments: self
                     .arguments
@@ -228,7 +244,8 @@ impl ast::Expr {
         match self {
             ast::Expr::Function(func) => func.pass_1(annotator, context),
             ast::Expr::VariableAssignDeclaration(var_dec) => var_dec.pass_1(annotator, context),
-            _ => Ok(())
+            ast::Expr::Block(block) => block.pass_1(annotator, context),
+            _ => Ok(()),
         }
     }
 
@@ -246,6 +263,7 @@ impl ast::Expr {
             ast::Expr::Yield(yield_val) => yield_val.pass_2(annotator, context),
             ast::Expr::Return(return_val) => return_val.pass_2(annotator, context),
             ast::Expr::Function(func) => func.pass_2(annotator, context),
+            ast::Expr::Block(block) => block.pass_2(annotator, context),
             _ => panic!("Unimplemented {}", self.as_str()),
         }
     }

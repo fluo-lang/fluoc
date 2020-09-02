@@ -318,7 +318,7 @@ impl Visibility {
 pub struct Function {
     pub return_type: Type,
     pub arguments: Arguments,
-    pub block: Block,
+    pub block: Box<Expr>,
     pub pos: helpers::Pos,
 }
 
@@ -540,12 +540,12 @@ impl Statement {
     }
 
     pub fn in_scope(&self, check_scope: &Scope) -> bool {
-        Statement::get_scope(self) == check_scope
+        self.get_scope() == check_scope
     }
 
-    pub fn get_scope(statement: &Statement) -> &Scope {
-        match statement {
-            Statement::ExpressionStatement(_) => &Scope::All,
+    pub fn get_scope(&self) -> &Scope {
+        match &self {
+            Statement::ExpressionStatement(expr) => expr.expression.get_scope(),
             Statement::VariableDeclaration(_) => &Scope::All,
 
             Statement::TypeAssign(_) => &Scope::All,
@@ -586,6 +586,7 @@ pub enum Expr {
     Empty(Empty),
 
     Conditional(Conditional),
+    Block(Block)
 }
 
 impl Expr {
@@ -614,6 +615,8 @@ impl Expr {
             Expr::Is(val) => val.pos,
 
             Expr::Empty(val) => val.pos,
+
+            Expr::Block(val) => val.pos,
         }
     }
 
@@ -644,6 +647,19 @@ impl Expr {
             Expr::Is(_) => "is cast",
 
             Expr::Empty(_) => "empty",
+
+            Expr::Block(_) => "block",
+        }
+    }
+
+    pub fn get_scope(&self) -> &Scope {
+        match &self {
+            Expr::VariableAssign(_) => &Scope::All,
+            Expr::VariableAssignDeclaration(_) => &Scope::All,
+            Expr::Function(_) => &Scope::All,
+            Expr::Block(_) => &Scope::All,
+
+            _ => &Scope::Block,
         }
     }
 }

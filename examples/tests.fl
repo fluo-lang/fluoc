@@ -3,10 +3,6 @@
 
 public let entry = () -> i32 {
     let hello = 10;
-    yield hello;
-};
-
-public let another_error = () -> i64 {
-    yield 10 is (i32, i32);
+    let x = yield hello;
 };
 

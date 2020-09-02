@@ -1,5 +1,7 @@
+use crate::helpers;
+use crate::parser::ast;
 use crate::typecheck::annotation::{
-    AnnotationType, TypedExpr, TypedFunction, TypedStmt, TypedStmtEnum, TypedExprEnum
+    AnnotationType, TypedBinder, TypedExpr, TypedExprEnum, TypedFunction, TypedStmt, TypedStmtEnum,
 };
 
 use std::borrow::Cow;
@@ -59,39 +61,118 @@ impl fmt::Display for Constraints<'_> {
     }
 }
 
-pub fn generate(ast: &[TypedStmt]) -> Constraints<'_> {
+pub fn generate<'a>(
+    ast: &'a [TypedStmt],
+    outer_ty: Option<&'a AnnotationType>,
+    inner_ty: Option<&'a AnnotationType>,
+) -> Constraints<'a> {
     let mut constraints = Constraints::new();
     for node in ast {
         match &node.stmt {
             TypedStmtEnum::Expression(expr) => {
-                constraints.extend(generate_expr(expr).0);
+                constraints.extend(generate_expr(expr, outer_ty, inner_ty).0);
             }
-            _ => panic!("Unimplemented {:?}", node)
+            TypedStmtEnum::Tag(_) => {}
+            _ => panic!("Unimplemented {:?}", node),
         }
     }
     constraints
 }
 
-fn generate_expr(expr: &TypedExpr) -> Constraints<'_> {
+fn generate_expr<'a>(
+    expr: &'a TypedExpr,
+    outer_ty: Option<&'a AnnotationType>,
+    inner_ty: Option<&'a AnnotationType>,
+) -> Constraints<'a> {
     let mut constraints = Constraints::new();
     match &expr.expr {
         TypedExprEnum::Function(TypedFunction {
-            ty: ty @ AnnotationType::Function(ref func_args, _),
+            ty: ty @ AnnotationType::Function(ref func_args, ref ret),
             block,
         }) => {
-            constraints.extend(generate(&block.stmts).0);
+            constraints.extend(
+                // Set the outer and inner return type to be function annotation type
+                generate_expr(block, Some(ret), Some(ret)).0,
+            );
             constraints.insert(Constraint::new(
                 Cow::Borrowed(&ty),
                 Cow::Owned(AnnotationType::Function(
                     Rc::clone(func_args),
-                    Box::new(block.ty.clone()),
+                    Box::new(block.ty().clone()),
                 )),
             ));
         }
-        TypedExprEnum::VariableAssignDeclaration(assign_dec) => {
-            constraints.extend(generate_expr(assign_dec.expr.as_ref()).0);
+
+        TypedExprEnum::FunctionCall(func_call) => {
+            for arg in &func_call.arguments {
+                constraints.extend(generate_expr(&arg, outer_ty, inner_ty).0);
+            }
+
+            constraints.insert(Constraint::new(
+                Cow::Borrowed(&func_call.func_ty),
+                Cow::Owned(AnnotationType::Function(
+                    Rc::new(func_call
+                        .arguments
+                        .iter()
+                        .map(|arg| TypedBinder {
+                            name: Rc::new(ast::Namespace {
+                                scopes: Vec::new(),
+                                pos: helpers::Pos::new(0, 0, 0),
+                            }),
+                            ty: arg.ty().clone(),
+                            pos: helpers::Pos::new(0, 0, 0)
+                        })
+                        .collect()),
+                    Box::new(func_call.ty.clone()),
+                )),
+            ));
         }
-        _ => panic!("Unimplemented {:?}", expr)
+
+        TypedExprEnum::VariableAssignDeclaration(assign_dec) => {
+            constraints.extend(generate_expr(assign_dec.expr.as_ref(), outer_ty, inner_ty).0);
+            constraints.insert(Constraint::new(
+                Cow::Borrowed(&assign_dec.binder.ty),
+                Cow::Borrowed(assign_dec.expr.as_ref().ty()),
+            ));
+        }
+
+        TypedExprEnum::Yield(yield_expr) => {
+            constraints.extend(generate_expr(yield_expr.expr.as_ref(), outer_ty, inner_ty).0);
+            constraints.insert(Constraint::new(
+                // We can unwrap because parser shouldn't let `yield` be in a
+                // position where this a problem
+                Cow::Borrowed(inner_ty.unwrap()),
+                Cow::Borrowed(yield_expr.expr.ty()),
+            ));
+        }
+
+        TypedExprEnum::Return(yield_expr) => {
+            constraints.extend(generate_expr(yield_expr.expr.as_ref(), outer_ty, inner_ty).0);
+            constraints.insert(Constraint::new(
+                // We can unwrap because parser shouldn't let `return` be in a
+                // position where this a problem
+                Cow::Borrowed(outer_ty.unwrap()),
+                Cow::Borrowed(yield_expr.expr.ty()),
+            ));
+        }
+
+        TypedExprEnum::Block(block) => {
+            constraints.extend(generate(&block.stmts, outer_ty, Some(&block.ty)).0);
+        }
+
+        TypedExprEnum::RefID(_) => {}
+
+        TypedExprEnum::Is(is) => {
+            constraints.extend(generate_expr(is.expr.as_ref(), outer_ty, inner_ty).0);
+            constraints.insert(Constraint::new(
+                Cow::Borrowed(is.expr.ty()),
+                Cow::Borrowed(&is.ty),
+            ));
+        }
+
+        // No constraints are needed for literals
+        TypedExprEnum::Literal(_) => {}
+        _ => panic!("Unimplemented {:?}", expr),
     }
     constraints
 }

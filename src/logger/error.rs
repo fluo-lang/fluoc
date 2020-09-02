@@ -1,5 +1,24 @@
 use super::Color;
+
 use crate::helpers::Pos;
+use crate::parser::ast;
+
+use std::rc::Rc;
+
+pub fn not_a_err(name: &Rc<ast::Namespace>, err_name: &'static str) -> ErrorValue {
+    let err_msg = format!("`{}` is not a {}", name.to_string(), err_name);
+    ErrorValue::new(
+        err_msg,
+        ErrorType::UndefinedSymbol,
+        name.pos,
+        ErrorDisplayType::Error,
+        vec![ErrorAnnotation::new(
+            None,
+            name.pos,
+            ErrorDisplayType::Error,
+        )],
+    )
+}
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 /// An error type, i.e `Syntax` error or `UnexpectedToken` error
