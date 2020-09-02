@@ -1,5 +1,5 @@
 use crate::typecheck::annotation::{
-    AnnotationType, TypedExpr, TypedFunction, TypedStmt, TypedStmtEnum,
+    AnnotationType, TypedExpr, TypedFunction, TypedStmt, TypedStmtEnum, TypedExprEnum
 };
 
 use std::borrow::Cow;
@@ -59,32 +59,39 @@ impl fmt::Display for Constraints<'_> {
     }
 }
 
-pub fn generate(ast: &[TypedStmt]) -> Constraints {
+pub fn generate(ast: &[TypedStmt]) -> Constraints<'_> {
     let mut constraints = Constraints::new();
     for node in ast {
         match &node.stmt {
-            TypedStmtEnum::Function(TypedFunction {
-                ty: ty @ AnnotationType::Function(ref func_args, _),
-                block,
-            }) => {
-                constraints.extend(generate(&block.stmts).0);
-                constraints.insert(Constraint::new(
-                    Cow::Borrowed(&ty),
-                    Cow::Owned(AnnotationType::Function(
-                        Rc::clone(func_args),
-                        Box::new(block.ty.clone()),
-                    )),
-                ));
-            }
             TypedStmtEnum::Expression(expr) => {
                 constraints.extend(generate_expr(expr).0);
             }
-            _ => {}
+            _ => panic!("Unimplemented {:?}", node)
         }
     }
     constraints
 }
 
-fn generate_expr(expr: &TypedExpr) -> Constraints {
-    unimplemented!()
+fn generate_expr(expr: &TypedExpr) -> Constraints<'_> {
+    let mut constraints = Constraints::new();
+    match &expr.expr {
+        TypedExprEnum::Function(TypedFunction {
+            ty: ty @ AnnotationType::Function(ref func_args, _),
+            block,
+        }) => {
+            constraints.extend(generate(&block.stmts).0);
+            constraints.insert(Constraint::new(
+                Cow::Borrowed(&ty),
+                Cow::Owned(AnnotationType::Function(
+                    Rc::clone(func_args),
+                    Box::new(block.ty.clone()),
+                )),
+            ));
+        }
+        TypedExprEnum::VariableAssignDeclaration(assign_dec) => {
+            constraints.extend(generate_expr(assign_dec.expr.as_ref()).0);
+        }
+        _ => panic!("Unimplemented {:?}", expr)
+    }
+    constraints
 }

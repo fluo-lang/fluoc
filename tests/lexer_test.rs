@@ -70,7 +70,8 @@ mod lexer_tests {
     lex_assert!(" <=", TokenType::LE, le_test);
     lex_assert!(" ==", TokenType::EQ, eq_test);
 
-    lex_assert!(" =>", TokenType::Arrow, arrow_test);
+    lex_assert!(" ->", TokenType::Arrow, arrow_test);
+    lex_assert!(" =>", TokenType::FatArrow, fat_arrow_test);
 
     lex_assert!(" (", TokenType::LP, lp_test);
     lex_assert!(" )", TokenType::RP, rp_test);

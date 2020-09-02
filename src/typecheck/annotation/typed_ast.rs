@@ -108,7 +108,6 @@ pub struct TypedReturn {
 
 #[derive(Clone, Debug)]
 pub enum TypedStmtEnum {
-    Function(TypedFunction),
     Expression(TypedExpr),
     VariableDeclaration(TypedBinder),
     Tag(ast::Tag),

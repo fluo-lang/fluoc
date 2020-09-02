@@ -11,7 +11,7 @@ impl Unifier {
         Self {}
     }
 
-    pub fn solve(&self, constraints: Constraints) -> Substitutions {
+    pub fn solve(&self, constraints: Constraints<'_>) -> Substitutions {
         Substitutions::new()
     }
 }

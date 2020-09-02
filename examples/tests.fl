@@ -2,7 +2,7 @@
 --unit tests2;
 
 public let entry = () -> i32 {
-    let hello = another_error();
+    let hello = 10;
     yield hello;
 };
 

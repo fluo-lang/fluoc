@@ -8,31 +8,6 @@ use crate::typecheck::context::{Context, TOption};
 use std::rc::Rc;
 
 impl<'a> TOption<&'a AnnotationType> {
-    fn unwrap_function(self) -> (Rc<Vec<TypedBinder>>, &'a AnnotationType) {
-        match *self {
-            Some(value) => match value {
-                AnnotationType::Function(args, ret) => (Rc::clone(&args), &*ret),
-                _ => panic!("Annon type was not a function"),
-            },
-            None => panic!("Unwrapped none values on unwrap_function"),
-        }
-    }
-
-    fn not_a_err(name: &Rc<ast::Namespace>, err_name: &'static str) -> ErrorValue {
-        let err_msg = format!("`{}` is not a {}", name.to_string(), err_name);
-        ErrorValue::new(
-            err_msg,
-            ErrorType::UndefinedSymbol,
-            name.pos,
-            ErrorDisplayType::Error,
-            vec![ErrorAnnotation::new(
-                None,
-                name.pos,
-                ErrorDisplayType::Error,
-            )],
-        )
-    }
-
     fn undefined_symbol(name: &Rc<ast::Namespace>) -> ErrorValue {
         let err_msg = format!("undefined symbol `{}`", name.to_string());
         ErrorValue::new(
@@ -46,19 +21,6 @@ impl<'a> TOption<&'a AnnotationType> {
                 ErrorDisplayType::Error,
             )],
         )
-    }
-
-    fn function(
-        self,
-        name: &Rc<ast::Namespace>,
-    ) -> Result<(Rc<Vec<TypedBinder>>, &'a AnnotationType), ErrorValue> {
-        match *self {
-            Some(value) => match value {
-                AnnotationType::Function(args, ret) => Ok((Rc::clone(args), &*ret)),
-                _ => Err(Self::not_a_err(name, "function")),
-            },
-            None => Err(Self::undefined_symbol(name)),
-        }
     }
 
     fn symbol(self, name: &Rc<ast::Namespace>) -> Result<&'a AnnotationType, ErrorValue> {
@@ -75,7 +37,7 @@ impl ast::Function {
         annotator: &mut Annotator,
         context: &mut Context<AnnotationType>,
     ) -> Result<(), ErrorValue> {
-        self.block.pass_1(annotator, context);
+        self.block.pass_1(annotator, context)?;
         Ok(())
     }
 
@@ -83,7 +45,7 @@ impl ast::Function {
         self,
         annotator: &mut Annotator,
         context: &mut Context<AnnotationType>,
-    ) -> Result<TypedStmt, ErrorValue> {
+    ) -> Result<TypedExpr, ErrorValue> {
         let args: Vec<_> = self
             .arguments
             .positional
@@ -104,8 +66,8 @@ impl ast::Function {
 
         let block = self.block.pass_2(annotator, &mut new_context)?;
 
-        Ok(TypedStmt {
-            stmt: TypedStmtEnum::Function(TypedFunction {
+        Ok(TypedExpr {
+            expr: TypedExprEnum::Function(TypedFunction {
                 ty: AnnotationType::Function(
                     Rc::new(args),
                     Box::new(annotator.annon_type(&self.return_type)),
@@ -223,7 +185,7 @@ impl ast::FunctionCall {
         context: &mut Context<AnnotationType>,
     ) -> Result<TypedExpr, ErrorValue> {
         let func_sig = context.get_local(&self.name);
-        let ret_ty = func_sig.function(&self.name)?.1.clone();
+        let ret_ty = func_sig.symbol(&self.name)?.clone();
 
         Ok(TypedExpr {
             pos: self.pos,
@@ -266,7 +228,7 @@ impl ast::Expr {
         match self {
             ast::Expr::Function(func) => func.pass_1(annotator, context),
             ast::Expr::VariableAssignDeclaration(var_dec) => var_dec.pass_1(annotator, context),
-            _ => panic!("Unimplemented {}", self.as_str()),
+            _ => Ok(())
         }
     }
 
@@ -283,6 +245,7 @@ impl ast::Expr {
             ast::Expr::FunctionCall(func_call) => func_call.pass_2(annotator, context),
             ast::Expr::Yield(yield_val) => yield_val.pass_2(annotator, context),
             ast::Expr::Return(return_val) => return_val.pass_2(annotator, context),
+            ast::Expr::Function(func) => func.pass_2(annotator, context),
             _ => panic!("Unimplemented {}", self.as_str()),
         }
     }

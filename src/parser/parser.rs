@@ -156,7 +156,6 @@ impl Parser {
 
         if t.token != token_type {
             let temp = Err(self.syntax_error(t, token_type, is_keyword, false));
-
             self.set_pos(position);
             temp
         } else {
@@ -397,36 +396,6 @@ impl Parser {
         })
     }
 
-    fn parse_arguments(&mut self) -> Result<ast::Arguments, ErrorGen> {
-        let position = self.token_pos;
-        let mut positional_args: Vec<(Rc<ast::Namespace>, ast::Type)> = Vec::new();
-
-        loop {
-            if self.peek().token == lexer::TokenType::RP {
-                // No error, we've reached the end
-                break;
-            }
-
-            let id = self.namespace()?;
-
-            self.next(lexer::TokenType::Colon, position, false)?;
-
-            let arg_type = self.type_expr()?;
-
-            positional_args.push((Rc::new(id), arg_type));
-            if self.peek().token == lexer::TokenType::Comma {
-                self.forward();
-            } else {
-                break;
-            }
-        }
-
-        Ok(ast::Arguments {
-            positional: positional_args,
-            pos: self.get_relative_pos(position),
-        })
-    }
-
     fn type_assign(&mut self) -> Result<Statement, ErrorGen> {
         let position = self.token_pos;
 
@@ -612,13 +581,49 @@ impl Parser {
         }))
     }
 
-    /// Parse function expression
+    fn parse_arguments(&mut self) -> Result<ast::Arguments, ErrorGen> {
+        let position = self.token_pos;
+        let mut positional_args: Vec<(Rc<ast::Namespace>, ast::Type)> = Vec::new();
+
+        loop {
+            if self.peek().token == lexer::TokenType::RP {
+                // No error, we've reached the end
+                break;
+            }
+
+            let id = self.namespace()?;
+
+            self.next(lexer::TokenType::Colon, position, false)?;
+
+            let arg_type = self.type_expr()?;
+
+            positional_args.push((Rc::new(id), arg_type));
+            if self.peek().token == lexer::TokenType::Comma {
+                self.forward();
+            } else {
+                break;
+            }
+        }
+
+        Ok(ast::Arguments {
+            positional: positional_args,
+            pos: self.get_relative_pos(position),
+        })
+    }
+
+    /// Function expression
     fn function_expr(&mut self) -> Result<Expr, ErrorGen> {
         let position = self.token_pos;
 
         self.next(lexer::TokenType::LP, position, false)?;
 
-        let arguments = self.parse_arguments()?;
+        let arguments = match self.parse_arguments() {
+            Ok(val) => val,
+            Err(why) => {
+                self.set_pos(position);
+                return Err(why)
+            }
+        };
 
         self.next(lexer::TokenType::RP, position, false)?;
 
@@ -642,8 +647,6 @@ impl Parser {
                 pos: block.pos,
             }
         };
-
-        println!("{}", self.peek().f(Rc::clone(&self.sourcemap)));
 
         Ok(Expr::Function(ast::Function {
             return_type,
@@ -1331,7 +1334,7 @@ impl Parser {
             let position = self.token_pos;
             let id = self.namespace();
 
-            if let (Ok(id_val), lexer::TokenType::Colon) = (id, self.peek().token) {
+            if let (Ok(_), lexer::TokenType::Colon) = (id, self.peek().token) {
                 // There is a name id, eat it; its optional
                 self.forward();
 
