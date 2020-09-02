@@ -1,12 +1,12 @@
 
 --unit tests2;
 
-public def entry() -> i32 {
+public let entry = () -> i32 {
     let hello = another_error();
     yield hello;
-}
+};
 
-public def another_error() -> i64 {
+public let another_error = () -> i64 {
     yield 10 is (i32, i32);
-}
+};
 

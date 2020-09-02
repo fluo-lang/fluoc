@@ -12,32 +12,32 @@
 > — Leonardo da Vinci
 
 ```rust
-def fizzbuzz(value: int) {
+let fizzbuzz = (value: i32) {
     match loop 1..value {
         %% 15 -> print("Fizzbuzz");
         %% 3  -> print("Fizz");
         %% 5  -> print("Fizz");
         _     -> print(_);
     }
-}
+};
 
-def entry() {
+let entry = () {
     print("Hello, world!");
     fizzbuzz(100);
-}
+};
 ```
 
 ```rust
-def fib(n: int) -> int {
+let fib = (n: i64) -> i64 {
     if n <= 1 { 
         return 1;
     }
     return fib(n - 1) + fib(n - 2);
-}
+};
 
-def entry() {
+let entry = () {
     print(fib(46));
-}
+};
 ```
 <br>
 
@@ -89,38 +89,15 @@ Currently, you will need to install LLVM on your own. In the future, this will c
 
 ## More Examples
 ```rust
-def make_closure(closure: () -> int) -> () -> int {
+let make_func = (closure: () -> int) -> () -> int {
     return closure;
-}
+};
 
-def entry() {
-    let x: int = make_closure(() -> int { return 10; })();
+let entry = () {
+    let x: int = make_closure(() { return 10; })();
 
     -- Prints 10
     print(x); 
-}
-```
-
-```rust
-syntax print -> statement {
-    parse {
-        `print`;
-        `->`;
-        value: $expr;
-        `;`;
-    }
-
-    eval {
-        if $value is int {
-            <`std::core::print_int($value);`>;
-        } else {
-            comp::raise("Invalid print type $value.type");
-        }
-    }
-}
-
-def entry() {
-    print -> 10;
-}
+};
 ```
 

@@ -61,7 +61,7 @@ pub struct Parser {
     pub ast: Option<Vec<ast::Statement>>,
     logger: Logger,
 
-    statements: [fn(&mut Self) -> Result<Statement, ErrorGen>; 12],
+    statements: [fn(&mut Self) -> Result<Statement, ErrorGen>; 6],
     prefix_op: HashMap<lexer::TokenType, Prec>,
     infix_op: HashMap<lexer::TokenType, Prec>,
     tokens: Vec<lexer::Token>,
@@ -79,16 +79,10 @@ impl Parser {
             statements: [
                 Parser::import,
                 Parser::unit,
-                Parser::function_define,
                 Parser::expression_statement,
-                Parser::return_statement,
                 Parser::variable_declaration,
                 Parser::type_assign,
                 Parser::compiler_tag,
-                Parser::extern_def,
-                Parser::overload_define,
-                Parser::overload_extern,
-                Parser::yield_statement,
             ],
             prefix_op: HashMap::new(),
             infix_op: HashMap::new(),
@@ -158,7 +152,6 @@ impl Parser {
         position: usize,
         is_keyword: bool,
     ) -> Result<helpers::Pos, ErrorGen> {
-        let prev_pos = self.token_pos;
         let t = self.forward();
 
         if t.token != token_type {
@@ -619,19 +612,9 @@ impl Parser {
         }))
     }
 
-    /// Parse function definition
-    fn function_define(&mut self) -> Result<Statement, ErrorGen> {
+    /// Parse function expression
+    fn function_expr(&mut self) -> Result<Expr, ErrorGen> {
         let position = self.token_pos;
-
-        let visibility = if self.peek().token == lexer::TokenType::Public {
-            self.forward();
-            ast::Visibility::Public
-        } else {
-            ast::Visibility::Private
-        };
-
-        self.next(lexer::TokenType::Def, position, true)?;
-        let name = Rc::new(self.namespace()?);
 
         self.next(lexer::TokenType::LP, position, false)?;
 
@@ -660,233 +643,40 @@ impl Parser {
             }
         };
 
-        Ok(ast::Statement::FunctionDefine(ast::FunctionDefine {
+        println!("{}", self.peek().f(Rc::clone(&self.sourcemap)));
+
+        Ok(Expr::Function(ast::Function {
             return_type,
             arguments,
-            block: Some(block),
-            visibility,
-            name,
+            block,
             pos: self.get_relative_pos(position),
-            overload_operator: None,
         }))
     }
 
-    fn extern_def(&mut self) -> Result<Statement, ErrorGen> {
-        let position = self.token_pos;
-
-        let visibility = if self.peek().token == lexer::TokenType::Public {
-            self.forward();
-            ast::Visibility::Public
-        } else {
-            ast::Visibility::Private
-        };
-
-        self.next(lexer::TokenType::Extern, position, true)?;
-
-        self.next(lexer::TokenType::Def, position, true)?;
-        let name = Rc::new(self.namespace()?);
-
-        self.next(lexer::TokenType::LP, position, false)?;
-
-        let arguments = self.parse_extern_arguments()?;
-
-        self.next(lexer::TokenType::RP, position, false)?;
-
-        let return_type: ast::Type = if self.peek().token == lexer::TokenType::Arrow {
-            self.forward();
-            self.type_expr()?
-        } else {
-            self.forward();
-            ast::Type {
-                value: ast::TypeType::Tuple(Vec::new()),
-                pos: self.get_relative_pos(position),
-            }
-        };
-
-        self.next(lexer::TokenType::Semi, position, false)?;
-
-        Ok(ast::Statement::FunctionDefine(ast::FunctionDefine {
-            return_type,
-            arguments,
-            visibility,
-            name,
-            pos: self.get_relative_pos(position),
-            block: None, // No block on external function
-            overload_operator: None,
-        }))
-    }
-
-    fn overload_define(&mut self) -> Result<Statement, ErrorGen> {
-        let position = self.token_pos;
-
-        let visibility = if self.peek().token == lexer::TokenType::Public {
-            self.forward();
-            ast::Visibility::Public
-        } else {
-            ast::Visibility::Private
-        };
-
-        self.next(lexer::TokenType::Overload, position, true)?;
-
-        let overload_operator = Some(self.forward().token);
-        let name = Rc::new(self.namespace()?);
-
-        self.next(lexer::TokenType::LP, position, false)?;
-
-        let arguments = self.parse_arguments()?;
-
-        self.next(lexer::TokenType::RP, position, false)?;
-
-        let block;
-        let return_type: ast::Type = if self.peek().token == lexer::TokenType::Arrow {
-            self.forward();
-            let temp = self.type_expr()?;
-            block = self.block(Scope::Block)?;
-            temp
-        } else if {
-            block = self.block(Scope::Block)?;
-            true
-        } {
-            ast::Type {
-                value: ast::TypeType::Tuple(Vec::new()),
-                pos: block.pos,
-            }
-        } else {
-            ast::Type {
-                value: ast::TypeType::Tuple(Vec::new()),
-                pos: block.pos,
-            }
-        };
-
-        Ok(ast::Statement::FunctionDefine(ast::FunctionDefine {
-            return_type,
-            arguments,
-            block: Some(block),
-            visibility,
-            name,
-            pos: self.get_relative_pos(position),
-            overload_operator,
-        }))
-    }
-
-    fn overload_extern(&mut self) -> Result<Statement, ErrorGen> {
-        let position = self.token_pos;
-
-        let visibility = if self.peek().token == lexer::TokenType::Public {
-            self.forward();
-            ast::Visibility::Public
-        } else {
-            ast::Visibility::Private
-        };
-
-        self.next(lexer::TokenType::Extern, position, true)?;
-
-        self.next(lexer::TokenType::Overload, position, true)?;
-
-        let overload_operator = Some(self.forward().token);
-        let name = Rc::new(self.namespace()?);
-
-        self.next(lexer::TokenType::LP, position, false)?;
-
-        let arguments = self.parse_extern_arguments()?;
-
-        self.next(lexer::TokenType::RP, position, false)?;
-
-        let return_type: ast::Type = if self.peek().token == lexer::TokenType::Arrow {
-            self.forward();
-            self.type_expr()?
-        } else {
-            self.forward();
-            ast::Type {
-                value: ast::TypeType::Tuple(Vec::new()),
-                pos: self.get_relative_pos(position),
-            }
-        };
-
-        self.next(lexer::TokenType::Semi, position, false)?;
-
-        Ok(ast::Statement::FunctionDefine(ast::FunctionDefine {
-            return_type,
-            arguments,
-            visibility,
-            name,
-            pos: self.get_relative_pos(position),
-            block: None, // No block on external function
-            overload_operator,
-        }))
-    }
-
-    fn parse_extern_arguments(&mut self) -> Result<ast::Arguments, ErrorGen> {
-        let position = self.token_pos;
-        let mut positional_args: Vec<(Rc<ast::Namespace>, ast::Type)> = Vec::new();
-
-        loop {
-            if self.peek().token == lexer::TokenType::RP {
-                // No error, we've reached the end
-                break;
-            }
-
-            let position = self.token_pos;
-            let id = self.namespace();
-
-            if let (Ok(id_val), lexer::TokenType::Colon) = (id, self.peek().token) {
-                // There is a name id, eat it; its optional
-                self.forward();
-
-                let arg_type = self.type_expr()?;
-                positional_args.push((Rc::new(id_val), arg_type));
-            } else {
-                // No name id, its optional so this is fine
-                self.token_pos = position;
-                let arg_type = self.type_expr()?;
-                positional_args.push((
-                    Rc::new(ast::Namespace {
-                        scopes: Vec::new(),
-                        pos: self.get_relative_pos(position),
-                    }),
-                    arg_type,
-                ));
-            }
-
-            if self.peek().token == lexer::TokenType::Comma {
-                self.forward();
-            } else {
-                break;
-            }
-        }
-
-        Ok(ast::Arguments {
-            positional: positional_args,
-            pos: self.get_relative_pos(position),
-        })
-    }
-
-    /// Yield statement
-    fn yield_statement(&mut self) -> Result<Statement, ErrorGen> {
+    /// Yield expr
+    fn yield_expr(&mut self) -> Result<Expr, ErrorGen> {
         let position = self.token_pos;
 
         self.next(lexer::TokenType::Yield, position, true)?;
 
         let expr = self.expr(Prec::LOWEST)?;
-        self.next(lexer::TokenType::Semi, position, false)?;
 
-        Ok(ast::Statement::Yield(ast::Yield {
-            expression: expr,
+        Ok(Expr::Yield(ast::Yield {
+            expression: Box::new(expr),
             pos: self.get_relative_pos(position),
         }))
     }
 
-    /// Return statement
-    fn return_statement(&mut self) -> Result<Statement, ErrorGen> {
+    /// Return expr
+    fn return_expr(&mut self) -> Result<Expr, ErrorGen> {
         let position = self.token_pos;
 
         self.next(lexer::TokenType::Return, position, true)?;
 
         let expr = self.expr(Prec::LOWEST)?;
-        self.next(lexer::TokenType::Semi, position, false)?;
 
-        Ok(ast::Statement::Return(ast::Return {
-            expression: expr,
+        Ok(Expr::Return(ast::Return {
+            expression: Box::new(expr),
             pos: self.get_relative_pos(position),
         }))
     }
@@ -945,7 +735,7 @@ impl Parser {
 
         self.next(lexer::TokenType::RP, position, false)?;
 
-        Ok(ast::Expr::FunctionCall(ast::FunctionCall {
+        Ok(Expr::FunctionCall(ast::FunctionCall {
             arguments,
             name: namespace,
             pos: self.get_relative_pos(position),
@@ -954,9 +744,17 @@ impl Parser {
         }))
     }
 
-    /// Ful variable assign with type declaration and expression
+    /// Full variable assign with type declaration and expression
     fn variable_assign_full(&mut self) -> Result<Expr, ErrorGen> {
         let position = self.token_pos;
+
+        let visibility = if self.peek().token == lexer::TokenType::Public {
+            self.forward();
+            ast::Visibility::Public
+        } else {
+            ast::Visibility::Private
+        };
+
         self.next(lexer::TokenType::Let, position, true)?;
 
         let namespace = self.namespace()?;
@@ -974,11 +772,12 @@ impl Parser {
         self.next(lexer::TokenType::Equals, position, false)?;
         let expr = self.expr(Prec::LOWEST)?;
 
-        Ok(ast::Expr::VariableAssignDeclaration(
+        Ok(Expr::VariableAssignDeclaration(
             ast::VariableAssignDeclaration {
                 ty: var_type,
                 name: Rc::new(namespace),
                 expr: Box::new(expr),
+                visibility,
                 pos: self.get_relative_pos(position),
             },
         ))
@@ -987,6 +786,19 @@ impl Parser {
     /// Variable Declaration
     fn variable_declaration(&mut self) -> Result<Statement, ErrorGen> {
         let position = self.token_pos;
+
+        let visibility = if self.peek().token == lexer::TokenType::Public {
+            self.forward();
+            ast::Visibility::Public
+        } else {
+            ast::Visibility::Private
+        };
+
+        let is_extern = self.peek().token == lexer::TokenType::Extern;
+        if is_extern {
+            self.forward();
+        }
+
         self.next(lexer::TokenType::Let, position, true)?;
 
         let namespace = self.namespace()?;
@@ -1005,6 +817,8 @@ impl Parser {
 
         Ok(ast::Statement::VariableDeclaration(
             ast::VariableDeclaration {
+                visibility,
+                is_extern,
                 ty: var_type,
                 name: Rc::new(namespace),
                 pos: self.get_relative_pos(position),
@@ -1022,7 +836,7 @@ impl Parser {
 
         let expr = self.expr(Prec::LOWEST)?;
 
-        Ok(ast::Expr::VariableAssign(ast::VariableAssign {
+        Ok(Expr::VariableAssign(ast::VariableAssign {
             name: Rc::new(namespace),
             expr: Box::new(expr),
             pos: self.get_relative_pos(position),
@@ -1048,7 +862,7 @@ impl Parser {
             Err(_) => None,
         };
 
-        Ok(ast::Expr::Conditional(ast::Conditional {
+        Ok(Expr::Conditional(ast::Conditional {
             if_branches,
             else_branch,
             pos: self.get_relative_pos(position),
@@ -1245,10 +1059,13 @@ impl Parser {
             Parser::function_call,
             Parser::variable_assign_full,
             Parser::variable_assign,
+            Parser::function_expr,
             Parser::tuple_expr,
             Parser::dollar_expr,
             Parser::ref_expr,
-            Parser::conditional
+            Parser::conditional,
+            Parser::return_expr,
+            Parser::yield_expr
         };
 
         if let lexer::TokenType::LP = self.forward().token {
@@ -1296,7 +1113,7 @@ impl Parser {
         if lexer::TokenType::True == possible_bool.token
             || lexer::TokenType::False == possible_bool.token
         {
-            Ok(ast::Expr::Literal(ast::Literal {
+            Ok(Expr::Literal(ast::Literal {
                 literal_type: LiteralType::Bool,
                 pos: possible_bool.pos,
             }))
@@ -1312,7 +1129,7 @@ impl Parser {
 
         let int = self.forward();
         if lexer::TokenType::Number == int.token {
-            Ok(ast::Expr::Literal(ast::Literal {
+            Ok(Expr::Literal(ast::Literal {
                 literal_type: LiteralType::Number,
                 pos: int.pos,
             }))
@@ -1328,7 +1145,7 @@ impl Parser {
 
         let string = self.forward();
         if lexer::TokenType::String == string.token {
-            Ok(ast::Expr::Literal(ast::Literal {
+            Ok(Expr::Literal(ast::Literal {
                 pos: string.pos,
                 literal_type: LiteralType::String,
             }))
@@ -1405,7 +1222,6 @@ impl Parser {
 
     fn tuple(&mut self) -> Result<ast::Tuple, ErrorGen> {
         let position = self.token_pos;
-
         self.next(lexer::TokenType::LP, position, false)?;
 
         let values = match self.items() {
@@ -1429,6 +1245,7 @@ impl Parser {
                 Vec::new()
             }
         };
+
         self.next(lexer::TokenType::RP, position, false)?;
 
         Ok(ast::Tuple {
@@ -1461,6 +1278,82 @@ impl Parser {
         Ok(items)
     }
 
+    fn function_type(&mut self) -> Result<ast::Type, ErrorGen> {
+        let position = self.token_pos;
+
+        let visibility = if self.peek().token == lexer::TokenType::Public {
+            self.forward();
+            ast::Visibility::Public
+        } else {
+            ast::Visibility::Private
+        };
+
+        self.next(lexer::TokenType::Extern, position, true)?;
+
+        self.next(lexer::TokenType::Def, position, true)?;
+        let name = Rc::new(self.namespace()?);
+
+        self.next(lexer::TokenType::LP, position, false)?;
+
+        let arguments = self.function_type_args()?;
+
+        self.next(lexer::TokenType::RP, position, false)?;
+
+        let return_type: ast::Type = if self.peek().token == lexer::TokenType::Arrow {
+            self.forward();
+            self.type_expr()?
+        } else {
+            self.forward();
+            ast::Type {
+                value: ast::TypeType::Tuple(Vec::new()),
+                pos: self.get_relative_pos(position),
+            }
+        };
+
+        self.next(lexer::TokenType::Semi, position, false)?;
+
+        Ok(ast::Type {
+            pos: self.get_relative_pos(position),
+            value: ast::TypeType::Function(arguments, Box::new(return_type)),
+        })
+    }
+
+    fn function_type_args(&mut self) -> Result<Vec<ast::Type>, ErrorGen> {
+        let position = self.token_pos;
+        let mut positional_args: Vec<ast::Type> = Vec::new();
+
+        loop {
+            if self.peek().token == lexer::TokenType::RP {
+                // No error, we've reached the end
+                break;
+            }
+
+            let position = self.token_pos;
+            let id = self.namespace();
+
+            if let (Ok(id_val), lexer::TokenType::Colon) = (id, self.peek().token) {
+                // There is a name id, eat it; its optional
+                self.forward();
+
+                let arg_type = self.type_expr()?;
+                positional_args.push(arg_type);
+            } else {
+                // No name id, its optional so this is fine
+                self.token_pos = position;
+                let arg_type = self.type_expr()?;
+                positional_args.push(arg_type);
+            }
+
+            if self.peek().token == lexer::TokenType::Comma {
+                self.forward();
+            } else {
+                break;
+            }
+        }
+
+        Ok(positional_args)
+    }
+
     /// Parse type expression
     fn type_expr(&mut self) -> Result<ast::Type, ErrorGen> {
         let position = self.token_pos;
@@ -1469,7 +1362,8 @@ impl Parser {
             self,
             Parser::namespace_type,
             Parser::tuple_type,
-            Parser::underscore_type
+            Parser::underscore_type,
+            Parser::function_type
         }
 
         let pos = self.get_relative_pos(position);
@@ -1701,40 +1595,39 @@ pub mod parser_tests {
 
     parser_run!(
         "return ((let x: int = 10, x = 10, hello, 1, \"another_test\"));",
-        Parser::return_statement,
+        Parser::return_expr,
         return_statement
     );
 
     parser_run!(
         "yield ((let x: int = 10, x = 10, hello, 1, \"another_test\"));",
-        Parser::yield_statement,
+        Parser::yield_expr,
         yield_statement
     );
 
     parser_run!(
-        "extern overload + add_overload_test9(int, int) -> int;",
-        Parser::overload_extern,
-        overload_extern
-    );
-
-    parser_run!(
-        "overload + add_overload_test9(val: int, val: int) -> int {}",
-        Parser::overload_define,
-        overload_define
-    );
-
-    parser_run!(
-        "       def add_overload_test9(val: int, val: int) -> int {}",
-        Parser::function_define,
+        "let add_overload_test9 = (val: int, val: int) -> int {};",
+        Parser::expression_statement,
         function_define
     );
 
     parser_run!(
-        "extern def        add_overload_test9(int, int) -> int;",
-        Parser::extern_def,
+        "extern let add_overload_test9 = (int, int) -> int;",
+        Parser::expression_statement,
         extern_def
     );
 
+    parser_run!(
+        "pub let add_overload_test9 = (val: int, val: int) -> int {};",
+        Parser::expression_statement,
+        function_define_pub
+    );
+
+    parser_run!(
+        "extern pub let add_overload_test9 = (int, int) -> int;",
+        Parser::expression_statement,
+        extern_def_pub
+    );
     parser_run!("@[no_mangle]", Parser::compiler_tag, compilier_tag);
     parser_run!("(19)", Parser::item, int_1_paren);
     parser_run!("(1)", Parser::item, int_2_paren);

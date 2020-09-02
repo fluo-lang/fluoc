@@ -1,9 +1,10 @@
 use super::typed_ast;
 use crate::parser::ast;
 
+use std::fmt;
 use std::rc::Rc;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 /// An annotation type
 ///
 /// The `Infer` variant is assigned when the type is to be inferred.
@@ -14,4 +15,30 @@ pub enum AnnotationType {
     Tuple(Vec<AnnotationType>),
     Function(Rc<Vec<typed_ast::TypedBinder>>, Box<AnnotationType>),
     Infer(usize),
+}
+
+impl fmt::Display for AnnotationType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            AnnotationType::Infer(val) => write!(f, "T{}", val),
+            AnnotationType::Type(ty) => write!(f, "{}", ty),
+            AnnotationType::Tuple(tup) => write!(
+                f,
+                "({})",
+                tup.iter()
+                    .map(|val| val.to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+            AnnotationType::Function(args, ret) => write!(
+                f,
+                "fn ({}) => {}",
+                args.iter()
+                    .map(|val| val.to_string())
+                    .collect::<Vec<_>>()
+                    .join(", "),
+                ret
+            ),
+        }
+    }
 }

@@ -1,3 +1,4 @@
+#![feature(bindings_after_at)]
 // For benchmarks
 #[macro_use]
 extern crate lazy_static;

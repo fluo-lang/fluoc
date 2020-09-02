@@ -1,8 +1,7 @@
 
-public
-type value = int;
+public type value = int;
 
-public def hello(val: value) -> value {
+public let hello = (val: value) -> value {
     return val;
-}
+};
 

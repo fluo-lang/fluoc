@@ -1,9 +1,9 @@
 
 -- Return lambda that returns int
-def make_lambda(lambda: () -> i32) -> () -> i32 {
+let make_lambda = (lambda: () -> i32) -> () -> i32 {
     return lambda;
-}
+};
 
-def main() {
+let main = () {
     let x = make_lambda(() -> i32 { return 10; })();
-}
+};

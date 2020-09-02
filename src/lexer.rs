@@ -57,6 +57,7 @@ pub enum TokenType {
     EQ, // == Equal to
 
     Arrow,
+    FatArrow,
 
     LP,
     RP,
@@ -127,7 +128,8 @@ impl TokenType {
 
             TokenType::DoubleColon => "token `::`",
 
-            TokenType::Arrow => "token `=>`",
+            TokenType::Arrow => "token `->`",
+            TokenType::FatArrow => "token `=>`",
 
             TokenType::LP => "token `(`",
             TokenType::RP => "token `)`",

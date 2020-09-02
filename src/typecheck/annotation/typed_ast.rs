@@ -4,6 +4,8 @@ use crate::helpers;
 use crate::parser::ast;
 
 use std::rc::Rc;
+use std::hash::{Hasher, Hash};
+use std::fmt;
 
 #[derive(Clone, Debug)]
 pub struct TypedLiteral {
@@ -39,6 +41,9 @@ pub enum TypedExprEnum {
     RefID(TypedRefID),
     Is(TypedIs),
     FunctionCall(TypedFunctionCall),
+    Yield(TypedYield),
+    Return(TypedReturn),
+    Function(TypedFunction)
 }
 
 #[derive(Clone, Debug)]
@@ -47,11 +52,30 @@ pub struct TypedExpr {
     pub pos: helpers::Pos,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq)]
 pub struct TypedBinder {
     pub name: Rc<ast::Namespace>,
     pub ty: AnnotationType,
     pub pos: helpers::Pos,
+}
+
+impl PartialEq for TypedBinder {
+    fn eq(&self, other: &Self) -> bool {
+        self.ty == other.ty
+    }
+}
+
+impl Hash for TypedBinder {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.name.hash(state);
+        self.ty.hash(state);
+    }
+}
+
+impl fmt::Display for TypedBinder {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}: {}", self.name, self.ty)
+    }
 }
 
 impl TypedBinder {
@@ -68,21 +92,18 @@ pub struct TypedAssign {
 
 #[derive(Clone, Debug)]
 pub struct TypedFunction {
-    pub arguments: Rc<Vec<TypedBinder>>,
-    pub return_ty: AnnotationType,
-    pub block: Option<TypedBlock>,
+    pub ty: AnnotationType,
+    pub block: TypedBlock,
 }
 
 #[derive(Clone, Debug)]
 pub struct TypedYield {
-    pub expr: TypedExpr,
-    pub pos: helpers::Pos,
+    pub expr: Box<TypedExpr>,
 }
 
 #[derive(Clone, Debug)]
 pub struct TypedReturn {
-    pub expr: TypedExpr,
-    pub pos: helpers::Pos,
+    pub expr: Box<TypedExpr>,
 }
 
 #[derive(Clone, Debug)]
@@ -90,8 +111,6 @@ pub enum TypedStmtEnum {
     Function(TypedFunction),
     Expression(TypedExpr),
     VariableDeclaration(TypedBinder),
-    Yield(TypedYield),
-    Return(TypedReturn),
     Tag(ast::Tag),
 }
 

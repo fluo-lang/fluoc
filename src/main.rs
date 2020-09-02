@@ -1,4 +1,6 @@
 #![feature(backtrace)]
+#![feature(bindings_after_at)]
+
 #![warn(rust_2018_idioms)]
 
 #[macro_use]

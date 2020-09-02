@@ -1,9 +1,8 @@
 use super::{typed_ast, AnnotationType};
 
-use crate::helpers::Pos;
 use crate::logger::ErrorValue;
 use crate::parser::{ast, ast::Statement};
-use crate::typecheck::{context::Context, types};
+use crate::typecheck::context::Context;
 
 use std::rc::Rc;
 
@@ -41,7 +40,7 @@ impl Annotator {
         context: &mut Context<AnnotationType>,
     ) -> Result<(), ErrorValue> {
         match stmt {
-            Statement::FunctionDefine(func_def) => func_def.pass_1(self, context),
+            Statement::ExpressionStatement(expr_stmt) => expr_stmt.pass_1(self, context),
             _ => Ok(()),
         }
     }
@@ -52,7 +51,7 @@ impl Annotator {
         context: &mut Context<AnnotationType>,
     ) -> Result<typed_ast::TypedStmt, ErrorValue> {
         match stmt {
-            Statement::FunctionDefine(func_def) => func_def.pass_2(self, context),
+            Statement::ExpressionStatement(expr_stmt) => expr_stmt.pass_2(self, context),
             Statement::Tag(tag) => Ok(typed_ast::TypedStmt {
                 pos: tag.pos,
                 stmt: typed_ast::TypedStmtEnum::Tag(tag),
@@ -73,6 +72,7 @@ impl Annotator {
                     .map(|item| self.annon_type(&item))
                     .collect(),
             ),
+            ast::TypeType::Function(args, ret) => unimplemented!()
         }
     }
 

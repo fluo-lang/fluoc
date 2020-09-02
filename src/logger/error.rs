@@ -235,3 +235,9 @@ impl From<ErrorGen> for ErrorValue {
         (error.make_err)()
     }
 }
+
+impl From<&ErrorGen> for ErrorValue {
+    fn from(error: &ErrorGen) -> ErrorValue {
+        (error.make_err)()
+    }
+}

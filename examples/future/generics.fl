@@ -1,10 +1,9 @@
 
-def<T> hi(val: T) -> T {
+let hi<T> = (val: T) -> T {
     yield val;
-}
+};
 
-public 
-def entry() {
+public let entry = () {
     -- Ok
     let test_1 = hi(true);
 
@@ -13,5 +12,5 @@ def entry() {
 
     -- Error!
     let test_3 = hi<i32>(true);
-}
+};
 

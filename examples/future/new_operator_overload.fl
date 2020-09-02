@@ -2,7 +2,7 @@
 impl int: Add<int, int> {
     type output = int;
 
-    extern def add_int(int, int) -> output;
+    extern let add_int = (int, int) -> output;
 }
 
 
@@ -10,6 +10,6 @@ impl int: Add<int, int> {
 pattern Add<left, right> {
     type output;
 
-    def add_int(left, right) -> output;
+    let add_int = (left, right) -> output;
 }
 

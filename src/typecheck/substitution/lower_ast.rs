@@ -3,7 +3,7 @@
 use super::mir;
 use crate::helpers;
 use crate::typecheck::annotation::{TypedExpr, TypedStmt};
-use crate::typecheck::solver::Substitution;
+use crate::typecheck::unifier::Substitutions;
 
 pub struct TypedAstLower {}
 
@@ -12,7 +12,7 @@ impl TypedAstLower {
         Self {}
     }
 
-    pub fn lower(self, ast: Vec<TypedStmt>, substitutions: Substitution) -> Vec<mir::MirStmt> {
+    pub fn lower(self, ast: Vec<TypedStmt>, substitutions: Substitutions) -> Vec<mir::MirStmt> {
         Vec::new()
     }
 }

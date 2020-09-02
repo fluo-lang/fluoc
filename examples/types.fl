@@ -2,7 +2,7 @@ unit units {
     type m = km;
     type km = int;
 
-    def val() -> m {
+    public let val = () -> m {
         return 10;
-    }
+    };
 }

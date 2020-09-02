@@ -1,6 +1,7 @@
 use super::annotation;
 use super::context::Context;
-use super::solver;
+use super::constraint_gen::generate;
+use super::unifier::Unifier;
 use super::substitution;
 use super::substitution::mir;
 
@@ -67,10 +68,10 @@ impl TypeCheckModule {
             )
             .map_err(|e| vec![e])?;
 
-        let constraint_gen = solver::ConstraintGenerator::new();
-        let constraints = constraint_gen.generate(&typed_ast);
+        let constraints = generate(&typed_ast);
+        println!("{}", constraints);
 
-        let constraint_solver = solver::ConstraintSolver::new();
+        let constraint_solver = Unifier::new();
         let solved_constraints = constraint_solver.solve(constraints);
 
         let substituter = substitution::TypedAstLower::new();

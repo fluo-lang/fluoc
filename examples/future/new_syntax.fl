@@ -5,8 +5,7 @@
  * Block comment!
  */
 
-public
-def fizzbuzz (value: int) {
+public let fizzbuzz = (value: int) {
     print("Hello, 世界!");
 
     match loop 1..value {
@@ -15,8 +14,8 @@ def fizzbuzz (value: int) {
         %% 5 & 3    -> print("Fizzbuzz");
         _           -> print(_);
     }
-}
+};
 
-def entry () {
+let entry = () {
     fizzbuzz(100);
-}
+};

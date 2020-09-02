@@ -198,6 +198,7 @@ pub struct VariableAssignDeclaration {
     pub ty: Type,
     pub name: Rc<Namespace>,
     pub expr: Box<Expr>,
+    pub visibility: Visibility,
     pub pos: helpers::Pos,
 }
 
@@ -208,6 +209,8 @@ pub struct VariableAssignDeclaration {
 pub struct VariableDeclaration {
     pub ty: Type,
     pub name: Rc<Namespace>,
+    pub is_extern: bool,
+    pub visibility: Visibility,
     pub pos: helpers::Pos,
 }
 
@@ -222,7 +225,7 @@ pub struct Unit {
 /// Arguments for function
 pub struct Arguments {
     pub positional: Vec<(Rc<Namespace>, Type)>,
-    pub pos: helpers::Pos, // TODO: Add more types of arguments
+    pub pos: helpers::Pos,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -311,14 +314,11 @@ impl Visibility {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-/// Function definition
-pub struct FunctionDefine {
+/// Function expression
+pub struct Function {
     pub return_type: Type,
     pub arguments: Arguments,
-    pub block: Option<Block>, // Option if is an extern
-    pub name: Rc<Namespace>,
-    pub visibility: Visibility,
-    pub overload_operator: Option<TokenType>,
+    pub block: Block,
     pub pos: helpers::Pos,
 }
 
@@ -330,18 +330,18 @@ pub struct ArgumentsRun {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Yield {
-    pub expression: Expr,
+    pub expression: Box<Expr>,
     pub pos: helpers::Pos,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Return {
-    pub expression: Expr,
+    pub expression: Box<Expr>,
     pub pos: helpers::Pos,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-/// Function definition
+/// Function call
 pub struct FunctionCall {
     pub arguments: ArgumentsRun,
     pub name: Rc<Namespace>,
@@ -361,6 +361,7 @@ pub struct ExpressionStatement {
 pub enum TypeType {
     Type(Rc<Namespace>),
     Tuple(Vec<Type>),
+    Function(Vec<Type>, Box<Type>),
     Unknown,
 }
 
@@ -368,14 +369,20 @@ impl TypeType {
     pub fn f(&self, sourcemap: SourceMap) -> String {
         match &self {
             TypeType::Type(namespace) => namespace.to_string(),
-            TypeType::Tuple(types) => {
-                let mut final_string = String::new();
-                for type_val in types.iter() {
-                    final_string.push_str(&type_val.f(Rc::clone(&sourcemap))[..]);
-                }
-                final_string
-            }
+            TypeType::Tuple(types) => types
+                .iter()
+                .map(|type_val| type_val.f(Rc::clone(&sourcemap)))
+                .collect::<Vec<_>>()
+                .join(", "),
             TypeType::Unknown => "<unknown>".to_string(),
+            TypeType::Function(args, ret) => format!(
+                "({}) -> {}",
+                args.iter()
+                    .map(|type_val| type_val.f(Rc::clone(&sourcemap)))
+                    .collect::<Vec<_>>()
+                    .join(", "),
+                ret.f(Rc::clone(&sourcemap))
+            ),
         }
     }
 }
@@ -473,12 +480,6 @@ impl Namespace {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct Nodes {
-    pub nodes: Vec<Node>,
-    pub pos: helpers::Pos,
-}
-
 #[derive(Debug, Clone)]
 pub enum Scope {
     Block,
@@ -497,59 +498,10 @@ impl PartialEq for Scope {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Node {
-    RefID(RefID),
-    Reference(Reference),
-    NameID(NameID),
-
-    VariableAssign(VariableAssign),
-    VariableAssignDeclaration(VariableAssignDeclaration),
-    VariableDeclaration(VariableDeclaration),
-
-    TypeAssign(TypeAssign),
-
-    Type(Type),
-    Arguments(Arguments),
-    Block(Block),
-
-    Infix(Infix),
-    Prefix(Prefix),
-
-    Tuple(Tuple),
-
-    Tag(Tag),
-
-    ExpressionStatement(ExpressionStatement),
-
-    FunctionDefine(FunctionDefine),
-    FunctionCall(FunctionCall),
-
-    Conditional(Conditional),
-
-    Unit(Unit),
-
-    Import(Import),
-
-    Literal(Literal),
-    DollarID(DollarID),
-    Nodes(Nodes),
-
-    Return(Return),
-    Yield(Yield),
-
-    Empty(Empty),
-    Units(Units),
-}
-
-#[derive(Debug, Clone, PartialEq)]
 pub enum Statement {
     ExpressionStatement(ExpressionStatement),
     VariableDeclaration(VariableDeclaration),
 
-    FunctionDefine(FunctionDefine),
-
-    Return(Return),
-    Yield(Yield),
     Unit(Unit),
     TypeAssign(TypeAssign),
     Import(Import),
@@ -564,11 +516,6 @@ impl Statement {
             Statement::ExpressionStatement(val) => val.pos,
             Statement::VariableDeclaration(val) => val.pos,
 
-            Statement::FunctionDefine(val) => val.pos,
-
-            Statement::Return(val) => val.pos,
-            Statement::Yield(val) => val.pos,
-
             Statement::Unit(val) => val.pos,
             Statement::TypeAssign(val) => val.pos,
             Statement::Import(val) => val.pos,
@@ -582,11 +529,6 @@ impl Statement {
         match &self {
             Statement::ExpressionStatement(val) => val.expression.as_str(),
             Statement::VariableDeclaration(_) => "variable declaration",
-
-            Statement::FunctionDefine(_) => "function define",
-
-            Statement::Return(_) => "return statement",
-            Statement::Yield(_) => "yield statement",
 
             Statement::Unit(_) => "unit",
             Statement::Import(_) => "import",
@@ -603,13 +545,8 @@ impl Statement {
 
     pub fn get_scope(statement: &Statement) -> &Scope {
         match statement {
-            Statement::ExpressionStatement(_) => &Scope::Block,
-            Statement::VariableDeclaration(_) => &Scope::Block,
-
-            Statement::FunctionDefine(_) => &Scope::All,
-
-            Statement::Return(_) => &Scope::Block,
-            Statement::Yield(_) => &Scope::Block,
+            Statement::ExpressionStatement(_) => &Scope::All,
+            Statement::VariableDeclaration(_) => &Scope::All,
 
             Statement::TypeAssign(_) => &Scope::All,
             Statement::Unit(_) => &Scope::Outer,
@@ -617,25 +554,6 @@ impl Statement {
             Statement::Tag(_) => &Scope::All,
 
             Statement::Empty(_) => &Scope::All,
-        }
-    }
-
-    pub fn into_node(self) -> Node {
-        match self {
-            Statement::ExpressionStatement(val) => Node::ExpressionStatement(val),
-            Statement::VariableDeclaration(val) => Node::VariableDeclaration(val),
-
-            Statement::FunctionDefine(val) => Node::FunctionDefine(val),
-
-            Statement::Return(val) => Node::Return(val),
-            Statement::Yield(val) => Node::Yield(val),
-
-            Statement::TypeAssign(val) => Node::TypeAssign(val),
-            Statement::Import(val) => Node::Import(val),
-            Statement::Unit(val) => Node::Unit(val),
-            Statement::Tag(val) => Node::Tag(val),
-
-            Statement::Empty(val) => Node::Empty(val),
         }
     }
 }
@@ -650,8 +568,13 @@ pub enum Expr {
     VariableAssignDeclaration(VariableAssignDeclaration),
     FunctionCall(FunctionCall),
 
+    Function(Function),
+
     Infix(Infix),
     Prefix(Prefix),
+
+    Return(Return),
+    Yield(Yield),
 
     As(AsExpr),
     Is(IsExpr),
@@ -662,7 +585,6 @@ pub enum Expr {
 
     Empty(Empty),
 
-    FunctionDefine(FunctionDefine),
     Conditional(Conditional),
 }
 
@@ -683,11 +605,15 @@ impl Expr {
             Expr::Infix(val) => val.pos,
             Expr::Prefix(val) => val.pos,
 
+            Expr::Return(val) => val.pos,
+            Expr::Yield(val) => val.pos,
+
+            Expr::Function(val) => val.pos,
+
             Expr::As(val) => val.pos,
             Expr::Is(val) => val.pos,
 
             Expr::Empty(val) => val.pos,
-            Expr::FunctionDefine(val) => val.pos,
         }
     }
 
@@ -704,14 +630,20 @@ impl Expr {
 
             Expr::Conditional(_) => "conditional",
 
+            Expr::Function(_) => "function",
+
             Expr::Infix(_) => "infix",
             Expr::Prefix(_) => "prefix",
+
+            Expr::Function(_) => "function define",
+
+            Expr::Return(_) => "return statement",
+            Expr::Yield(_) => "yield statement",
 
             Expr::As(_) => "as cast",
             Expr::Is(_) => "is cast",
 
             Expr::Empty(_) => "empty",
-            Expr::FunctionDefine(_) => "function define",
         }
     }
 }

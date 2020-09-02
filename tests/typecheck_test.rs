@@ -51,74 +51,73 @@ mod typecheck_tests {
     }
 
     /*assert_error!(
-            r#"def entry() -> () {
+            r#"let entry = () -> () {
         return 1923;
-    }"#,
+    };"#,
             vec![ErrorType::TypeMismatch],
             explicit_return_mismatch
         );
 
         assert_error!(
-            r#"def entry() -> () {
+            r#"let entry = () -> () {
         x;
         return ();
-    }"#,
+    };"#,
             vec![ErrorType::UndefinedSymbol],
             undef_var
         );
 
         assert_error!(
-            r#"def entry() {
+            r#"let entry = () {
         return 1923;
-    }"#,
+    };"#,
             vec![ErrorType::TypeMismatch],
             implicit_return_mismatch
         );
 
         assert_error!(
-            r#"def entry() {
+            r#"let entry = () {
         let x: i32;
         if false {
             x = 0;
         }
         let y: i32 = x;
-    }"#,
+    };"#,
             vec![ErrorType::PossibleUninitVal],
             if_cond_no_else
         );
 
         assert_error!(
             r#"type Km = i32;
-    def entry() {
+    let entry = () {
         let x: Miles;
-    }"#,
+    };"#,
             vec![ErrorType::UndefinedType],
             undef_type
         );
 
         assert_error!(
             r#"type Km = i32;
-    def entry() {
+    let entry = () {
         let x: i64 = (10 as Km) as i64;
-    }"#,
+    };"#,
             vec![ErrorType::TypeCast],
             type_cast_error
         );*/
 
     assert_error!(
-        r#"def entry() -> i32 {
+        r#"let entry = () -> i32 {
         return 1923 is i64;
-    }"#,
+    };"#,
         vec![ErrorType::TypeMismatch],
         return_is_mismatch
     );
 
     assert_ok!(
-        r#"def entry() -> i32 {
+        r#"let entry = () -> i32 {
     let x = 10;
     return x;
-}
-"#,
+};"#,
         basic_i32_infer
     );
 }
