@@ -675,7 +675,7 @@ impl Parser {
 
         let expr = self.expr(Prec::LOWEST)?;
 
-        O(Expr::Return(ast::Return {
+        Ok(Expr::Return(ast::Return {
             expression: Box::new(expr),
             pos: self.get_relative_pos(position),
         }))
