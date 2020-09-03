@@ -429,16 +429,15 @@ impl Hash for Namespace {
 
 impl Display for Namespace {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let sourcemap_borrowed = self.scopes.first().unwrap().sourcemap.borrow();
-        write!(
-            f,
-            "{}",
-            self.scopes
-                .iter()
-                .map(|id| sourcemap_borrowed.get_segment(id.pos))
-                .collect::<Vec<_>>()
-                .join("::")
-        )
+        if let Some(scope) = self.scopes.first() {
+            let sourcemap_borrowed = scope.sourcemap.borrow();
+            write!(
+                f,
+                "{}",
+                sourcemap_borrowed.get_segment(self.pos)
+            )?;
+        }
+        Ok(())
     }
 }
 

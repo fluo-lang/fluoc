@@ -3,9 +3,9 @@ use super::annotation_type::AnnotationType;
 use crate::helpers;
 use crate::parser::ast;
 
-use std::rc::Rc;
-use std::hash::{Hasher, Hash};
 use std::fmt;
+use std::hash::{Hash, Hasher};
+use std::rc::Rc;
 
 #[derive(Clone, Debug)]
 pub struct TypedLiteral {
@@ -44,7 +44,7 @@ pub enum TypedExprEnum {
     FunctionCall(TypedFunctionCall),
     Yield(TypedYield),
     Return(TypedReturn),
-    Function(TypedFunction)
+    Function(TypedFunction),
 }
 
 #[derive(Clone, Debug)]
@@ -77,7 +77,7 @@ impl TypedExpr {
 
 #[derive(Clone, Debug, Eq)]
 pub struct TypedBinder {
-    pub name: Rc<ast::Namespace>,
+    pub name: Option<Rc<ast::Namespace>>,
     pub ty: AnnotationType,
     pub pos: helpers::Pos,
 }
@@ -97,12 +97,16 @@ impl Hash for TypedBinder {
 
 impl fmt::Display for TypedBinder {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}: {}", self.name, self.ty)
+        if let Some(ref name) = self.name {
+            write!(f, "{}: {}", name, self.ty)
+        } else {
+            write!(f, "{}", self.ty)
+        }
     }
 }
 
 impl TypedBinder {
-    pub fn new(name: Rc<ast::Namespace>, ty: AnnotationType, pos: helpers::Pos) -> Self {
+    pub fn new(name: Option<Rc<ast::Namespace>>, ty: AnnotationType, pos: helpers::Pos) -> Self {
         Self { name, ty, pos }
     }
 }

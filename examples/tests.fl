@@ -3,6 +3,13 @@
 
 let entry = () -> i32 {
     let hello = 10;
-    let x = yield hello;
+    let val = {
+        yield 10 is i32;
+    };
+    yield other(hello);
+};
+
+let other = (x: _) -> _ {
+    yield x;
 };
 

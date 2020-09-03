@@ -52,7 +52,7 @@ impl ast::Function {
             .iter()
             .map(|(name, ty)| {
                 TypedBinder::new(
-                    Rc::clone(name),
+                    Some(Rc::clone(name)),
                     annotator.annon_type(ty),
                     Pos::calc(name.pos, ty.pos),
                 )
@@ -61,7 +61,7 @@ impl ast::Function {
         let mut new_context = context.clone();
 
         for binding in args.iter() {
-            new_context.set_local(Rc::clone(&binding.name), binding.ty.clone())
+            new_context.set_local(Rc::clone(binding.name.as_ref().unwrap()), binding.ty.clone())
         }
 
         let block = self.block.pass_2(annotator, &mut new_context)?;
@@ -155,7 +155,7 @@ impl ast::VariableAssignDeclaration {
             expr: TypedExprEnum::VariableAssignDeclaration(TypedAssign {
                 expr: Box::new(typed_expr),
                 binder: TypedBinder {
-                    name: Rc::clone(&self.name),
+                    name: Some(Rc::clone(&self.name)),
                     ty: typed_type,
                     pos: self.pos,
                 },

@@ -115,10 +115,7 @@ fn generate_expr<'a>(
                         .arguments
                         .iter()
                         .map(|arg| TypedBinder {
-                            name: Rc::new(ast::Namespace {
-                                scopes: Vec::new(),
-                                pos: helpers::Pos::new(0, 0, 0),
-                            }),
+                            name: None,
                             ty: arg.ty().clone(),
                             pos: helpers::Pos::new(0, 0, 0)
                         })
