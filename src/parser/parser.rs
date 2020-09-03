@@ -1289,21 +1289,15 @@ impl Parser {
     fn function_type(&mut self) -> Result<ast::Type, ErrorGen> {
         let position = self.token_pos;
 
-        let visibility = if self.peek().token == lexer::TokenType::Public {
-            self.forward();
-            ast::Visibility::Public
-        } else {
-            ast::Visibility::Private
-        };
-
-        self.next(lexer::TokenType::Extern, position, true)?;
-
-        self.next(lexer::TokenType::Def, position, true)?;
-        let name = Rc::new(self.namespace()?);
-
         self.next(lexer::TokenType::LP, position, false)?;
 
-        let arguments = self.function_type_args()?;
+        let arguments = match self.function_type_args() {
+            Ok(val) => val,
+            Err(why) => {
+                self.set_pos(position);
+                return Err(why);
+            }
+        };
 
         self.next(lexer::TokenType::RP, position, false)?;
 
@@ -1311,14 +1305,11 @@ impl Parser {
             self.forward();
             self.type_expr()?
         } else {
-            self.forward();
             ast::Type {
                 value: ast::TypeType::Tuple(Vec::new()),
                 pos: self.get_relative_pos(position),
             }
         };
-
-        self.next(lexer::TokenType::Semi, position, false)?;
 
         Ok(ast::Type {
             pos: self.get_relative_pos(position),
@@ -1327,7 +1318,6 @@ impl Parser {
     }
 
     fn function_type_args(&mut self) -> Result<Vec<ast::Type>, ErrorGen> {
-        let position = self.token_pos;
         let mut positional_args: Vec<ast::Type> = Vec::new();
 
         loop {
@@ -1360,47 +1350,6 @@ impl Parser {
         }
 
         Ok(positional_args)
-    }
-
-    /// Parse type expression
-    fn type_expr(&mut self) -> Result<ast::Type, ErrorGen> {
-        let position = self.token_pos;
-
-        run_all! {
-            self,
-            Parser::namespace_type,
-            Parser::tuple_type,
-            Parser::underscore_type,
-            Parser::function_type
-        }
-
-        let pos = self.get_relative_pos(position);
-        let cloned_sourcemap = Rc::clone(&self.sourcemap);
-
-        let next = self.peek();
-
-        let temp = Err(ErrorGen::new(
-            Box::new(move || {
-                ErrorValue::new(
-                    "Missing type".to_string(),
-                    ErrorType::Syntax,
-                    pos,
-                    ErrorDisplayType::Error,
-                    vec![ErrorAnnotation::new(
-                        Some(format!(
-                            "Expected type, found {}",
-                            next.f(Rc::clone(&cloned_sourcemap))
-                        )),
-                        pos,
-                        ErrorDisplayType::Error,
-                    )],
-                )
-            }),
-            pos,
-            false,
-        ));
-        self.set_pos(position);
-        temp
     }
 
     fn underscore_type(&mut self) -> Result<ast::Type, ErrorGen> {
@@ -1477,6 +1426,47 @@ impl Parser {
         }
 
         Ok(items)
+    }
+
+    /// Parse type expression
+    fn type_expr(&mut self) -> Result<ast::Type, ErrorGen> {
+        let position = self.token_pos;
+
+        run_all! {
+            self,
+            Parser::namespace_type,
+            Parser::underscore_type,
+            Parser::function_type,
+            Parser::tuple_type
+        }
+
+        let pos = self.get_relative_pos(position);
+        let cloned_sourcemap = Rc::clone(&self.sourcemap);
+
+        let next = self.peek();
+
+        let temp = Err(ErrorGen::new(
+            Box::new(move || {
+                ErrorValue::new(
+                    "Missing type".to_string(),
+                    ErrorType::Syntax,
+                    pos,
+                    ErrorDisplayType::Error,
+                    vec![ErrorAnnotation::new(
+                        Some(format!(
+                            "Expected type, found {}",
+                            next.f(Rc::clone(&cloned_sourcemap))
+                        )),
+                        pos,
+                        ErrorDisplayType::Error,
+                    )],
+                )
+            }),
+            pos,
+            false,
+        ));
+        self.set_pos(position);
+        temp
     }
 
     fn dollar_expr(&mut self) -> Result<Expr, ErrorGen> {
@@ -1620,8 +1610,8 @@ pub mod parser_tests {
     );
 
     parser_run!(
-        "extern let add_overload_test9 = (int, int) -> int;",
-        Parser::expression_statement,
+        "extern let add_overload_test9: (int, int) -> int;",
+        Parser::variable_declaration,
         extern_def
     );
 
@@ -1632,10 +1622,11 @@ pub mod parser_tests {
     );
 
     parser_run!(
-        "extern pub let add_overload_test9 = (int, int) -> int;",
-        Parser::expression_statement,
+        "pub extern let add_overload_test9: (int, int) -> int;",
+        Parser::variable_declaration,
         extern_def_pub
     );
+
     parser_run!("@[no_mangle]", Parser::compiler_tag, compilier_tag);
     parser_run!("(19)", Parser::item, int_1_paren);
     parser_run!("(1)", Parser::item, int_2_paren);

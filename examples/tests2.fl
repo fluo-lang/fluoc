@@ -1,7 +1,7 @@
 
-public type value = int;
+pub type value = int;
 
-public let hello = (val: value) -> value {
+pub let hello = (val: value) -> value {
     return val;
 };
 

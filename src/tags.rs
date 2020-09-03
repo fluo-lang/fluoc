@@ -1,4 +1,4 @@
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, Default, PartialEq, Debug)]
 /// Unit level tags
 pub struct UnitTags {
     pub no_std: bool,

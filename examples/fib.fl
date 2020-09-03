@@ -5,7 +5,7 @@ let fib = (n: long) -> long {
     return fib(n - 2) + fib(n - 1);
 };
 
-public let entry = () {
+let entry = () {
     core::fmt::print_long(fib(46));
 };
 

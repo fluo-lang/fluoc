@@ -3,7 +3,7 @@ let hi<T> = (val: T) -> T {
     yield val;
 };
 
-public let entry = () {
+let entry = () {
     -- Ok
     let test_1 = hi(true);
 

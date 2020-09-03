@@ -17,7 +17,6 @@ pub enum TokenType {
 
     Def,
     Type,
-    Overload,
     Impl,
     Pattern,
 
@@ -101,12 +100,11 @@ impl TokenType {
             TokenType::Impl => "keyword `impl`",
             TokenType::Pattern => "keyword `pattern`",
             TokenType::Type => "keyword `type`",
-            TokenType::Public => "keyword `public`",
+            TokenType::Public => "keyword `pub`",
             TokenType::Unit => "keyword `unit`",
             TokenType::Extern => "keyword `extern`",
             TokenType::If => "keyword `if`",
             TokenType::Else => "keyword `else`",
-            TokenType::Overload => "keyword `overload`",
 
             TokenType::As => "operator `as`",
             TokenType::Is => "operator`is`",
@@ -375,7 +373,7 @@ impl Lexer {
                     }
                     '>' => {
                         self.bump();
-                        TokenType::Arrow
+                        TokenType::FatArrow
                     }
                     _ => TokenType::Equals,
                 },
@@ -474,14 +472,13 @@ impl Lexer {
             "yield" => Ok(TokenType::Yield),
             "as" => Ok(TokenType::As),
             "type" => Ok(TokenType::Type),
-            "public" => Ok(TokenType::Public),
+            "pub" => Ok(TokenType::Public),
             "unit" => Ok(TokenType::Unit),
             "true" => Ok(TokenType::True),
             "false" => Ok(TokenType::False),
             "extern" => Ok(TokenType::Extern),
             "if" => Ok(TokenType::If),
             "else" => Ok(TokenType::Else),
-            "overload" => Ok(TokenType::Overload),
             "_" => Ok(TokenType::Underscore),
             "is" => Ok(TokenType::Is),
             _ => Ok(TokenType::Identifier),

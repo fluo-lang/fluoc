@@ -10,7 +10,7 @@ let do_something = () -> bool {
     return true;
 };
 
-public let entry = () {
+let entry = () {
     let my_int: bool = do_something();
     let my_other: int = do_something(19int);
 };
