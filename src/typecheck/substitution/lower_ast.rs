@@ -1,7 +1,6 @@
 //! Lower TypedAst to mir (middle intermediate representation)
 
-use super::mir;
-use crate::helpers;
+use crate::mir;
 use crate::typecheck::annotation::{TypedExpr, TypedStmt};
 use crate::typecheck::unifier::Substitutions;
 

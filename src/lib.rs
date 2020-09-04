@@ -16,3 +16,4 @@ pub mod paths;
 pub mod segmentation;
 pub mod tags;
 pub mod typecheck;
+pub mod mir;

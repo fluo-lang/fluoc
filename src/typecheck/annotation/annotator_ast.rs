@@ -50,18 +50,14 @@ impl ast::Function {
             .arguments
             .positional
             .iter()
-            .map(|(name, ty)| {
-                TypedBinder::new(
-                    Some(Rc::clone(name)),
-                    annotator.annon_type(ty),
-                    Pos::calc(name.pos, ty.pos),
-                )
+            .map(|(_, ty)| {
+                annotator.annon_type(ty)
             })
             .collect();
         let mut new_context = context.clone();
 
-        for binding in args.iter() {
-            new_context.set_local(Rc::clone(binding.name.as_ref().unwrap()), binding.ty.clone())
+        for (ty, (name, _)) in args.iter().zip(self.arguments.positional) {
+            new_context.set_local(name, ty.clone())
         }
 
         let block = self.block.pass_2(annotator, &mut new_context)?;

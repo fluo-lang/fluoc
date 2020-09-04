@@ -1,5 +1,4 @@
-use super::mir;
-use super::types;
+use crate::mir;
 
 use crate::parser::ast;
 

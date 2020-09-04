@@ -3,7 +3,7 @@ use super::context::Context;
 use super::constraint_gen::generate;
 use super::unifier::Unifier;
 use super::substitution;
-use super::substitution::mir;
+use crate::mir;
 
 use crate::helpers;
 use crate::logger::{ErrorValue, Logger};

@@ -114,11 +114,7 @@ fn generate_expr<'a>(
                     Rc::new(func_call
                         .arguments
                         .iter()
-                        .map(|arg| TypedBinder {
-                            name: None,
-                            ty: arg.ty().clone(),
-                            pos: helpers::Pos::new(0, 0, 0)
-                        })
+                        .map(|arg| arg.ty().clone())
                         .collect()),
                     Box::new(func_call.ty.clone()),
                 )),

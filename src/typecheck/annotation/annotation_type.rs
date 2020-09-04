@@ -1,4 +1,3 @@
-use super::typed_ast;
 use crate::parser::ast;
 
 use std::fmt;
@@ -13,7 +12,7 @@ use std::rc::Rc;
 pub enum AnnotationType {
     Type(Rc<ast::Namespace>),
     Tuple(Vec<AnnotationType>),
-    Function(Rc<Vec<typed_ast::TypedBinder>>, Box<AnnotationType>),
+    Function(Rc<Vec<AnnotationType>>, Box<AnnotationType>),
     Never,
     Infer(usize),
 }

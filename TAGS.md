@@ -9,6 +9,7 @@
 | `[Misc]`           | Miscellaneous changes (i.e. `.gitignore`, `grammar.ebnf`, other things that don't fit anywhere else) |
 | `[Format]`         | Changes in formatting (i.e. using an auto formatter)                                                 |
 | `[Parser]`         | Changes to the parser                                                                                |
+| `[MIR]`            | Changes to the middle intermediate representation                                                    |
 | `[Lexer]`          | Changes to the lexer                                                                                 |
 | `[Codegen]`        | Changes to the codegen stage (llvm)                                                                  |
 | `[Logger]`         | Changes to the logger and error reporting                                                            |

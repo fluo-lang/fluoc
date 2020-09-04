@@ -45,9 +45,9 @@ fn annotate_identity() {
             assert_eq!(arguments.len(), 1);
 
             assert_ne!(ty, block.ty());
-            assert_ne!(&arguments[0].ty, ty);
+            assert_ne!(&arguments[0], ty);
 
-            assert_ne!(&arguments[0].ty, block.ty())
+            assert_ne!(&arguments[0], block.ty())
         }
         _ => panic!(),
     }
