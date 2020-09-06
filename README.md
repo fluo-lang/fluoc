@@ -53,7 +53,7 @@ def entry() {
 
 3. Clone this repo (important: **clone recursively**):
    ```bash
-   git clone --recurse-submodules -j8 git@github.com:fluo-lang/fluo.git
+   git clone --recurse-submodules -j8 git@github.com:fluo-lang/fluoc.git
    ```
 
 4. There is no step 4

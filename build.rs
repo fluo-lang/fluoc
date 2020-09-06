@@ -1,6 +1,6 @@
-use std::env::current_exe;
 use std::fmt::Display;
 use std::process;
+use std::path;
 
 extern crate inkwell;
 use inkwell::passes::PassManager;
@@ -340,19 +340,9 @@ macro_rules! generate_llvm {
 
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
-    let mut core_path = match current_exe() {
-        Ok(val) => val,
-        Err(e) => error("Error getting current executable path:".to_string(), e),
-    };
+    let mut core_path = path::PathBuf::from(file!());
 
     core_path.pop();
-    core_path.pop();
-    core_path.pop();
-
-    core_path.pop();
-
-    core_path.pop();
-
     core_path.push("src");
     core_path.push("fluo_core");
     core_path.push("core");
