@@ -1,6 +1,6 @@
 <div align=center>
     <!--<img src="images/logo.png" width=200 align=center></img>-->
-    <h1>Fluo</h1>
+    <h1>Fluo 🌊</h1>
     <a href="https://github.com/fluo-lang/fluo/actions"><img src="https://img.shields.io/github/workflow/status/fluo-lang/fluo/build-test-bench?style=for-the-badge" height=24px></img></a>
     <a href="https://trello.com/b/5gxtFXun/fluo"><img src="https://img.shields.io/badge/trello-here-000000FF?style=for-the-badge" height=24px></img></a>
 </div>
@@ -53,7 +53,7 @@ let entry = () {
 
 3. Clone this repo (important: **clone recursively**):
    ```bash
-   git clone --recurse-submodules -j8 git@github.com:fluo-lang/fluo.git
+   git clone --recurse-submodules -j8 git@github.com:fluo-lang/fluoc.git
    ```
 
 4. There is no step 4
