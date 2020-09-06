@@ -35,7 +35,7 @@ fn annotate_identity() {
         TypedStmt {
             stmt: TypedStmtEnum::Expression(TypedExpr {
                 expr: TypedExprEnum::Function(TypedFunction {
-                    ty: ty @ AnnotationType::Function(ref arguments, _),
+                    ty: ty @ AnnotationType::Function(ref arguments, _, _),
                     block,
                 }),
                 pos: _,

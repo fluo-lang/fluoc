@@ -19,12 +19,12 @@ impl Annotator {
 
     pub fn annotate(
         &mut self,
-        ast: Vec<ast::Statement>,
+        mut ast: Vec<ast::Statement>,
         context: &mut Context<AnnotationType>,
     ) -> Result<Vec<super::TypedStmt>, ErrorValue> {
         let mut statements = Vec::with_capacity(ast.len());
 
-        for stmt in ast.iter() {
+        for stmt in ast.iter_mut() {
             self.annotate_stmt_1(stmt, context)?;
         }
 
@@ -37,7 +37,7 @@ impl Annotator {
 
     fn annotate_stmt_1(
         &mut self,
-        stmt: &Statement,
+        stmt: &mut Statement,
         context: &mut Context<AnnotationType>,
     ) -> Result<(), ErrorValue> {
         match stmt {

@@ -32,12 +32,25 @@ impl<'a> TOption<&'a AnnotationType> {
 
 impl ast::Function {
     pub fn pass_1(
-        &self,
+        &mut self,
         annotator: &mut Annotator,
         context: &mut Context<AnnotationType>,
-    ) -> Result<(), ErrorValue> {
+    ) -> Result<AnnotationType, ErrorValue> {
         self.block.pass_1(annotator, context)?;
-        Ok(())
+        let args: Vec<_> = self
+            .arguments
+            .positional
+            .iter()
+            .map(|(_, ty)| annotator.annon_type(ty))
+            .collect();
+
+        let ty = AnnotationType::Function(
+            Rc::new(args),
+            Box::new(annotator.annon_type(&self.return_type)),
+            self.pos,
+        );
+        self.ty = Some(ty.clone());
+        Ok(ty)
     }
 
     pub fn pass_2(
@@ -45,14 +58,11 @@ impl ast::Function {
         annotator: &mut Annotator,
         context: &mut Context<AnnotationType>,
     ) -> Result<TypedExpr, ErrorValue> {
-        let args: Vec<_> = self
-            .arguments
-            .positional
-            .iter()
-            .map(|(_, ty)| {
-                annotator.annon_type(ty)
-            })
-            .collect();
+        let args = match self.ty.clone().unwrap() {
+            AnnotationType::Function(args, _, _) => Rc::clone(&args),
+            _ => unreachable!()
+        };
+
         let mut new_context = context.clone();
 
         for (ty, (name, _)) in args.iter().zip(self.arguments.positional) {
@@ -63,11 +73,7 @@ impl ast::Function {
 
         Ok(TypedExpr {
             expr: TypedExprEnum::Function(TypedFunction {
-                ty: AnnotationType::Function(
-                    Rc::new(args),
-                    Box::new(annotator.annon_type(&self.return_type)),
-                    self.pos
-                ),
+                ty: self.ty.unwrap(),
                 block: Box::new(block),
             }),
             pos: self.pos,
@@ -77,15 +83,17 @@ impl ast::Function {
 
 impl ast::Block {
     pub fn pass_1(
-        &self,
+        &mut self,
         annotator: &mut Annotator,
         context: &mut Context<AnnotationType>,
-    ) -> Result<(), ErrorValue> {
-        for stmt in &self.nodes {
+    ) -> Result<AnnotationType, ErrorValue> {
+        for stmt in self.nodes.iter_mut() {
             stmt.pass_1(annotator, context)?;
         }
 
-        Ok(())
+        let ty = annotator.unique(self.pos);
+        self.ty = Some(ty.clone());
+        Ok(ty)
     }
 
     pub fn pass_2(
@@ -95,7 +103,7 @@ impl ast::Block {
     ) -> Result<TypedExpr, ErrorValue> {
         Ok(TypedExpr {
             expr: TypedExprEnum::Block(TypedBlock {
-                ty: annotator.unique(self.pos),
+                ty: self.ty.unwrap(),
                 stmts: self
                     .nodes
                     .into_iter()
@@ -125,15 +133,14 @@ impl ast::RefID {
 
 impl ast::VariableAssignDeclaration {
     fn pass_1(
-        &self,
+        &mut self,
         annotator: &mut Annotator,
         context: &mut Context<AnnotationType>,
-    ) -> Result<(), ErrorValue> {
-        let typed_type = annotator.annon_type(&self.ty);
-        let typed_expr = self.expr.pass_1(annotator, context)?;
+    ) -> Result<AnnotationType, ErrorValue> {
+        let typed_type = self.expr.pass_1(annotator, context)?;
 
         context.set_local(Rc::clone(&self.name), typed_type.clone());
-        Ok(())
+        Ok(typed_type)
     }
 
     fn pass_2(
@@ -184,15 +191,12 @@ impl ast::FunctionCall {
     ) -> Result<TypedExpr, ErrorValue> {
         let func_sig = context.get_local(&self.name);
         let func_ty = func_sig.symbol(&self.name)?.clone();
-         
+
         let ret_ty = match func_ty {
-            AnnotationType::Function(_, ref ret, _) => {
-                *ret.clone()
-            }
-            AnnotationType::Infer(_, _) | AnnotationType::Never(_) => {
-                func_ty.clone() // Should be very cheap to clone in this case
-            }
-            _ => return Err(not_a_err(&self.name, "function"))
+            AnnotationType::Function(_, ref ret, _) => *ret.clone(),
+            AnnotationType::Infer(_, _) => annotator.unique(self.pos),
+            AnnotationType::Never(_) => func_ty.clone(),
+            _ => return Err(not_a_err(&self.name, "function")),
         };
 
         Ok(TypedExpr {
@@ -230,15 +234,15 @@ impl ast::IsExpr {
 
 impl ast::Expr {
     fn pass_1(
-        &self,
+        &mut self,
         annotator: &mut Annotator,
         context: &mut Context<AnnotationType>,
-    ) -> Result<(), ErrorValue> {
+    ) -> Result<AnnotationType, ErrorValue> {
         match self {
             ast::Expr::Function(func) => func.pass_1(annotator, context),
             ast::Expr::VariableAssignDeclaration(var_dec) => var_dec.pass_1(annotator, context),
             ast::Expr::Block(block) => block.pass_1(annotator, context),
-            _ => Ok(()),
+            _ => Ok(annotator.unique(self.pos())),
         }
     }
 
@@ -264,11 +268,12 @@ impl ast::Expr {
 
 impl ast::ExpressionStatement {
     pub fn pass_1(
-        &self,
+        &mut self,
         annotator: &mut Annotator,
         context: &mut Context<AnnotationType>,
     ) -> Result<(), ErrorValue> {
-        self.expression.pass_1(annotator, context)
+        self.expression.pass_1(annotator, context)?;
+        Ok(())
     }
 
     pub fn pass_2(
@@ -317,7 +322,7 @@ impl ast::Yield {
 
 impl ast::Statement {
     fn pass_1(
-        &self,
+        &mut self,
         annotator: &mut Annotator,
         context: &mut Context<AnnotationType>,
     ) -> Result<(), ErrorValue> {

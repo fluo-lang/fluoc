@@ -1,7 +1,8 @@
 use crate::helpers;
-use crate::lexer::{Token, TokenType};
+use crate::lexer::Token;
 use crate::sourcemap::SourceMap;
 use crate::tags::UnitTags;
+use crate::typecheck::annotation::AnnotationType;
 
 use inkwell::module::Linkage;
 
@@ -255,6 +256,7 @@ pub struct Conditional {
 pub struct Block {
     pub nodes: Vec<Statement>,
     pub tags: UnitTags,
+    pub ty: Option<AnnotationType>,
     pub pos: helpers::Pos,
 }
 
@@ -279,6 +281,7 @@ impl Units {
     pub fn into_block(self) -> Block {
         Block {
             nodes: self.units.into_iter().map(|x| Statement::Unit(x)).collect(),
+            ty: None,
             tags: UnitTags::new(),
             pos: self.pos,
         }
@@ -318,6 +321,7 @@ impl Visibility {
 pub struct Function {
     pub return_type: Type,
     pub arguments: Arguments,
+    pub ty: Option<AnnotationType>,
     pub block: Box<Expr>,
     pub pos: helpers::Pos,
 }

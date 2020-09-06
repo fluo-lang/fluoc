@@ -391,6 +391,7 @@ impl Parser {
 
         Ok(ast::Block {
             nodes: ast_list,
+            ty: None,
             tags: UnitTags::new(),
             pos: self.get_relative_pos(position),
         })
@@ -651,6 +652,7 @@ impl Parser {
         Ok(Expr::Function(ast::Function {
             return_type,
             arguments,
+            ty: None,
             block: Box::new(block),
             pos: self.get_relative_pos(position),
         }))

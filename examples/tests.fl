@@ -1,12 +1,11 @@
 
 --unit tests2;
-
 let entry = () -> i32 {
-    let hello = 10;
+    let hello = 10 is i64;
     yield other(hello);
 };
 
-let other = (x: _) -> _ {
+let other = (x: _) -> i32 {
     yield x;
 };
 

@@ -45,19 +45,12 @@ impl TypeCheckModule {
 
         let typecheck_start = Instant::now();
 
-        self.logger.borrow().log_verbose(&|| {
-            format!(
-                "{}: Typechecked",
-                helpers::display_duration(typecheck_start.elapsed())
-            )
-        }); // Lazily run it so no impact on performance
-
         let mut context = Context::new();
 
         // Generate annotations for the ast
         let mut annotator = annotation::Annotator::new();
         // Ast with types (has some unknowns)
-        let mut typed_ast: Vec<annotation::TypedStmt> = annotator
+        let typed_ast: Vec<annotation::TypedStmt> = annotator
             .annotate(
                 std::mem::replace(&mut self.parser.ast, None).unwrap(),
                 &mut context,
@@ -69,6 +62,15 @@ impl TypeCheckModule {
 
         let solved_constraints = unify(constraints).map_err(|e| vec![e])?;
 
-        Ok(substitute(typed_ast, solved_constraints))
+        let ret = Ok(substitute(typed_ast, solved_constraints));
+
+        self.logger.borrow().log_verbose(&|| {
+            format!(
+                "{}: Typechecked",
+                helpers::display_duration(typecheck_start.elapsed())
+            )
+        }); // Lazily run it so no impact on performance
+
+        ret
     }
 }
