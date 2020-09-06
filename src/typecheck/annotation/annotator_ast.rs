@@ -1,6 +1,5 @@
 use super::{typed_ast::*, AnnotationType, Annotator};
 
-use crate::helpers::Pos;
 use crate::logger::{not_a_err, ErrorAnnotation, ErrorDisplayType, ErrorType, ErrorValue};
 use crate::parser::ast;
 use crate::typecheck::context::{Context, TOption};
@@ -67,6 +66,7 @@ impl ast::Function {
                 ty: AnnotationType::Function(
                     Rc::new(args),
                     Box::new(annotator.annon_type(&self.return_type)),
+                    self.pos
                 ),
                 block: Box::new(block),
             }),
@@ -95,7 +95,7 @@ impl ast::Block {
     ) -> Result<TypedExpr, ErrorValue> {
         Ok(TypedExpr {
             expr: TypedExprEnum::Block(TypedBlock {
-                ty: annotator.unique(),
+                ty: annotator.unique(self.pos),
                 stmts: self
                     .nodes
                     .into_iter()
@@ -169,7 +169,7 @@ impl ast::Literal {
         Ok(TypedExpr {
             pos: self.pos,
             expr: TypedExprEnum::Literal(TypedLiteral {
-                ty: annotator.unique(),
+                ty: annotator.unique(self.pos),
                 value: self,
             }),
         })
@@ -186,14 +186,11 @@ impl ast::FunctionCall {
         let func_ty = func_sig.symbol(&self.name)?.clone();
          
         let ret_ty = match func_ty {
-            AnnotationType::Function(_, ref ret) => {
+            AnnotationType::Function(_, ref ret, _) => {
                 *ret.clone()
             }
-            AnnotationType::Infer(_) => {
-                annotator.unique()
-            }
-            AnnotationType::Never => {
-                AnnotationType::Never
+            AnnotationType::Infer(_, _) | AnnotationType::Never(_) => {
+                func_ty.clone() // Should be very cheap to clone in this case
             }
             _ => return Err(not_a_err(&self.name, "function"))
         };
@@ -296,6 +293,7 @@ impl ast::Return {
             pos: self.pos,
             expr: TypedExprEnum::Return(TypedReturn {
                 expr: Box::new(self.expression.pass_2(annotator, context)?),
+                ty: AnnotationType::Never(self.pos),
             }),
         })
     }
@@ -311,6 +309,7 @@ impl ast::Yield {
             pos: self.pos,
             expr: TypedExprEnum::Yield(TypedYield {
                 expr: Box::new(self.expression.pass_2(annotator, context)?),
+                ty: AnnotationType::Never(self.pos),
             }),
         })
     }

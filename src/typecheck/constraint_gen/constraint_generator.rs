@@ -1,57 +1,39 @@
-use crate::helpers;
-use crate::parser::ast;
 use crate::typecheck::annotation::{
-    AnnotationType, TypedBinder, TypedExpr, TypedExprEnum, TypedFunction, TypedStmt, TypedStmtEnum,
+    AnnotationType, TypedExpr, TypedExprEnum, TypedFunction, TypedStmt, TypedStmtEnum,
 };
 
-use std::borrow::Cow;
 use std::collections::HashSet;
 use std::fmt;
-use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 
-#[derive(PartialEq, Eq, Hash)]
-pub struct Constraint<'a> {
-    a: Cow<'a, AnnotationType>,
-    b: Cow<'a, AnnotationType>,
+#[derive(Clone, PartialEq, Eq, Hash)]
+pub struct Constraint {
+    pub a: AnnotationType,
+    pub b: AnnotationType,
 }
 
-impl<'a> Constraint<'a> {
-    fn new(a: Cow<'a, AnnotationType>, b: Cow<'a, AnnotationType>) -> Constraint<'a> {
+impl Constraint {
+    pub fn new(a: AnnotationType, b: AnnotationType) -> Constraint {
         Self { a, b }
     }
 }
 
-impl fmt::Display for Constraint<'_> {
+impl fmt::Display for Constraint {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{} \u{2261} {}", self.a, self.b)
     }
 }
 
 /// Our wrapper around HashSet
-pub struct Constraints<'a>(HashSet<Constraint<'a>>);
+pub struct Constraints(pub HashSet<Constraint>);
 
-impl<'a> Constraints<'a> {
+impl Constraints {
     pub fn new() -> Self {
         Constraints(HashSet::new())
     }
 }
 
-impl<'a> Deref for Constraints<'a> {
-    type Target = HashSet<Constraint<'a>>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl<'a> DerefMut for Constraints<'a> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
-impl fmt::Display for Constraints<'_> {
+impl fmt::Display for Constraints {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for c in &self.0 {
             write!(f, "{}\n", c)?;
@@ -61,16 +43,16 @@ impl fmt::Display for Constraints<'_> {
     }
 }
 
-pub fn generate<'a>(
-    ast: &'a [TypedStmt],
-    outer_ty: Option<&'a AnnotationType>,
-    inner_ty: Option<&'a AnnotationType>,
-) -> Constraints<'a> {
+pub fn generate(
+    ast: &[TypedStmt],
+    outer_ty: Option<AnnotationType>,
+    inner_ty: Option<AnnotationType>,
+) -> Constraints {
     let mut constraints = Constraints::new();
     for node in ast {
         match &node.stmt {
             TypedStmtEnum::Expression(expr) => {
-                constraints.extend(generate_expr(expr, outer_ty, inner_ty).0);
+                constraints.0.extend(generate_expr(expr, outer_ty.clone(), inner_ty.clone()).0);
             }
             TypedStmtEnum::Tag(_) => {}
             _ => panic!("Unimplemented {:?}", node),
@@ -79,87 +61,89 @@ pub fn generate<'a>(
     constraints
 }
 
-fn generate_expr<'a>(
-    expr: &'a TypedExpr,
-    outer_ty: Option<&'a AnnotationType>,
-    inner_ty: Option<&'a AnnotationType>,
-) -> Constraints<'a> {
+fn generate_expr(
+    expr: &TypedExpr,
+    outer_ty: Option<AnnotationType>,
+    inner_ty: Option<AnnotationType>,
+) -> Constraints {
     let mut constraints = Constraints::new();
     match &expr.expr {
         TypedExprEnum::Function(TypedFunction {
-            ty: ty @ AnnotationType::Function(ref func_args, ref ret),
+            ty: ty @ AnnotationType::Function(ref func_args, ref ret, _),
             block,
         }) => {
-            constraints.extend(
+            constraints.0.extend(
                 // Set the outer and inner return type to be function annotation type
-                generate_expr(block, Some(ret), Some(ret)).0,
+                generate_expr(block, Some(ret.as_ref().clone()), Some(ret.as_ref().clone())).0,
             );
-            constraints.insert(Constraint::new(
-                Cow::Borrowed(&ty),
-                Cow::Owned(AnnotationType::Function(
+            constraints.0.insert(Constraint::new(
+                ty.clone(),
+                AnnotationType::Function(
                     Rc::clone(func_args),
                     Box::new(block.ty().clone()),
-                )),
+                    expr.pos
+                ),
             ));
         }
 
         TypedExprEnum::FunctionCall(func_call) => {
             for arg in &func_call.arguments {
-                constraints.extend(generate_expr(&arg, outer_ty, inner_ty).0);
+                constraints.0.extend(generate_expr(&arg, outer_ty.clone(), inner_ty.clone()).0);
             }
 
-            constraints.insert(Constraint::new(
-                Cow::Borrowed(&func_call.func_ty),
-                Cow::Owned(AnnotationType::Function(
+            constraints.0.insert(Constraint::new(
+                func_call.func_ty.clone(),
+                AnnotationType::Function(
                     Rc::new(func_call
                         .arguments
                         .iter()
                         .map(|arg| arg.ty().clone())
                         .collect()),
-                    Box::new(func_call.ty.clone()),
-                )),
+                        Box::new(func_call.ty.clone()),
+                        expr.pos
+                ),
             ));
         }
 
         TypedExprEnum::VariableAssignDeclaration(assign_dec) => {
-            constraints.extend(generate_expr(assign_dec.expr.as_ref(), outer_ty, inner_ty).0);
-            constraints.insert(Constraint::new(
-                Cow::Borrowed(&assign_dec.binder.ty),
-                Cow::Borrowed(assign_dec.expr.as_ref().ty()),
+            constraints.0.extend(generate_expr(assign_dec.expr.as_ref(), outer_ty, inner_ty).0);
+            constraints.0.insert(Constraint::new(
+                assign_dec.binder.ty.clone(),
+                assign_dec.expr.as_ref().ty().clone(),
             ));
         }
 
         TypedExprEnum::Yield(yield_expr) => {
-            constraints.extend(generate_expr(yield_expr.expr.as_ref(), outer_ty, inner_ty).0);
-            constraints.insert(Constraint::new(
+            constraints.0.extend(generate_expr(yield_expr.expr.as_ref(), outer_ty, inner_ty.clone()).0);
+            constraints.0.insert(Constraint::new(
                 // We can unwrap because parser shouldn't let `yield` be in a
                 // position where this a problem
-                Cow::Borrowed(inner_ty.unwrap()),
-                Cow::Borrowed(yield_expr.expr.ty()),
+                inner_ty.unwrap(),
+                yield_expr.expr.ty().clone(),
             ));
         }
 
         TypedExprEnum::Return(yield_expr) => {
-            constraints.extend(generate_expr(yield_expr.expr.as_ref(), outer_ty, inner_ty).0);
-            constraints.insert(Constraint::new(
+            constraints.0.extend(generate_expr(yield_expr.expr.as_ref(), outer_ty.clone(), inner_ty).0);
+            constraints.0.insert(Constraint::new(
                 // We can unwrap because parser shouldn't let `return` be in a
                 // position where this a problem
-                Cow::Borrowed(outer_ty.unwrap()),
-                Cow::Borrowed(yield_expr.expr.ty()),
+                outer_ty.unwrap(),
+                yield_expr.expr.ty().clone(),
             ));
         }
 
         TypedExprEnum::Block(block) => {
-            constraints.extend(generate(&block.stmts, outer_ty, Some(&block.ty)).0);
+            constraints.0.extend(generate(&block.stmts, outer_ty, Some(block.ty.clone())).0);
         }
 
         TypedExprEnum::RefID(_) => {}
 
         TypedExprEnum::Is(is) => {
-            constraints.extend(generate_expr(is.expr.as_ref(), outer_ty, inner_ty).0);
-            constraints.insert(Constraint::new(
-                Cow::Borrowed(is.expr.ty()),
-                Cow::Borrowed(&is.ty),
+            constraints.0.extend(generate_expr(is.expr.as_ref(), outer_ty, inner_ty).0);
+            constraints.0.insert(Constraint::new(
+                is.expr.ty().clone(),
+                is.ty.clone(),
             ));
         }
 

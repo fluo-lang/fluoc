@@ -23,16 +23,19 @@ pub fn not_a_err(name: &Rc<ast::Namespace>, err_name: &'static str) -> ErrorValu
 #[derive(Debug, Clone, Copy, PartialEq)]
 /// An error type, i.e `Syntax` error or `UnexpectedToken` error
 pub enum ErrorType {
-    Syntax,
     UnexpectedToken,
     UnterminatedString,
     UnknownCharacter,
+
+    Syntax,
     UndefinedSyntax,
     SyntaxType,
+
     UndefinedType,
-    TypeMismatch,
     UndefinedSymbol,
+    TypeMismatch,
     TypeCast,
+
     PossibleUninitVal,
     Infer,
     Visibility,
@@ -53,9 +56,9 @@ impl ErrorType {
             ErrorType::UndefinedSymbol => "undefined_symbol",
             ErrorType::TypeCast => "type_cast",
             ErrorType::PossibleUninitVal => "possible_uninitialized",
-            ErrorType::Visibility => "visibility_error",
-            ErrorType::Import => "import_error",
-            ErrorType::Infer => "infer_error",
+            ErrorType::Visibility => "visibility",
+            ErrorType::Import => "import",
+            ErrorType::Infer => "infer",
         }
     }
 }

@@ -69,8 +69,8 @@ impl TypedExpr {
             TypedExprEnum::FunctionCall(val) => &val.ty,
             TypedExprEnum::Function(val) => &val.ty,
 
-            TypedExprEnum::Yield(_) => &AnnotationType::Never,
-            TypedExprEnum::Return(_) => &AnnotationType::Never,
+            TypedExprEnum::Yield(val) => &val.ty,
+            TypedExprEnum::Return(val) => &val.ty,
         }
     }
 }
@@ -126,11 +126,13 @@ pub struct TypedFunction {
 #[derive(Clone, Debug)]
 pub struct TypedYield {
     pub expr: Box<TypedExpr>,
+    pub ty: AnnotationType,
 }
 
 #[derive(Clone, Debug)]
 pub struct TypedReturn {
     pub expr: Box<TypedExpr>,
+    pub ty: AnnotationType,
 }
 
 #[derive(Clone, Debug)]

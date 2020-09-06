@@ -1,23 +1,20 @@
-use super::annotation;
+use super::{annotation::TypedStmt, annotation};
 use super::context::Context;
 use super::constraint_gen::generate;
-use super::unifier::Unifier;
-use super::substitution;
-use crate::mir;
+use super::substitute;
+use super::unifier::unify;
 
 use crate::helpers;
 use crate::logger::{ErrorValue, Logger};
-use crate::parser::{ast, Parser};
+use crate::parser::Parser;
 use crate::sourcemap::SourceMap;
 
-use std::collections::HashMap;
 use std::rc::Rc;
 use std::time::Instant;
 
 /// Typecheck object
 pub struct TypeCheckModule {
     parser: Parser,
-    modules: HashMap<usize, ast::Block>,
     sourcemap: SourceMap,
     logger: Logger,
 }
@@ -30,12 +27,11 @@ impl TypeCheckModule {
         TypeCheckModule {
             logger,
             parser: p,
-            modules: HashMap::new(),
             sourcemap,
         }
     }
 
-    pub fn type_check(&mut self) -> Result<Vec<mir::MirStmt>, Vec<ErrorValue>> {
+    pub fn type_check(&mut self) -> Result<Vec<TypedStmt>, Vec<ErrorValue>> {
         let parser_start = Instant::now();
         // Load core lib on outer scope
         self.parser.parse()?;
@@ -61,7 +57,7 @@ impl TypeCheckModule {
         // Generate annotations for the ast
         let mut annotator = annotation::Annotator::new();
         // Ast with types (has some unknowns)
-        let typed_ast: Vec<annotation::TypedStmt> = annotator
+        let mut typed_ast: Vec<annotation::TypedStmt> = annotator
             .annotate(
                 std::mem::replace(&mut self.parser.ast, None).unwrap(),
                 &mut context,
@@ -71,10 +67,8 @@ impl TypeCheckModule {
         let constraints = generate(&typed_ast, None, None);
         println!("{}", constraints);
 
-        let constraint_solver = Unifier::new();
-        let solved_constraints = constraint_solver.solve(constraints);
+        let solved_constraints = unify(constraints).map_err(|e| vec![e])?;
 
-        let substituter = substitution::TypedAstLower::new();
-        Ok(substituter.lower(typed_ast, solved_constraints))
+        Ok(substitute(typed_ast, solved_constraints))
     }
 }

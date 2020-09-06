@@ -3,6 +3,7 @@ use super::{typed_ast, AnnotationType};
 use crate::logger::ErrorValue;
 use crate::parser::{ast, ast::Statement};
 use crate::typecheck::context::Context;
+use crate::helpers::Pos;
 
 use std::rc::Rc;
 
@@ -63,22 +64,23 @@ impl Annotator {
     pub fn annon_type(&mut self, ty: &ast::Type) -> AnnotationType {
         match &ty.value {
             // The important part!
-            ast::TypeType::Unknown => self.unique(),
+            ast::TypeType::Unknown => self.unique(ty.pos),
 
-            ast::TypeType::Type(namespace) => AnnotationType::Type(Rc::clone(namespace)),
+            ast::TypeType::Type(namespace) => AnnotationType::Type(Rc::clone(namespace), ty.pos),
             ast::TypeType::Tuple(tuple) => AnnotationType::Tuple(
-                tuple
+                Rc::new(tuple
                     .into_iter()
                     .map(|item| self.annon_type(&item))
-                    .collect(),
+                    .collect()),
+                ty.pos,
             ),
             ast::TypeType::Function(args, ret) => unimplemented!()
         }
     }
 
-    pub fn unique(&mut self) -> AnnotationType {
+    pub fn unique(&mut self, pos: Pos) -> AnnotationType {
         self.type_counter += 1;
-        AnnotationType::Infer(self.type_counter)
+        AnnotationType::Infer(self.type_counter, pos)
     }
 }
 
@@ -89,7 +91,7 @@ pub mod AnnotatorTests {
     macro_rules! assert_infer {
         ($left: expr, $right: expr) => {
             match $right {
-                AnnotationType::Infer(value) => {
+                AnnotationType::Infer(value, _) => {
                     assert_eq!($left, value);
                 }
                 _ => panic!("Not an infer node"),
@@ -100,10 +102,10 @@ pub mod AnnotatorTests {
     #[test]
     fn test_unique() {
         let mut annotator = Annotator::new();
-        let _1 = annotator.unique();
-        let _2 = annotator.unique();
-        let _3 = annotator.unique();
-        let _4 = annotator.unique();
+        let _1 = annotator.unique(Pos::new(0,0,0));
+        let _2 = annotator.unique(Pos::new(0,0,0));
+        let _3 = annotator.unique(Pos::new(0,0,0));
+        let _4 = annotator.unique(Pos::new(0,0,0));
 
         assert_infer!(1, _1);
         assert_infer!(2, _2);

@@ -1,5 +1,5 @@
 mod unifier;
 
-pub use unifier::Unifier;
+pub use unifier::unify;
 pub use unifier::Substitutions;
 

@@ -3,9 +3,6 @@
 
 let entry = () -> i32 {
     let hello = 10;
-    let val = {
-        yield 10 is i32;
-    };
     yield other(hello);
 };
 
