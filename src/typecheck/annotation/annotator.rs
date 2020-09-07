@@ -1,9 +1,9 @@
 use super::{typed_ast, AnnotationType};
 
+use crate::helpers::Pos;
 use crate::logger::ErrorValue;
 use crate::parser::{ast, ast::Statement};
 use crate::typecheck::context::Context;
-use crate::helpers::Pos;
 
 use std::rc::Rc;
 
@@ -68,13 +68,15 @@ impl Annotator {
 
             ast::TypeType::Type(namespace) => AnnotationType::Type(Rc::clone(namespace), ty.pos),
             ast::TypeType::Tuple(tuple) => AnnotationType::Tuple(
-                Rc::new(tuple
-                    .into_iter()
-                    .map(|item| self.annon_type(&item))
-                    .collect()),
+                Rc::new(
+                    tuple
+                        .into_iter()
+                        .map(|item| self.annon_type(&item))
+                        .collect(),
+                ),
                 ty.pos,
             ),
-            ast::TypeType::Function(args, ret) => unimplemented!()
+            ast::TypeType::Function(args, ret) => unimplemented!(),
         }
     }
 
@@ -102,10 +104,10 @@ pub mod AnnotatorTests {
     #[test]
     fn test_unique() {
         let mut annotator = Annotator::new();
-        let _1 = annotator.unique(Pos::new(0,0,0));
-        let _2 = annotator.unique(Pos::new(0,0,0));
-        let _3 = annotator.unique(Pos::new(0,0,0));
-        let _4 = annotator.unique(Pos::new(0,0,0));
+        let _1 = annotator.unique(Pos::new(0, 0, 0));
+        let _2 = annotator.unique(Pos::new(0, 0, 0));
+        let _3 = annotator.unique(Pos::new(0, 0, 0));
+        let _4 = annotator.unique(Pos::new(0, 0, 0));
 
         assert_infer!(1, _1);
         assert_infer!(2, _2);

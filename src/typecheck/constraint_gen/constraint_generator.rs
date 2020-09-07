@@ -52,7 +52,9 @@ pub fn generate(
     for node in ast {
         match &node.stmt {
             TypedStmtEnum::Expression(expr) => {
-                constraints.0.extend(generate_expr(expr, outer_ty.clone(), inner_ty.clone()).0);
+                constraints
+                    .0
+                    .extend(generate_expr(expr, outer_ty.clone(), inner_ty.clone()).0);
             }
             TypedStmtEnum::Tag(_) => {}
             _ => panic!("Unimplemented {:?}", node),
@@ -74,53 +76,68 @@ fn generate_expr(
         }) => {
             constraints.0.extend(
                 // Set the outer and inner return type to be function annotation type
-                generate_expr(block, Some(ret.as_ref().clone()), Some(ret.as_ref().clone())).0,
+                generate_expr(
+                    block,
+                    Some(ret.as_ref().clone()),
+                    Some(ret.as_ref().clone()),
+                )
+                .0,
             );
             constraints.0.insert(Constraint::new(
                 ty.clone(),
                 AnnotationType::Function(
                     Rc::clone(func_args),
                     Box::new(block.ty().clone()),
-                    expr.pos
+                    expr.pos,
                 ),
             ));
         }
 
         TypedExprEnum::FunctionCall(func_call) => {
             for arg in &func_call.arguments {
-                constraints.0.extend(generate_expr(&arg, outer_ty.clone(), inner_ty.clone()).0);
+                constraints
+                    .0
+                    .extend(generate_expr(&arg, outer_ty.clone(), inner_ty.clone()).0);
             }
 
-            println!("{}", 
-            Constraint::new(
-                func_call.func_ty.clone(),
-                AnnotationType::Function(
-                    Rc::new(func_call
-                        .arguments
-                        .iter()
-                        .map(|arg| arg.ty().clone())
-                        .collect()),
+            println!(
+                "{}",
+                Constraint::new(
+                    func_call.func_ty.clone(),
+                    AnnotationType::Function(
+                        Rc::new(
+                            func_call
+                                .arguments
+                                .iter()
+                                .map(|arg| arg.ty().clone())
+                                .collect()
+                        ),
                         Box::new(func_call.ty.clone()),
                         expr.pos
-                ),
-            ));
+                    ),
+                )
+            );
 
             constraints.0.insert(Constraint::new(
                 func_call.func_ty.clone(),
                 AnnotationType::Function(
-                    Rc::new(func_call
-                        .arguments
-                        .iter()
-                        .map(|arg| arg.ty().clone())
-                        .collect()),
-                        Box::new(func_call.ty.clone()),
-                        expr.pos
+                    Rc::new(
+                        func_call
+                            .arguments
+                            .iter()
+                            .map(|arg| arg.ty().clone())
+                            .collect(),
+                    ),
+                    Box::new(func_call.ty.clone()),
+                    expr.pos,
                 ),
             ));
         }
 
         TypedExprEnum::VariableAssignDeclaration(assign_dec) => {
-            constraints.0.extend(generate_expr(assign_dec.expr.as_ref(), outer_ty, inner_ty).0);
+            constraints
+                .0
+                .extend(generate_expr(assign_dec.expr.as_ref(), outer_ty, inner_ty).0);
             constraints.0.insert(Constraint::new(
                 assign_dec.binder.ty.clone(),
                 assign_dec.expr.as_ref().ty().clone(),
@@ -128,9 +145,15 @@ fn generate_expr(
         }
 
         TypedExprEnum::Yield(yield_expr) => {
-            constraints.0.extend(generate_expr(yield_expr.expr.as_ref(), outer_ty, inner_ty.clone()).0);
+            constraints
+                .0
+                .extend(generate_expr(yield_expr.expr.as_ref(), outer_ty, inner_ty.clone()).0);
             println!("{:?}: {}", yield_expr.expr.pos, yield_expr.expr.ty());
-            println!("{:?}: {}\n", yield_expr.expr.pos, inner_ty.as_ref().unwrap());
+            println!(
+                "{:?}: {}\n",
+                yield_expr.expr.pos,
+                inner_ty.as_ref().unwrap()
+            );
             constraints.0.insert(Constraint::new(
                 // We can unwrap because parser shouldn't let `yield` be in a
                 // position where this a problem
@@ -140,7 +163,9 @@ fn generate_expr(
         }
 
         TypedExprEnum::Return(yield_expr) => {
-            constraints.0.extend(generate_expr(yield_expr.expr.as_ref(), outer_ty.clone(), inner_ty).0);
+            constraints
+                .0
+                .extend(generate_expr(yield_expr.expr.as_ref(), outer_ty.clone(), inner_ty).0);
             constraints.0.insert(Constraint::new(
                 // We can unwrap because parser shouldn't let `return` be in a
                 // position where this a problem
@@ -150,17 +175,20 @@ fn generate_expr(
         }
 
         TypedExprEnum::Block(block) => {
-            constraints.0.extend(generate(&block.stmts, outer_ty, Some(block.ty.clone())).0);
+            constraints
+                .0
+                .extend(generate(&block.stmts, outer_ty, Some(block.ty.clone())).0);
         }
 
         TypedExprEnum::RefID(_) => {}
 
         TypedExprEnum::Is(is) => {
-            constraints.0.extend(generate_expr(is.expr.as_ref(), outer_ty, inner_ty).0);
-            constraints.0.insert(Constraint::new(
-                is.expr.ty().clone(),
-                is.ty.clone(),
-            ));
+            constraints
+                .0
+                .extend(generate_expr(is.expr.as_ref(), outer_ty, inner_ty).0);
+            constraints
+                .0
+                .insert(Constraint::new(is.expr.ty().clone(), is.ty.clone()));
         }
 
         // No constraints are needed for literals

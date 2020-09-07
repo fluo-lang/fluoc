@@ -1,8 +1,8 @@
-use super::{annotation::TypedStmt, annotation};
-use super::context::Context;
 use super::constraint_gen::generate;
+use super::context::Context;
 use super::substitute;
 use super::unifier::unify;
+use super::{annotation, annotation::TypedStmt};
 
 use crate::helpers;
 use crate::logger::{ErrorValue, Logger};
@@ -62,7 +62,7 @@ impl TypeCheckModule {
 
         let solved_constraints = unify(constraints).map_err(|e| vec![e])?;
 
-        let ret = Ok(substitute(typed_ast, solved_constraints));
+        let ret = substitute(typed_ast, solved_constraints);
 
         self.logger.borrow().log_verbose(&|| {
             format!(

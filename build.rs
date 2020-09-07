@@ -1,6 +1,6 @@
 use std::fmt::Display;
-use std::process;
 use std::path;
+use std::process;
 
 extern crate inkwell;
 use inkwell::passes::PassManager;
@@ -352,5 +352,5 @@ fn main() {
         .expect("Failed to initialize native target");
 
     generate_llvm!(core_path, llvm_context, Generator::generate_fmt, "fmt");
-    generate_llvm!(core_path, llvm_context, Generator::generate_op, "op");
+    // generate_llvm!(core_path, llvm_context, Generator::generate_op, "op");
 }

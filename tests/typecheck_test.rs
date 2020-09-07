@@ -48,13 +48,7 @@ macro_rules! assert_ok {
     };
 }
 
-/*assert_error!(
-        r#"let entry = () -> () {
-    return 1923;
-};"#,
-        vec![ErrorType::TypeMismatch],
-        explicit_return_mismatch
-    );
+/*
 
     assert_error!(
         r#"let entry = () -> () {
@@ -63,14 +57,6 @@ macro_rules! assert_ok {
 };"#,
         vec![ErrorType::UndefinedSymbol],
         undef_var
-    );
-
-    assert_error!(
-        r#"let entry = () {
-    return 1923;
-};"#,
-        vec![ErrorType::TypeMismatch],
-        implicit_return_mismatch
     );
 
     assert_error!(
@@ -104,11 +90,27 @@ let entry = () {
     );*/
 
 assert_error!(
+    r#"let entry = () {
+    return 1923;
+};"#,
+    vec![ErrorType::TypeMismatch],
+    implicit_return_mismatch
+);
+
+assert_error!(
     r#"let entry = () -> i32 {
-        return 1923 is i64;
-    };"#,
+    return 1923 is i64;
+};"#,
     vec![ErrorType::TypeMismatch],
     return_is_mismatch
+);
+
+assert_error!(
+    r#"let entry = () -> () {
+    return 1923;
+};"#,
+    vec![ErrorType::TypeMismatch],
+    explicit_return_mismatch
 );
 
 assert_ok!(
@@ -117,4 +119,16 @@ assert_ok!(
     return x;
 };"#,
     basic_i32_infer
+);
+
+assert_ok!(
+    r#"let entry = () -> i32 {
+    let y = 10;
+    return x(y);
+};
+
+let x = (a: _) -> _ {
+    return a;
+};"#,
+    identity_func_infer
 );

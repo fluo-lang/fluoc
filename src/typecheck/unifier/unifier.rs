@@ -87,10 +87,12 @@ impl Substitutions {
                 ),
                 pos,
             ),
-            AnnotationType::Infer(infer_num2, _) => if infer_num == infer_num2 {
-                replacement.clone()
-            } else {
-                ty
+            AnnotationType::Infer(infer_num2, _) => {
+                if infer_num == infer_num2 {
+                    replacement.clone()
+                } else {
+                    ty
+                }
             }
         }
     }

@@ -435,11 +435,7 @@ impl Display for Namespace {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(scope) = self.scopes.first() {
             let sourcemap_borrowed = scope.sourcemap.borrow();
-            write!(
-                f,
-                "{}",
-                sourcemap_borrowed.get_segment(self.pos)
-            )?;
+            write!(f, "{}", sourcemap_borrowed.get_segment(self.pos))?;
         }
         Ok(())
     }
@@ -589,7 +585,7 @@ pub enum Expr {
     Empty(Empty),
 
     Conditional(Conditional),
-    Block(Block)
+    Block(Block),
 }
 
 impl Expr {

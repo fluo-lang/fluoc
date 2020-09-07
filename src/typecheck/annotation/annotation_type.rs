@@ -27,7 +27,7 @@ impl AnnotationType {
             AnnotationType::Tuple(_, pos) => *pos,
             AnnotationType::Function(_, _, pos) => *pos,
             AnnotationType::Never(pos) => *pos,
-            AnnotationType::Infer(_, pos) => *pos
+            AnnotationType::Infer(_, pos) => *pos,
         }
     }
 }
@@ -37,9 +37,11 @@ impl Clone for AnnotationType {
         match self {
             AnnotationType::Type(name, pos) => AnnotationType::Type(Rc::clone(name), *pos),
             AnnotationType::Tuple(types, pos) => AnnotationType::Tuple(Rc::clone(types), *pos),
-            AnnotationType::Function(arg_ty, ret_ty, pos) => AnnotationType::Function(Rc::clone(arg_ty), (*ret_ty).clone(), *pos),
+            AnnotationType::Function(arg_ty, ret_ty, pos) => {
+                AnnotationType::Function(Rc::clone(arg_ty), (*ret_ty).clone(), *pos)
+            }
             AnnotationType::Never(pos) => AnnotationType::Never(*pos),
-            AnnotationType::Infer(ty_var, pos) => AnnotationType::Infer(*ty_var, *pos)
+            AnnotationType::Infer(ty_var, pos) => AnnotationType::Infer(*ty_var, *pos),
         }
     }
 }

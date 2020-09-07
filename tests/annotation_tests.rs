@@ -33,13 +33,15 @@ fn annotate_identity() {
 
     match &typed_ast[0] {
         TypedStmt {
-            stmt: TypedStmtEnum::Expression(TypedExpr {
-                expr: TypedExprEnum::Function(TypedFunction {
-                    ty: ty @ AnnotationType::Function(ref arguments, _, _),
-                    block,
+            stmt:
+                TypedStmtEnum::Expression(TypedExpr {
+                    expr:
+                        TypedExprEnum::Function(TypedFunction {
+                            ty: ty @ AnnotationType::Function(ref arguments, _, _),
+                            block,
+                        }),
+                    pos: _,
                 }),
-                pos: _,
-            }),
             pos: _,
         } => {
             assert_eq!(arguments.len(), 1);

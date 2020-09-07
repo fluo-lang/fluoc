@@ -622,7 +622,7 @@ impl Parser {
             Ok(val) => val,
             Err(why) => {
                 self.set_pos(position);
-                return Err(why)
+                return Err(why);
             }
         };
 
@@ -1711,7 +1711,11 @@ pub mod parser_tests {
     parser_run!("x = 5;", Parser::item, variable_assign_item_stmt);
 
     parser_run!("{x = 5;};", Parser::expression_statement, block_expr_stmt_1);
-    parser_run!("{yield x = 5;};", Parser::expression_statement, block_expr_stmt_2);
+    parser_run!(
+        "{yield x = 5;};",
+        Parser::expression_statement,
+        block_expr_stmt_2
+    );
 
     parser_run!(
         "(let x: int = 5);",

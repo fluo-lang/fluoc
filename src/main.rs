@@ -1,6 +1,5 @@
 #![feature(backtrace)]
 #![feature(bindings_after_at)]
-
 #![warn(rust_2018_idioms)]
 
 #[macro_use]
@@ -15,12 +14,12 @@ pub mod lexer;
 pub mod logger;
 //pub mod mangle;
 pub mod master;
+pub mod mir;
 pub mod parser;
 pub mod paths;
 pub mod segmentation;
 pub mod tags;
 pub mod typecheck;
-pub mod mir;
 
 #[macro_use]
 extern crate clap;
@@ -65,7 +64,7 @@ fn main() {
     let context = Context::create();
 
     let read_file_start = Instant::now();
-    let mut contents = paths::read_file(filename.as_path());
+    let source = paths::read_file(filename.as_path());
 
     // Load prelude
     let mut prelude_path: path::PathBuf = helpers::CORE_LOC.to_owned();
@@ -73,9 +72,9 @@ fn main() {
     prelude_path.pop();
     prelude_path.push("prelude.fl");
 
-    let prelude = paths::read_file(&prelude_path);
+    let mut contents = paths::read_file(&prelude_path);
     // Append prelude into contents
-    contents += &prelude[..];
+    contents += &source[..];
 
     let mut master = master::Master::new(&context, matches.is_present("verbose"));
     master.logger.borrow().log_verbose(&|| {

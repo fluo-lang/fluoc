@@ -60,7 +60,7 @@ impl ast::Function {
     ) -> Result<TypedExpr, ErrorValue> {
         let args = match self.ty.clone().unwrap() {
             AnnotationType::Function(args, _, _) => Rc::clone(&args),
-            _ => unreachable!()
+            _ => unreachable!(),
         };
 
         let mut new_context = context.clone();
