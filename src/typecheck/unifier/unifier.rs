@@ -11,7 +11,7 @@ use std::rc::Rc;
 
 #[derive(Default)]
 pub struct Substitutions {
-    subs: HashMap<usize, AnnotationType>,
+    pub subs: HashMap<usize, AnnotationType>,
 }
 
 impl fmt::Display for Substitutions {
@@ -75,7 +75,7 @@ impl Substitutions {
                         .map(|arg_ty| self.substitute(arg_ty.clone(), infer_num, replacement))
                         .collect(),
                 ),
-                Box::new(self.substitute(*ret_ty, infer_num, replacement)),
+                Rc::new(self.substitute((*ret_ty).clone(), infer_num, replacement)),
                 pos,
             ),
             AnnotationType::Never(_) => ty,
@@ -107,7 +107,6 @@ pub fn unify(mut constraints: Constraints) -> Result<Substitutions, ErrorValue> 
         constraints.0.remove(&first);
 
         let mut subst = unify_one(&first)?;
-        println!("{}", subst);
 
         let subst_rest = unify(subst.apply_constraints(constraints))?;
 
@@ -118,39 +117,22 @@ pub fn unify(mut constraints: Constraints) -> Result<Substitutions, ErrorValue> 
 
 fn unify_one(constraint: &Constraint) -> Result<Substitutions, ErrorValue> {
     match (constraint.a.clone(), constraint.b.clone()) {
-        (AnnotationType::Type(name1, pos1), AnnotationType::Type(name2, pos2)) => {
-            if name1 == name2 {
+        (type1 @ AnnotationType::Type(_, _), type2 @ AnnotationType::Type(_, _)) => {
+            if type1 == type2 {
                 Ok(Substitutions::empty())
             } else {
-                Err(ErrorValue::new(
-                    format!("`{}` and `{}` are not the same type", name1, name2),
-                    ErrorType::TypeMismatch,
-                    pos1,
-                    ErrorDisplayType::Error,
-                    vec![
-                        ErrorAnnotation::new(
-                            Some("first type here".to_string()),
-                            pos1,
-                            ErrorDisplayType::Info,
-                        ),
-                        ErrorAnnotation::new(
-                            Some("second type here".to_string()),
-                            pos2,
-                            ErrorDisplayType::Info,
-                        ),
-                    ],
-                ))
+                Err(type_mismatch_err(&type1, &type2))
             }
         }
         (
             AnnotationType::Function(args1, return1, pos1),
             AnnotationType::Function(args2, return2, pos2),
         ) => {
-            let mut constraints = Constraints::new();
+            let mut constraints = Constraints::with_capacity(args1.len() + 1);
 
             if args1.len() != args2.len() {
                 // Different amount of arguments
-                return Err(diff_arguments_err(args1, args2, pos1, pos2));
+                return Err(diff_arguments_err(args1.len(), args2.len(), pos1, pos2));
             }
 
             for (arg1, arg2) in args1.iter().zip(args2.iter()) {
@@ -169,6 +151,20 @@ fn unify_one(constraint: &Constraint) -> Result<Substitutions, ErrorValue> {
         (ty, AnnotationType::Infer(val, pos)) => unify_infer(val, pos, &ty),
         (AnnotationType::Never(_), _) => Ok(Substitutions::empty()),
         (_, AnnotationType::Never(_)) => Ok(Substitutions::empty()),
+        (AnnotationType::Tuple(tys1, pos1), AnnotationType::Tuple(tys2, pos2)) => {
+            let mut constraints = Constraints::with_capacity(tys1.len());
+            if tys1.len() != tys2.len() {
+                return Err(diff_tuple_err(tys1.len(), tys2.len(), pos1, pos2));
+            }
+
+            for (ty1, ty2) in tys1.iter().zip(tys2.iter()) {
+                constraints
+                    .0
+                    .insert(Constraint::new(ty1.clone(), ty2.clone()));
+            }
+
+            unify(constraints)
+        }
         (ty1, ty2) => Err(type_mismatch_err(&ty1, &ty2)),
     }
 }
@@ -244,18 +240,29 @@ fn infinite_recurse_err(pos1: Pos, pos2: Pos) -> ErrorValue {
     )
 }
 
-fn diff_arguments_err(
-    args1: Rc<Vec<AnnotationType>>,
-    args2: Rc<Vec<AnnotationType>>,
-    pos1: Pos,
-    pos2: Pos,
-) -> ErrorValue {
+fn diff_tuple_err(args1: usize, args2: usize, pos1: Pos, pos2: Pos) -> ErrorValue {
     ErrorValue::new(
-        format!(
-            "expected {} arguments, found {} arguments",
-            args1.len(),
-            args2.len()
-        ),
+        "tuples have different numbers of fields".to_string(),
+        ErrorType::TypeMismatch,
+        pos2,
+        ErrorDisplayType::Error,
+        vec![
+            ErrorAnnotation::new(
+                Some(format!("has {} fields", args1)),
+                pos1,
+                ErrorDisplayType::Info,
+            ),
+            ErrorAnnotation::new(
+                Some(format!("has {} fields", args2)),
+                pos2,
+                ErrorDisplayType::Info,
+            ),
+        ],
+    )
+}
+fn diff_arguments_err(args1: usize, args2: usize, pos1: Pos, pos2: Pos) -> ErrorValue {
+    ErrorValue::new(
+        format!("expected {} arguments, found {} arguments", args1, args2),
         ErrorType::TypeMismatch,
         pos2,
         ErrorDisplayType::Error,

@@ -1,8 +1,3 @@
-let entry = () -> i32 {
-    let y = 10;
-    return x(y);
-};
-
-let x = (a: _) -> _ {
-    return a;
+let entry = () -> (i32, i32) {
+    return (123, 123 is i32);
 };

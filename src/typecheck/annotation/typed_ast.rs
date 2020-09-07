@@ -1,5 +1,4 @@
-//! Representation of typed ast nodes.
-use super::annotation_type::AnnotationType;
+use super::AnnotationType;
 use crate::helpers;
 use crate::parser::ast;
 
@@ -34,7 +33,15 @@ pub struct TypedFunctionCall {
 }
 
 #[derive(Clone, Debug)]
+pub struct TypedTuple {
+    pub ty: AnnotationType,
+    pub exprs: Vec<TypedExpr>,
+    pub pos: helpers::Pos,
+}
+
+#[derive(Clone, Debug)]
 pub enum TypedExprEnum {
+    Tuple(TypedTuple),
     Block(TypedBlock),
     VariableAssign(TypedAssign),
     VariableAssignDeclaration(TypedAssign),
@@ -71,6 +78,8 @@ impl TypedExpr {
 
             TypedExprEnum::Yield(val) => &val.ty,
             TypedExprEnum::Return(val) => &val.ty,
+
+            TypedExprEnum::Tuple(val) => &val.ty,
         }
     }
 }

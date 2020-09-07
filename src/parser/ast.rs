@@ -1,8 +1,9 @@
+use crate::typecheck::annotation::AnnotationType;
+
 use crate::helpers;
 use crate::lexer::Token;
 use crate::sourcemap::SourceMap;
 use crate::tags::UnitTags;
-use crate::typecheck::annotation::AnnotationType;
 
 use inkwell::module::Linkage;
 
@@ -26,9 +27,8 @@ pub struct Tag {
     pub pos: helpers::Pos,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum LiteralType {
-    Custom(helpers::Pos),
     Number,
     String,
     Bool,

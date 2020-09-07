@@ -266,7 +266,6 @@ impl Parser {
 
         // Set our scope to outside
         let scope = Scope::Outer;
-        let position = self.token_pos;
 
         let mut ast_list: Vec<Statement> = Vec::new();
         let next = self.peek();
@@ -1303,15 +1302,8 @@ impl Parser {
 
         self.next(lexer::TokenType::RP, position, false)?;
 
-        let return_type: ast::Type = if self.peek().token == lexer::TokenType::Arrow {
-            self.forward();
-            self.type_expr()?
-        } else {
-            ast::Type {
-                value: ast::TypeType::Tuple(Vec::new()),
-                pos: self.get_relative_pos(position),
-            }
-        };
+        self.next(lexer::TokenType::Arrow, position, false)?;
+        let return_type = self.type_expr()?;
 
         Ok(ast::Type {
             pos: self.get_relative_pos(position),

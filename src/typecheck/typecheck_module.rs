@@ -50,7 +50,7 @@ impl TypeCheckModule {
         // Generate annotations for the ast
         let mut annotator = annotation::Annotator::new();
         // Ast with types (has some unknowns)
-        let typed_ast: Vec<annotation::TypedStmt> = annotator
+        let mut typed_ast: Vec<annotation::TypedStmt> = annotator
             .annotate(
                 std::mem::replace(&mut self.parser.ast, None).unwrap(),
                 &mut context,
@@ -58,11 +58,9 @@ impl TypeCheckModule {
             .map_err(|e| vec![e])?;
 
         let constraints = generate(&typed_ast, None, None);
-        println!("{}", constraints);
-
         let solved_constraints = unify(constraints).map_err(|e| vec![e])?;
 
-        let ret = substitute(typed_ast, solved_constraints);
+        substitute(&mut typed_ast, solved_constraints)?;
 
         self.logger.borrow().log_verbose(&|| {
             format!(
@@ -71,6 +69,6 @@ impl TypeCheckModule {
             )
         }); // Lazily run it so no impact on performance
 
-        ret
+        Ok(typed_ast)
     }
 }

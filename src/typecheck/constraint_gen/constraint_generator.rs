@@ -31,6 +31,10 @@ impl Constraints {
     pub fn new() -> Self {
         Constraints(HashSet::new())
     }
+
+    pub fn with_capacity(size: usize) -> Self {
+        Constraints(HashSet::with_capacity(size))
+    }
 }
 
 impl fmt::Display for Constraints {
@@ -87,7 +91,7 @@ fn generate_expr(
                 ty.clone(),
                 AnnotationType::Function(
                     Rc::clone(func_args),
-                    Box::new(block.ty().clone()),
+                    Rc::new(block.ty().clone()),
                     expr.pos,
                 ),
             ));
@@ -100,24 +104,6 @@ fn generate_expr(
                     .extend(generate_expr(&arg, outer_ty.clone(), inner_ty.clone()).0);
             }
 
-            println!(
-                "{}",
-                Constraint::new(
-                    func_call.func_ty.clone(),
-                    AnnotationType::Function(
-                        Rc::new(
-                            func_call
-                                .arguments
-                                .iter()
-                                .map(|arg| arg.ty().clone())
-                                .collect()
-                        ),
-                        Box::new(func_call.ty.clone()),
-                        expr.pos
-                    ),
-                )
-            );
-
             constraints.0.insert(Constraint::new(
                 func_call.func_ty.clone(),
                 AnnotationType::Function(
@@ -128,7 +114,7 @@ fn generate_expr(
                             .map(|arg| arg.ty().clone())
                             .collect(),
                     ),
-                    Box::new(func_call.ty.clone()),
+                    Rc::new(func_call.ty.clone()),
                     expr.pos,
                 ),
             ));
@@ -148,12 +134,6 @@ fn generate_expr(
             constraints
                 .0
                 .extend(generate_expr(yield_expr.expr.as_ref(), outer_ty, inner_ty.clone()).0);
-            println!("{:?}: {}", yield_expr.expr.pos, yield_expr.expr.ty());
-            println!(
-                "{:?}: {}\n",
-                yield_expr.expr.pos,
-                inner_ty.as_ref().unwrap()
-            );
             constraints.0.insert(Constraint::new(
                 // We can unwrap because parser shouldn't let `yield` be in a
                 // position where this a problem
@@ -193,7 +173,24 @@ fn generate_expr(
 
         // No constraints are needed for literals
         TypedExprEnum::Literal(_) => {}
-        _ => panic!("Unimplemented {:?}", expr),
+
+        TypedExprEnum::Tuple(tup) => {
+            for expr in &tup.exprs {
+                constraints
+                    .0
+                    .extend(generate_expr(&expr, outer_ty.clone(), inner_ty.clone()).0);
+            }
+
+            constraints.0.insert(Constraint::new(
+                tup.ty.clone(),
+                AnnotationType::Tuple(
+                    Rc::new(tup.exprs.iter().map(|arg| arg.ty().clone()).collect()),
+                    tup.pos,
+                ),
+            ));
+        }
+
+        _ => unimplemented!(),
     }
     constraints
 }

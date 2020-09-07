@@ -90,6 +90,14 @@ let entry = () {
     );*/
 
 assert_error!(
+    r#"let entry = () -> (i32, i32) {
+    return (123, 123 is i64);
+};"#,
+    vec![ErrorType::TypeMismatch],
+    tuple_type_mismatch
+);
+
+assert_error!(
     r#"let entry = () {
     return 1923;
 };"#,
@@ -111,6 +119,14 @@ assert_error!(
 };"#,
     vec![ErrorType::TypeMismatch],
     explicit_return_mismatch
+);
+
+assert_ok!(
+    r#"let entry = () -> (i32, i32, i64) {
+    let x = 10;
+    return (x, 123 is i32, 123);
+};"#,
+    tuple_match
 );
 
 assert_ok!(

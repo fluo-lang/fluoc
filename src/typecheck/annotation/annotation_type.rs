@@ -4,7 +4,7 @@ use crate::parser::ast;
 use std::fmt;
 use std::rc::Rc;
 
-#[derive(Debug, PartialEq, Eq, Hash)]
+#[derive(Debug, Eq, Hash)]
 /// An annotation type
 ///
 /// The `Infer` variant is assigned when the type is to be inferred.
@@ -15,12 +15,56 @@ use std::rc::Rc;
 pub enum AnnotationType {
     Type(Rc<ast::Namespace>, helpers::Pos),
     Tuple(Rc<Vec<AnnotationType>>, helpers::Pos),
-    Function(Rc<Vec<AnnotationType>>, Box<AnnotationType>, helpers::Pos),
+    Function(Rc<Vec<AnnotationType>>, Rc<AnnotationType>, helpers::Pos),
     Never(helpers::Pos),
     Infer(usize, helpers::Pos),
 }
 
+impl PartialEq for AnnotationType {
+    fn eq(&self, other: &Self) -> bool {
+        match (&self, other) {
+            (AnnotationType::Type(name1, _), AnnotationType::Type(name2, _)) => name1 == name2,
+            (AnnotationType::Tuple(tys1, _), AnnotationType::Tuple(tys2, _)) => tys1 == tys2,
+            (
+                AnnotationType::Function(arg_tys1, ret_ty1, _),
+                AnnotationType::Function(arg_tys2, ret_ty2, _),
+            ) => arg_tys1 == arg_tys2 && ret_ty1 == ret_ty2,
+            (AnnotationType::Never(_), AnnotationType::Never(_)) => true,
+            (AnnotationType::Infer(infer_num1, _), AnnotationType::Infer(infer_num2, _)) => {
+                infer_num1 == infer_num2
+            }
+            _ => false,
+        }
+    }
+}
+
+pub enum Prim {
+    Bool,
+    I64,
+    I32,
+    I16,
+    I8,
+}
+
 impl AnnotationType {
+    pub fn is_primitive(&self) -> Option<Prim> {
+        match self {
+            AnnotationType::Type(ty, _) if ty.scopes.len() == 1 => {
+                let first_name = ty.scopes[0].clone();
+                let is_prim = match get_segment!(first_name.sourcemap, first_name.pos) {
+                    "bool" => Prim::Bool,
+                    "i64" => Prim::I64,
+                    "i32" => Prim::I32,
+                    "i16" => Prim::I16,
+                    "i8" => Prim::I8,
+                    _ => return None,
+                };
+                Some(is_prim)
+            }
+            _ => None,
+        }
+    }
+
     pub fn pos(&self) -> helpers::Pos {
         match self {
             AnnotationType::Type(_, pos) => *pos,

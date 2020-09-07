@@ -46,7 +46,7 @@ impl ast::Function {
 
         let ty = AnnotationType::Function(
             Rc::new(args),
-            Box::new(annotator.annon_type(&self.return_type)),
+            Rc::new(annotator.annon_type(&self.return_type)),
             self.pos,
         );
         self.ty = Some(ty.clone());
@@ -193,7 +193,7 @@ impl ast::FunctionCall {
         let func_ty = func_sig.symbol(&self.name)?.clone();
 
         let ret_ty = match func_ty {
-            AnnotationType::Function(_, ref ret, _) => *ret.clone(),
+            AnnotationType::Function(_, ref ret, _) => (**ret).clone(),
             AnnotationType::Infer(_, _) => annotator.unique(self.pos),
             AnnotationType::Never(_) => func_ty.clone(),
             _ => return Err(not_a_err(&self.name, "function")),
@@ -232,6 +232,27 @@ impl ast::IsExpr {
     }
 }
 
+impl ast::Tuple {
+    fn pass_2(
+        self,
+        annotator: &mut Annotator,
+        context: &mut Context<AnnotationType>,
+    ) -> Result<TypedExpr, ErrorValue> {
+        Ok(TypedExpr {
+            pos: self.pos,
+            expr: TypedExprEnum::Tuple(TypedTuple {
+                ty: annotator.unique(self.pos),
+                exprs: self
+                    .values
+                    .into_iter()
+                    .map(|expr| expr.pass_2(annotator, context))
+                    .collect::<Result<Vec<_>, _>>()?,
+                pos: self.pos,
+            }),
+        })
+    }
+}
+
 impl ast::Expr {
     fn pass_1(
         &mut self,
@@ -261,6 +282,7 @@ impl ast::Expr {
             ast::Expr::Return(return_val) => return_val.pass_2(annotator, context),
             ast::Expr::Function(func) => func.pass_2(annotator, context),
             ast::Expr::Block(block) => block.pass_2(annotator, context),
+            ast::Expr::Tuple(tuple) => tuple.pass_2(annotator, context),
             _ => panic!("Unimplemented {}", self.as_str()),
         }
     }
