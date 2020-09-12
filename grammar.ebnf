@@ -1,27 +1,26 @@
-Block := (
-          | VariableAssignment
-          | VariableAssignmentDeclaration
+Block := "{", (
           | VariableDeclaration
-          | FunctionDefine
           | ExpressionStatement
           | Epsilon
-         )+;
+         )+, "}";
 
-VariableAssignment := "let", NameID, "=", Expression, ";";
-VariableAssignmentDeclaration := "let", NameID, ":", Type, "=", Expression, ";";
-VariableDeclaration := "let", NameID, ":", Type, ";";
-FunctionDefine := "def", NameID, "(", FunctionArgs, ")", "->", Type, "{", Block, "}";
+VariableDeclaration := ["pub"], ["extern"], "let", Namespace, ":", Type, ";";
 ExpressionStatement := Expression, ";";
 
-FunctionArgs := {Posarg, ","}; (* {OptionalPosArg ","} {Kwarg ","} last comma is optional *)
+Expression := (VariableAssignment | VariableAssignmentDeclaration | FunctionExpr | Literal);
+VariableAssignment := ["pub"], "let", Namespace, "=", Expression;
+VariableAssignmentDeclaration := ["pub"], "let", Namespace, ":", Type, "=", Expression;
+FunctionExpr := Namespace, "(", FunctionArgs, ")", ["->", Type], Block;
+
+(* Some defs are left out *)
+Literal := (Integer | String | Bool);
+Bool := ("true" | "false");
+
+FunctionArgs := {Posarg, ","} Posarg, [","];
 
 NameID := ID;
 
-(* OptionalPosArg := ID, "?";
-
-Kwarg := ID, "=", Expression; *)
-
-Posarg := NameID, ":", Type;
+Posarg := Namespace, ":", Type;
 
 Tuple := "(", {Expression, ","}, ")"
       | "(", ",", ")"
@@ -34,9 +33,11 @@ Item := Integer | Float | Tuple | ID | "(", Expression, ")";
 
 FunctionCall := ID, "(", {Expresion, ","}+, ")";
 
-Type := NamespaceType | TupleType;
+Type := NamespaceType | TupleType | FuncType;
 
-TupleType := "(", TupleItems, [","], ")" ;
-TupleItems := {TupleItems, "," Type};
+TupleType := "(", TupleTypeItems, [","], ")" ;
+TupleTypeItems := {TupleItems, ",", Type};
 
- 
+FuncType := {"(", FuncTypeItems, ")"};
+FuncTypeItems := {FuncTypeItems, ",", [Namespace, ":"], Type};
+
