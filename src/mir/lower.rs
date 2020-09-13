@@ -1,4 +1,4 @@
-use super::MirStmt;
+use super::{MirExpr, MirStmt};
 
 use crate::logger::ErrorValue;
 use crate::typecheck::annotation::*;
@@ -24,7 +24,7 @@ pub fn lower_to_mir(typed_ast: Vec<TypedStmt>) -> Result<Vec<MirStmt>, Vec<Error
 impl TypedStmt {
     fn into_mir(self) -> Result<MirStmt, ErrorValue> {
         match self.stmt {
-            TypedStmtEnum::Expression(expr) => Ok(MirStmt::Expression(expr.into_mir())),
+            TypedStmtEnum::Expression(expr) => Ok(MirStmt::Expression(expr.into_mir()?)),
             _ => unimplemented!()
         }
     }
@@ -32,7 +32,9 @@ impl TypedStmt {
 
 impl TypedExpr {
     fn into_mir(self) -> Result<MirExpr, ErrorValue> {
-        unimplemented!()
+        match self.expr {
+            _ => unimplemented!()
+        }
     }
 }
 
