@@ -5,5 +5,5 @@ let make_lambda = (lambda: () -> i32) -> () -> i32 {
 };
 
 let entry = () {
-    let x = make_lambda(() -> i32 { return 10; })();
+    let x = make_lambda(() -> i32 { yield 10; })();
 };

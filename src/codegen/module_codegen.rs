@@ -3,6 +3,7 @@ use crate::logger::{ErrorValue, Logger};
 use crate::parser::ast;
 use crate::sourcemap::SourceMap;
 use crate::typecheck::TypeCheckModule;
+use crate::mir::lower_to_mir;
 
 use inkwell::types::BasicType;
 use inkwell::values::BasicValue;
@@ -81,7 +82,8 @@ impl<'a> CodeGenModule<'a> {
     }
 
     pub fn generate(&mut self) -> Result<(), Vec<ErrorValue>> {
-        self.typecheck.type_check()?;
+        let typed_ast = self.typecheck.type_check()?;
+        let mir_rep = lower_to_mir(typed_ast);
 
         /*
         let gen_start = Instant::now();

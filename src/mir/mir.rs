@@ -2,12 +2,40 @@
 //!
 //! This is a lower lever representation of code.
 
-use crate::typecheck::context::Context;
-use crate::typecheck::types;
-
 use crate::helpers;
-use crate::logger::ErrorValue;
 use crate::parser::ast;
+
+#[derive(Debug, Clone)]
+pub struct Tuple {
+    pub types: Vec<MirType>,
+    pub pos: helpers::Pos,
+}
+
+#[derive(Debug, Clone)]
+pub struct Binding {
+    pub name: ast::Namespace,
+    pub ty: MirType,
+}
+
+#[derive(Debug, Clone)]
+/// (i32, i32, ()) -> ()
+pub struct FunctionSig {
+    pub pos_args: Vec<Binding>,
+    pub return_type: Box<MirType>,
+    pub pos: helpers::Pos,
+}
+
+#[derive(Debug, Clone)]
+pub enum MirType {
+    /// Tuple types, E.g., (int, int), (str, my::type)
+    Tuple(Tuple),
+
+    /// Primitives
+    Primitive(ast::Namespace),
+
+    /// Function Signatures
+    FunctionSig(FunctionSig),
+}
 
 #[derive(Debug, Clone)]
 pub struct IfBranch {
@@ -44,43 +72,56 @@ pub struct Block {
 }
 
 #[derive(Debug, Clone)]
-pub struct FunctionDefine {
-    pub signature: types::FunctionSig,
+pub struct FunctionExpr {
+    pub signature: FunctionSig,
     pub block: Block,
     pub mangled_name: String,
 }
 
 #[derive(Debug, Clone)]
-pub struct VariableAssign {}
+pub struct VariableAssign {
+    pub var_name: ast::Namespace,
+    pub ty: MirExpr,
+    pub pos: helpers::Pos,
+}
 #[derive(Debug, Clone)]
-pub struct VariableAssignDeclaration {}
+pub struct VariableAssignDeclaration {
+    pub var_name: ast::Namespace,
+    pub ty: MirExpr,
+    pub pos: helpers::Pos,
+}
 #[derive(Debug, Clone)]
 pub struct VariableDeclaration {}
 
 #[derive(Debug, Clone)]
 pub struct Literal {
-    pub ty: types::MirType,
+    pub ty: MirType,
     pub pos: helpers::Pos,
 }
+
+#[derive(Debug, Clone)]
+pub struct MirTag {}
 
 #[derive(Debug, Clone)]
 enum MirExprValue {
     Variable(ast::Namespace),
     Literal(Literal),
+    Function(Box<FunctionExpr>),
+    VariableAssign(Box<VariableAssign>),
+    VariableAssignDeclaration(Box<VariableAssignDeclaration>),
 }
 
 #[derive(Debug, Clone)]
 pub struct MirExpr {
     value: MirExprValue,
     pos: helpers::Pos,
-    ty: types::MirType,
+    ty: MirType,
 }
 
 #[derive(Debug, Clone)]
 pub enum MirStmt {
-    FunctionDefine(FunctionDefine),
-    VariableAssign(VariableAssign),
     VariableDeclaration(VariableDeclaration),
-    VariableAssignDeclaration(VariableAssignDeclaration),
     Conditional(Conditional),
+    Tag(MirTag),
+    Expression(MirExpr),
 }
