@@ -1,5 +1,4 @@
-#![feature(backtrace)]
-#![feature(bindings_after_at)]
+#![feature(backtrace, bindings_after_at, get_mut_unchecked)]
 #![warn(rust_2018_idioms)]
 
 #[macro_use]
@@ -59,12 +58,15 @@ fn main() {
         process::exit(0);
     }
 
-    let filename = paths::process_str(matches.value_of("entry").unwrap());
-
     let context = Context::create();
 
     let read_file_start = Instant::now();
-    let source = paths::read_file(filename.as_path());
+    let (source, filename) = if matches.is_present("entry") {
+        let filename = paths::process_str(matches.value_of("entry").unwrap());
+        (paths::read_file(filename.as_path()), filename)
+    } else {
+        (matches.value_of("code").unwrap().to_string(), path::PathBuf::from("<string>.fl"))
+    };
 
     // Load prelude
     let mut prelude_path: path::PathBuf = helpers::CORE_LOC.to_owned();

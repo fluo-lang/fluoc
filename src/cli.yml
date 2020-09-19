@@ -6,6 +6,7 @@ args:
         help: Fluo file with entry point
         required: true
         index: 1
+        conflicts_with: code
     - output:
         help: Output object file, by default `./out.o`
         short: o
@@ -17,3 +18,8 @@ args:
     - version:
         short: V
         help: Print version
+    - code:
+        short: c
+        help: Compile from input string
+        takes_value: true
+        conflicts_with: entry

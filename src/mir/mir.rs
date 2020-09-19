@@ -4,12 +4,7 @@
 
 use crate::helpers;
 use crate::parser::ast;
-
-#[derive(Debug, Clone)]
-pub struct Tuple {
-    pub types: Vec<MirType>,
-    pub pos: helpers::Pos,
-}
+use crate::typecheck::annotation::Prim;
 
 #[derive(Debug, Clone)]
 pub struct Binding {
@@ -28,13 +23,13 @@ pub struct FunctionSig {
 #[derive(Debug, Clone)]
 pub enum MirType {
     /// Tuple types, E.g., (int, int), (str, my::type)
-    Tuple(Tuple),
+    Tuple(Vec<MirType>, helpers::Pos),
 
     /// Primitives
-    Primitive(ast::Namespace),
+    Primitive(Prim, helpers::Pos),
 
     /// Function Signatures
-    FunctionSig(FunctionSig),
+    FunctionSig(FunctionSig, helpers::Pos),
 }
 
 #[derive(Debug, Clone)]
@@ -103,7 +98,7 @@ pub struct Literal {
 pub struct MirTag {}
 
 #[derive(Debug, Clone)]
-enum MirExprValue {
+pub enum MirExprEnum {
     Variable(ast::Namespace),
     Literal(Literal),
     Function(Box<FunctionExpr>),
@@ -113,9 +108,9 @@ enum MirExprValue {
 
 #[derive(Debug, Clone)]
 pub struct MirExpr {
-    value: MirExprValue,
-    pos: helpers::Pos,
-    ty: MirType,
+    pub value: MirExprEnum,
+    pub pos: helpers::Pos,
+    pub ty: MirType,
 }
 
 #[derive(Debug, Clone)]

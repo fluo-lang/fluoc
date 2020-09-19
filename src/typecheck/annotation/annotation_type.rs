@@ -38,6 +38,7 @@ impl PartialEq for AnnotationType {
     }
 }
 
+#[derive(Debug, Clone)]
 pub enum Prim {
     Bool,
     I64,
@@ -82,7 +83,7 @@ impl Clone for AnnotationType {
             AnnotationType::Type(name, pos) => AnnotationType::Type(Rc::clone(name), *pos),
             AnnotationType::Tuple(types, pos) => AnnotationType::Tuple(Rc::clone(types), *pos),
             AnnotationType::Function(arg_ty, ret_ty, pos) => {
-                AnnotationType::Function(Rc::clone(arg_ty), (*ret_ty).clone(), *pos)
+                AnnotationType::Function(Rc::clone(arg_ty), Rc::clone(ret_ty), *pos)
             }
             AnnotationType::Never(pos) => AnnotationType::Never(*pos),
             AnnotationType::Infer(ty_var, pos) => AnnotationType::Infer(*ty_var, *pos),

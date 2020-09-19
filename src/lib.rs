@@ -1,4 +1,4 @@
-#![feature(bindings_after_at)]
+#![feature(bindings_after_at, get_mut_unchecked)]
 // For benchmarks
 #[macro_use]
 extern crate lazy_static;

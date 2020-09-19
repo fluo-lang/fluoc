@@ -12,12 +12,18 @@ impl AnnotationType {
         match self {
             AnnotationType::Type(_, _) | AnnotationType::Never(_) => {}
             AnnotationType::Tuple(tys, _) => {
-                for ty in Rc::make_mut(tys).iter_mut() {
+                // SAFTEY:
+                // We never store an immutable (or mutable) reference to this rc
+                // anywhere.
+                for ty in unsafe { Rc::get_mut_unchecked(tys) }.iter_mut() {
                     ty.sub(solved_constraints)?;
                 }
             }
             AnnotationType::Function(args_ty, ret_ty, _) => {
-                for ty in Rc::make_mut(args_ty).iter_mut() {
+                // SAFTEY:
+                // We never store an immutable (or mutable) reference to this rc
+                // anywhere.
+                for ty in unsafe { Rc::get_mut_unchecked(args_ty) }.iter_mut() {
                     ty.sub(solved_constraints)?;
                 }
                 Rc::make_mut(ret_ty).sub(solved_constraints)?;
