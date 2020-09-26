@@ -1,5 +1,5 @@
 let entry = () -> (i64,) {
     let i = 10 is i64;
-    return (i);
+    return (i,);
 };
 
