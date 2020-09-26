@@ -103,7 +103,7 @@ impl ast::Block {
     ) -> Result<TypedExpr, ErrorValue> {
         Ok(TypedExpr {
             expr: TypedExprEnum::Block(TypedBlock {
-                ty: self.ty.unwrap(),
+                ty: self.ty.unwrap_or(annotator.unique(self.pos)),
                 stmts: self
                     .nodes
                     .into_iter()
@@ -263,6 +263,9 @@ impl ast::Expr {
             ast::Expr::Function(func) => func.pass_1(annotator, context),
             ast::Expr::VariableAssignDeclaration(var_dec) => var_dec.pass_1(annotator, context),
             ast::Expr::Block(block) => block.pass_1(annotator, context),
+            ast::Expr::Yield(yield_val) => yield_val.pass_1(annotator, context),
+            ast::Expr::Return(return_val) => return_val.pass_1(annotator, context),
+
             _ => Ok(annotator.unique(self.pos())),
         }
     }
@@ -311,6 +314,14 @@ impl ast::ExpressionStatement {
 }
 
 impl ast::Return {
+    fn pass_1(
+        &mut self,
+        annotator: &mut Annotator,
+        context: &mut Context<AnnotationType>,
+    ) -> Result<AnnotationType, ErrorValue> {
+        Ok(self.expression.pass_1(annotator, context)?)
+    }
+
     fn pass_2(
         self,
         annotator: &mut Annotator,
@@ -327,6 +338,14 @@ impl ast::Return {
 }
 
 impl ast::Yield {
+    fn pass_1(
+        &mut self,
+        annotator: &mut Annotator,
+        context: &mut Context<AnnotationType>,
+    ) -> Result<AnnotationType, ErrorValue> {
+        Ok(self.expression.pass_1(annotator, context)?)
+    }
+
     fn pass_2(
         self,
         annotator: &mut Annotator,

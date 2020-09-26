@@ -68,16 +68,6 @@ fn main() {
         (matches.value_of("code").unwrap().to_string(), path::PathBuf::from("<string>.fl"))
     };
 
-    // Load prelude
-    let mut prelude_path: path::PathBuf = helpers::CORE_LOC.to_owned();
-    prelude_path.pop();
-    prelude_path.pop();
-    prelude_path.push("prelude.fl");
-
-    let mut contents = paths::read_file(&prelude_path);
-    // Append prelude into contents
-    contents += &source[..];
-
     let mut master = master::Master::new(&context, matches.is_present("verbose"));
     master.logger.borrow().log_verbose(&|| {
         format!(
@@ -88,7 +78,7 @@ fn main() {
 
     master.generate_file(
         filename,
-        contents,
+        source,
         path::Path::new("out.ll"),
         path::Path::new("out.o"),
     );

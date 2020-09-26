@@ -7,8 +7,10 @@ use super::{annotation, annotation::TypedStmt};
 use crate::helpers;
 use crate::logger::{ErrorValue, Logger};
 use crate::parser::Parser;
+use crate::paths;
 use crate::sourcemap::SourceMap;
 
+use std::path;
 use std::rc::Rc;
 use std::time::Instant;
 
@@ -35,6 +37,33 @@ impl TypeCheckModule {
         let parser_start = Instant::now();
         // Load core lib on outer scope
         self.parser.parse()?;
+
+        // Load prelude
+        let mut prelude_path: path::PathBuf = helpers::CORE_LOC.to_owned();
+        prelude_path.pop();
+        prelude_path.pop();
+        prelude_path.push("prelude.fl");
+
+        let contents = paths::read_file(&prelude_path);
+        let ast_filename = self
+            .sourcemap
+            .borrow_mut()
+            .insert_file(prelude_path, contents);
+
+        let mut p = Parser::new(
+            ast_filename,
+            Rc::clone(&self.logger),
+            Rc::clone(&self.sourcemap),
+        );
+        p.initialize_expr();
+        p.parse()?;
+
+        // Add prelude to path
+        self.parser
+            .ast
+            .as_mut()
+            .unwrap()
+            .append(p.ast.as_mut().unwrap());
 
         self.logger.borrow().log_verbose(&|| {
             format!(

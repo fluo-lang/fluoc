@@ -6,6 +6,8 @@ use crate::helpers;
 use crate::parser::ast;
 use crate::typecheck::annotation::Prim;
 
+use std::rc::Rc;
+
 #[derive(Debug, Clone)]
 pub struct Binding {
     pub name: ast::Namespace,
@@ -81,8 +83,8 @@ pub struct VariableAssign {
 }
 #[derive(Debug, Clone)]
 pub struct VariableAssignDeclaration {
-    pub var_name: ast::Namespace,
-    pub ty: MirExpr,
+    pub var_name: Rc<ast::Namespace>,
+    pub value: MirExpr,
     pub pos: helpers::Pos,
 }
 #[derive(Debug, Clone)]
@@ -95,7 +97,9 @@ pub struct Literal {
 }
 
 #[derive(Debug, Clone)]
-pub struct MirTag {}
+pub struct Tag {
+    pub tag: ast::Tag
+}
 
 #[derive(Debug, Clone)]
 pub enum MirExprEnum {
@@ -103,7 +107,9 @@ pub enum MirExprEnum {
     Literal(Literal),
     Function(Box<FunctionExpr>),
     VariableAssign(Box<VariableAssign>),
-    VariableAssignDeclaration(Box<VariableAssignDeclaration>),
+    Block(Block),
+    Conditional(Box<Conditional>),
+    RefID(Rc<ast::Namespace>)
 }
 
 #[derive(Debug, Clone)]
@@ -116,7 +122,16 @@ pub struct MirExpr {
 #[derive(Debug, Clone)]
 pub enum MirStmt {
     VariableDeclaration(VariableDeclaration),
-    Conditional(Conditional),
-    Tag(MirTag),
+    VariableAssignDeclaration(Box<VariableAssignDeclaration>),
+    Return {
+        value: MirExpr,
+        pos: helpers::Pos,
+    },
+    Yield {
+        value: MirExpr,
+        pos: helpers::Pos,
+    },
+    Tag(Tag),
     Expression(MirExpr),
 }
+

@@ -34,6 +34,16 @@ pub enum LiteralType {
     Bool,
 }
 
+impl fmt::Display for LiteralType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", match self {
+            Self::Number => "<number>",
+            Self::String => "<string>",
+            Self::Bool => "<bool>",
+        })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Literal {
     pub literal_type: LiteralType,
@@ -637,10 +647,8 @@ impl Expr {
             Expr::Infix(_) => "infix",
             Expr::Prefix(_) => "prefix",
 
-            Expr::Function(_) => "function define",
-
-            Expr::Return(_) => "return statement",
-            Expr::Yield(_) => "yield statement",
+            Expr::Return(_) => "return",
+            Expr::Yield(_) => "yield",
 
             Expr::As(_) => "as cast",
             Expr::Is(_) => "is cast",

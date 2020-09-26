@@ -82,6 +82,14 @@ impl TypedExpr {
             TypedExprEnum::Tuple(val) => &val.ty,
         }
     }
+
+    pub fn returns(&self) -> bool {
+        match &self.expr {
+            TypedExprEnum::Return(_) => true,
+            TypedExprEnum::Yield(_) => true,
+            _ => false
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq)]

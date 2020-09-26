@@ -93,9 +93,9 @@ impl TypedExpr {
                         (Prim::I32, LiteralType::Number) => {}
                         (Prim::I64, LiteralType::Number) => {}
 
-                        (_, _) => return Err(bad_literal(&literal.ty, self.pos)),
+                        (_, _) => return Err(bad_literal(literal, self.pos)),
                     },
-                    None => return Err(bad_literal(&literal.ty, self.pos)),
+                    None => return Err(bad_literal(literal, self.pos)),
                 }
             }
             TypedExprEnum::Function(func) => {
@@ -155,7 +155,7 @@ pub fn substitute(
     }
 }
 
-fn bad_literal(ty: &AnnotationType, pos: Pos) -> ErrorValue {
+fn bad_literal(ty: &TypedLiteral, pos: Pos) -> ErrorValue {
     ErrorValue::new(
         "invalid literal type".to_string(),
         ErrorType::TypeMismatch,
@@ -163,8 +163,8 @@ fn bad_literal(ty: &AnnotationType, pos: Pos) -> ErrorValue {
         ErrorDisplayType::Error,
         vec![
             ErrorAnnotation::new(
-                Some(format!("invalid type `{}`", ty)),
-                ty.pos(),
+                Some("invalid type".to_string()),
+                ty.ty.pos(),
                 ErrorDisplayType::Error,
             ),
             ErrorAnnotation::new(
@@ -174,6 +174,10 @@ fn bad_literal(ty: &AnnotationType, pos: Pos) -> ErrorValue {
             ),
         ],
     )
+    .with_note(format!(
+        "note: cannot convert `{}`\n                  to `{}`",
+        ty.value.literal_type, ty.ty
+    ))
 }
 
 fn cannot_infer_err(pos: Pos) -> ErrorValue {

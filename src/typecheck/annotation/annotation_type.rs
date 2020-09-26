@@ -98,11 +98,12 @@ impl fmt::Display for AnnotationType {
             AnnotationType::Type(ty, _) => write!(f, "{}", ty),
             AnnotationType::Tuple(tup, _) => write!(
                 f,
-                "({})",
+                "({}{})",
                 tup.iter()
                     .map(|val| val.to_string())
                     .collect::<Vec<_>>()
-                    .join(", ")
+                    .join(", "),
+                if tup.len() == 1 { "," } else { "" }
             ),
             AnnotationType::Never(_) => write!(f, "<never>"),
             AnnotationType::Function(args, ret, _) => write!(
