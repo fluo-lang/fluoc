@@ -258,6 +258,11 @@ impl ErrorValue {
         self
     }
 
+    pub fn with_message(mut self, note: String) -> Self {
+        self.note = Some(note);
+        self
+    }
+
     pub fn get_error_type(&self) -> ErrorType {
         self.error
     }

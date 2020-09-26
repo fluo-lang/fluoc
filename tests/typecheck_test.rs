@@ -49,16 +49,6 @@ macro_rules! assert_ok {
 }
 
 /*
-
-    assert_error!(
-        r#"let entry = () -> () {
-    x;
-    return ();
-};"#,
-        vec![ErrorType::UndefinedSymbol],
-        undef_var
-    );
-
     assert_error!(
         r#"let entry = () {
     let x: i32;
@@ -88,6 +78,13 @@ let entry = () {
         vec![ErrorType::TypeCast],
         type_cast_error
     );*/
+assert_error!(
+    r#"let entry = () -> () {
+    x;
+};"#,
+    vec![ErrorType::UndefinedSymbol],
+    undef_var
+);
 
 assert_error!(
     r#"let entry = () -> (i32, i32) {
@@ -95,6 +92,13 @@ assert_error!(
 };"#,
     vec![ErrorType::TypeMismatch],
     tuple_type_mismatch
+);
+
+assert_error!(
+    r#"let entry = () -> i64 {
+};"#,
+    vec![ErrorType::TypeMismatch],
+    implict_block_return_mismatch
 );
 
 assert_error!(
@@ -119,6 +123,13 @@ assert_error!(
 };"#,
     vec![ErrorType::TypeMismatch],
     explicit_return_mismatch
+);
+
+assert_ok!(
+    r#"let entry = () {
+    let x: i32 = 10;
+};"#,
+    ok_implicit_empty
 );
 
 assert_ok!(

@@ -1,6 +1,4 @@
-let entry = () -> (i64,) {
-    yield {
-        yield 10;
-    };
+let entry = () -> () {
+    x;
+    return ();
 };
-

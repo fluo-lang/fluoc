@@ -87,8 +87,30 @@ impl ast::Block {
         annotator: &mut Annotator,
         context: &mut Context<AnnotationType>,
     ) -> Result<AnnotationType, ErrorValue> {
+        let mut returns = false;
+
         for stmt in self.nodes.iter_mut() {
             stmt.pass_1(annotator, context)?;
+            if let ast::Statement::ExpressionStatement(expr) = stmt {
+                if let ast::Expr::Yield(_) | ast::Expr::Return(_) = *expr.expression {
+                    returns = true;
+                }
+            }
+        }
+
+        if !returns {
+            self.nodes.push(ast::Statement::ExpressionStatement(
+                ast::ExpressionStatement {
+                    expression: Box::new(ast::Expr::Yield(ast::Yield {
+                        expression: Box::new(ast::Expr::Tuple(ast::Tuple {
+                            values: Vec::new(),
+                            pos: self.pos
+                        })),
+                        pos: self.pos,
+                    })),
+                    pos: self.pos
+                },
+            ))
         }
 
         let ty = annotator.unique(self.pos);

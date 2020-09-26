@@ -1077,9 +1077,32 @@ impl Parser {
             Err(_) => {}
         }
 
-        if let lexer::TokenType::LP = self.forward().token {
+
+        if lexer::TokenType::LP == self.forward().token {
+            let t = self.peek();
+            if lexer::TokenType::RP == t.token {
+                // It's (), let the user know
+                let p = self.forward().pos;
+                return Err(ErrorGen::new(
+                        Box::new(move || {
+                            ErrorValue::new(
+                                "expected token `,`, found token `)`".to_string(),
+                                ErrorType::Syntax,
+                                p,
+                                ErrorDisplayType::Error,
+                                vec![ErrorAnnotation::new(
+                                    Some(format!("unexpected token")),
+                                    p,
+                                    ErrorDisplayType::Error
+                                )]
+                            ).with_note("help: if you want an empty tuple,\nadd a comma: `(,)`".to_string())
+                        }),
+                        p,
+                        true
+                ));
+            }
             let expr = self.expr(Prec::LOWEST)?;
-            if let lexer::TokenType::RP = self.forward().token {
+            if lexer::TokenType::RP == self.forward().token {
                 return Ok(expr);
             }
             let next_tok = self.peek();
@@ -1094,13 +1117,13 @@ impl Parser {
         let temp = Err(ErrorGen::new(
             Box::new(move || {
                 ErrorValue::new(
-                    "Missing expression".to_string(),
+                    "missing expression".to_string(),
                     ErrorType::Syntax,
                     pos,
                     ErrorDisplayType::Error,
                     vec![ErrorAnnotation::new(
                         Some(format!(
-                            "Expected expression, found {}",
+                            "expected expression, found {}",
                             next.f(Rc::clone(&cloned_sourcemap))
                         )),
                         pos,
@@ -1375,11 +1398,16 @@ impl Parser {
                     // Required trailing comma
                     if let Err(why) = self.next(lexer::TokenType::Comma, position, false) {
                         let pos = *&why.position;
-                        return Err(ErrorGen::new(Box::new(move || {
-                            why.mk_err().with_note(
-                                "help: if you meant to make a tuple type, add a comma".to_string(),
-                            )
-                        }), pos, true));
+                        return Err(ErrorGen::new(
+                            Box::new(move || {
+                                why.mk_err().with_note(
+                                    "help: if you meant to make a tuple type, add a comma"
+                                        .to_string(),
+                                )
+                            }),
+                            pos,
+                            true,
+                        ));
                     }
                 } else {
                     // Optional trailing comma
