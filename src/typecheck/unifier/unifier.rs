@@ -1,3 +1,4 @@
+use crate::helpers::plural;
 use crate::helpers::Pos;
 use crate::logger::{ErrorAnnotation, ErrorDisplayType, ErrorType, ErrorValue};
 use crate::typecheck::{
@@ -106,7 +107,9 @@ pub fn unify(mut constraints: Constraints) -> Result<Substitutions, ErrorValue> 
         let first = constraints.0.iter().next().unwrap().clone();
         constraints.0.remove(&first);
 
-        let mut subst = unify_one(&first)?;
+        let mut subst = unify_one(&first).map_err(|err| err.with_note(
+            format!("note: expected type `{}`\n         found type `{}`", first.a, first.b)
+        ))?;
 
         let subst_rest = unify(subst.apply_constraints(constraints))?;
 
@@ -211,7 +214,7 @@ fn type_mismatch_err(ty1: &AnnotationType, ty2: &AnnotationType) -> ErrorValue {
                 ErrorDisplayType::Info,
             ),
             ErrorAnnotation::new(
-                Some(format!("`{}` type here", ty1)),
+                Some(format!("`{}` type here", ty2)),
                 ty2.pos(),
                 ErrorDisplayType::Info,
             ),
@@ -248,12 +251,12 @@ fn diff_tuple_err(args1: usize, args2: usize, pos1: Pos, pos2: Pos) -> ErrorValu
         ErrorDisplayType::Error,
         vec![
             ErrorAnnotation::new(
-                Some(format!("has {} fields", args1)),
+                Some(format!("has {} {}", args1, plural(args1, "field"))),
                 pos1,
                 ErrorDisplayType::Info,
             ),
             ErrorAnnotation::new(
-                Some(format!("has {} fields", args2)),
+                Some(format!("has {} {}", args2, plural(args2, "field"))),
                 pos2,
                 ErrorDisplayType::Info,
             ),

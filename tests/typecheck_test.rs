@@ -30,7 +30,7 @@ macro_rules! assert_error {
                     .type_check()
                     .expect_err("Failed to typecheck")
                     .into_iter()
-                    .map(|err| err.error)
+                    .map(|err| err.get_error_type())
                     .collect::<Vec<_>>(),
                 $expected_error
             );

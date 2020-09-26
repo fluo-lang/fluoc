@@ -102,3 +102,12 @@ lazy_static! {
         core_path
     };
 }
+
+pub fn plural(n: usize, val: &str) -> String {
+    if n == 1{
+        format!("{}", val)
+    } else {
+        format!("{}s", val)
+    }
+}
+

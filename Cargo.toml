@@ -18,6 +18,7 @@ inkwell = { git = "https://github.com/TheDan64/inkwell", branch = "llvm10-0" }
 shellexpand = "1.1.1"
 lazy_static = "1.4.0"
 unicode-segmentation = "1.6.0"
+codespan-reporting = "0.9.5"
 
 [dev-dependencies]
 criterion = "0.3"

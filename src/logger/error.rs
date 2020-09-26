@@ -3,6 +3,9 @@ use super::Color;
 use crate::helpers::Pos;
 use crate::parser::ast;
 
+use codespan_reporting::diagnostic::{Diagnostic, Label};
+
+use std::collections::HashMap;
 use std::rc::Rc;
 
 pub fn not_a_err(name: &Rc<ast::Namespace>, err_name: &'static str) -> ErrorValue {
@@ -75,6 +78,14 @@ pub enum ErrorDisplayType {
 }
 
 impl ErrorDisplayType {
+    pub fn to_diagnostic(&self) -> Diagnostic<usize> {
+        match self {
+            Self::Error => Diagnostic::error(),
+            Self::Warning => Diagnostic::warning(),
+            Self::Info => Diagnostic::note(),
+        }
+    }
+
     pub fn plural(&self) -> &str {
         match self {
             ErrorDisplayType::Error => "Errors",
@@ -191,21 +202,36 @@ impl ErrorAnnotation {
     pub fn has_label(&self) -> bool {
         self.message.is_some()
     }
+
+    pub fn to_diagnostic(&self, filemap: &HashMap<usize, usize>) -> Label<usize> {
+        let ty = match self.mode {
+            ErrorDisplayType::Error => Label::primary,
+            ErrorDisplayType::Warning => Label::primary,
+            ErrorDisplayType::Info => Label::secondary,
+        };
+
+        let mut label = ty(
+            filemap[&self.position.filename_id],
+            (self.position.s)..(self.position.e),
+        );
+
+        if let Some(ref msg) = self.message {
+            label = label.with_message(msg);
+        }
+
+        label
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
 /// An full on error containing useful info.
 pub struct ErrorValue {
-    /// Error message
-    pub message: String,
-    /// Error type
-    pub error: ErrorType,
-    /// Error position
-    pub position: Pos,
-    /// Error display mode
-    pub mode: ErrorDisplayType,
-    /// Annotations
-    pub annotations: Vec<ErrorAnnotation>,
+    message: String,
+    error: ErrorType,
+    position: Pos,
+    mode: ErrorDisplayType,
+    annotations: Vec<ErrorAnnotation>,
+    note: Option<String>,
 }
 
 impl ErrorValue {
@@ -223,6 +249,33 @@ impl ErrorValue {
             position,
             mode,
             annotations,
+            note: None
+        }
+    }
+
+    pub fn with_note(mut self, note: String) -> Self {
+        self.note = Some(note);
+        self
+    }
+
+    pub fn get_error_type(&self) -> ErrorType {
+        self.error
+    }
+
+    pub fn to_diagnostic(self, filemap: &HashMap<usize, usize>) -> Diagnostic<usize> {
+        let diagnostic = self.mode
+            .to_diagnostic()
+            .with_message(self.message)
+            .with_labels(
+                self.annotations
+                    .iter()
+                    .map(|annon| annon.to_diagnostic(filemap))
+                    .collect(),
+            );
+        if let Some(note) = self.note {
+            diagnostic.with_notes(vec![note])
+        } else {
+            diagnostic
         }
     }
 }
@@ -249,6 +302,10 @@ impl ErrorGen {
             position,
             make_err,
         }
+    }
+
+    pub fn mk_err(&self) -> ErrorValue {
+        (self.make_err)()
     }
 }
 

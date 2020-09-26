@@ -41,3 +41,14 @@ TupleTypeItems := {TupleItems, ",", Type};
 FuncType := {"(", FuncTypeItems, ")"};
 FuncTypeItems := {FuncTypeItems, ",", [Namespace, ":"], Type};
 
+BLOCK -> lbrace VAR_DEC rbrace
+       | lbrace EXPR_STMT rbrace
+       | epsolon.
+
+VAR_DEC -> pub extern let NAMESPACE colon TYPE semi
+         | pub let NAMESPACE colon TYPE semi
+         | extern let NAMESPACE colon TYPE semi
+         | let NAMESPACE colon TYPE semi.
+
+EXPR_STMT -> EXPR semi.
+

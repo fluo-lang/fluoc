@@ -1,3 +1,5 @@
-let entry = () -> (i32, i32) {
-    return (123, 123 is i32);
+let entry = () -> (i64,) {
+    let i = 10 is i64;
+    return (i);
 };
+

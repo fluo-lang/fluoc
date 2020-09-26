@@ -1373,7 +1373,14 @@ impl Parser {
             Ok(items) => {
                 if items.len() == 1 {
                     // Required trailing comma
-                    self.next(lexer::TokenType::Comma, position, false)?;
+                    if let Err(why) = self.next(lexer::TokenType::Comma, position, false) {
+                        let pos = *&why.position;
+                        return Err(ErrorGen::new(Box::new(move || {
+                            why.mk_err().with_note(
+                                "help: if you meant to make a tuple type, add a comma".to_string(),
+                            )
+                        }), pos, true));
+                    }
                 } else {
                     // Optional trailing comma
                     if let lexer::TokenType::Comma = self.peek().token {

@@ -47,6 +47,14 @@ impl SourceMapInner {
     pub fn get_file(&self, idx: usize) -> &str {
         &self.files[&idx]
     }
+
+    pub fn get_files(&self) -> &HashMap<usize, String> {
+        &self.files
+    }
+
+    pub fn get_ids(&self) -> &HashMap<usize, path::PathBuf> {
+        &self.file_ids
+    }
 }
 
 macro_rules! get_filename {

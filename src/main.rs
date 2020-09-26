@@ -1,4 +1,4 @@
-#![feature(backtrace, bindings_after_at, get_mut_unchecked)]
+#![feature(backtrace, bindings_after_at, get_mut_unchecked, try_blocks)]
 #![warn(rust_2018_idioms)]
 
 #[macro_use]
