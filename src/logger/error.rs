@@ -271,7 +271,7 @@ impl ErrorValue {
                     .iter()
                     .map(|annon| annon.to_diagnostic(filemap))
                     .collect(),
-            );
+            ).with_code(self.error.as_str());
         if let Some(note) = self.note {
             diagnostic.with_notes(vec![note])
         } else {
