@@ -94,7 +94,7 @@ impl Clone for AnnotationType {
 impl fmt::Display for AnnotationType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            AnnotationType::Infer(val, _) => write!(f, "T{}", val),
+            AnnotationType::Infer(val, _) => write!(f, "_"),
             AnnotationType::Type(ty, _) => write!(f, "{}", ty),
             AnnotationType::Tuple(tup, _) => write!(
                 f,
