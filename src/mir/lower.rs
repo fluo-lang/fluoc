@@ -10,7 +10,7 @@ pub fn lower_to_mir(typed_ast: Vec<TypedStmt>) -> Result<Vec<MirStmt>, Vec<Error
     let mut errors = Vec::new();
 
     for typed_stmt in typed_ast.into_iter() {
-        match typed_stmt.into_mir() {
+        match typed_stmt.into_mir(&mut mir) {
             Ok(mir_stmt) => mir.push(mir_stmt),
             Err(e) => errors.push(e),
         }
@@ -24,9 +24,9 @@ pub fn lower_to_mir(typed_ast: Vec<TypedStmt>) -> Result<Vec<MirStmt>, Vec<Error
 }
 
 impl TypedStmt {
-    fn into_mir(self) -> Result<MirStmt, ErrorValue> {
+    fn into_mir(self, mir: &mut Vec<MirStmt>) -> Result<MirStmt, ErrorValue> {
         match self.stmt {
-            TypedStmtEnum::Expression(expr) => Ok(MirStmt::Expression(expr.into_mir()?)),
+            TypedStmtEnum::Expression(expr) => Ok(MirStmt::Expression(expr.into_mir(mir)?)),
             TypedStmtEnum::Tag(tag) => Ok(MirStmt::Tag(Tag { tag })),
             _ => unimplemented!(),
         }
@@ -34,10 +34,10 @@ impl TypedStmt {
 }
 
 impl TypedExpr {
-    fn into_mir(self) -> Result<MirExpr, ErrorValue> {
+    fn into_mir(self, mir: &mut Vec<MirStmt>) -> Result<MirExpr, ErrorValue> {
         match self.expr {
             TypedExprEnum::Is(is) => {
-                let mut expr = is.expr.into_mir()?;
+                let mut expr = is.expr.into_mir(mir)?;
                 expr.ty = is.ty.into_mir()?;
                 Ok(expr)
             }
@@ -51,7 +51,7 @@ impl TypedExpr {
                             MirStmt::VariableAssignDeclaration(Box::new(
                                 super::VariableAssignDeclaration {
                                     var_name: Rc::clone(var_assign.binder.name.as_ref().unwrap()),
-                                    value: var_assign.expr.into_mir()?,
+                                    value: var_assign.expr.into_mir(mir)?,
                                     pos: self.pos,
                                 },
                             )),
@@ -67,6 +67,34 @@ impl TypedExpr {
                         metadata: super::BlockMetadata { returns: true },
                         pos: self.pos,
                     }),
+                })
+            }
+            TypedExprEnum::Return(ret) => {
+                let expr = ret.expr.into_mir(mir)?;
+
+                // Push return statement onto statement list
+                mir.push(MirStmt::Return {
+                    value: expr,
+                    pos: self.pos
+                });
+                Ok(MirExpr {
+                    value: MirExprEnum::Never,
+                    ty: MirType::Never,
+                    pos: self.pos
+                })
+            }
+            TypedExprEnum::Yield(ret) => {
+                let expr = ret.expr.into_mir(mir)?;
+
+                // Push yield statement onto statement list
+                mir.push(MirStmt::Yield {
+                    value: expr,
+                    pos: self.pos
+                });
+                Ok(MirExpr {
+                    value: MirExprEnum::Never,
+                    ty: MirType::Never,
+                    pos: self.pos
                 })
             }
             _ => unimplemented!(),

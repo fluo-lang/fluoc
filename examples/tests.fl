@@ -11,16 +11,23 @@ while True {
 }
 */
 
+/*
 -- recursive with no mutation
 let fib = (n1: i32, n2: i32) -> (i32, i32) {
     -- std::fmt::print(n2);
     return fib(n2, n1);
 };
+*/
 
-let entry = () -> i32 {
-    let x = 10;
-    let myfoo = () -> (i32, i32) {
-        yield (x, 10);
+let entry = () -> (i32, i32) {
+    let y = 11;
+    let y = y;
+    let my_func = () -> _ {
+        return y;
     };
-    return x;
+    return (x(x(y)), my_func());
+};
+
+let x = (a: _) -> _ {
+    return a;
 };

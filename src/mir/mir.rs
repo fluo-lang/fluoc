@@ -32,6 +32,9 @@ pub enum MirType {
 
     /// Function Signatures
     FunctionSig(FunctionSig, helpers::Pos),
+
+    /// Null type
+    Never,
 }
 
 #[derive(Debug, Clone)]
@@ -109,7 +112,8 @@ pub enum MirExprEnum {
     VariableAssign(Box<VariableAssign>),
     Block(Block),
     Conditional(Box<Conditional>),
-    RefID(Rc<ast::Namespace>)
+    RefID(Rc<ast::Namespace>),
+    Never,
 }
 
 #[derive(Debug, Clone)]

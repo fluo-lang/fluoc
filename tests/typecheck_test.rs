@@ -159,3 +159,19 @@ let x = (a: _) -> _ {
 };"#,
     identity_func_infer
 );
+
+assert_ok!(
+    r#"let entry = () -> (i32, i32) {
+    let y = 10;
+    let y = y;
+    let my_func = () -> _ {
+        return y;
+    };
+    return (x(x(y)), my_func());
+};
+
+let x = (a: _) -> _ {
+    return a;
+};"#,
+    complex
+);
