@@ -126,7 +126,7 @@ assert_error!(
 );
 
 assert_error!(
-    r#"let entry = () -> (i32, i32) {
+    r#"let entry = () -> (bool, i32) {
     let y = 10;
     let y = y;
     let my_func = () -> _ {

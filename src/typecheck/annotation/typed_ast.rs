@@ -43,7 +43,6 @@ pub struct TypedTuple {
 pub enum TypedExprEnum {
     Tuple(TypedTuple),
     Block(TypedBlock),
-    VariableAssign(TypedAssign),
     VariableAssignDeclaration(TypedAssign),
     Literal(TypedLiteral),
     RefID(TypedRefID),
@@ -65,7 +64,6 @@ impl TypedExpr {
         match &self.expr {
             TypedExprEnum::Block(val) => &val.ty,
 
-            TypedExprEnum::VariableAssign(val) => &val.binder.ty,
             TypedExprEnum::VariableAssignDeclaration(val) => &val.binder.ty,
 
             TypedExprEnum::Literal(val) => &val.ty,

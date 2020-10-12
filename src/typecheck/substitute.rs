@@ -110,10 +110,6 @@ impl TypedExpr {
                     ty.substitute(solved_constraints)?;
                 }
             }
-            TypedExprEnum::VariableAssign(var) => {
-                var.binder.substitute(solved_constraints)?;
-                var.expr.substitute(solved_constraints)?;
-            }
             TypedExprEnum::VariableAssignDeclaration(var) => {
                 var.binder.substitute(solved_constraints)?;
                 var.expr.substitute(solved_constraints)?;

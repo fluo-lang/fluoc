@@ -1535,7 +1535,6 @@ pub mod parser_tests {
     );
     parser_run!("if  true  { }", Parser::conditional, conditional_3);
 
-    parser_run!("x = 10", Parser::variable_assign, variable_assign);
     parser_run!(
         "let x: (int, int) = 10",
         Parser::variable_assign_full,
@@ -1554,13 +1553,13 @@ pub mod parser_tests {
     );
 
     parser_run!(
-        "return ((let x: int = 10, x = 10, hello, 1, \"another_test\"));",
+        "return ((let x: int = 10, hello, 1, \"another_test\"));",
         Parser::return_expr,
         return_statement
     );
 
     parser_run!(
-        "yield ((let x: int = 10, x = 10, hello, 1, \"another_test\"));",
+        "yield ((let x: int = 10, hello, 1, \"another_test\"));",
         Parser::yield_expr,
         yield_statement
     );
@@ -1601,9 +1600,6 @@ pub mod parser_tests {
     parser_run!("(a(10, 10, \"hello\"))", Parser::item, call_expr_1_paren);
     parser_run!("(a(10, 10,))", Parser::item, call_expr_2_paren);
 
-    parser_run!("(x = 5)", Parser::item, variable_assign_paren);
-    parser_run!("x = 5", Parser::item, variable_assign_item);
-
     parser_run!("(let x: int = 5)", Parser::item, variable_assign_full_paren);
     parser_run!("let x: int = 5", Parser::item, variable_assign_full_item);
 
@@ -1618,12 +1614,12 @@ pub mod parser_tests {
     parser_run!("i3_hello_world", Parser::item, ref_id_item);
 
     parser_run!(
-        "(let x: int = 10, x = 10, hello, 1, \"another_test\")",
+        "(let x: int = 10, hello, 1, \"another_test\")",
         Parser::item,
         tuple_item
     );
     parser_run!(
-        "((let x: int = 10, x = 10, hello, 1, \"another_test\"))",
+        "((let x: int = 10, hello, 1, \"another_test\"))",
         Parser::item,
         tuple_paren
     );
@@ -1655,12 +1651,9 @@ pub mod parser_tests {
     );
     parser_run!("(a(10, 10,));", Parser::item, call_expr_2_paren_stmt);
 
-    parser_run!("(x = 5);", Parser::item, variable_assign_paren_stmt);
-    parser_run!("x = 5;", Parser::item, variable_assign_item_stmt);
-
-    parser_run!("{x = 5;};", Parser::expression_statement, block_expr_stmt_1);
+    parser_run!("{};", Parser::expression_statement, block_expr_stmt_1);
     parser_run!(
-        "{yield x = 5;};",
+        "{yield let x = 5;};",
         Parser::expression_statement,
         block_expr_stmt_2
     );
@@ -1680,12 +1673,12 @@ pub mod parser_tests {
     parser_run!("i3_hello_world;", Parser::item, ref_id_item_stmt);
 
     parser_run!(
-        "(let x: int = 10, x = 10, hello, 1, \"another_test\");",
+        "(let x: int = 10, hello, 1, \"another_test\");",
         Parser::item,
         tuple_item_stmt
     );
     parser_run!(
-        "((let x: int = 10, x = 10, hello, 1, \"another_test\"));",
+        "((let x: int = 10, hello, 1, \"another_test\"));",
         Parser::item,
         tuple_paren_stmt
     );
