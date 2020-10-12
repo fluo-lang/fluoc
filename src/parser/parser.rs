@@ -61,7 +61,7 @@ pub struct Parser {
     pub ast: Option<Vec<ast::Statement>>,
     logger: Logger,
 
-    statements: [fn(&mut Self) -> Result<Statement, ErrorGen>; 6],
+    statements: [fn(&mut Self) -> Result<Statement, ErrorGen>; 5],
     prefix_op: HashMap<lexer::TokenType, Prec>,
     infix_op: HashMap<lexer::TokenType, Prec>,
     tokens: Vec<lexer::Token>,
@@ -80,7 +80,6 @@ impl Parser {
                 Parser::import,
                 Parser::unit,
                 Parser::expression_statement,
-                Parser::variable_declaration,
                 Parser::type_assign,
                 Parser::compiler_tag,
             ],
@@ -787,66 +786,6 @@ impl Parser {
         ))
     }
 
-    /// Variable Declaration
-    fn variable_declaration(&mut self) -> Result<Statement, ErrorGen> {
-        let position = self.token_pos;
-
-        let visibility = if self.peek().token == lexer::TokenType::Public {
-            self.forward();
-            ast::Visibility::Public
-        } else {
-            ast::Visibility::Private
-        };
-
-        let is_extern = self.peek().token == lexer::TokenType::Extern;
-        if is_extern {
-            self.forward();
-        }
-
-        self.next(lexer::TokenType::Let, position, true)?;
-
-        let namespace = self.namespace()?;
-
-        let var_type = if lexer::TokenType::Colon == self.peek().token {
-            self.forward();
-            self.type_expr()?
-        } else {
-            ast::Type {
-                value: ast::TypeType::Unknown,
-                pos: namespace.pos,
-            }
-        };
-
-        self.next(lexer::TokenType::Semi, position, false)?;
-
-        Ok(ast::Statement::VariableDeclaration(
-            ast::VariableDeclaration {
-                visibility,
-                is_extern,
-                ty: var_type,
-                name: Rc::new(namespace),
-                pos: self.get_relative_pos(position),
-            },
-        ))
-    }
-
-    /// Variable assign with only expression
-    fn variable_assign(&mut self) -> Result<Expr, ErrorGen> {
-        let position = self.token_pos;
-
-        let namespace = self.namespace()?;
-
-        self.next(lexer::TokenType::Equals, position, false)?;
-
-        let expr = self.expr(Prec::LOWEST)?;
-
-        Ok(Expr::VariableAssign(ast::VariableAssign {
-            name: Rc::new(namespace),
-            expr: Box::new(expr),
-            pos: self.get_relative_pos(position),
-        }))
-    }
-
     fn conditional(&mut self) -> Result<Expr, ErrorGen> {
         let position = self.token_pos;
 
@@ -1062,7 +1001,6 @@ impl Parser {
             Parser::bool_expr,
             Parser::function_call,
             Parser::variable_assign_full,
-            Parser::variable_assign,
             Parser::function_expr,
             Parser::tuple_expr,
             Parser::dollar_expr,
@@ -1603,11 +1541,6 @@ pub mod parser_tests {
         Parser::variable_assign_full,
         variable_assign_full
     );
-    parser_run!(
-        "let x: int;",
-        Parser::variable_declaration,
-        variable_declaration
-    );
 
     parser_run!(
         "tests::j12::hello(\"hello\", 123,4,2,3,1,true,false,)",
@@ -1639,21 +1572,9 @@ pub mod parser_tests {
     );
 
     parser_run!(
-        "extern let add_overload_test9: (int, int) -> int;",
-        Parser::variable_declaration,
-        extern_def
-    );
-
-    parser_run!(
         "pub let add_overload_test9 = (val: int, val: int) -> int {};",
         Parser::expression_statement,
         function_define_pub
-    );
-
-    parser_run!(
-        "pub extern let add_overload_test9: (int, int) -> int;",
-        Parser::variable_declaration,
-        extern_def_pub
     );
 
     parser_run!("@[no_mangle]", Parser::compiler_tag, compilier_tag);

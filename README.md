@@ -72,6 +72,8 @@ cargo run examples/tests.fl
 ./a.out
 ```
 
+NOTE: you may also need to set `LLVM_SYS_100_PREFIX` to `/usr/lib/llvm-<version>`.
+
 <br>
 
 ## Installing LLVM

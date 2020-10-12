@@ -1,54 +1,65 @@
-Block := "{", (
-          | VariableDeclaration
-          | ExpressionStatement
-          | Epsilon
-         )+, "}";
+ENTRY -> STATEMENTS.
 
-VariableDeclaration := ["pub"], ["extern"], "let", Namespace, ":", Type, ";";
-ExpressionStatement := Expression, ";";
-
-Expression := (VariableAssignment | VariableAssignmentDeclaration | FunctionExpr | Literal);
-VariableAssignment := ["pub"], "let", Namespace, "=", Expression;
-VariableAssignmentDeclaration := ["pub"], "let", Namespace, ":", Type, "=", Expression;
-FunctionExpr := Namespace, "(", FunctionArgs, ")", ["->", Type], Block;
-
-(* Some defs are left out *)
-Literal := (Integer | String | Bool);
-Bool := ("true" | "false");
-
-FunctionArgs := {Posarg, ","} Posarg, [","];
-
-NameID := ID;
-
-Posarg := Namespace, ":", Type;
-
-Tuple := "(", {Expression, ","}, ")"
-      | "(", ",", ")"
-      | "(", ")";
-
-Expression := Term, {( "+" | "-" ), Term};
-Term := Factor, {( "*" | "/" | "%" ), Factor};
-Factor := Item | "-", Factor;
-Item := Integer | Float | Tuple | ID | "(", Expression, ")";
-
-FunctionCall := ID, "(", {Expresion, ","}+, ")";
-
-Type := NamespaceType | TupleType | FuncType;
-
-TupleType := "(", TupleTypeItems, [","], ")" ;
-TupleTypeItems := {TupleItems, ",", Type};
-
-FuncType := {"(", FuncTypeItems, ")"};
-FuncTypeItems := {FuncTypeItems, ",", [Namespace, ":"], Type};
-
-BLOCK -> lbrace VAR_DEC rbrace
-       | lbrace EXPR_STMT rbrace
+BLOCK -> lbrace STATEMENTS rbrace
        | epsolon.
 
-VAR_DEC -> pub extern let NAMESPACE colon TYPE semi
-         | pub let NAMESPACE colon TYPE semi
-         | extern let NAMESPACE colon TYPE semi
-         | let NAMESPACE colon TYPE semi.
+STATEMENTS -> STATEMENTS STATEMENT
+            | STATEMENT
+            | epsolon.
+
+STATEMENT -> EXPR_STMT
+           | TAG_STMT
+           | IMPORT_STMT
+           | VAR_ASSIGN.
+
+TAG_STMT -> hash lbracket id rbracket.
+IMPORT_STMT -> import NAMESPACE semi.
+
+VAR_ASSIGN -> pub extern let NAMESPACE colon TYPE eq EXPR semi
+            | pub let NAMESPACE colon TYPE eq EXPR semi
+            | extern let NAMESPACE colon TYPE eq EXPR semi
+            | let NAMESPACE colon TYPE eq EXPR semi.
 
 EXPR_STMT -> EXPR semi.
 
+EXPR -> TERM
+      | EXPR EXPROP TERM.
+
+EXPROP -> plus
+        | minus.
+
+TERM -> FACTOR
+      | TERM TERMOP FACTOR.
+
+TERMOP -> percent
+        | star
+        | slash.
+
+FACTOR -> ITEM
+        | FACTOROP ITEM.
+
+FACTOROP -> plus
+          | minus.
+
+ITEM -> VAR_ASSIGN
+      | int
+      | bool
+      | NAMESPACE
+      | string
+      | lparen EXPR rparen
+      | BLOCK.
+
+NAMESPACE -> NAMESPACE coloncolon id
+           | id.
+
+TYPE -> NAMESPACE
+      | TUPLE_TYPE
+      | exclamation.
+
+TUPLE_TYPE -> lparen comma rparen
+            | lparen TUPLE_TYPE_ITEMS rparen
+            | lparen TUPLE_TYPE_ITEMS comma rparen
+            | lparen EXPR comma rparen.
+
+TUPLE_TYPE_ITEMS -> TYPE comma TYPE
+                  | TUPLE_TYPE_ITEMS comma TYPE.

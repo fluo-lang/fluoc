@@ -92,6 +92,7 @@ impl TypedExpr {
                         (Prim::I16, LiteralType::Number) => {}
                         (Prim::I32, LiteralType::Number) => {}
                         (Prim::I64, LiteralType::Number) => {}
+                        (Prim::Infer, _) => {}
 
                         (_, _) => return Err(bad_literal(literal, self.pos)),
                     },

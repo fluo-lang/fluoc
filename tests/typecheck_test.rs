@@ -125,6 +125,23 @@ assert_error!(
     explicit_return_mismatch
 );
 
+assert_error!(
+    r#"let entry = () -> (i32, i32) {
+    let y = 10;
+    let y = y;
+    let my_func = () -> _ {
+        return y;
+    };
+    return (x(x(y)), my_func());
+};
+
+let x = (a: _) -> _ {
+    return a;
+};"#,
+    vec![ErrorType::TypeMismatch],
+    complex_infer_mismatch
+);
+
 assert_ok!(
     r#"let entry = () {
     let x: i32 = 10;
@@ -175,3 +192,4 @@ let x = (a: _) -> _ {
 };"#,
     complex
 );
+

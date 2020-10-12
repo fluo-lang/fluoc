@@ -45,11 +45,13 @@ pub enum Prim {
     I32,
     I16,
     I8,
+    Infer
 }
 
 impl AnnotationType {
     pub fn is_primitive(&self) -> Option<Prim> {
         match self {
+            AnnotationType::Infer(_, _) => Some(Prim::Infer),
             AnnotationType::Type(ty, _) if ty.scopes.len() == 1 => {
                 let first_name = ty.scopes[0].clone();
                 let is_prim = match get_segment!(first_name.sourcemap, first_name.pos) {
