@@ -1,4 +1,4 @@
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::Criterion;
 use lib::logger::LoggerInner;
 use lib::parser;
 use lib::sourcemap::SourceMapInner;
@@ -6,10 +6,9 @@ use lib::sourcemap::SourceMapInner;
 use std::path;
 use std::rc::Rc;
 
-#[allow(unused_must_use)]
-fn criterion_benchmark(c: &mut Criterion) {
+pub fn parser_benchmark(c: &mut Criterion) {
     let sourcemap = SourceMapInner::new();
-    sourcemap.borrow_mut().insert_file(
+    let filename_id = sourcemap.borrow_mut().insert_file(
         path::PathBuf::from(
             "my_long_filename_test_this_is_really_long_but_its_for_a_Test_so_who_cares.fl",
         ),
@@ -20,22 +19,21 @@ djawd
 sfghsdjajdksajfiwjijfa	
 */	
 
-def other() {	
-    def other_1() -> () {	
+let other = () {	
+    let other_1 = () -> () {	
         return 10;	
-    }	
-    let x: int = 10;	
+    };	
+    let x: int = 10;
 
-    def other_1() -> int {	
+    let other_1 = () -> int {	
         return 10;	
-    }
+    };
 
-    let _qwertyuiopasdfghjklzxcvbnm: int;	
-    _qwertyuiopasdfghjklzxcvbnm = "hi";	
+    let _qwertyuiopasdfghjklzxcvbnm: int =10;	
     hi(10, 102, _qwertyuiopasdfghjklzxcvbnm+"other hi", x);	
-    return (((((((1023), (((123))), x = 10, (((let x: int = 10))), (("awd"))))))));
-    (((((((((((((())))))))))))));
-}
+    return (((((((1023), (((123))), (((let x: int = 10))), (("awd"))))))));
+    (((((((((a((a(((hi82))))))))))))));
+};
 "#
         .to_string(),
     );
@@ -44,18 +42,11 @@ def other() {
 
     c.bench_function("parser simple", |b| {
         b.iter(|| {
-            let mut my_parser =
-                parser::parser::Parser::new(0, Rc::clone(&logger), Rc::clone(&sourcemap));
-            my_parser.initialize_expr();
-            my_parser.parse();
+            let mut parser =
+                parser::parser::Parser::new(filename_id, Rc::clone(&logger), Rc::clone(&sourcemap));
+            parser.initialize_expr();
+            parser.parse().unwrap();
         })
     });
 }
 
-criterion_group! {
-    name = benches;
-    config = Criterion::default().sample_size(10);
-    targets = criterion_benchmark
-}
-
-criterion_main!(benches);

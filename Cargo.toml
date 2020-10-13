@@ -27,6 +27,6 @@ criterion = "0.3"
 inkwell = { git = "https://github.com/TheDan64/inkwell", branch = "llvm10-0" }
 
 [[bench]]
-name = "parser_bench"
+name = "benches"
 harness = false
 

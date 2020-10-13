@@ -1,7 +1,4 @@
-
-pub type value = int;
-
-pub let hello = (val: value) -> value {
-    return val;
+let entry = () -> i32 {
+    return 1;
 };
 

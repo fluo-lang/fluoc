@@ -1,4 +1,4 @@
-use super::{MirExpr, MirExprEnum, MirStmt, MirType, Tag};
+use super::{FunctionSig, MirExpr, MirExprEnum, MirStmt, MirType, Tag};
 
 use crate::logger::ErrorValue;
 use crate::typecheck::annotation::*;
@@ -28,7 +28,7 @@ impl TypedStmt {
         match self.stmt {
             TypedStmtEnum::Expression(expr) => Ok(MirStmt::Expression(expr.into_mir(mir)?)),
             TypedStmtEnum::Tag(tag) => Ok(MirStmt::Tag(Tag { tag })),
-            _ => unimplemented!(),
+            _ => todo!(),
         }
     }
 }
@@ -75,12 +75,12 @@ impl TypedExpr {
                 // Push return statement onto statement list
                 mir.push(MirStmt::Return {
                     value: expr,
-                    pos: self.pos
+                    pos: self.pos,
                 });
                 Ok(MirExpr {
                     value: MirExprEnum::Never,
                     ty: MirType::Never,
-                    pos: self.pos
+                    pos: self.pos,
                 })
             }
             TypedExprEnum::Yield(ret) => {
@@ -89,15 +89,15 @@ impl TypedExpr {
                 // Push yield statement onto statement list
                 mir.push(MirStmt::Yield {
                     value: expr,
-                    pos: self.pos
+                    pos: self.pos,
                 });
                 Ok(MirExpr {
                     value: MirExprEnum::Never,
                     ty: MirType::Never,
-                    pos: self.pos
+                    pos: self.pos,
                 })
             }
-            _ => unimplemented!(),
+            _ => todo!(),
         }
     }
 }
@@ -118,7 +118,22 @@ impl AnnotationType {
                     .collect::<Result<Vec<_>, _>>()?,
                 pos,
             )),
-            _ => unimplemented!(),
+            AnnotationType::Function(args, ret, pos) => Ok(MirType::FunctionSig(
+                FunctionSig {
+                    pos_args: (*args)
+                        .clone()
+                        .into_iter()
+                        .map(|ty| ty.into_mir())
+                        .collect::<Result<Vec<_>, _>>()?,
+                    return_type: Box::new((*ret).clone().into_mir()?),
+                    pos,
+                },
+                pos,
+            )),
+            AnnotationType::Infer(_, _) => {
+                panic!("reached unknown type: this shouldn't happen")
+            }
+            _ => todo!(),
         }
     }
 }

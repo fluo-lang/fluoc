@@ -26,6 +26,7 @@ pub struct LoggerInner {
     sourcemap: SourceMap,
 
     printed_lines: HashMap<usize, HashSet<usize>>,
+    disabled: bool,
 }
 
 impl LoggerInner {
@@ -37,7 +38,12 @@ impl LoggerInner {
             sourcemap,
 
             printed_lines: HashMap::new(),
+            disabled: false,
         }))
+    }
+
+    pub fn disable(&mut self) {
+        self.disabled = true;
     }
 
     /// Pushes an error onto the error vector.
@@ -51,18 +57,20 @@ impl LoggerInner {
     }
 
     pub fn log(&self, logged_val: String) {
-        println!(
-            "{}> {}{}{}",
-            Color::Cyan,
-            Color::Green,
-            logged_val,
-            Font::Reset
-        );
+        if !self.disabled {
+            eprintln!(
+                "{}> {}{}{}",
+                Color::Cyan,
+                Color::Green,
+                logged_val,
+                Font::Reset
+            );
+        }
     }
 
     pub fn log_verbose(&self, logged_val: &dyn Fn() -> String) {
-        if self.verbose {
-            println!(
+        if self.verbose & !self.disabled {
+            eprintln!(
                 "{}> {}{}{}",
                 Color::Cyan,
                 Color::Green,

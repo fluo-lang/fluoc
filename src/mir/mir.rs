@@ -17,7 +17,7 @@ pub struct Binding {
 #[derive(Debug, Clone)]
 /// (i32, i32, ()) -> ()
 pub struct FunctionSig {
-    pub pos_args: Vec<Binding>,
+    pub pos_args: Vec<MirType>,
     pub return_type: Box<MirType>,
     pub pos: helpers::Pos,
 }
@@ -74,24 +74,17 @@ pub struct Block {
 #[derive(Debug, Clone)]
 pub struct FunctionExpr {
     pub signature: FunctionSig,
+    pub arg_names: Vec<ast::Namespace>,
     pub block: Block,
     pub mangled_name: String,
 }
 
-#[derive(Debug, Clone)]
-pub struct VariableAssign {
-    pub var_name: ast::Namespace,
-    pub ty: MirExpr,
-    pub pos: helpers::Pos,
-}
 #[derive(Debug, Clone)]
 pub struct VariableAssignDeclaration {
     pub var_name: Rc<ast::Namespace>,
     pub value: MirExpr,
     pub pos: helpers::Pos,
 }
-#[derive(Debug, Clone)]
-pub struct VariableDeclaration {}
 
 #[derive(Debug, Clone)]
 pub struct Literal {
@@ -101,7 +94,7 @@ pub struct Literal {
 
 #[derive(Debug, Clone)]
 pub struct Tag {
-    pub tag: ast::Tag
+    pub tag: ast::Tag,
 }
 
 #[derive(Debug, Clone)]
@@ -109,7 +102,6 @@ pub enum MirExprEnum {
     Variable(ast::Namespace),
     Literal(Literal),
     Function(Box<FunctionExpr>),
-    VariableAssign(Box<VariableAssign>),
     Block(Block),
     Conditional(Box<Conditional>),
     RefID(Rc<ast::Namespace>),
@@ -125,17 +117,9 @@ pub struct MirExpr {
 
 #[derive(Debug, Clone)]
 pub enum MirStmt {
-    VariableDeclaration(VariableDeclaration),
     VariableAssignDeclaration(Box<VariableAssignDeclaration>),
-    Return {
-        value: MirExpr,
-        pos: helpers::Pos,
-    },
-    Yield {
-        value: MirExpr,
-        pos: helpers::Pos,
-    },
+    Return { value: MirExpr, pos: helpers::Pos },
+    Yield { value: MirExpr, pos: helpers::Pos },
     Tag(Tag),
     Expression(MirExpr),
 }
-

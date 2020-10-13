@@ -1015,7 +1015,6 @@ impl Parser {
             Err(_) => {}
         }
 
-
         if lexer::TokenType::LP == self.forward().token {
             let t = self.peek();
             if lexer::TokenType::RP == t.token {
