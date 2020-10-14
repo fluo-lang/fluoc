@@ -469,10 +469,7 @@ impl Namespace {
 
     pub fn prepend_namespace(&mut self, other: &mut NamespaceInner) -> Namespace {
         std::mem::swap(&mut self.scopes, other); // Put into other
-        self.scopes.reserve_exact(other.len());
-        for scope in other.drain(0..(other.len()-1)) {
-            self.scopes.push(scope);
-        }
+        self.scopes.extend(other.drain(..));
         std::mem::replace(self, Namespace::default())
     }
 
