@@ -14,6 +14,8 @@ use std::collections::HashMap;
 use std::path;
 use std::rc::Rc;
 
+use smallvec::SmallVec;
+
 macro_rules! run_all {
     ( $self: expr, $($e:expr),+ ) => {
         $(ignore_or_return!($e($self));)+
@@ -1127,7 +1129,7 @@ impl Parser {
 
     fn namespace(&mut self) -> Result<ast::Namespace, ErrorGen> {
         let position = self.token_pos;
-        let mut ids: Vec<ast::NameID> = Vec::new();
+        let mut ids: ast::NamespaceInner = SmallVec::new();
         let id = self.name_id()?;
 
         ids.push(id);

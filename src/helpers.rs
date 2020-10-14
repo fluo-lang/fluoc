@@ -5,7 +5,7 @@ use std::env::current_exe;
 use std::path;
 use std::process;
 
-#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Default, Copy, Clone, Hash, PartialEq, Eq)]
 /// Position helper struct
 ///
 /// Used to keep track of all tokens and nodes.

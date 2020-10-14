@@ -35,6 +35,7 @@ impl TypedStmt {
 
 impl TypedExpr {
     fn into_mir(self, mir: &mut Vec<MirStmt>) -> Result<MirExpr, ErrorValue> {
+        println!("{:?}", self);
         match self.expr {
             TypedExprEnum::Is(is) => {
                 let mut expr = is.expr.into_mir(mir)?;

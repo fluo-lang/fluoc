@@ -12,6 +12,8 @@ use std::fmt::{Debug, Display};
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
+use smallvec::{smallvec, SmallVec};
+
 // EXPRESSIONS ---------------------------------------
 
 #[derive(Debug, Clone, PartialEq)]
@@ -175,7 +177,7 @@ impl NameID {
     pub fn into_namespace(self) -> Namespace {
         Namespace {
             pos: self.pos,
-            scopes: vec![self],
+            scopes: smallvec![self],
         }
     }
 }
@@ -420,10 +422,12 @@ impl Type {
     }
 }
 
-#[derive(Debug, Eq, Clone)]
+pub type NamespaceInner = SmallVec<[NameID; 5]>;
+
+#[derive(Debug, Eq, Clone, Default)]
 /// This::is::a::namespace!
 pub struct Namespace {
-    pub scopes: Vec<NameID>,
+    pub scopes: NamespaceInner,
     pub pos: helpers::Pos,
 }
 
@@ -455,18 +459,21 @@ impl Namespace {
     pub fn from_name_id(value: NameID) -> Rc<Namespace> {
         Rc::new(Namespace {
             pos: value.pos,
-            scopes: vec![value],
+            scopes: smallvec![value],
         })
     }
 
-    pub fn as_vec_nameid(&mut self) -> &mut Vec<NameID> {
+    pub fn as_vec_nameid(&mut self) -> &mut NamespaceInner {
         &mut self.scopes
     }
 
-    pub fn prepend_namespace(&mut self, other: &mut Vec<NameID>) -> Namespace {
+    pub fn prepend_namespace(&mut self, other: &mut NamespaceInner) -> Namespace {
         std::mem::swap(&mut self.scopes, other); // Put into other
-        self.scopes.append(other); // Append self.scopes
-        self.clone()
+        self.scopes.reserve_exact(other.len());
+        for scope in other.drain(0..(other.len()-1)) {
+            self.scopes.push(scope);
+        }
+        std::mem::replace(self, Namespace::default())
     }
 
     pub fn prepend_namespace_rc(&self, other: &[NameID]) -> Namespace {
@@ -475,7 +482,7 @@ impl Namespace {
                 .iter()
                 .chain(&self.scopes)
                 .map(|x| x.clone())
-                .collect::<Vec<_>>(),
+                .collect::<NamespaceInner>(),
             pos: self.pos,
         }
     }
