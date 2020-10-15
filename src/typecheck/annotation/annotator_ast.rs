@@ -64,9 +64,11 @@ impl ast::Function {
         };
 
         let mut new_context = context.clone();
+        let mut arg_names = Vec::with_capacity(args.len());
 
         for (ty, (name, _)) in args.iter().zip(self.arguments.positional) {
-            new_context.set_local(name, ty.clone())
+            arg_names.push(Rc::clone(&name));
+            new_context.set_local(name, ty.clone());
         }
 
         let block = self.block.pass_2(annotator, &mut new_context)?;
@@ -75,6 +77,7 @@ impl ast::Function {
             expr: TypedExprEnum::Function(TypedFunction {
                 ty: self.ty.unwrap(),
                 block: Box::new(block),
+                arg_names,
             }),
             pos: self.pos,
         })

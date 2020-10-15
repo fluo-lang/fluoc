@@ -39,6 +39,7 @@ fn annotate_identity() {
                         TypedExprEnum::Function(TypedFunction {
                             ty: ty @ AnnotationType::Function(ref arguments, _, _),
                             block,
+                            ..
                         }),
                     pos: _,
                 }),

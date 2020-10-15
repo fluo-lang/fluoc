@@ -77,6 +77,7 @@ fn generate_expr(
         TypedExprEnum::Function(TypedFunction {
             ty: ty @ AnnotationType::Function(ref func_args, ref ret, _),
             block,
+            arg_names: _
         }) => {
             constraints.0.extend(
                 // Set the outer and inner return type to be function annotation type

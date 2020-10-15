@@ -135,6 +135,7 @@ pub struct TypedAssign {
 #[derive(Clone, Debug)]
 pub struct TypedFunction {
     pub ty: AnnotationType,
+    pub arg_names: Vec<Rc<ast::Namespace>>,
     pub block: Box<TypedExpr>,
 }
 
