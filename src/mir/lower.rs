@@ -88,7 +88,7 @@ impl TypedExpr {
                                 },
                                 block: {
                                     let mut new_block = block.into_block()?;
-                                    new_block.nodes.append(&mut scope);
+                                    new_block.stmts.append(&mut scope);
                                     new_block
                                 },
                                 arg_names: function.arg_names,
@@ -121,7 +121,7 @@ impl TypedExpr {
                         pos: self.pos,
                         ty: ty.clone(),
                         value: MirExprEnum::Block(super::MirBlock {
-                            nodes: vec![
+                            stmts: vec![
                                 MirStmt::VariableAssignDeclaration(Box::new(
                                     super::VariableAssignDeclaration {
                                         var_name: Rc::clone(
@@ -168,12 +168,47 @@ impl TypedExpr {
                 }
                 Ok((None, expr_data.is_null(true)))
             }
-            TypedExprEnum::Literal(lit) => Ok((Some(super::MirExpr {
-                value: MirExprEnum::Literal,
-                ty: lit.ty.into_mir()?,
-                pos: lit.value.pos,
-            }), expr_data)),
-            _ => todo!(),
+            TypedExprEnum::Literal(lit) => Ok((
+                Some(super::MirExpr {
+                    value: MirExprEnum::Literal,
+                    ty: lit.ty.into_mir()?,
+                    pos: lit.value.pos,
+                }),
+                expr_data,
+            )),
+            TypedExprEnum::Block(block) => {
+                let mut stmts = Vec::with_capacity(block.stmts.len());
+                let mut metadata = super::BlockMetadata { returns: false };
+                for stmt in block.stmts {
+                    if let TypedStmtEnum::Expression(TypedExpr {
+                        expr: TypedExprEnum::Return(_),
+                        ..
+                    })
+                    | TypedStmtEnum::Expression(TypedExpr {
+                        expr: TypedExprEnum::Yield(_),
+                        ..
+                    }) = stmt.stmt
+                    {
+                        metadata.returns = true;
+                    }
+                }
+
+                let block_mir_ty = block.ty.into_mir()?;
+
+                Ok((
+                    Some(super::MirExpr {
+                        value: MirExprEnum::Block(super::MirBlock {
+                            stmts,
+                            metadata,
+                            pos: self.pos,
+                        }),
+                        pos: self.pos,
+                        ty: block_mir_ty,
+                    }),
+                    expr_data,
+                ))
+            }
+            val => todo!("{:#?}", val),
         }
     }
 }
@@ -188,7 +223,7 @@ impl MirExpr {
             | MirExprEnum::Conditional(_) => Ok(super::MirBlock {
                 metadata: super::BlockMetadata { returns: true },
                 pos: self.pos,
-                nodes: vec![MirStmt::Return {
+                stmts: vec![MirStmt::Return {
                     pos: self.pos,
                     value: self,
                 }],

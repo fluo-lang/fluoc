@@ -71,7 +71,7 @@ impl<'a> Master<'a> {
 
         let pass_manager = self.init_passes();
         pass_manager.run_on(&self.modules[&filename_id].module);
-        //println!("{}", &self.modules[filename].module.print_to_string().to_str().unwrap());
+        println!("{}", &self.modules[&filename_id].module.print_to_string());
 
         self.link_to_obj(
             filename_id,

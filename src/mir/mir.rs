@@ -57,7 +57,7 @@ pub struct BlockMetadata {
 
 #[derive(Debug, Clone)]
 pub struct MirBlock {
-    pub nodes: Vec<MirStmt>,
+    pub stmts: Vec<MirStmt>,
     pub metadata: BlockMetadata,
     pub pos: helpers::Pos,
 }

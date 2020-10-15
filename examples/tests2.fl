@@ -1,4 +1,3 @@
 let entry = () -> i32 {
-    return 1;
+    return 10;
 };
-
