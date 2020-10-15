@@ -1,6 +1,7 @@
-use super::{MirBlock, MirExpr, MirExprEnum, MirFunctionSig, MirStmt, MirType, Tag};
+use super::{MirExpr, MirExprEnum, MirStmt, MirType};
 
 use crate::logger::ErrorValue;
+use crate::parser::ast;
 use crate::typecheck::annotation::*;
 
 use std::rc::Rc;
@@ -33,20 +34,24 @@ impl TypedStmt {
                     None => return Ok(None),
                 },
             ))),
-            TypedStmtEnum::Tag(tag) => Ok(Some(MirStmt::Tag(Tag { tag }))),
+            TypedStmtEnum::Tag(tag) => Ok(Some(MirStmt::Tag(super::MirTag { tag }))),
             _ => todo!(),
         }
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Clone)]
 pub struct ExprData {
     is_null: bool,
+    expr_name: Option<Rc<ast::Namespace>>,
 }
 
 impl ExprData {
     pub fn default() -> Self {
-        Self { is_null: false }
+        Self {
+            is_null: false,
+            expr_name: None,
+        }
     }
 
     pub fn is_null(mut self, val: bool) -> Self {
@@ -64,11 +69,15 @@ impl TypedExpr {
         match self.expr {
             TypedExprEnum::Function(function) => {
                 let mut scope = Vec::new();
-                match function.block.into_mir(&mut scope, expr_data)?.0 {
+                match function.block.into_mir(&mut scope, expr_data.clone())?.0 {
                     Some(block) => match function.ty {
                         AnnotationType::Function(pos_args, ret_ty, pos) => {
                             mir.push(MirStmt::FunctionDef {
-                                signature: MirFunctionSig {
+                                mangled_name: expr_data
+                                    .expr_name
+                                    .map(|name| Rc::clone(&name).to_string())
+                                    .unwrap_or_else(|| "anon".to_string()),
+                                signature: super::MirFunctionSig {
                                     pos_args: (*pos_args)
                                         .clone()
                                         .into_iter()
@@ -82,7 +91,6 @@ impl TypedExpr {
                                     new_block.nodes.append(&mut scope);
                                     new_block
                                 },
-                                mangled_name: "test".to_string(),
                                 arg_names: function.arg_names,
                             });
                         }
@@ -112,7 +120,7 @@ impl TypedExpr {
                     Some(MirExpr {
                         pos: self.pos,
                         ty: ty.clone(),
-                        value: MirExprEnum::Block(MirBlock {
+                        value: MirExprEnum::Block(super::MirBlock {
                             nodes: vec![
                                 MirStmt::VariableAssignDeclaration(Box::new(
                                     super::VariableAssignDeclaration {
@@ -160,19 +168,24 @@ impl TypedExpr {
                 }
                 Ok((None, expr_data.is_null(true)))
             }
+            TypedExprEnum::Literal(lit) => Ok((Some(super::MirExpr {
+                value: MirExprEnum::Literal,
+                ty: lit.ty.into_mir()?,
+                pos: lit.value.pos,
+            }), expr_data)),
             _ => todo!(),
         }
     }
 }
 
 impl MirExpr {
-    fn into_block(self) -> Result<MirBlock, ErrorValue> {
+    fn into_block(self) -> Result<super::MirBlock, ErrorValue> {
         match self.value {
             MirExprEnum::Block(block) => Ok(block),
             MirExprEnum::RefID(_)
-            | MirExprEnum::Literal(_)
+            | MirExprEnum::Literal
             | MirExprEnum::Variable(_)
-            | MirExprEnum::Conditional(_) => Ok(MirBlock {
+            | MirExprEnum::Conditional(_) => Ok(super::MirBlock {
                 metadata: super::BlockMetadata { returns: true },
                 pos: self.pos,
                 nodes: vec![MirStmt::Return {

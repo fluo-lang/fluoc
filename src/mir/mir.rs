@@ -70,20 +70,14 @@ pub struct VariableAssignDeclaration {
 }
 
 #[derive(Debug, Clone)]
-pub struct Literal {
-    pub ty: MirType,
-    pub pos: helpers::Pos,
-}
-
-#[derive(Debug, Clone)]
-pub struct Tag {
+pub struct MirTag {
     pub tag: ast::Tag,
 }
 
 #[derive(Debug, Clone)]
 pub enum MirExprEnum {
     Variable(ast::Namespace),
-    Literal(Literal),
+    Literal,
     Block(MirBlock),
     Conditional(Box<Conditional>),
     RefID(Rc<ast::Namespace>),
@@ -107,7 +101,7 @@ pub enum MirStmt {
         value: MirExpr,
         pos: helpers::Pos,
     },
-    Tag(Tag),
+    Tag(MirTag),
     Expression(MirExpr),
     FunctionDef {
         signature: MirFunctionSig,
