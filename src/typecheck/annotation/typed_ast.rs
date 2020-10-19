@@ -129,7 +129,8 @@ impl TypedBinder {
 #[derive(Clone, Debug)]
 pub struct TypedAssign {
     pub binder: TypedBinder,
-    pub expr: Box<TypedExpr>,
+    pub expr: either::Either<Box<TypedExpr>, AnnotationType>,
+    pub visibility: ast::Visibility
 }
 
 #[derive(Clone, Debug)]

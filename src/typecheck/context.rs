@@ -1,5 +1,3 @@
-use crate::mir;
-
 use crate::parser::ast;
 
 use std::collections::HashMap;

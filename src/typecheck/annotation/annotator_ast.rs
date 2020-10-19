@@ -4,6 +4,7 @@ use crate::logger::{not_a_err, ErrorAnnotation, ErrorDisplayType, ErrorType, Err
 use crate::parser::ast;
 use crate::typecheck::context::{Context, TOption};
 
+use either::Either;
 use std::rc::Rc;
 
 impl<'a> TOption<&'a AnnotationType> {
@@ -107,11 +108,11 @@ impl ast::Block {
                     expression: Box::new(ast::Expr::Yield(ast::Yield {
                         expression: Box::new(ast::Expr::Tuple(ast::Tuple {
                             values: Vec::new(),
-                            pos: self.pos
+                            pos: self.pos,
                         })),
                         pos: self.pos,
                     })),
-                    pos: self.pos
+                    pos: self.pos,
                 },
             ))
         }
@@ -162,10 +163,17 @@ impl ast::VariableAssignDeclaration {
         annotator: &mut Annotator,
         context: &mut Context<AnnotationType>,
     ) -> Result<AnnotationType, ErrorValue> {
-        let typed_type = self.expr.pass_1(annotator, context)?;
-
-        context.set_local(Rc::clone(&self.name), typed_type.clone());
-        Ok(typed_type)
+        match &mut self.expr {
+            Some(expr) => {
+                let typed_type = expr.pass_1(annotator, context)?;
+                context.set_local(Rc::clone(&self.name), typed_type.clone());
+                Ok(typed_type)
+            }
+            None => {
+                self.typecheck_type = Some(annotator.annon_type(&self.ty));
+                Ok(self.typecheck_type.clone().unwrap())
+            }
+        }
     }
 
     fn pass_2(
@@ -173,15 +181,22 @@ impl ast::VariableAssignDeclaration {
         annotator: &mut Annotator,
         context: &mut Context<AnnotationType>,
     ) -> Result<TypedExpr, ErrorValue> {
-        let typed_type = annotator.annon_type(&self.ty);
-        let typed_expr = self.expr.pass_2(annotator, context)?;
+        let typed_type = match self.typecheck_type {
+            Some(ty) => ty,
+            None => annotator.annon_type(&self.ty),
+        };
+        let typed_expr = match self.expr {
+            Some(expr) => Either::Left(Box::new(expr.pass_2(annotator, context)?)),
+            None => Either::Right(typed_type.clone()),
+        };
 
         context.set_local(Rc::clone(&self.name), typed_type.clone());
 
         Ok(TypedExpr {
             pos: self.pos,
             expr: TypedExprEnum::VariableAssignDeclaration(TypedAssign {
-                expr: Box::new(typed_expr),
+                expr: typed_expr,
+                visibility: self.visibility,
                 binder: TypedBinder {
                     name: Some(Rc::clone(&self.name)),
                     ty: typed_type,

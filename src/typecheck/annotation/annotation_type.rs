@@ -41,6 +41,7 @@ impl PartialEq for AnnotationType {
 #[derive(Debug, Clone)]
 pub enum Prim {
     Bool,
+    I128,
     I64,
     I32,
     I16,
@@ -60,6 +61,7 @@ impl AnnotationType {
                     "i32" => Prim::I32,
                     "i16" => Prim::I16,
                     "i8" => Prim::I8,
+                    "i128" => Prim::I128,
                     _ => return None,
                 };
                 Some(is_prim)

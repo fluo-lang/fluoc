@@ -2,6 +2,7 @@ use crate::typecheck::annotation::{
     AnnotationType, TypedExpr, TypedExprEnum, TypedFunction, TypedStmt, TypedStmtEnum,
 };
 
+use either::Either;
 use std::collections::HashSet;
 use std::fmt;
 use std::rc::Rc;
@@ -77,7 +78,7 @@ fn generate_expr(
         TypedExprEnum::Function(TypedFunction {
             ty: ty @ AnnotationType::Function(ref func_args, ref ret, _),
             block,
-            arg_names: _
+            arg_names: _,
         }) => {
             constraints.0.extend(
                 // Set the outer and inner return type to be function annotation type
@@ -122,13 +123,15 @@ fn generate_expr(
         }
 
         TypedExprEnum::VariableAssignDeclaration(assign_dec) => {
-            constraints
-                .0
-                .extend(generate_expr(assign_dec.expr.as_ref(), outer_ty, inner_ty).0);
-            constraints.0.insert(Constraint::new(
-                assign_dec.binder.ty.clone(),
-                assign_dec.expr.as_ref().ty().clone(),
-            ));
+            if let Either::Left(expr) = &assign_dec.expr {
+                constraints
+                    .0
+                    .extend(generate_expr(expr.as_ref(), outer_ty, inner_ty).0);
+                constraints.0.insert(Constraint::new(
+                    assign_dec.binder.ty.clone(),
+                    expr.as_ref().ty().clone(),
+                ));
+            }
         }
 
         TypedExprEnum::Yield(yield_expr) => {

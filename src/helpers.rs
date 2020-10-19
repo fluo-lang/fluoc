@@ -1,7 +1,5 @@
 use crate::logger::{ErrorLevel, ErrorValue, Logger};
-use crate::paths;
 
-use std::env::current_exe;
 use std::path;
 use std::process;
 

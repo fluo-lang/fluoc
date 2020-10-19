@@ -5,6 +5,7 @@ use crate::helpers::Pos;
 use crate::logger::{ErrorAnnotation, ErrorDisplayType, ErrorType, ErrorValue};
 use crate::parser::ast::LiteralType;
 
+use either::Either;
 use std::rc::Rc;
 
 impl AnnotationType {
@@ -112,7 +113,9 @@ impl TypedExpr {
             }
             TypedExprEnum::VariableAssignDeclaration(var) => {
                 var.binder.substitute(solved_constraints)?;
-                var.expr.substitute(solved_constraints)?;
+                if let Either::Left(expr) = &mut var.expr {
+                    expr.substitute(solved_constraints)?;
+                }
             }
         }
 

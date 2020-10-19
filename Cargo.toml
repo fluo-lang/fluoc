@@ -4,14 +4,6 @@ version = "0.0.1"
 authors = ["Monlih <MonliH@users.noreply.github.com>"]
 edition = "2018"
 
-[lib]
-name = "lib"
-path = "src/lib.rs"
-
-[[bin]]
-name = "bin"
-path = "src/main.rs"
-
 [dependencies]
 clap = {version = "2.33.0", features = ["yaml"]}
 inkwell = { git = "https://github.com/TheDan64/inkwell", branch = "llvm10-0" }
@@ -20,14 +12,7 @@ lazy_static = "1.4.0"
 unicode-segmentation = "1.6.0"
 codespan-reporting = "0.9.5"
 smallvec = "1.4.2"
-
-[dev-dependencies]
-criterion = "0.3"
+either = "1.6.1"
 
 [build-dependencies]
 inkwell = { git = "https://github.com/TheDan64/inkwell", branch = "llvm10-0" }
-
-[[bench]]
-name = "benches"
-harness = false
-

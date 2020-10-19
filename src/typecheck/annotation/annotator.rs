@@ -76,7 +76,7 @@ impl Annotator {
                 ),
                 ty.pos,
             ),
-            ast::TypeType::Function(args, ret) => unimplemented!(),
+            ast::TypeType::Function(_, _) => todo!(),
         }
     }
 
@@ -87,8 +87,16 @@ impl Annotator {
 }
 
 #[cfg(test)]
-pub mod AnnotatorTests {
+pub mod annotator_test {
     use super::*;
+
+    use crate::logger::LoggerInner;
+    use crate::parser::Parser;
+    use crate::sourcemap::SourceMapInner;
+    use crate::{typecheck, typecheck::annotation::*};
+
+    use std::path;
+    use std::rc::Rc;
 
     macro_rules! assert_infer {
         ($left: expr, $right: expr) => {
@@ -113,5 +121,53 @@ pub mod AnnotatorTests {
         assert_infer!(2, _2);
         assert_infer!(3, _3);
         assert_infer!(4, _4);
+    }
+
+    macro_rules! parser_run {
+        ($code: expr) => {{
+            let sourcemap = SourceMapInner::new();
+            let filename_code = sourcemap
+                .borrow_mut()
+                .insert_file(path::PathBuf::from("teset.f"), $code.to_string());
+            let logger = LoggerInner::new(true, Rc::clone(&sourcemap));
+            let mut parser = Parser::new(filename_code, logger, sourcemap);
+            parser.initialize_expr();
+            parser.parse().unwrap();
+            parser.ast.unwrap()
+        }};
+    }
+
+    #[test]
+    fn annotate_identity() {
+        let ast = parser_run!("(a: i32) -> _ { yield a; };");
+        let mut annotator = Annotator::new();
+
+        let typed_ast = annotator
+            .annotate(ast, &mut typecheck::context::Context::new())
+            .unwrap();
+
+        match &typed_ast[0] {
+            TypedStmt {
+                stmt:
+                    TypedStmtEnum::Expression(TypedExpr {
+                        expr:
+                            TypedExprEnum::Function(TypedFunction {
+                                ty: ty @ AnnotationType::Function(ref arguments, _, _),
+                                block,
+                                ..
+                            }),
+                        pos: _,
+                    }),
+                pos: _,
+            } => {
+                assert_eq!(arguments.len(), 1);
+
+                assert_ne!(ty, block.ty());
+                assert_ne!(&arguments[0], ty);
+
+                assert_ne!(&arguments[0], block.ty())
+            }
+            _ => panic!(),
+        }
     }
 }

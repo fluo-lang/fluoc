@@ -7,3 +7,4 @@ pub mod unifier;
 
 pub use substitute::substitute;
 pub use typecheck_module::TypeCheckModule;
+pub use annotation::Prim;

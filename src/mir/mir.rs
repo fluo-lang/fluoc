@@ -6,6 +6,7 @@ use crate::helpers;
 use crate::parser::ast;
 use crate::typecheck::annotation::Prim;
 
+use either::Either;
 use std::rc::Rc;
 
 #[derive(Debug, Clone)]
@@ -23,6 +24,9 @@ pub enum MirType {
 
     /// Primitives
     Primitive(Prim, helpers::Pos),
+
+    /// Function Type
+    FunctionType(Vec<MirType>, Box<MirType>, helpers::Pos),
 
     /// Null type
     Never,
@@ -63,9 +67,9 @@ pub struct MirBlock {
 }
 
 #[derive(Debug, Clone)]
-pub struct VariableAssignDeclaration {
+pub struct MirVariableAssign {
     pub var_name: Rc<ast::Namespace>,
-    pub value: MirExpr,
+    pub value: Either<MirExpr, MirType>,
     pub pos: helpers::Pos,
 }
 
@@ -75,12 +79,20 @@ pub struct MirTag {
 }
 
 #[derive(Debug, Clone)]
+pub struct MirFunctionCall {
+    pub arguments: Vec<MirExpr>,
+    pub mangled_name: String,
+    pub pos: helpers::Pos,
+}
+
+#[derive(Debug, Clone)]
 pub enum MirExprEnum {
     Variable(ast::Namespace),
     Literal,
     Block(MirBlock),
     Conditional(Box<Conditional>),
     RefID(Rc<ast::Namespace>),
+    FunctionCall(MirFunctionCall),
 }
 
 #[derive(Debug, Clone)]
@@ -92,7 +104,7 @@ pub struct MirExpr {
 
 #[derive(Debug, Clone)]
 pub enum MirStmt {
-    VariableAssignDeclaration(Box<VariableAssignDeclaration>),
+    VariableAssign(Box<MirVariableAssign>),
     Return {
         value: MirExpr,
         pos: helpers::Pos,
@@ -106,7 +118,8 @@ pub enum MirStmt {
     FunctionDef {
         signature: MirFunctionSig,
         arg_names: Vec<Rc<ast::Namespace>>,
-        block: MirBlock,
+        block: Option<MirBlock>,
+        visibility: ast::Visibility,
         mangled_name: String,
     },
 }

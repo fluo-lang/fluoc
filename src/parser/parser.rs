@@ -760,6 +760,11 @@ impl Parser {
             ast::Visibility::Private
         };
 
+        let is_extern = self.peek().token == lexer::TokenType::Extern;
+        if is_extern {
+            self.forward();
+        }
+
         self.next(lexer::TokenType::Let, position, true)?;
 
         let namespace = self.namespace()?;
@@ -774,14 +779,19 @@ impl Parser {
             }
         };
 
-        self.next(lexer::TokenType::Equals, position, false)?;
-        let expr = self.expr(Prec::LOWEST)?;
+        let expr = if !is_extern {
+            self.next(lexer::TokenType::Equals, position, false)?;
+            Some(Box::new(self.expr(Prec::LOWEST)?))
+        } else {
+            None
+        };
 
         Ok(Expr::VariableAssignDeclaration(
             ast::VariableAssignDeclaration {
                 ty: var_type,
+                typecheck_type: None,
                 name: Rc::new(namespace),
-                expr: Box::new(expr),
+                expr,
                 visibility,
                 pos: self.get_relative_pos(position),
             },
@@ -1023,21 +1033,24 @@ impl Parser {
                 // It's (), let the user know
                 let p = self.forward().pos;
                 return Err(ErrorGen::new(
-                        Box::new(move || {
-                            ErrorValue::new(
-                                "expected token `,`, found token `)`".to_string(),
-                                ErrorType::Syntax,
+                    Box::new(move || {
+                        ErrorValue::new(
+                            "expected token `,`, found token `)`".to_string(),
+                            ErrorType::Syntax,
+                            p,
+                            ErrorDisplayType::Error,
+                            vec![ErrorAnnotation::new(
+                                Some(format!("unexpected token")),
                                 p,
                                 ErrorDisplayType::Error,
-                                vec![ErrorAnnotation::new(
-                                    Some(format!("unexpected token")),
-                                    p,
-                                    ErrorDisplayType::Error
-                                )]
-                            ).with_note("help: if you want an empty tuple,\nadd a comma: `(,)`".to_string())
-                        }),
-                        p,
-                        true
+                            )],
+                        )
+                        .with_note(
+                            "help: if you want an empty tuple,\nadd a comma: `(,)`".to_string(),
+                        )
+                    }),
+                    p,
+                    true,
                 ));
             }
             let expr = self.expr(Prec::LOWEST)?;
@@ -1575,6 +1588,24 @@ pub mod parser_tests {
         "pub let add_overload_test9 = (val: int, val: int) -> int {};",
         Parser::expression_statement,
         function_define_pub
+    );
+
+    parser_run!(
+        "pub extern let test: int;",
+        Parser::expression_statement,
+        extern_let_pub
+    );
+
+    parser_run!(
+        "extern let test: int;",
+        Parser::expression_statement,
+        extern_let
+    );
+
+    parser_run!(
+        "extern let test: (i32, i32) -> i32;",
+        Parser::expression_statement,
+        extern_let_func
     );
 
     parser_run!("@[no_mangle]", Parser::compiler_tag, compilier_tag);

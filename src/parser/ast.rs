@@ -183,16 +183,6 @@ impl NameID {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-/// Variable Assign i.e.:
-///
-/// x = 10;
-pub struct VariableAssign {
-    pub name: Rc<Namespace>,
-    pub expr: Box<Expr>,
-    pub pos: helpers::Pos,
-}
-
-#[derive(Debug, Clone, PartialEq)]
 /// Type Assign i.e.:
 ///
 /// type km = int;
@@ -209,20 +199,9 @@ pub struct TypeAssign {
 /// let x: int = 10;
 pub struct VariableAssignDeclaration {
     pub ty: Type,
+    pub typecheck_type: Option<AnnotationType>,
     pub name: Rc<Namespace>,
-    pub expr: Box<Expr>,
-    pub visibility: Visibility,
-    pub pos: helpers::Pos,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-/// Variable Declaration i.e.:
-///
-/// let x: int;
-pub struct VariableDeclaration {
-    pub ty: Type,
-    pub name: Rc<Namespace>,
-    pub is_extern: bool,
+    pub expr: Option<Box<Expr>>,
     pub visibility: Visibility,
     pub pos: helpers::Pos,
 }
@@ -513,7 +492,6 @@ impl PartialEq for Scope {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Statement {
     ExpressionStatement(ExpressionStatement),
-    VariableDeclaration(VariableDeclaration),
 
     Unit(Unit),
     TypeAssign(TypeAssign),
@@ -527,7 +505,6 @@ impl Statement {
     pub fn pos(&self) -> helpers::Pos {
         match &self {
             Statement::ExpressionStatement(val) => val.pos,
-            Statement::VariableDeclaration(val) => val.pos,
 
             Statement::Unit(val) => val.pos,
             Statement::TypeAssign(val) => val.pos,
@@ -541,7 +518,6 @@ impl Statement {
     pub fn as_str(&self) -> &str {
         match &self {
             Statement::ExpressionStatement(val) => val.expression.as_str(),
-            Statement::VariableDeclaration(_) => "variable declaration",
 
             Statement::Unit(_) => "unit",
             Statement::Import(_) => "import",
@@ -559,7 +535,6 @@ impl Statement {
     pub fn get_scope(&self) -> &Scope {
         match &self {
             Statement::ExpressionStatement(expr) => expr.expression.get_scope(),
-            Statement::VariableDeclaration(_) => &Scope::All,
 
             Statement::TypeAssign(_) => &Scope::All,
             Statement::Unit(_) => &Scope::Outer,
@@ -577,7 +552,6 @@ pub enum Expr {
 
     RefID(RefID),
     Reference(Reference),
-    VariableAssign(VariableAssign),
     VariableAssignDeclaration(VariableAssignDeclaration),
     FunctionCall(FunctionCall),
 
@@ -609,7 +583,6 @@ impl Expr {
             Expr::RefID(val) => val.pos,
             Expr::DollarID(val) => val.pos,
             Expr::Reference(val) => val.pos,
-            Expr::VariableAssign(val) => val.pos,
             Expr::VariableAssignDeclaration(val) => val.pos,
             Expr::FunctionCall(val) => val.pos,
             Expr::Tuple(val) => val.pos,
@@ -639,7 +612,6 @@ impl Expr {
             Expr::RefID(_) => "ID",
             Expr::DollarID(_) => "dollar sign ID",
             Expr::Reference(_) => "refrence",
-            Expr::VariableAssign(_) => "variable assign",
             Expr::VariableAssignDeclaration(_) => "variable assignment declaration",
             Expr::FunctionCall(_) => "function call",
             Expr::Tuple(_) => "tuple",
@@ -665,7 +637,6 @@ impl Expr {
 
     pub fn get_scope(&self) -> &Scope {
         match &self {
-            Expr::VariableAssign(_) => &Scope::All,
             Expr::VariableAssignDeclaration(_) => &Scope::All,
             Expr::Function(_) => &Scope::All,
             Expr::Block(_) => &Scope::All,
