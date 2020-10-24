@@ -168,11 +168,6 @@ fn cannot_infer_err(pos: Pos) -> ErrorValue {
                 pos,
                 ErrorDisplayType::Error,
             ),
-            ErrorAnnotation::new(
-                Some("help: use `is` operator to annotate type".to_string()),
-                pos,
-                ErrorDisplayType::Info,
-            ),
         ],
-    )
+    ).with_note("help: annotate the type".to_string())
 }

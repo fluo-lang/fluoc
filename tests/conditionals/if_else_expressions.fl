@@ -1,0 +1,13 @@
+-- OK
+-- OUTPUT 3
+
+let entry = () {
+    let x = true;
+    let y = if x {
+        yield 10;
+    } else {
+        yield 3;
+    };
+
+    print(y);
+};

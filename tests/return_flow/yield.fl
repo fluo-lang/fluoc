@@ -1,0 +1,9 @@
+-- OK
+-- OUTPUT 10
+
+let entry = () {
+    let x = {
+        yield 10;
+    };
+    print(x);
+};

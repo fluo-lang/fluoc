@@ -1,0 +1,9 @@
+-- OK
+-- OUTPUT 10
+
+let entry = () {
+    let x = true;
+    if x {
+        print(10);
+    };
+};

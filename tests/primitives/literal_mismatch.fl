@@ -1,0 +1,6 @@
+-- ERROR type_mismatch
+
+let entry = () -> i32 {
+    let x: bool = 100;  
+    yield 10;
+};

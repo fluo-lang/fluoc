@@ -39,7 +39,6 @@ pub enum ErrorType {
     TypeMismatch,
     TypeCast,
 
-    PossibleUninitVal,
     Infer,
     Visibility,
     Import,
@@ -60,7 +59,6 @@ impl ErrorType {
             ErrorType::TypeMismatch => "type_mismatch",
             ErrorType::UndefinedSymbol => "undefined_symbol",
             ErrorType::TypeCast => "type_cast",
-            ErrorType::PossibleUninitVal => "possible_uninitialized",
             ErrorType::Visibility => "visibility",
             ErrorType::Import => "import",
             ErrorType::Infer => "infer",
