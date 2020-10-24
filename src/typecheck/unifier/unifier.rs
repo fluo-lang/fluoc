@@ -1,8 +1,9 @@
 use crate::helpers::plural;
 use crate::helpers::Pos;
 use crate::logger::{ErrorAnnotation, ErrorDisplayType, ErrorType, ErrorValue};
+use crate::parser::ast;
 use crate::typecheck::{
-    annotation::AnnotationType,
+    annotation::{AdditionalContraint, AdditionalContraints, AnnotationType},
     constraint_gen::{Constraint, Constraints},
 };
 
@@ -49,8 +50,8 @@ impl Substitutions {
     }
 
     fn apply_constraint(&self, constraint: Constraint) -> Constraint {
-        let first = self.apply(constraint.a.clone());
-        let second = self.apply(constraint.b.clone());
+        let first = self.apply(constraint.a);
+        let second = self.apply(constraint.b);
         Constraint::new(first, second)
     }
 
@@ -88,7 +89,8 @@ impl Substitutions {
                 ),
                 pos,
             ),
-            AnnotationType::Infer(infer_num2, _) => {
+            // Very important!
+            AnnotationType::Infer(infer_num2, _, _) => {
                 if infer_num == infer_num2 {
                     replacement.clone()
                 } else {
@@ -96,6 +98,13 @@ impl Substitutions {
                 }
             }
         }
+    }
+
+    fn compose(&mut self, other: Substitutions) {
+        for (_, v) in self.subs.iter_mut() {
+            *v = other.apply(v.clone());
+        }
+        self.subs.extend(other.subs);
     }
 }
 
@@ -107,13 +116,16 @@ pub fn unify(mut constraints: Constraints) -> Result<Substitutions, ErrorValue> 
         let first = constraints.0.iter().next().unwrap().clone();
         constraints.0.remove(&first);
 
-        let mut subst = unify_one(&first).map_err(|err| err.with_note(
-            format!("note: expected type `{}`\n         found type `{}`", first.a, first.b)
-        ))?;
+        let mut subst = unify_one(&first).map_err(|err| {
+            err.with_note(format!(
+                "note: expected type `{}`\n         found type `{}`",
+                first.a, first.b
+            ))
+        })?;
 
         let subst_rest = unify(subst.apply_constraints(constraints))?;
+        subst.compose(subst_rest);
 
-        subst.subs.extend(subst_rest.subs);
         Ok(subst)
     }
 }
@@ -150,8 +162,8 @@ fn unify_one(constraint: &Constraint) -> Result<Substitutions, ErrorValue> {
 
             unify(constraints)
         }
-        (AnnotationType::Infer(val, pos), ty) => unify_infer(val, pos, &ty),
-        (ty, AnnotationType::Infer(val, pos)) => unify_infer(val, pos, &ty),
+        (AnnotationType::Infer(val, con, pos), ty) => unify_infer(val, con, pos, &ty),
+        (ty, AnnotationType::Infer(val, con, pos)) => unify_infer(val, con, pos, &ty),
         (AnnotationType::Never(_), _) => Ok(Substitutions::empty()),
         (_, AnnotationType::Never(_)) => Ok(Substitutions::empty()),
         (AnnotationType::Tuple(tys1, pos1), AnnotationType::Tuple(tys2, pos2)) => {
@@ -174,12 +186,26 @@ fn unify_one(constraint: &Constraint) -> Result<Substitutions, ErrorValue> {
 
 fn unify_infer(
     infer_num: usize,
+    con: Option<AdditionalContraints>,
     pos: Pos,
     ty: &AnnotationType,
 ) -> Result<Substitutions, ErrorValue> {
+    match con {
+        Some(c) => {
+            if let Some(lit) = c.fits(ty) {
+                // The type proposed doesn't match the constraint,
+                // raise error
+
+                if let AdditionalContraint::Literal(lit) = lit {
+                    return Err(bad_literal(ty, lit, pos));
+                }
+            }
+        }
+        _ => {}
+    }
     match &ty {
-        AnnotationType::Infer(val, _) if *val == infer_num => Ok(Substitutions::empty()),
-        AnnotationType::Infer(_, _) => Ok(Substitutions::from_pair(infer_num, ty.clone())),
+        AnnotationType::Infer(val, _, _) if *val == infer_num => Ok(Substitutions::empty()),
+        AnnotationType::Infer(_, _, _) => Ok(Substitutions::from_pair(infer_num, ty.clone())),
 
         // This will infinitely recurse, big problem!
         _ if ty.occurs(infer_num) => Err(infinite_recurse_err(ty.pos(), pos)),
@@ -191,7 +217,7 @@ fn unify_infer(
 impl AnnotationType {
     fn occurs(&self, other: usize) -> bool {
         match self {
-            AnnotationType::Infer(this, _) => *this == other,
+            AnnotationType::Infer(this, _, _) => *this == other,
             AnnotationType::Function(args, ret, _) => {
                 args.iter().any(|arg| arg.occurs(other)) || ret.occurs(other)
             }
@@ -282,4 +308,29 @@ fn diff_arguments_err(args1: usize, args2: usize, pos1: Pos, pos2: Pos) -> Error
             ),
         ],
     )
+}
+
+pub fn bad_literal(real_ty: &AnnotationType, lit: ast::LiteralType, pos: Pos) -> ErrorValue {
+    ErrorValue::new(
+        "invalid literal type".to_string(),
+        ErrorType::TypeMismatch,
+        pos,
+        ErrorDisplayType::Error,
+        vec![
+            ErrorAnnotation::new(
+                Some("invalid type".to_string()),
+                real_ty.pos(),
+                ErrorDisplayType::Error,
+            ),
+            ErrorAnnotation::new(
+                Some("for this literal".to_string()),
+                pos,
+                ErrorDisplayType::Info,
+            ),
+        ],
+    )
+    .with_note(format!(
+        "note: cannot convert `{}`\n                  to `{}`",
+        real_ty, lit
+    ))
 }

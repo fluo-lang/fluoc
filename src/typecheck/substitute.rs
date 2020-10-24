@@ -1,5 +1,5 @@
 use super::annotation::*;
-use super::unifier::Substitutions;
+use super::unifier::{bad_literal, Substitutions};
 
 use crate::helpers::Pos;
 use crate::logger::{ErrorAnnotation, ErrorDisplayType, ErrorType, ErrorValue};
@@ -24,7 +24,7 @@ impl AnnotationType {
                 Rc::make_mut(ret_ty).sub(solved_constraints)?;
             }
             // Important part!
-            AnnotationType::Infer(infer_num, pos) => {
+            AnnotationType::Infer(infer_num, con, pos) => {
                 match solved_constraints.subs.get(&infer_num) {
                     Some(ty) => {
                         *self = ty.clone();
@@ -95,9 +95,9 @@ impl TypedExpr {
                         (Prim::I64, LiteralType::Number) => {}
                         (Prim::Infer, _) => {}
 
-                        (_, _) => return Err(bad_literal(literal, self.pos)),
+                        (_, _) => return Err(bad_literal(&literal.ty, literal.value.literal_type, self.pos)),
                     },
-                    None => return Err(bad_literal(literal, self.pos)),
+                    None => return Err(bad_literal(&literal.ty, literal.value.literal_type, self.pos)),
                 }
             }
             TypedExprEnum::Function(func) => {
@@ -113,8 +113,9 @@ impl TypedExpr {
             }
             TypedExprEnum::VariableAssignDeclaration(var) => {
                 var.binder.substitute(solved_constraints)?;
-                if let Either::Left(expr) = &mut var.expr {
-                    expr.substitute(solved_constraints)?;
+                match &mut var.expr {
+                    Either::Left(expr) => expr.substitute(solved_constraints)?,
+                    Either::Right(ty) => ty.sub(solved_constraints)?,
                 }
             }
         }
@@ -153,31 +154,6 @@ pub fn substitute(
     } else {
         Ok(())
     }
-}
-
-fn bad_literal(ty: &TypedLiteral, pos: Pos) -> ErrorValue {
-    ErrorValue::new(
-        "invalid literal type".to_string(),
-        ErrorType::TypeMismatch,
-        pos,
-        ErrorDisplayType::Error,
-        vec![
-            ErrorAnnotation::new(
-                Some("invalid type".to_string()),
-                ty.ty.pos(),
-                ErrorDisplayType::Error,
-            ),
-            ErrorAnnotation::new(
-                Some("for this literal".to_string()),
-                pos,
-                ErrorDisplayType::Info,
-            ),
-        ],
-    )
-    .with_note(format!(
-        "note: cannot convert `{}`\n                  to `{}`",
-        ty.value.literal_type, ty.ty
-    ))
 }
 
 fn cannot_infer_err(pos: Pos) -> ErrorValue {

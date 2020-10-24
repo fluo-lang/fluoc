@@ -1,5 +1,5 @@
-mod mir;
 mod lower;
+mod mir;
 
-pub use mir::*;
 pub use lower::lower_to_mir;
+pub use mir::*;

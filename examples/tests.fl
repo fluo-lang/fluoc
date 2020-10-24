@@ -14,9 +14,14 @@ while True {
 /*
 -- recursive with no mutation
 let fib = (n1: i32, n2: i32) -> (i32, i32) {
-    -- std::fmt::print(n2);
     return fib(n2, n1);
 };
+*/
+
+/*
+let sum = (res: i32, array: [i32]) -> i32 {
+    return sum(res + array[0], array[1..]);
+}
 */
 
 let entry = () -> (i32, i32) {

@@ -120,7 +120,8 @@ impl<'a> CodeGenModule<'a> {
                 ..
             } => self.gen_function_prototype(signature, mangled_name, *visibility),
             MirStmt::VariableAssign(var_assign) => self.gen_var_prototype(var_assign),
-            _ => todo!(),
+            MirStmt::Tag(tag) => {}
+            s => todo!("Not implemented: {:?}", s),
         }
     }
 

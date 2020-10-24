@@ -1,4 +1,4 @@
-use super::{typed_ast::*, AnnotationType, Annotator};
+use super::{typed_ast::*, AdditionalContraint, AnnotationType, Annotator};
 
 use crate::logger::{not_a_err, ErrorAnnotation, ErrorDisplayType, ErrorType, ErrorValue};
 use crate::parser::ast;
@@ -92,9 +92,10 @@ impl ast::Block {
         context: &mut Context<AnnotationType>,
     ) -> Result<AnnotationType, ErrorValue> {
         let mut returns = false;
+        let mut new_context = context.clone();
 
         for stmt in self.nodes.iter_mut() {
-            stmt.pass_1(annotator, context)?;
+            stmt.pass_1(annotator, &mut new_context)?;
             if let ast::Statement::ExpressionStatement(expr) = stmt {
                 if let ast::Expr::Yield(_) | ast::Expr::Return(_) = *expr.expression {
                     returns = true;
@@ -127,13 +128,14 @@ impl ast::Block {
         annotator: &mut Annotator,
         context: &mut Context<AnnotationType>,
     ) -> Result<TypedExpr, ErrorValue> {
+        let mut new_context = context.clone();
         Ok(TypedExpr {
             expr: TypedExprEnum::Block(TypedBlock {
                 ty: self.ty.unwrap_or(annotator.unique(self.pos)),
                 stmts: self
                     .nodes
                     .into_iter()
-                    .map(|node| node.pass_2(annotator, context))
+                    .map(|node| node.pass_2(annotator, &mut new_context))
                     .collect::<Result<Vec<_>, _>>()?,
             }),
             pos: self.pos,
@@ -163,17 +165,27 @@ impl ast::VariableAssignDeclaration {
         annotator: &mut Annotator,
         context: &mut Context<AnnotationType>,
     ) -> Result<AnnotationType, ErrorValue> {
-        match &mut self.expr {
-            Some(expr) => {
-                let typed_type = expr.pass_1(annotator, context)?;
-                context.set_local(Rc::clone(&self.name), typed_type.clone());
-                Ok(typed_type)
+        let typed_type = match annotator.annon_type(&self.ty) {
+            ty @ AnnotationType::Infer(_, _, _) => {
+                // Let's see if the expr has a type...
+                if let Some(expr) = &mut self.expr {
+                    let possible = expr.pass_1(annotator, context)?;
+                    // ...and make sure it's not an infer
+                    if let AnnotationType::Infer(_, _, _) = possible {
+                        ty
+                    } else {
+                        possible
+                    }
+                } else {
+                    ty
+                }
             }
-            None => {
-                self.typecheck_type = Some(annotator.annon_type(&self.ty));
-                Ok(self.typecheck_type.clone().unwrap())
-            }
-        }
+            ty => ty,
+        };
+
+        context.set_local(Rc::clone(&self.name), typed_type.clone());
+        self.typecheck_type = Some(typed_type.clone());
+        Ok(typed_type)
     }
 
     fn pass_2(
@@ -216,7 +228,10 @@ impl ast::Literal {
         Ok(TypedExpr {
             pos: self.pos,
             expr: TypedExprEnum::Literal(TypedLiteral {
-                ty: annotator.unique(self.pos),
+                ty: annotator.unique_literal(
+                    self.pos,
+                    Some(AdditionalContraint::Literal(self.literal_type).into()),
+                ),
                 value: self,
             }),
         })
@@ -229,12 +244,15 @@ impl ast::FunctionCall {
         annotator: &mut Annotator,
         context: &mut Context<AnnotationType>,
     ) -> Result<TypedExpr, ErrorValue> {
+        println!("context: {}\n", context);
         let func_sig = context.get_local(&self.name);
         let func_ty = func_sig.symbol(&self.name)?.clone();
 
         let ret_ty = match func_ty {
             AnnotationType::Function(_, ref ret, _) => (**ret).clone(),
-            AnnotationType::Infer(_, _) => annotator.unique(self.pos),
+            AnnotationType::Infer(_, ref con, _) => {
+                annotator.unique_literal(self.pos, dbg!(con).clone())
+            }
             AnnotationType::Never(_) => func_ty.clone(),
             _ => return Err(not_a_err(&self.name, "function")),
         };

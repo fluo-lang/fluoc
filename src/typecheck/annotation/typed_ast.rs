@@ -32,10 +32,12 @@ pub struct TypedFunctionCall {
     pub arguments: Vec<TypedExpr>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Derivative)]
+#[derivative(Debug)]
 pub struct TypedTuple {
     pub ty: AnnotationType,
     pub exprs: Vec<TypedExpr>,
+    #[derivative(Debug = "ignore")]
     pub pos: helpers::Pos,
 }
 
@@ -53,9 +55,11 @@ pub enum TypedExprEnum {
     Function(TypedFunction),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Derivative)]
+#[derivative(Debug)]
 pub struct TypedExpr {
     pub expr: TypedExprEnum,
+    #[derivative(Debug = "ignore")]
     pub pos: helpers::Pos,
 }
 
@@ -85,15 +89,17 @@ impl TypedExpr {
         match &self.expr {
             TypedExprEnum::Return(_) => true,
             TypedExprEnum::Yield(_) => true,
-            _ => false
+            _ => false,
         }
     }
 }
 
-#[derive(Clone, Debug, Eq)]
+#[derive(Clone, Derivative, Eq)]
+#[derivative(Debug)]
 pub struct TypedBinder {
     pub name: Option<Rc<ast::Namespace>>,
     pub ty: AnnotationType,
+    #[derivative(Debug = "ignore")]
     pub pos: helpers::Pos,
 }
 
@@ -130,7 +136,7 @@ impl TypedBinder {
 pub struct TypedAssign {
     pub binder: TypedBinder,
     pub expr: either::Either<Box<TypedExpr>, AnnotationType>,
-    pub visibility: ast::Visibility
+    pub visibility: ast::Visibility,
 }
 
 #[derive(Clone, Debug)]
@@ -159,9 +165,11 @@ pub enum TypedStmtEnum {
     Tag(ast::Tag),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Derivative)]
+#[derivative(Debug)]
 pub struct TypedStmt {
     pub stmt: TypedStmtEnum,
+    #[derivative(Debug = "ignore")]
     pub pos: helpers::Pos,
 }
 

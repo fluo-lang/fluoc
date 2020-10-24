@@ -87,7 +87,9 @@ impl TypeCheckModule {
             .map_err(|e| vec![e])?;
 
         let constraints = generate(&typed_ast, None, None);
+        println!("{}", constraints);
         let solved_constraints = unify(constraints).map_err(|e| vec![e])?;
+        println!("{}", solved_constraints);
 
         substitute(&mut typed_ast, solved_constraints)?;
 
@@ -249,6 +251,17 @@ let x = (a: _) -> _ {
     return a;
 };"#,
         identity_func_infer
+    );
+
+    assert_ok!(
+        r#"let entry = () -> i32 {
+    yield 10;
+};
+
+let x = () -> _ {
+    yield entry();
+};"#,
+        reverse_test
     );
 
     assert_ok!(

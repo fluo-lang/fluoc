@@ -1,6 +1,6 @@
 use super::{MirExpr, MirExprEnum, MirStmt, MirType};
 
-use crate::logger::ErrorValue;
+use crate::logger::{ErrorAnnotation, ErrorDisplayType, ErrorType, ErrorValue};
 use crate::parser::ast;
 use crate::typecheck::annotation::*;
 
@@ -200,14 +200,26 @@ impl TypedExpr {
                     Some(MirExpr {
                         pos: self.pos,
                         ty: ty.clone(),
-                        value: MirExprEnum::RefID(var_assign.binder.name.as_ref().map(|n| Rc::clone(&n)).unwrap()),
+                        value: MirExprEnum::RefID(
+                            var_assign
+                                .binder
+                                .name
+                                .as_ref()
+                                .map(|n| Rc::clone(&n))
+                                .unwrap(),
+                        ),
                     }),
                     expr_data,
                 ));
 
                 mir.push(MirStmt::VariableAssign(Box::new(
                     super::MirVariableAssign {
-                        var_name: var_assign.binder.name.as_ref().map(|val| Rc::clone(&val)).unwrap(),
+                        var_name: var_assign
+                            .binder
+                            .name
+                            .as_ref()
+                            .map(|val| Rc::clone(&val))
+                            .unwrap(),
                         value: expr,
                         pos: self.pos,
                     },
@@ -323,14 +335,17 @@ impl AnnotationType {
                     .clone()
                     .into_iter()
                     .map(|ty| ty.into_mir())
-                    .collect::<Result<Vec<_>, _>>()?, 
+                    .collect::<Result<Vec<_>, _>>()?,
                 Box::new((*ret).clone().into_mir()?),
-                pos
+                pos,
             )),
-            AnnotationType::Infer(_, _) =>
-                panic!(
-                    "reached unknown type: this shouldn't happen (should have been reported during the typechecking phase)"
-                ),
+            AnnotationType::Infer(_, _, pos) => Err(ErrorValue::new(
+                format!("reached unknown type {:?}: this shouldn't happen", self),
+                ErrorType::InternalError,
+                pos,
+                ErrorDisplayType::Error,
+                vec![ErrorAnnotation::new(None, pos, ErrorDisplayType::Error)],
+            )),
             _ => todo!(),
         }
     }

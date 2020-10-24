@@ -29,7 +29,7 @@ pub struct Tag {
     pub pos: helpers::Pos,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum LiteralType {
     Number,
     String,
@@ -38,11 +38,15 @@ pub enum LiteralType {
 
 impl fmt::Display for LiteralType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", match self {
-            Self::Number => "<number>",
-            Self::String => "<string>",
-            Self::Bool => "<bool>",
-        })
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::Number => "<number>",
+                Self::String => "<string>",
+                Self::Bool => "<bool>",
+            }
+        )
     }
 }
 
@@ -117,11 +121,18 @@ pub struct IsExpr {
 
 // NODES ---------------------------------------
 
-#[derive(Debug)]
 /// Name ID node
 pub struct NameID {
     pub sourcemap: SourceMap,
     pub pos: helpers::Pos,
+}
+
+impl fmt::Debug for NameID {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("")
+            .field(&get_segment!(self.sourcemap, self.pos))
+            .finish()
+    }
 }
 
 impl Clone for NameID {
@@ -403,11 +414,17 @@ impl Type {
 
 pub type NamespaceInner = SmallVec<[NameID; 5]>;
 
-#[derive(Debug, Eq, Clone, Default)]
+#[derive(Eq, Clone, Default)]
 /// This::is::a::namespace!
 pub struct Namespace {
     pub scopes: NamespaceInner,
     pub pos: helpers::Pos,
+}
+
+impl fmt::Debug for Namespace {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(&self.to_string(), f)
+    }
 }
 
 impl PartialEq for Namespace {

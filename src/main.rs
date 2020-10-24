@@ -5,6 +5,9 @@
 extern crate lazy_static;
 
 #[macro_use]
+extern crate derivative;
+
+#[macro_use]
 pub mod sourcemap;
 
 pub mod codegen;
@@ -65,7 +68,10 @@ fn main() {
         let filename = paths::process_str(matches.value_of("entry").unwrap());
         (paths::read_file(filename.as_path()), filename)
     } else {
-        (matches.value_of("code").unwrap().to_string(), path::PathBuf::from("<string>.fl"))
+        (
+            matches.value_of("code").unwrap().to_string(),
+            path::PathBuf::from("<string>.fl"),
+        )
     };
 
     let mut master = master::Master::new(&context, matches.is_present("verbose"));

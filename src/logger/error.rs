@@ -43,6 +43,8 @@ pub enum ErrorType {
     Infer,
     Visibility,
     Import,
+
+    InternalError,
 }
 
 impl ErrorType {
@@ -62,6 +64,7 @@ impl ErrorType {
             ErrorType::Visibility => "visibility",
             ErrorType::Import => "import",
             ErrorType::Infer => "infer",
+            ErrorType::InternalError => "internal_error",
         }
     }
 }
@@ -249,7 +252,7 @@ impl ErrorValue {
             position,
             mode,
             annotations,
-            note: None
+            note: None,
         }
     }
 
@@ -268,7 +271,8 @@ impl ErrorValue {
     }
 
     pub fn to_diagnostic(self, filemap: &HashMap<usize, usize>) -> Diagnostic<usize> {
-        let diagnostic = self.mode
+        let diagnostic = self
+            .mode
             .to_diagnostic()
             .with_message(self.message)
             .with_labels(
@@ -276,7 +280,8 @@ impl ErrorValue {
                     .iter()
                     .map(|annon| annon.to_diagnostic(filemap))
                     .collect(),
-            ).with_code(self.error.as_str());
+            )
+            .with_code(self.error.as_str());
         if let Some(note) = self.note {
             diagnostic.with_notes(vec![note])
         } else {

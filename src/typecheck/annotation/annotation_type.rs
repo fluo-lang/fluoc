@@ -1,10 +1,12 @@
 use crate::helpers;
 use crate::parser::ast;
+use smallvec::{smallvec, SmallVec};
 
 use std::fmt;
 use std::rc::Rc;
 
-#[derive(Debug, Eq, Hash)]
+#[derive(Derivative, Eq, Hash)]
+#[derivative(Debug)]
 /// An annotation type
 ///
 /// The `Infer` variant is assigned when the type is to be inferred.
@@ -13,11 +15,25 @@ use std::rc::Rc;
 ///
 /// NOTE: This type can be cloned relatively cheaply. (Because of Rc's)
 pub enum AnnotationType {
-    Type(Rc<ast::Namespace>, helpers::Pos),
-    Tuple(Rc<Vec<AnnotationType>>, helpers::Pos),
-    Function(Rc<Vec<AnnotationType>>, Rc<AnnotationType>, helpers::Pos),
-    Never(helpers::Pos),
-    Infer(usize, helpers::Pos),
+    Type(
+        Rc<ast::Namespace>,
+        #[derivative(Debug = "ignore")] helpers::Pos,
+    ),
+    Tuple(
+        Rc<Vec<AnnotationType>>,
+        #[derivative(Debug = "ignore")] helpers::Pos,
+    ),
+    Function(
+        Rc<Vec<AnnotationType>>,
+        Rc<AnnotationType>,
+        #[derivative(Debug = "ignore")] helpers::Pos,
+    ),
+    Never(#[derivative(Debug = "ignore")] helpers::Pos),
+    Infer(
+        usize,
+        Option<AdditionalContraints>,
+        #[derivative(Debug = "ignore")] helpers::Pos,
+    ),
 }
 
 impl PartialEq for AnnotationType {
@@ -30,29 +46,95 @@ impl PartialEq for AnnotationType {
                 AnnotationType::Function(arg_tys2, ret_ty2, _),
             ) => arg_tys1 == arg_tys2 && ret_ty1 == ret_ty2,
             (AnnotationType::Never(_), AnnotationType::Never(_)) => true,
-            (AnnotationType::Infer(infer_num1, _), AnnotationType::Infer(infer_num2, _)) => {
-                infer_num1 == infer_num2
-            }
+            (
+                AnnotationType::Infer(infer_num1, con1, _),
+                AnnotationType::Infer(infer_num2, con2, _),
+            ) => infer_num1 == infer_num2 && con1 == con2,
             _ => false,
         }
     }
 }
 
-#[derive(Debug, Clone)]
-pub enum Prim {
-    Bool,
-    I128,
-    I64,
-    I32,
-    I16,
-    I8,
-    Infer
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+pub struct AdditionalContraints(SmallVec<[AdditionalContraint; 2]>);
+
+impl AdditionalContraints {
+    /// Returns `None` if fits, otherwise returns `Some(val)` with offending constraint
+    pub fn fits(&self, ty: &AnnotationType) -> Option<AdditionalContraint> {
+        self.0.iter().filter(|c| !c.fits(ty)).next().cloned()
+    }
+
+    pub fn is_literal(&self) -> bool {
+        self.0.iter().any(|c| c.is_literal())
+    }
+
+    pub fn get_literal(&self) -> Option<ast::LiteralType> {
+        for val in &self.0 {
+            if let AdditionalContraint::Literal(lit) = val {
+                return Some(*lit);
+            }
+        }
+        None
+    }
+}
+
+impl fmt::Display for AdditionalContraints {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            self.0
+                .iter()
+                .map(|c| c.to_string())
+                .collect::<Vec<_>>()
+                .join(", ")
+        )
+    }
+}
+
+impl From<AdditionalContraint> for AdditionalContraints {
+    fn from(val: AdditionalContraint) -> Self {
+        Self(smallvec![val])
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+pub enum AdditionalContraint {
+    Literal(ast::LiteralType),
+}
+
+impl AdditionalContraint {
+    pub fn fits(&self, ty: &AnnotationType) -> bool {
+        match self {
+            AdditionalContraint::Literal(lit) => match ty.is_primitive() {
+                Some(prim) => match prim.as_lit_type() {
+                    Some(prim_lit) => lit == &prim_lit,
+                    None => true,
+                },
+                None => false,
+            },
+        }
+    }
+
+    fn is_literal(&self) -> bool {
+        match self {
+            AdditionalContraint::Literal(_) => true,
+        }
+    }
+}
+
+impl fmt::Display for AdditionalContraint {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            AdditionalContraint::Literal(lit) => write!(f, "{}", lit),
+        }
+    }
 }
 
 impl AnnotationType {
     pub fn is_primitive(&self) -> Option<Prim> {
         match self {
-            AnnotationType::Infer(_, _) => Some(Prim::Infer),
+            AnnotationType::Infer(_, Some(con), _) if con.is_literal() => Some(Prim::Infer),
             AnnotationType::Type(ty, _) if ty.scopes.len() == 1 => {
                 let first_name = ty.scopes[0].clone();
                 let is_prim = match get_segment!(first_name.sourcemap, first_name.pos) {
@@ -76,7 +158,7 @@ impl AnnotationType {
             AnnotationType::Tuple(_, pos) => *pos,
             AnnotationType::Function(_, _, pos) => *pos,
             AnnotationType::Never(pos) => *pos,
-            AnnotationType::Infer(_, pos) => *pos,
+            AnnotationType::Infer(_, _, pos) => *pos,
         }
     }
 }
@@ -90,7 +172,9 @@ impl Clone for AnnotationType {
                 AnnotationType::Function(Rc::clone(arg_ty), Rc::clone(ret_ty), *pos)
             }
             AnnotationType::Never(pos) => AnnotationType::Never(*pos),
-            AnnotationType::Infer(ty_var, pos) => AnnotationType::Infer(*ty_var, *pos),
+            AnnotationType::Infer(ty_var, val, pos) => {
+                AnnotationType::Infer(*ty_var, val.clone(), *pos)
+            }
         }
     }
 }
@@ -98,7 +182,10 @@ impl Clone for AnnotationType {
 impl fmt::Display for AnnotationType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            AnnotationType::Infer(val, _) => write!(f, "_"),
+            AnnotationType::Infer(val, con, _) => match con {
+                Some(c) => write!(f, "{}: {}", val, c),
+                None => write!(f, "{}", val),
+            },
             AnnotationType::Type(ty, _) => write!(f, "{}", ty),
             AnnotationType::Tuple(tup, _) => write!(
                 f,
@@ -119,6 +206,29 @@ impl fmt::Display for AnnotationType {
                     .join(", "),
                 ret
             ),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum Prim {
+    Bool,
+    I128,
+    I64,
+    I32,
+    I16,
+    I8,
+    Infer,
+}
+
+impl Prim {
+    fn as_lit_type(&self) -> Option<ast::LiteralType> {
+        match self {
+            Prim::Bool => Some(ast::LiteralType::Bool),
+            Prim::I8 | Prim::I16 | Prim::I32 | Prim::I64 | Prim::I128 => {
+                Some(ast::LiteralType::Number)
+            }
+            Prim::Infer => None,
         }
     }
 }

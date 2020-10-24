@@ -9,11 +9,13 @@ use crate::typecheck::annotation::Prim;
 use either::Either;
 use std::rc::Rc;
 
-#[derive(Debug, Clone)]
+#[derive(Derivative, Clone)]
+#[derivative(Debug)]
 /// (i32, i32, ()) -> ()
 pub struct MirFunctionSig {
     pub pos_args: Vec<MirType>,
     pub return_type: Box<MirType>,
+    #[derivative(Debug = "ignore")]
     pub pos: helpers::Pos,
 }
 
@@ -32,25 +34,31 @@ pub enum MirType {
     Never,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Derivative, Clone)]
+#[derivative(Debug)]
 pub struct IfBranch {
     pub cond: MirExpr,
     pub block: MirBlock,
+    #[derivative(Debug = "ignore")]
     pub pos: helpers::Pos,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Derivative, Clone)]
+#[derivative(Debug)]
 pub struct ElseBranch {
     pub block: MirBlock,
+    #[derivative(Debug = "ignore")]
     pub pos: helpers::Pos,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Derivative, Clone)]
+#[derivative(Debug)]
 pub struct Conditional {
     // If Branch
     pub if_b: IfBranch,
     // Else Branch
     pub else_b: ElseBranch,
+    #[derivative(Debug = "ignore")]
     pub pos: helpers::Pos,
 }
 
@@ -59,29 +67,36 @@ pub struct BlockMetadata {
     pub returns: bool,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Derivative, Clone)]
+#[derivative(Debug)]
 pub struct MirBlock {
     pub stmts: Vec<MirStmt>,
     pub metadata: BlockMetadata,
+    #[derivative(Debug = "ignore")]
     pub pos: helpers::Pos,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Derivative, Clone)]
+#[derivative(Debug)]
 pub struct MirVariableAssign {
     pub var_name: Rc<ast::Namespace>,
     pub value: Either<MirExpr, MirType>,
+    #[derivative(Debug = "ignore")]
     pub pos: helpers::Pos,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Derivative, Clone)]
+#[derivative(Debug)]
 pub struct MirTag {
     pub tag: ast::Tag,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Derivative, Clone)]
+#[derivative(Debug)]
 pub struct MirFunctionCall {
     pub arguments: Vec<MirExpr>,
     pub mangled_name: String,
+    #[derivative(Debug = "ignore")]
     pub pos: helpers::Pos,
 }
 
@@ -95,22 +110,27 @@ pub enum MirExprEnum {
     FunctionCall(MirFunctionCall),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Derivative, Clone)]
+#[derivative(Debug)]
 pub struct MirExpr {
     pub value: MirExprEnum,
+    #[derivative(Debug = "ignore")]
     pub pos: helpers::Pos,
     pub ty: MirType,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Derivative, Clone)]
+#[derivative(Debug)]
 pub enum MirStmt {
     VariableAssign(Box<MirVariableAssign>),
     Return {
         value: MirExpr,
+        #[derivative(Debug = "ignore")]
         pos: helpers::Pos,
     },
     Yield {
         value: MirExpr,
+        #[derivative(Debug = "ignore")]
         pos: helpers::Pos,
     },
     Tag(MirTag),

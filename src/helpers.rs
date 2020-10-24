@@ -1,5 +1,6 @@
 use crate::logger::{ErrorLevel, ErrorValue, Logger};
 
+use std::fmt;
 use std::path;
 use std::process;
 
@@ -102,10 +103,9 @@ lazy_static! {
 }
 
 pub fn plural(n: usize, val: &str) -> String {
-    if n == 1{
+    if n == 1 {
         format!("{}", val)
     } else {
         format!("{}s", val)
     }
 }
-

@@ -127,10 +127,12 @@ fn generate_expr(
                 constraints
                     .0
                     .extend(generate_expr(expr.as_ref(), outer_ty, inner_ty).0);
+
                 constraints.0.insert(Constraint::new(
                     assign_dec.binder.ty.clone(),
                     expr.as_ref().ty().clone(),
                 ));
+                println!("{}, {} = {}", assign_dec.binder.name.clone().unwrap(), assign_dec.binder.ty, expr.as_ref().ty());
             }
         }
 
@@ -141,7 +143,7 @@ fn generate_expr(
             constraints.0.insert(Constraint::new(
                 // We can unwrap because parser shouldn't let `yield` be in a
                 // position where this a problem
-                inner_ty.unwrap(),
+                inner_ty.clone().unwrap(),
                 yield_expr.expr.ty().clone(),
             ));
         }
@@ -175,8 +177,7 @@ fn generate_expr(
                 .insert(Constraint::new(is.expr.ty().clone(), is.ty.clone()));
         }
 
-        // No constraints are needed for literals
-        TypedExprEnum::Literal(_) => {}
+        TypedExprEnum::Literal(lit) => {}
 
         TypedExprEnum::Tuple(tup) => {
             for expr in &tup.exprs {

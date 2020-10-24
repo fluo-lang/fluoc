@@ -1,4 +1,4 @@
-use super::{typed_ast, AnnotationType};
+use super::{typed_ast, AdditionalContraints, AnnotationType};
 
 use crate::helpers::Pos;
 use crate::logger::ErrorValue;
@@ -82,7 +82,16 @@ impl Annotator {
 
     pub fn unique(&mut self, pos: Pos) -> AnnotationType {
         self.type_counter += 1;
-        AnnotationType::Infer(self.type_counter, pos)
+        AnnotationType::Infer(self.type_counter, None, pos)
+    }
+
+    pub fn unique_literal(
+        &mut self,
+        pos: Pos,
+        literal: Option<AdditionalContraints>,
+    ) -> AnnotationType {
+        self.type_counter += 1;
+        AnnotationType::Infer(self.type_counter, literal, pos)
     }
 }
 
@@ -101,8 +110,11 @@ pub mod annotator_test {
     macro_rules! assert_infer {
         ($left: expr, $right: expr) => {
             match $right {
-                AnnotationType::Infer(value, _) => {
+                AnnotationType::Infer(value, con, _) => {
                     assert_eq!($left, value);
+
+                    // Sanity check
+                    assert_eq!(con, None);
                 }
                 _ => panic!("Not an infer node"),
             }
