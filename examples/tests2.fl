@@ -1,7 +1,12 @@
-let entry = () -> i32 {
-    let x: i32 = 10;
-    let inner = () -> i32 {
-        return x;
+let entry = () -> (i32, i32) {
+    let y = 10;
+    let y = y;
+    let my_func = () -> _ {
+        return y;
     };
-    return inner();
+    return (x(x(y)), my_func());
+};
+
+let x = (a: _) -> _ {
+    return a;
 };

@@ -111,7 +111,7 @@ impl AdditionalContraint {
                     Some(prim_lit) => lit == &prim_lit,
                     None => true,
                 },
-                None => false,
+                None => true,
             },
         }
     }

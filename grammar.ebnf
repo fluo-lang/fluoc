@@ -13,14 +13,14 @@ STATEMENT -> EXPR_STMT
            | VAR_ASSIGN.
 
 TAG_STMT -> hash lbracket id rbracket.
-IMPORT_STMT -> import NAMESPACE semi.
+IMPORT_STMT -> import NAMESPACE.
 
-VAR_ASSIGN -> pub extern let NAMESPACE colon TYPE eq EXPR semi
-            | pub let NAMESPACE colon TYPE eq EXPR semi
-            | extern let NAMESPACE colon TYPE eq EXPR semi
-            | let NAMESPACE colon TYPE eq EXPR semi.
+VAR_ASSIGN -> pub extern let NAMESPACE colon TYPE eq EXPR
+            | pub let NAMESPACE colon TYPE eq EXPR
+            | extern let NAMESPACE colon TYPE eq EXPR
+            | let NAMESPACE colon TYPE eq EXPR.
 
-EXPR_STMT -> EXPR semi.
+EXPR_STMT -> EXPR.
 
 EXPR -> TERM
       | EXPR EXPROP TERM.
@@ -59,7 +59,7 @@ TYPE -> NAMESPACE
 TUPLE_TYPE -> lparen comma rparen
             | lparen TUPLE_TYPE_ITEMS rparen
             | lparen TUPLE_TYPE_ITEMS comma rparen
-            | lparen EXPR comma rparen.
+            | lparen TYPE comma rparen.
 
 TUPLE_TYPE_ITEMS -> TYPE comma TYPE
                   | TUPLE_TYPE_ITEMS comma TYPE.

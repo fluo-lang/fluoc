@@ -130,16 +130,18 @@ mod typecheck_tests {
         ($code: expr, $expected_error: expr, $name: ident) => {
             #[test]
             fn $name() {
-                let mut typechecker = set_up_typecheck!($code);
-                assert_eq!(
-                    typechecker
-                        .type_check()
-                        .expect_err("Failed to typecheck")
-                        .into_iter()
-                        .map(|err| err.get_error_type())
-                        .collect::<Vec<_>>(),
-                    $expected_error
-                );
+                for _ in 0..100 {
+                    let mut typechecker = set_up_typecheck!($code);
+                    assert_eq!(
+                        typechecker
+                            .type_check()
+                            .expect_err("Failed to typecheck")
+                            .into_iter()
+                            .map(|err| err.get_error_type())
+                            .collect::<Vec<_>>(),
+                        $expected_error
+                    );
+                }
             }
         };
     }
@@ -148,8 +150,10 @@ mod typecheck_tests {
         ($code: expr, $name: ident) => {
             #[test]
             fn $name() {
-                let mut typechecker = set_up_typecheck!($code);
-                assert!(typechecker.type_check().is_ok());
+                for _ in 0..100 {
+                    let mut typechecker = set_up_typecheck!($code);
+                    assert!(typechecker.type_check().is_ok());
+                }
             }
         };
     }
