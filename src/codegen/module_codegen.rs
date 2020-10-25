@@ -168,6 +168,13 @@ impl<'a> CodeGenModule<'a> {
                 Prim::I32 => self.context.i32_type().into(),
                 Prim::I64 => self.context.i64_type().into(),
                 Prim::I128 => self.context.i128_type().into(),
+
+                Prim::U8 => self.context.i8_type().into(),
+                Prim::U16 => self.context.i16_type().into(),
+                Prim::U32 => self.context.i32_type().into(),
+                Prim::U64 => self.context.i64_type().into(),
+                Prim::U128 => self.context.i128_type().into(),
+
                 Prim::Bool => self.context.bool_type().into(),
                 Prim::Infer => panic!(),
             },

@@ -1,0 +1,7 @@
+pattern Animal {
+    let fart: () -> ();
+}
+
+let entry = () {};
+
+let take_animal<T: Animal> = (val: T) {};

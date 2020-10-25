@@ -1,0 +1,7 @@
+rec<T> Maybe {
+    pos: u32,
+    Just(T),
+    None
+};
+
+let entry = () {  };

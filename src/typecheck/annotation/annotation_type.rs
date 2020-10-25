@@ -144,6 +144,12 @@ impl AnnotationType {
                     "i16" => Prim::I16,
                     "i8" => Prim::I8,
                     "i128" => Prim::I128,
+
+                    "u64" => Prim::U64,
+                    "u32" => Prim::U32,
+                    "u16" => Prim::U16,
+                    "u8" => Prim::U8,
+                    "u128" => Prim::U128,
                     _ => return None,
                 };
                 Some(is_prim)
@@ -213,11 +219,19 @@ impl fmt::Display for AnnotationType {
 #[derive(Debug, Clone)]
 pub enum Prim {
     Bool,
+
     I128,
     I64,
     I32,
     I16,
     I8,
+
+    U128,
+    U64,
+    U32,
+    U16,
+    U8,
+
     Infer,
 }
 
@@ -225,9 +239,16 @@ impl Prim {
     fn as_lit_type(&self) -> Option<ast::LiteralType> {
         match self {
             Prim::Bool => Some(ast::LiteralType::Bool),
-            Prim::I8 | Prim::I16 | Prim::I32 | Prim::I64 | Prim::I128 => {
-                Some(ast::LiteralType::Number)
-            }
+            Prim::I8
+            | Prim::I16
+            | Prim::I32
+            | Prim::I64
+            | Prim::I128
+            | Prim::U8
+            | Prim::U16
+            | Prim::U32
+            | Prim::U64
+            | Prim::U128 => Some(ast::LiteralType::Number),
             Prim::Infer => None,
         }
     }
