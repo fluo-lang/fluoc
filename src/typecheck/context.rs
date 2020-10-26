@@ -41,9 +41,6 @@ impl<T: fmt::Display> Context<T> {
     }
 
     pub fn set_local(&mut self, name: Rc<ast::Namespace>, value: T) {
-        if self.objects.iter().count() == 3 {
-            println!("set ({})> {}: {}\n", self.objects.iter().count(), name, value);
-        }
         self.objects.insert(name, value);
     }
 }

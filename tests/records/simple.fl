@@ -1,7 +1,13 @@
+-- OK
+
 rec<T> Maybe {
-    pos: u32,
     Just(T),
     None
 };
 
-let entry = () {  };
+let entry = () -> (Maybe, Maybe) {
+    let some: Maybe = Maybe.Just(10);
+    let none: Maybe = Maybe.None;
+
+    yield (some, none);
+};

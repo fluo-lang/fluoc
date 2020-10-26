@@ -19,14 +19,14 @@ use smallvec::{smallvec, SmallVec};
 #[derive(Debug, Clone, PartialEq)]
 /// Empty Placeholder value
 pub struct Empty {
-    pub pos: helpers::Pos,
+    pub pos: helpers::Span,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 /// Special Compiler Tags
 pub struct Tag {
     pub content: NameID,
-    pub pos: helpers::Pos,
+    pub pos: helpers::Span,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -53,41 +53,41 @@ impl fmt::Display for LiteralType {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Literal {
     pub literal_type: LiteralType,
-    pub pos: helpers::Pos,
+    pub pos: helpers::Span,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Import {
     pub namespace: Namespace,
-    pub pos: helpers::Pos,
+    pub pos: helpers::Span,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 /// Tuple node
 pub struct Tuple {
     pub values: Vec<Expr>,
-    pub pos: helpers::Pos,
+    pub pos: helpers::Span,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 /// Dollar sign id (i.e. `$myvar`) node
 pub struct DollarID {
     pub value: Rc<Namespace>,
-    pub pos: helpers::Pos,
+    pub pos: helpers::Span,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 /// Reference ID (i.e. pass by value) node
 pub struct RefID {
     pub value: Rc<Namespace>,
-    pub pos: helpers::Pos,
+    pub pos: helpers::Span,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 /// Reference (i.e. pass by reference) node
 pub struct Reference {
     pub value: RefID,
-    pub pos: helpers::Pos,
+    pub pos: helpers::Span,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -95,28 +95,28 @@ pub struct Infix {
     pub left: Box<Expr>,
     pub right: Box<Expr>,
     pub operator: Token,
-    pub pos: helpers::Pos,
+    pub pos: helpers::Span,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Prefix {
     pub val: Box<Expr>,
     pub operator: Token,
-    pub pos: helpers::Pos,
+    pub pos: helpers::Span,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct AsExpr {
     pub expr: Box<Expr>,
     pub ty: Type,
-    pub pos: helpers::Pos,
+    pub pos: helpers::Span,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct IsExpr {
     pub expr: Box<Expr>,
     pub ty: Type,
-    pub pos: helpers::Pos,
+    pub pos: helpers::Span,
 }
 
 // NODES ---------------------------------------
@@ -124,7 +124,7 @@ pub struct IsExpr {
 /// Name ID node
 pub struct NameID {
     pub sourcemap: SourceMap,
-    pub pos: helpers::Pos,
+    pub pos: helpers::Span,
 }
 
 impl fmt::Debug for NameID {
@@ -158,11 +158,11 @@ mod name_id_test {
             .insert_file(PathBuf::from("teset.fl"), "hello_hello".to_string());
         let first = NameID {
             sourcemap: Rc::clone(&sourcemap),
-            pos: helpers::Pos::new(0, 5, 0),
+            pos: helpers::Span::new(0, 5, 0),
         };
         let second = NameID {
             sourcemap,
-            pos: helpers::Pos::new(6, 11, 0),
+            pos: helpers::Span::new(6, 11, 0),
         };
         assert_eq!(first, second);
         assert_eq!(second, first);
@@ -201,7 +201,7 @@ pub struct TypeAssign {
     pub name: Rc<Namespace>,
     pub value: Type,
     pub visibility: Visibility,
-    pub pos: helpers::Pos,
+    pub pos: helpers::Span,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -214,13 +214,13 @@ pub struct VariableAssignDeclaration {
     pub name: Rc<Namespace>,
     pub expr: Option<Box<Expr>>,
     pub visibility: Visibility,
-    pub pos: helpers::Pos,
+    pub pos: helpers::Span,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Unit {
     pub name: Namespace,
-    pub pos: helpers::Pos,
+    pub pos: helpers::Span,
     pub block: Vec<Statement>,
 }
 
@@ -228,7 +228,7 @@ pub struct Unit {
 /// Arguments for function
 pub struct Arguments {
     pub positional: Vec<(Rc<Namespace>, Type)>,
-    pub pos: helpers::Pos,
+    pub pos: helpers::Span,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -236,21 +236,21 @@ pub struct Arguments {
 pub struct IfBranch {
     pub cond: Expr,
     pub block: Block,
-    pub pos: helpers::Pos,
+    pub pos: helpers::Span,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 /// Else conditional branch
 pub struct ElseBranch {
     pub block: Block,
-    pub pos: helpers::Pos,
+    pub pos: helpers::Span,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Conditional {
     pub if_branches: Vec<IfBranch>,
     pub else_branch: Option<ElseBranch>,
-    pub pos: helpers::Pos,
+    pub pos: helpers::Span,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -259,7 +259,7 @@ pub struct Block {
     pub nodes: Vec<Statement>,
     pub tags: UnitTags,
     pub ty: Option<AnnotationType>,
-    pub pos: helpers::Pos,
+    pub pos: helpers::Span,
 }
 
 impl Block {
@@ -276,7 +276,7 @@ impl Block {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Units {
     pub units: Vec<Unit>,
-    pub pos: helpers::Pos,
+    pub pos: helpers::Span,
 }
 
 impl Units {
@@ -325,25 +325,25 @@ pub struct Function {
     pub arguments: Arguments,
     pub ty: Option<AnnotationType>,
     pub block: Box<Expr>,
-    pub pos: helpers::Pos,
+    pub pos: helpers::Span,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ArgumentsRun {
     pub positional: Vec<Expr>,
-    pub pos: helpers::Pos, // TODO: Add more types of arguments
+    pub pos: helpers::Span, // TODO: Add more types of arguments
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Yield {
     pub expression: Box<Expr>,
-    pub pos: helpers::Pos,
+    pub pos: helpers::Span,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Return {
     pub expression: Box<Expr>,
-    pub pos: helpers::Pos,
+    pub pos: helpers::Span,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -353,13 +353,13 @@ pub struct FunctionCall {
     pub name: Rc<Namespace>,
     pub mangled_name: Option<String>,
     pub mangle: bool,
-    pub pos: helpers::Pos,
+    pub pos: helpers::Span,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ExpressionStatement {
     pub expression: Box<Expr>,
-    pub pos: helpers::Pos,
+    pub pos: helpers::Span,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -397,7 +397,7 @@ impl TypeType {
 /// Type Node
 pub struct Type {
     pub value: TypeType,
-    pub pos: helpers::Pos,
+    pub pos: helpers::Span,
 }
 
 impl PartialEq for Type {
@@ -418,7 +418,7 @@ pub type NamespaceInner = SmallVec<[NameID; 5]>;
 /// This::is::a::namespace!
 pub struct Namespace {
     pub scopes: NamespaceInner,
-    pub pos: helpers::Pos,
+    pub pos: helpers::Span,
 }
 
 impl fmt::Debug for Namespace {
@@ -519,7 +519,7 @@ pub enum Statement {
 }
 
 impl Statement {
-    pub fn pos(&self) -> helpers::Pos {
+    pub fn pos(&self) -> helpers::Span {
         match &self {
             Statement::ExpressionStatement(val) => val.pos,
 
@@ -594,7 +594,7 @@ pub enum Expr {
 }
 
 impl Expr {
-    pub fn pos(&self) -> helpers::Pos {
+    pub fn pos(&self) -> helpers::Span {
         match &self {
             Expr::Literal(val) => val.pos,
             Expr::RefID(val) => val.pos,

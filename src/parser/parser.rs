@@ -37,22 +37,22 @@ macro_rules! ignore_or_return {
 
 #[derive(Copy, Clone, PartialEq, PartialOrd)]
 pub enum Prec {
-    LOWEST = 0,
+    Lowest = 0,
 
     /// Comparison operators
-    COMP = 1,
+    Comp = 1,
 
     /// `+` and `-`
-    TERM = 2,
+    Term = 2,
 
     /// `*` and `/` and `%`
-    FACTOR = 3,
+    Factor = 3,
 
     /// `as` and `is` operator (CONVersion operator)
-    CONV = 4,
+    Conv = 4,
 
     /// `-` (negate) and others (i.e. `!` logical negate)
-    PREFIX = 5,
+    Prefix = 5,
 }
 
 /// Recursive descent parser
@@ -152,7 +152,7 @@ impl Parser {
         token_type: lexer::TokenType,
         position: usize,
         is_keyword: bool,
-    ) -> Result<helpers::Pos, ErrorGen> {
+    ) -> Result<helpers::Span, ErrorGen> {
         let t = self.forward();
 
         if t.token != token_type {
@@ -165,8 +165,8 @@ impl Parser {
     }
 
     #[inline]
-    pub fn get_relative_pos(&mut self, position: usize) -> helpers::Pos {
-        helpers::Pos {
+    pub fn get_relative_pos(&mut self, position: usize) -> helpers::Span {
+        helpers::Span {
             s: self.tokens[position].pos.s,
             e: self.tokens[if self.token_pos > 0 {
                 self.token_pos - 1
@@ -181,37 +181,37 @@ impl Parser {
 
     pub fn initialize_expr(&mut self) {
         // `-`
-        self.register_prefix(lexer::TokenType::Sub, Prec::PREFIX);
+        self.register_prefix(lexer::TokenType::Sub, Prec::Prefix);
 
         // `-`
-        self.register_infix(lexer::TokenType::Sub, Prec::TERM);
+        self.register_infix(lexer::TokenType::Sub, Prec::Term);
         // `+`
-        self.register_infix(lexer::TokenType::Add, Prec::TERM);
+        self.register_infix(lexer::TokenType::Add, Prec::Term);
 
         // `/`
-        self.register_infix(lexer::TokenType::Div, Prec::FACTOR);
+        self.register_infix(lexer::TokenType::Div, Prec::Factor);
         // `%`
-        self.register_infix(lexer::TokenType::Mod, Prec::FACTOR);
+        self.register_infix(lexer::TokenType::Mod, Prec::Factor);
         // `*`
-        self.register_infix(lexer::TokenType::Mul, Prec::FACTOR);
+        self.register_infix(lexer::TokenType::Mul, Prec::Factor);
         // `%%`
-        self.register_infix(lexer::TokenType::DMod, Prec::FACTOR);
+        self.register_infix(lexer::TokenType::DMod, Prec::Factor);
 
         // `as`
-        self.register_infix(lexer::TokenType::As, Prec::CONV);
+        self.register_infix(lexer::TokenType::As, Prec::Conv);
         // `is`
-        self.register_infix(lexer::TokenType::Is, Prec::CONV);
+        self.register_infix(lexer::TokenType::Is, Prec::Conv);
 
         // `>`
-        self.register_infix(lexer::TokenType::GT, Prec::COMP);
+        self.register_infix(lexer::TokenType::GT, Prec::Comp);
         // `<`
-        self.register_infix(lexer::TokenType::LT, Prec::COMP);
+        self.register_infix(lexer::TokenType::LT, Prec::Comp);
         // `>=`
-        self.register_infix(lexer::TokenType::GE, Prec::COMP);
+        self.register_infix(lexer::TokenType::GE, Prec::Comp);
         // `<=`
-        self.register_infix(lexer::TokenType::LE, Prec::COMP);
+        self.register_infix(lexer::TokenType::LE, Prec::Comp);
         // `==`
-        self.register_infix(lexer::TokenType::EQ, Prec::COMP);
+        self.register_infix(lexer::TokenType::EQ, Prec::Comp);
     }
 
     #[inline]
@@ -634,17 +634,10 @@ impl Parser {
             let temp = self.type_expr()?;
             block = Expr::Block(self.block(Scope::Block)?);
             temp
-        } else if {
-            block = Expr::Block(self.block(Scope::Block)?);
-            true
-        } {
-            ast::Type {
-                value: ast::TypeType::Tuple(Vec::new()),
-                pos: block.pos(),
-            }
         } else {
+            block = Expr::Block(self.block(Scope::Block)?);
             ast::Type {
-                value: ast::TypeType::Tuple(Vec::new()),
+                value: ast::TypeType::Unknown,
                 pos: block.pos(),
             }
         };
@@ -664,7 +657,7 @@ impl Parser {
 
         self.next(lexer::TokenType::Yield, position, true)?;
 
-        let expr = self.expr(Prec::LOWEST)?;
+        let expr = self.expr(Prec::Lowest)?;
 
         Ok(Expr::Yield(ast::Yield {
             expression: Box::new(expr),
@@ -678,7 +671,7 @@ impl Parser {
 
         self.next(lexer::TokenType::Return, position, true)?;
 
-        let expr = self.expr(Prec::LOWEST)?;
+        let expr = self.expr(Prec::Lowest)?;
 
         Ok(Expr::Return(ast::Return {
             expression: Box::new(expr),
@@ -689,7 +682,7 @@ impl Parser {
     /// Expressions statement
     fn expression_statement(&mut self) -> Result<Statement, ErrorGen> {
         let position = self.token_pos;
-        let expr = self.expr(Prec::LOWEST)?;
+        let expr = self.expr(Prec::Lowest)?;
 
         self.next(lexer::TokenType::Semi, position, false)?;
 
@@ -712,7 +705,7 @@ impl Parser {
                 break;
             }
 
-            let expr = self.expr(Prec::LOWEST)?;
+            let expr = self.expr(Prec::Lowest)?;
 
             positional_args.push(expr);
             if self.peek().token == lexer::TokenType::Comma {
@@ -781,7 +774,7 @@ impl Parser {
 
         let expr = if !is_extern {
             self.next(lexer::TokenType::Equals, position, false)?;
-            Some(Box::new(self.expr(Prec::LOWEST)?))
+            Some(Box::new(self.expr(Prec::Lowest)?))
         } else {
             None
         };
@@ -828,7 +821,7 @@ impl Parser {
         let position = self.token_pos;
 
         self.next(lexer::TokenType::If, position, true)?;
-        let cond = self.expr(Prec::LOWEST)?;
+        let cond = self.expr(Prec::Lowest)?;
 
         let block = self.block(Scope::Block)?;
 
@@ -845,7 +838,7 @@ impl Parser {
         self.next(lexer::TokenType::Else, position, true)?;
         self.next(lexer::TokenType::If, position, true)?;
 
-        let cond = self.expr(Prec::LOWEST)?;
+        let cond = self.expr(Prec::Lowest)?;
 
         let block = self.block(Scope::Block)?;
 
@@ -1053,7 +1046,7 @@ impl Parser {
                     true,
                 ));
             }
-            let expr = self.expr(Prec::LOWEST)?;
+            let expr = self.expr(Prec::Lowest)?;
             if lexer::TokenType::RP == self.forward().token {
                 return Ok(expr);
             }
@@ -1241,14 +1234,14 @@ impl Parser {
     fn items(&mut self) -> Result<Vec<Expr>, ErrorGen> {
         let mut items: Vec<Expr> = Vec::new();
 
-        let expr = self.expr(Prec::LOWEST)?;
+        let expr = self.expr(Prec::Lowest)?;
         items.push(expr);
 
         loop {
             let position = self.token_pos;
             if let lexer::TokenType::Comma = self.peek().token {
                 self.forward();
-                if let Ok(expr) = self.expr(Prec::LOWEST) {
+                if let Ok(expr) = self.expr(Prec::Lowest) {
                     items.push(expr);
                 } else {
                     self.set_pos(position);
@@ -1493,7 +1486,7 @@ pub mod parser_tests {
 
     parser_run!(
         "- 1 - 1 + 1 / 1 % 1 %% 1 * 1 as i32 > 1 is i32 < 1 >= 1 <= 1 == 1",
-        move |value| Parser::expr(value, Prec::LOWEST),
+        move |value| Parser::expr(value, Prec::Lowest),
         expr
     );
 

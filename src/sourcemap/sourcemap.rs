@@ -34,7 +34,7 @@ impl SourceMapInner {
     }
 
     #[inline]
-    pub fn get_segment(&self, pos: helpers::Pos) -> &str {
+    pub fn get_segment(&self, pos: helpers::Span) -> &str {
         &self.files[&pos.filename_id][pos.s..pos.e]
     }
 

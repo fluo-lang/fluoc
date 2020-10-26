@@ -1,5 +1,5 @@
 use crate::helpers::plural;
-use crate::helpers::Pos;
+use crate::helpers::Span;
 use crate::logger::{ErrorAnnotation, ErrorDisplayType, ErrorType, ErrorValue};
 use crate::parser::ast;
 use crate::typecheck::{
@@ -187,7 +187,7 @@ fn unify_one(constraint: &Constraint) -> Result<Substitutions, ErrorValue> {
 fn unify_infer(
     infer_num: usize,
     con: Option<AdditionalContraints>,
-    pos: Pos,
+    pos: Span,
     ty: &AnnotationType,
 ) -> Result<Substitutions, ErrorValue> {
     match con {
@@ -248,7 +248,7 @@ fn type_mismatch_err(ty1: &AnnotationType, ty2: &AnnotationType) -> ErrorValue {
     )
 }
 
-fn infinite_recurse_err(pos1: Pos, pos2: Pos) -> ErrorValue {
+fn infinite_recurse_err(pos1: Span, pos2: Span) -> ErrorValue {
     ErrorValue::new(
         "infinitely recursing types".to_string(),
         ErrorType::Infer,
@@ -269,7 +269,7 @@ fn infinite_recurse_err(pos1: Pos, pos2: Pos) -> ErrorValue {
     )
 }
 
-fn diff_tuple_err(args1: usize, args2: usize, pos1: Pos, pos2: Pos) -> ErrorValue {
+fn diff_tuple_err(args1: usize, args2: usize, pos1: Span, pos2: Span) -> ErrorValue {
     ErrorValue::new(
         "tuples have different numbers of fields".to_string(),
         ErrorType::TypeMismatch,
@@ -289,7 +289,7 @@ fn diff_tuple_err(args1: usize, args2: usize, pos1: Pos, pos2: Pos) -> ErrorValu
         ],
     )
 }
-fn diff_arguments_err(args1: usize, args2: usize, pos1: Pos, pos2: Pos) -> ErrorValue {
+fn diff_arguments_err(args1: usize, args2: usize, pos1: Span, pos2: Span) -> ErrorValue {
     ErrorValue::new(
         format!("expected {} arguments, found {} arguments", args1, args2),
         ErrorType::TypeMismatch,
@@ -310,7 +310,7 @@ fn diff_arguments_err(args1: usize, args2: usize, pos1: Pos, pos2: Pos) -> Error
     )
 }
 
-pub fn bad_literal(real_ty: &AnnotationType, lit: ast::LiteralType, pos: Pos) -> ErrorValue {
+pub fn bad_literal(real_ty: &AnnotationType, lit: ast::LiteralType, pos: Span) -> ErrorValue {
     ErrorValue::new(
         "invalid literal type".to_string(),
         ErrorType::TypeMismatch,

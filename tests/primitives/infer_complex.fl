@@ -1,3 +1,5 @@
+-- OK
+
 let entry = () -> i32 {
     let x = 10;
     let y = () -> _ {
@@ -10,5 +12,3 @@ let entry = () -> i32 {
 let ident = (x: _) -> _ {
     yield x;
 };
-
-let test = () {};

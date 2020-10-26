@@ -17,22 +17,22 @@ use std::rc::Rc;
 pub enum AnnotationType {
     Type(
         Rc<ast::Namespace>,
-        #[derivative(Debug = "ignore")] helpers::Pos,
+        #[derivative(Debug = "ignore")] helpers::Span,
     ),
     Tuple(
         Rc<Vec<AnnotationType>>,
-        #[derivative(Debug = "ignore")] helpers::Pos,
+        #[derivative(Debug = "ignore")] helpers::Span,
     ),
     Function(
         Rc<Vec<AnnotationType>>,
         Rc<AnnotationType>,
-        #[derivative(Debug = "ignore")] helpers::Pos,
+        #[derivative(Debug = "ignore")] helpers::Span,
     ),
-    Never(#[derivative(Debug = "ignore")] helpers::Pos),
+    Never(#[derivative(Debug = "ignore")] helpers::Span),
     Infer(
         usize,
         Option<AdditionalContraints>,
-        #[derivative(Debug = "ignore")] helpers::Pos,
+        #[derivative(Debug = "ignore")] helpers::Span,
     ),
 }
 
@@ -158,7 +158,7 @@ impl AnnotationType {
         }
     }
 
-    pub fn pos(&self) -> helpers::Pos {
+    pub fn pos(&self) -> helpers::Span {
         match self {
             AnnotationType::Type(_, pos) => *pos,
             AnnotationType::Tuple(_, pos) => *pos,
@@ -188,9 +188,9 @@ impl Clone for AnnotationType {
 impl fmt::Display for AnnotationType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            AnnotationType::Infer(val, con, _) => match con {
-                Some(c) => write!(f, "{}: {}", val, c),
-                None => write!(f, "{}", val),
+            AnnotationType::Infer(_, con, _) => match con {
+                Some(c) => write!(f, "_: {}", c),
+                None => write!(f, "_"),
             },
             AnnotationType::Type(ty, _) => write!(f, "{}", ty),
             AnnotationType::Tuple(tup, _) => write!(

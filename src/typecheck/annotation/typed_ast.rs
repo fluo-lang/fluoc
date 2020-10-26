@@ -38,7 +38,7 @@ pub struct TypedTuple {
     pub ty: AnnotationType,
     pub exprs: Vec<TypedExpr>,
     #[derivative(Debug = "ignore")]
-    pub pos: helpers::Pos,
+    pub pos: helpers::Span,
 }
 
 #[derive(Clone, Debug)]
@@ -60,7 +60,7 @@ pub enum TypedExprEnum {
 pub struct TypedExpr {
     pub expr: TypedExprEnum,
     #[derivative(Debug = "ignore")]
-    pub pos: helpers::Pos,
+    pub pos: helpers::Span,
 }
 
 impl TypedExpr {
@@ -100,7 +100,7 @@ pub struct TypedBinder {
     pub name: Option<Rc<ast::Namespace>>,
     pub ty: AnnotationType,
     #[derivative(Debug = "ignore")]
-    pub pos: helpers::Pos,
+    pub pos: helpers::Span,
 }
 
 impl PartialEq for TypedBinder {
@@ -127,7 +127,7 @@ impl fmt::Display for TypedBinder {
 }
 
 impl TypedBinder {
-    pub fn new(name: Option<Rc<ast::Namespace>>, ty: AnnotationType, pos: helpers::Pos) -> Self {
+    pub fn new(name: Option<Rc<ast::Namespace>>, ty: AnnotationType, pos: helpers::Span) -> Self {
         Self { name, ty, pos }
     }
 }
@@ -170,7 +170,7 @@ pub enum TypedStmtEnum {
 pub struct TypedStmt {
     pub stmt: TypedStmtEnum,
     #[derivative(Debug = "ignore")]
-    pub pos: helpers::Pos,
+    pub pos: helpers::Span,
 }
 
 #[derive(Clone, Debug)]

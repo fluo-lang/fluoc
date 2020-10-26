@@ -132,7 +132,6 @@ fn generate_expr(
                     assign_dec.binder.ty.clone(),
                     expr.as_ref().ty().clone(),
                 ));
-                println!("{}, {} = {}", assign_dec.binder.name.clone().unwrap(), assign_dec.binder.ty, expr.as_ref().ty());
             }
         }
 

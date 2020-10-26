@@ -1,7 +1,7 @@
 use super::annotation::*;
 use super::unifier::{bad_literal, Substitutions};
 
-use crate::helpers::Pos;
+use crate::helpers::Span;
 use crate::logger::{ErrorAnnotation, ErrorDisplayType, ErrorType, ErrorValue};
 use crate::parser::ast::LiteralType;
 
@@ -156,7 +156,7 @@ pub fn substitute(
     }
 }
 
-fn cannot_infer_err(pos: Pos) -> ErrorValue {
+fn cannot_infer_err(pos: Span) -> ErrorValue {
     ErrorValue::new(
         "cannot infer type".to_string(),
         ErrorType::TypeMismatch,

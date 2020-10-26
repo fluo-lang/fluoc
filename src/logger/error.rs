@@ -1,6 +1,6 @@
 use super::Color;
 
-use crate::helpers::Pos;
+use crate::helpers::Span;
 use crate::parser::ast;
 
 use codespan_reporting::diagnostic::{Diagnostic, Label};
@@ -175,7 +175,7 @@ pub struct ErrorAnnotation {
     /// Error message
     pub message: Option<String>,
     /// Error position
-    pub position: Pos,
+    pub position: Span,
     /// Error display mode
     pub mode: ErrorDisplayType,
     /// Position
@@ -191,7 +191,7 @@ impl ErrorAnnotation {
     /// * `position`: position of error
     /// * `mode`: mode of error report
     /// * `filename`: filename of annotation
-    pub fn new(message: Option<String>, position: Pos, mode: ErrorDisplayType) -> ErrorAnnotation {
+    pub fn new(message: Option<String>, position: Span, mode: ErrorDisplayType) -> ErrorAnnotation {
         ErrorAnnotation {
             message,
             position,
@@ -229,7 +229,7 @@ impl ErrorAnnotation {
 pub struct ErrorValue {
     message: String,
     error: ErrorType,
-    position: Pos,
+    position: Span,
     mode: ErrorDisplayType,
     annotations: Vec<ErrorAnnotation>,
     note: Option<String>,
@@ -240,7 +240,7 @@ impl ErrorValue {
     pub fn new(
         message: String,
         error: ErrorType,
-        position: Pos,
+        position: Span,
         mode: ErrorDisplayType,
         annotations: Vec<ErrorAnnotation>,
     ) -> Self {
@@ -300,11 +300,11 @@ pub struct ErrorGen {
     make_err: Box<dyn Fn() -> ErrorValue>,
     /// Urgent error: raise even if another function parses further
     pub urgent: bool,
-    pub position: Pos,
+    pub position: Span,
 }
 
 impl ErrorGen {
-    pub fn new(make_err: Box<dyn Fn() -> ErrorValue>, position: Pos, urgent: bool) -> Self {
+    pub fn new(make_err: Box<dyn Fn() -> ErrorValue>, position: Span, urgent: bool) -> Self {
         Self {
             urgent,
             position,

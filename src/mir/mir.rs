@@ -16,19 +16,19 @@ pub struct MirFunctionSig {
     pub pos_args: Vec<MirType>,
     pub return_type: Box<MirType>,
     #[derivative(Debug = "ignore")]
-    pub pos: helpers::Pos,
+    pub pos: helpers::Span,
 }
 
 #[derive(Debug, Clone)]
 pub enum MirType {
     /// Tuple types, E.g., (int, int), (str, my::type)
-    Tuple(Vec<MirType>, helpers::Pos),
+    Tuple(Vec<MirType>, helpers::Span),
 
     /// Primitives
-    Primitive(Prim, helpers::Pos),
+    Primitive(Prim, helpers::Span),
 
     /// Function Type
-    FunctionType(Vec<MirType>, Box<MirType>, helpers::Pos),
+    FunctionType(Vec<MirType>, Box<MirType>, helpers::Span),
 
     /// Null type
     Never,
@@ -40,7 +40,7 @@ pub struct IfBranch {
     pub cond: MirExpr,
     pub block: MirBlock,
     #[derivative(Debug = "ignore")]
-    pub pos: helpers::Pos,
+    pub pos: helpers::Span,
 }
 
 #[derive(Derivative, Clone)]
@@ -48,7 +48,7 @@ pub struct IfBranch {
 pub struct ElseBranch {
     pub block: MirBlock,
     #[derivative(Debug = "ignore")]
-    pub pos: helpers::Pos,
+    pub pos: helpers::Span,
 }
 
 #[derive(Derivative, Clone)]
@@ -59,7 +59,7 @@ pub struct Conditional {
     // Else Branch
     pub else_b: ElseBranch,
     #[derivative(Debug = "ignore")]
-    pub pos: helpers::Pos,
+    pub pos: helpers::Span,
 }
 
 #[derive(Debug, Clone)]
@@ -73,7 +73,7 @@ pub struct MirBlock {
     pub stmts: Vec<MirStmt>,
     pub metadata: BlockMetadata,
     #[derivative(Debug = "ignore")]
-    pub pos: helpers::Pos,
+    pub pos: helpers::Span,
 }
 
 #[derive(Derivative, Clone)]
@@ -82,7 +82,7 @@ pub struct MirVariableAssign {
     pub var_name: Rc<ast::Namespace>,
     pub value: Either<MirExpr, MirType>,
     #[derivative(Debug = "ignore")]
-    pub pos: helpers::Pos,
+    pub pos: helpers::Span,
 }
 
 #[derive(Derivative, Clone)]
@@ -97,7 +97,7 @@ pub struct MirFunctionCall {
     pub arguments: Vec<MirExpr>,
     pub mangled_name: String,
     #[derivative(Debug = "ignore")]
-    pub pos: helpers::Pos,
+    pub pos: helpers::Span,
 }
 
 #[derive(Debug, Clone)]
@@ -115,7 +115,7 @@ pub enum MirExprEnum {
 pub struct MirExpr {
     pub value: MirExprEnum,
     #[derivative(Debug = "ignore")]
-    pub pos: helpers::Pos,
+    pub pos: helpers::Span,
     pub ty: MirType,
 }
 
@@ -126,12 +126,12 @@ pub enum MirStmt {
     Return {
         value: MirExpr,
         #[derivative(Debug = "ignore")]
-        pos: helpers::Pos,
+        pos: helpers::Span,
     },
     Yield {
         value: MirExpr,
         #[derivative(Debug = "ignore")]
-        pos: helpers::Pos,
+        pos: helpers::Span,
     },
     Tag(MirTag),
     Expression(MirExpr),

@@ -1,15 +1,14 @@
 use crate::logger::{ErrorLevel, ErrorValue, Logger};
 
-use std::fmt;
 use std::path;
 use std::process;
 
 #[derive(Debug, Default, Copy, Clone, Hash, PartialEq, Eq)]
-/// Position helper struct
+/// Span helper struct
 ///
 /// Used to keep track of all tokens and nodes.
 /// Note that there are no line numbers, a `\n` character counts as on character.
-pub struct Pos {
+pub struct Span {
     /// Start position in characters
     pub s: usize,
 
@@ -21,7 +20,7 @@ pub struct Pos {
     pub filename_id: usize,
 }
 
-impl Pos {
+impl Span {
     pub fn new(s: usize, e: usize, filename_id: usize) -> Self {
         Self { s, e, filename_id }
     }

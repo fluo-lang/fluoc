@@ -1,6 +1,6 @@
 use super::{typed_ast, AdditionalContraints, AnnotationType};
 
-use crate::helpers::Pos;
+use crate::helpers::Span;
 use crate::logger::ErrorValue;
 use crate::parser::{ast, ast::Statement};
 use crate::typecheck::context::Context;
@@ -80,14 +80,14 @@ impl Annotator {
         }
     }
 
-    pub fn unique(&mut self, pos: Pos) -> AnnotationType {
+    pub fn unique(&mut self, pos: Span) -> AnnotationType {
         self.type_counter += 1;
         AnnotationType::Infer(self.type_counter, None, pos)
     }
 
     pub fn unique_literal(
         &mut self,
-        pos: Pos,
+        pos: Span,
         literal: Option<AdditionalContraints>,
     ) -> AnnotationType {
         self.type_counter += 1;
@@ -124,10 +124,10 @@ pub mod annotator_test {
     #[test]
     fn test_unique() {
         let mut annotator = Annotator::new();
-        let _1 = annotator.unique(Pos::new(0, 0, 0));
-        let _2 = annotator.unique(Pos::new(0, 0, 0));
-        let _3 = annotator.unique(Pos::new(0, 0, 0));
-        let _4 = annotator.unique(Pos::new(0, 0, 0));
+        let _1 = annotator.unique(Span::new(0, 0, 0));
+        let _2 = annotator.unique(Span::new(0, 0, 0));
+        let _3 = annotator.unique(Span::new(0, 0, 0));
+        let _4 = annotator.unique(Span::new(0, 0, 0));
 
         assert_infer!(1, _1);
         assert_infer!(2, _2);

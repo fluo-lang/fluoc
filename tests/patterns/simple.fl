@@ -1,6 +1,8 @@
+-- OK
+
 pattern Animal {
     let fart: () -> ();
-}
+};
 
 let entry = () {};
 

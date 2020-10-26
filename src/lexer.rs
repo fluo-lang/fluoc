@@ -161,7 +161,7 @@ impl TokenType {
 /// Token object
 pub struct Token {
     pub token: TokenType,
-    pub pos: helpers::Pos,
+    pub pos: helpers::Span,
 }
 
 impl Token {
@@ -245,7 +245,7 @@ impl Lexer {
             position: 0,
             current_token: Token {
                 token: TokenType::EOF,
-                pos: helpers::Pos::new(0, 0, filename),
+                pos: helpers::Span::new(0, 0, filename),
             },
             unicode_iter: GraphemeIdxs::new(Rc::clone(&sourcemap), filename).peekable(),
             change_peek: true,
@@ -392,7 +392,7 @@ impl Lexer {
                 EOF => TokenType::EOF,
 
                 unknown => {
-                    let pos = helpers::Pos {
+                    let pos = helpers::Span {
                         s: self.position - 1,
                         e: self.position,
                         filename_id: self.filename,
@@ -431,7 +431,7 @@ impl Lexer {
             }
 
             self.current_token = Token {
-                pos: helpers::Pos::new(start_pos - 1, end_pos, self.filename),
+                pos: helpers::Span::new(start_pos - 1, end_pos, self.filename),
                 token: token_kind,
             };
 
@@ -456,7 +456,7 @@ impl Lexer {
         let position = self.position;
         let id = self.eat_while(is_id_continue);
 
-        match self.sourcemap.borrow().get_segment(helpers::Pos::new(
+        match self.sourcemap.borrow().get_segment(helpers::Span::new(
             position - 1,
             position + id,
             self.filename,
@@ -504,7 +504,7 @@ impl Lexer {
             c = self.bump().front;
         }
 
-        let position_err = helpers::Pos {
+        let position_err = helpers::Span {
             s: pos - 1,
             e: self.position - 1,
             filename_id: self.filename,

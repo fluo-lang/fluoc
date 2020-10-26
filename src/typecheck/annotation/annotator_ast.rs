@@ -244,7 +244,6 @@ impl ast::FunctionCall {
         annotator: &mut Annotator,
         context: &mut Context<AnnotationType>,
     ) -> Result<TypedExpr, ErrorValue> {
-        println!("context: {}\n", context);
         let func_sig = context.get_local(&self.name);
         let func_ty = func_sig.symbol(&self.name)?.clone();
 

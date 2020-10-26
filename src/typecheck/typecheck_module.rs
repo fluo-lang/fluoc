@@ -87,9 +87,7 @@ impl TypeCheckModule {
             .map_err(|e| vec![e])?;
 
         let constraints = generate(&typed_ast, None, None);
-        println!("{}", constraints);
         let solved_constraints = unify(constraints).map_err(|e| vec![e])?;
-        println!("{}", solved_constraints);
 
         substitute(&mut typed_ast, solved_constraints)?;
 
