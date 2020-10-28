@@ -24,7 +24,7 @@ impl AnnotationType {
                 Rc::make_mut(ret_ty).sub(solved_constraints)?;
             }
             // Important part!
-            AnnotationType::Infer(infer_num, con, pos) => {
+            AnnotationType::Infer(infer_num, _, pos) => {
                 match solved_constraints.subs.get(&infer_num) {
                     Some(ty) => {
                         *self = ty.clone();

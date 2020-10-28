@@ -1767,36 +1767,4 @@ pub mod parser_tests {
         Parser::function_call,
         mssing_comma_function_call_2
     );
-
-    //#[test]
-    fn print_vals() {
-        // Utility function for printing ast's
-        let sourcemap = SourceMapInner::new();
-        let logger = LoggerInner::new(true, Rc::clone(&sourcemap));
-        let mut parser = Parser::new(0, logger, sourcemap);
-        parser.initialize_expr();
-        parser
-            .fill_token_stream()
-            .expect("Failed to fill token stream");
-        let output = format!(
-            "{:?}",
-            match parser.import() {
-                Ok(val) => val,
-                Err(e) => panic!("Failed to parse: {:?}", {
-                    let err: ErrorValue = e.into();
-                    err
-                }),
-            }
-        )
-        .replace("[", "vec![")
-        .replace(
-            "\"a_really_long_parser_filename_for_this_test.fl\"",
-            "path::Path::new(FILENAME)",
-        )
-        .replace("SingleType(", "TypeCheckTypeType::SingleType(")
-        .replace("Literal(", "Expr::Literal(")
-        .replace("TypeCheckType(", "TypeCheckOrType::TypeCheckType(");
-        println!("{}", output);
-        panic!("awd");
-    }
 }

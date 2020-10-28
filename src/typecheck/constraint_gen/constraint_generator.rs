@@ -176,7 +176,7 @@ fn generate_expr(
                 .insert(Constraint::new(is.expr.ty().clone(), is.ty.clone()));
         }
 
-        TypedExprEnum::Literal(lit) => {}
+        TypedExprEnum::Literal(_) => {}
 
         TypedExprEnum::Tuple(tup) => {
             for expr in &tup.exprs {
