@@ -1,14 +1,6 @@
 let entry = () -> i32 {
-    let x = 10;
-    let y = () -> _ {
-        yield x;
+    let x: i32 = {
+        return 10;
     };
-
-    yield ident(y());
+    return 10;
 };
-
-let ident = (x: _) -> _ {
-    yield x;
-};
-
-let test = () {};

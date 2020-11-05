@@ -184,6 +184,7 @@ fn unify_one(constraint: &Constraint) -> Result<Substitutions, ErrorValue> {
     }
 }
 
+#[allow(irrefutable_let_patterns)]
 fn unify_infer(
     infer_num: usize,
     con: Option<AdditionalContraints>,

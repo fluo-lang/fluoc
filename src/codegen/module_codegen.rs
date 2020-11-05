@@ -40,6 +40,7 @@ impl<'a> CodeGenSymbTab<'a> {
     }
 
     fn get(&mut self, name: Rc<ast::Namespace>) -> values::BasicValueEnum<'a> {
+        println!("{}", name);
         *self.items.get(&name).unwrap()
     }
 }
@@ -57,6 +58,7 @@ pub struct CodeGenModule<'a> {
     pub output_obj: &'a path::Path,
     sourcemap: SourceMap,
     logger: Logger,
+    current_function: Option<inkwell::values::FunctionValue<'a>>,
 }
 
 impl<'a> CodeGenModule<'a> {
@@ -82,6 +84,7 @@ impl<'a> CodeGenModule<'a> {
             output_obj,
             sourcemap,
             logger,
+            current_function: None,
         }
     }
 
@@ -95,11 +98,11 @@ impl<'a> CodeGenModule<'a> {
             self.gen_stmt_pass_1(statement)
         }
 
-        /*
-        for statement in &typed_ast {
+        for statement in mir_rep.iter() {
             self.gen_stmt_pass_2(statement)
         }
-        */
+
+        println!("{}", self.module.print_to_string().to_string());
 
         self.logger.borrow().log_verbose(&|| {
             format!(
@@ -111,56 +114,182 @@ impl<'a> CodeGenModule<'a> {
         Ok(())
     }
 
-    pub fn gen_stmt_pass_1(&mut self, stmt: &MirStmt) {
+    fn gen_stmt_pass_1(&mut self, stmt: &MirStmt) {
         match stmt {
-            MirStmt::FunctionDef {
-                signature,
-                mangled_name,
-                visibility,
-                ..
-            } => self.gen_function_prototype(signature, mangled_name, *visibility),
+            MirStmt::FunctionDef(fd) => self.gen_function_prototype(fd),
             MirStmt::VariableAssign(var_assign) => self.gen_var_prototype(var_assign),
             MirStmt::Tag(tag) => {}
             s => todo!("Not implemented: {:?}", s),
         }
     }
 
-    pub fn gen_function_prototype<'b>(
-        &mut self,
-        sig: &MirFunctionSig,
-        name: &'b str,
-        visibility: ast::Visibility,
-    ) {
-        let ret_ty = self.from_mir_ty(sig.return_type.as_ref());
-        let function_tys: Vec<types::BasicTypeEnum<'_>> = sig
+    fn gen_stmt_pass_2(&mut self, stmt: &MirStmt) {
+        match stmt {
+            MirStmt::FunctionDef(fd) => self.gen_function_concrete(fd),
+            MirStmt::VariableAssign(var_assign) => self.gen_var_concrete(&*var_assign),
+            MirStmt::Tag(tag) => {}
+            MirStmt::Return(ret) => self.gen_return_stmt(&ret),
+
+            // Blocks deal with this
+            MirStmt::Yield(_) => {}
+            MirStmt::Expression(_) => {}
+            s => todo!("{:?}", s),
+        }
+    }
+
+    fn gen_return_stmt(&mut self, ret: &MirReturn) {
+        let expr = self.eval_expr(&ret.value);
+        self.builder.build_return(Some(&expr));
+    }
+
+    fn gen_function_concrete(&mut self, fd: &MirFunctionDef) {
+        self.symbtab.clear();
+
+        if let Some(ref block) = fd.block {
+            let func = self.module.get_function(&fd.mangled_name).unwrap();
+            self.current_function = Some(func);
+            let entry_block = self.context.append_basic_block(func, "entry");
+            let builder = self.context.create_builder();
+            builder.position_at_end(entry_block);
+            for (idx, (argument, type_val)) in fd
+                .arg_names
+                .iter()
+                .zip(fd.signature.pos_args.iter())
+                .enumerate()
+            {
+                let arg_type = self.from_mir_ty(type_val);
+                let argument_alloca = builder.build_alloca(arg_type, &argument.to_string());
+                builder.build_store(
+                    argument_alloca,
+                    func.get_nth_param(idx.try_into().unwrap()).unwrap(),
+                );
+
+                self.symbtab
+                    .insert(Rc::clone(&argument), argument_alloca.as_basic_value_enum());
+            }
+            self.builder = builder;
+            self.gen_block(&block);
+            self.current_function = None;
+        }
+    }
+
+    fn gen_function_prototype(&mut self, fd: &MirFunctionDef) {
+        let ret_ty = self.from_mir_ty(fd.signature.return_type.as_ref());
+        let function_tys: Vec<types::BasicTypeEnum<'_>> = fd
+            .signature
             .pos_args
             .iter()
             .map(|arg| self.from_mir_ty(arg))
             .collect();
 
-        let function = self
-            .module
-            .add_function(name, ret_ty.fn_type(&function_tys, false), None);
-        function.set_linkage(visibility.get_linkage());
+        self.module
+            .add_function(&fd.mangled_name, ret_ty.fn_type(&function_tys, false), None);
     }
 
-    pub fn gen_var_prototype(&mut self, var_assign: &MirVariableAssign) {
+    fn gen_var_prototype(&mut self, var_assign: &MirVariableAssign) {
         let ty = self.from_mir_ty(match &var_assign.value {
             Either::Left(expr) => &expr.ty,
             Either::Right(ty) => ty,
         });
-        self.module.add_global(
-            ty,
-            Some(inkwell::AddressSpace::Const),
-            &var_assign.var_name.to_string(),
-        );
+
+        let pointer = self.builder.build_alloca(ty, &var_assign.var_name.mangle());
+
+        self.symbtab.insert(
+            Rc::clone(&var_assign.var_name),
+            inkwell::values::BasicValueEnum::PointerValue(pointer),
+        )
     }
 
-    pub fn eval_expr(&mut self, expr: &MirExpr) -> inkwell::values::BasicValueEnum<'a> {
-        todo!()
+    fn gen_var_concrete(&mut self, var_assign: &MirVariableAssign) {
+        match &var_assign.value {
+            Either::Left(expr) => {
+                let inkwell_expr = self.eval_expr(expr);
+                // let var_ptr = self
+                //     .symbtab
+                //     .get(Rc::clone(&var_assign.var_name))
+                //     .into_pointer_value();
+                let ty = self.from_mir_ty(&expr.ty);
+                let var_ptr = self
+                    .builder
+                    .build_alloca(ty, &var_assign.var_name.to_string());
+                self.builder.build_store(var_ptr, inkwell_expr);
+            }
+            Either::Right(_) => {}
+        }
     }
 
-    pub fn from_mir_ty(&mut self, mir_ty: &MirType) -> types::BasicTypeEnum<'a> {
+    fn eval_expr(&mut self, expr: &MirExpr) -> inkwell::values::BasicValueEnum<'a> {
+        match &expr.value {
+            MirExprEnum::Block(bl) => self.gen_block(&bl),
+            MirExprEnum::Variable(var) => self
+                .symbtab
+                .get(Rc::clone(&var))
+                .into_pointer_value()
+                .into(),
+            MirExprEnum::Literal => self.eval_literal(expr),
+            MirExprEnum::FunctionCall(call) => self.eval_function(call),
+            _ => todo!(),
+        }
+    }
+
+    fn eval_function(&mut self, call: &MirFunctionCall) -> inkwell::values::BasicValueEnum<'a> {
+        let arguments = &call
+            .arguments
+            .iter()
+            .map(|expr| self.eval_expr(expr))
+            .collect::<Vec<_>>();
+        self.builder
+            .build_call(
+                self.module.get_function(&call.mangled_name).unwrap(),
+                arguments,
+                "call",
+            )
+            .try_as_basic_value()
+            .left()
+            .unwrap()
+    }
+
+    fn eval_literal(&mut self, expr: &MirExpr) -> inkwell::values::BasicValueEnum<'a> {
+        let ty = self.from_mir_ty(&expr.ty);
+        match ty {
+            inkwell::types::BasicTypeEnum::IntType(int) => {
+                if int.get_bit_width() != 1 {
+                    int.const_int_from_string(
+                        get_segment!(self.sourcemap, expr.pos),
+                        inkwell::types::StringRadix::Decimal,
+                    )
+                    .unwrap()
+                    .as_basic_value_enum()
+                } else {
+                    // Boolean
+                    int.const_int(
+                        (get_segment!(self.sourcemap, expr.pos) == "true") as u64,
+                        false,
+                    )
+                    .as_basic_value_enum()
+                }
+            }
+            _ => panic!(),
+        }
+    }
+
+    fn gen_block(&mut self, block: &MirBlock) -> inkwell::values::BasicValueEnum<'a> {
+        let ty = self.from_mir_ty(&block.ty);
+        let alloca = self.builder.build_alloca(ty, "block");
+
+        for stmt in block.stmts.iter() {
+            if let MirStmt::Yield(yield_stmt) = stmt {
+                let expr = self.eval_expr(&yield_stmt.value);
+                self.builder.build_store(alloca, expr);
+                continue;
+            }
+            self.gen_stmt_pass_2(stmt);
+        }
+
+        alloca.as_basic_value_enum()
+    }
+
+    fn from_mir_ty(&mut self, mir_ty: &MirType) -> types::BasicTypeEnum<'a> {
         match mir_ty {
             MirType::Primitive(prim, _) => match prim {
                 Prim::I8 => self.context.i8_type().into(),

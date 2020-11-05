@@ -74,6 +74,7 @@ pub struct MirBlock {
     pub metadata: BlockMetadata,
     #[derivative(Debug = "ignore")]
     pub pos: helpers::Span,
+    pub ty: MirType,
 }
 
 #[derive(Derivative, Clone)]
@@ -102,7 +103,7 @@ pub struct MirFunctionCall {
 
 #[derive(Debug, Clone)]
 pub enum MirExprEnum {
-    Variable(ast::Namespace),
+    Variable(Rc<ast::Namespace>),
     Literal,
     Block(MirBlock),
     Conditional(Box<Conditional>),
@@ -121,25 +122,37 @@ pub struct MirExpr {
 
 #[derive(Derivative, Clone)]
 #[derivative(Debug)]
+pub struct MirFunctionDef {
+    pub signature: MirFunctionSig,
+    pub arg_names: Vec<Rc<ast::Namespace>>,
+    pub block: Option<MirBlock>,
+    pub visibility: ast::Visibility,
+    pub mangled_name: String,
+}
+
+#[derive(Derivative, Clone)]
+#[derivative(Debug)]
+pub struct MirReturn {
+    pub value: MirExpr,
+    #[derivative(Debug = "ignore")]
+    pub pos: helpers::Span,
+}
+
+#[derive(Derivative, Clone)]
+#[derivative(Debug)]
+pub struct MirYield {
+    pub value: MirExpr,
+    #[derivative(Debug = "ignore")]
+    pub pos: helpers::Span,
+}
+
+#[derive(Derivative, Clone)]
+#[derivative(Debug)]
 pub enum MirStmt {
     VariableAssign(Box<MirVariableAssign>),
-    Return {
-        value: MirExpr,
-        #[derivative(Debug = "ignore")]
-        pos: helpers::Span,
-    },
-    Yield {
-        value: MirExpr,
-        #[derivative(Debug = "ignore")]
-        pos: helpers::Span,
-    },
+    Yield(MirYield),
+    Return(MirReturn),
     Tag(MirTag),
     Expression(MirExpr),
-    FunctionDef {
-        signature: MirFunctionSig,
-        arg_names: Vec<Rc<ast::Namespace>>,
-        block: Option<MirBlock>,
-        visibility: ast::Visibility,
-        mangled_name: String,
-    },
+    FunctionDef(MirFunctionDef),
 }

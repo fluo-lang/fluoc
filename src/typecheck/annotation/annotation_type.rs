@@ -68,6 +68,7 @@ impl AdditionalContraints {
         self.0.iter().any(|c| c.is_literal())
     }
 
+    #[allow(irrefutable_let_patterns)]
     pub fn get_literal(&self) -> Option<ast::LiteralType> {
         for val in &self.0 {
             if let AdditionalContraint::Literal(lit) = val {

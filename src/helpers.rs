@@ -36,6 +36,10 @@ impl Span {
             filename_id: lower.filename_id,
         }
     }
+
+    pub fn len(&self) -> usize {
+        self.e - self.s
+    }
 }
 
 pub fn get_high_priority<'a>(errors: Vec<(ErrorValue, ErrorLevel)>) -> Vec<ErrorValue> {

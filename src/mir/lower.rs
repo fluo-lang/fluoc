@@ -115,7 +115,7 @@ impl TypedExpr {
                 match function.block.into_mir(&mut scope, expr_data.clone())?.0 {
                     Some(block) => match function.ty {
                         AnnotationType::Function(pos_args, ret_ty, pos) => {
-                            mir.push(MirStmt::FunctionDef {
+                            mir.push(MirStmt::FunctionDef(super::MirFunctionDef {
                                 mangled_name: expr_data
                                     .expr_name
                                     .map(|name| Rc::clone(&name).to_string())
@@ -136,7 +136,7 @@ impl TypedExpr {
                                 },
                                 visibility: expr_data.visibility.unwrap(),
                                 arg_names: function.arg_names,
-                            });
+                            }));
                         }
                         _ => panic!(),
                     },
@@ -169,7 +169,7 @@ impl TypedExpr {
                     },
                     Either::Right(ty) => match ty.into_mir()? {
                         MirType::FunctionType(pos_args, return_type, pos) => {
-                            mir.push(MirStmt::FunctionDef {
+                            mir.push(MirStmt::FunctionDef(super::MirFunctionDef {
                                 arg_names: Vec::new(),
                                 block: None,
                                 visibility: var_assign.visibility,
@@ -179,7 +179,7 @@ impl TypedExpr {
                                     return_type,
                                     pos,
                                 },
-                            });
+                            }));
 
                             let ty = var_assign.binder.ty.into_mir()?;
                             return Ok((
@@ -230,10 +230,10 @@ impl TypedExpr {
             TypedExprEnum::Return(ret) => {
                 if let Some(expr) = ret.expr.into_mir(mir, ExprData::default())?.0 {
                     // Push return statement onto statement list
-                    mir.push(MirStmt::Return {
+                    mir.push(MirStmt::Return(super::MirReturn {
                         value: expr,
                         pos: self.pos,
-                    });
+                    }));
                 }
 
                 Ok((None, expr_data.is_null(true)))
@@ -241,10 +241,10 @@ impl TypedExpr {
             TypedExprEnum::Yield(ret) => {
                 if let Some(expr) = ret.expr.into_mir(mir, ExprData::default())?.0 {
                     // Push yield statement onto statement list
-                    mir.push(MirStmt::Yield {
+                    mir.push(MirStmt::Yield(super::MirYield {
                         value: expr,
                         pos: self.pos,
-                    });
+                    }));
                 }
                 Ok((None, expr_data.is_null(true)))
             }
@@ -281,6 +281,7 @@ impl TypedExpr {
                         value: MirExprEnum::Block(super::MirBlock {
                             stmts,
                             metadata,
+                            ty: block_mir_ty.clone(),
                             pos: self.pos,
                         }),
                         pos: self.pos,
@@ -305,10 +306,11 @@ impl MirExpr {
             | MirExprEnum::Conditional(_) => Ok(super::MirBlock {
                 metadata: super::BlockMetadata { returns: true },
                 pos: self.pos,
-                stmts: vec![MirStmt::Yield {
+                ty: self.ty.clone(),
+                stmts: vec![MirStmt::Yield(super::MirYield {
                     pos: self.pos,
                     value: self,
-                }],
+                })],
             }),
         }
     }
