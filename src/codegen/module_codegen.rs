@@ -6,15 +6,13 @@ use crate::sourcemap::SourceMap;
 use crate::typecheck::{Prim, TypeCheckModule};
 
 use inkwell::types::BasicType;
-use inkwell::values::BasicValue;
 use inkwell::{builder, context, module, types, values};
+use values::BasicValue;
 
 use either::Either;
 
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::convert::TryInto;
-use std::ops::Deref;
 use std::path;
 use std::rc::Rc;
 use std::time::Instant;
@@ -40,7 +38,6 @@ impl<'a> CodeGenSymbTab<'a> {
     }
 
     fn get(&mut self, name: Rc<ast::Namespace>) -> values::BasicValueEnum<'a> {
-        println!("{}", name);
         *self.items.get(&name).unwrap()
     }
 }
@@ -58,7 +55,7 @@ pub struct CodeGenModule<'a> {
     pub output_obj: &'a path::Path,
     sourcemap: SourceMap,
     logger: Logger,
-    current_function: Option<inkwell::values::FunctionValue<'a>>,
+    current_function: Option<values::FunctionValue<'a>>,
 }
 
 impl<'a> CodeGenModule<'a> {
@@ -118,28 +115,35 @@ impl<'a> CodeGenModule<'a> {
         match stmt {
             MirStmt::FunctionDef(fd) => self.gen_function_prototype(fd),
             MirStmt::VariableAssign(var_assign) => self.gen_var_prototype(var_assign),
-            MirStmt::Tag(tag) => {}
-            s => todo!("Not implemented: {:?}", s),
+            MirStmt::Tag(_) => {}
+            _ => panic!("{:?}\nFound statement where it shouldn't be!", stmt),
         }
     }
 
     fn gen_stmt_pass_2(&mut self, stmt: &MirStmt) {
         match stmt {
             MirStmt::FunctionDef(fd) => self.gen_function_concrete(fd),
-            MirStmt::VariableAssign(var_assign) => self.gen_var_concrete(&*var_assign),
-            MirStmt::Tag(tag) => {}
+            MirStmt::VariableAssign(var_assign) => {
+                self.gen_var_concrete(&*var_assign);
+            }
+            MirStmt::Tag(_) => {}
             MirStmt::Return(ret) => self.gen_return_stmt(&ret),
 
             // Blocks deal with this
             MirStmt::Yield(_) => {}
-            MirStmt::Expression(_) => {}
-            s => todo!("{:?}", s),
+
+            MirStmt::Expression(expr) => {
+                // Expr's generally don't do anything, so we can throw it away,
+                // special case for the block expression
+                self.eval_expr(expr);
+            }
         }
     }
 
     fn gen_return_stmt(&mut self, ret: &MirReturn) {
-        let expr = self.eval_expr(&ret.value);
-        self.builder.build_return(Some(&expr));
+        if let Some(expr) = self.eval_expr(&ret.value) {
+            self.builder.build_return(Some(&expr));
+        }
     }
 
     fn gen_function_concrete(&mut self, fd: &MirFunctionDef) {
@@ -168,7 +172,7 @@ impl<'a> CodeGenModule<'a> {
                     .insert(Rc::clone(&argument), argument_alloca.as_basic_value_enum());
             }
             self.builder = builder;
-            self.gen_block(&block);
+            self.gen_block(block);
             self.current_function = None;
         }
     }
@@ -196,60 +200,58 @@ impl<'a> CodeGenModule<'a> {
 
         self.symbtab.insert(
             Rc::clone(&var_assign.var_name),
-            inkwell::values::BasicValueEnum::PointerValue(pointer),
-        )
+            values::BasicValueEnum::PointerValue(pointer),
+        );
+
     }
 
-    fn gen_var_concrete(&mut self, var_assign: &MirVariableAssign) {
+    fn gen_var_concrete(&mut self, var_assign: &MirVariableAssign) -> Option<()> {
         match &var_assign.value {
             Either::Left(expr) => {
-                let inkwell_expr = self.eval_expr(expr);
-                // let var_ptr = self
-                //     .symbtab
-                //     .get(Rc::clone(&var_assign.var_name))
-                //     .into_pointer_value();
-                let ty = self.from_mir_ty(&expr.ty);
+                let inkwell_expr = self.eval_expr(expr)?;
                 let var_ptr = self
-                    .builder
-                    .build_alloca(ty, &var_assign.var_name.to_string());
+                    .symbtab
+                    .get(Rc::clone(&var_assign.var_name))
+                    .into_pointer_value();
                 self.builder.build_store(var_ptr, inkwell_expr);
             }
             Either::Right(_) => {}
         }
+
+        Some(())
     }
 
-    fn eval_expr(&mut self, expr: &MirExpr) -> inkwell::values::BasicValueEnum<'a> {
+    fn eval_expr(&mut self, expr: &MirExpr) -> Option<values::BasicValueEnum<'a>> {
         match &expr.value {
             MirExprEnum::Block(bl) => self.gen_block(&bl),
-            MirExprEnum::Variable(var) => self
-                .symbtab
-                .get(Rc::clone(&var))
-                .into_pointer_value()
-                .into(),
-            MirExprEnum::Literal => self.eval_literal(expr),
-            MirExprEnum::FunctionCall(call) => self.eval_function(call),
-            _ => todo!(),
+            MirExprEnum::Variable(var) => Some(self.symbtab.get(Rc::clone(&var))),
+            MirExprEnum::Literal => Some(self.eval_literal(expr)),
+            MirExprEnum::FunctionCall(call) => Some(self.eval_function(call)?),
+            _ => todo!("{:?} Unimplemented", expr.value),
         }
     }
 
-    fn eval_function(&mut self, call: &MirFunctionCall) -> inkwell::values::BasicValueEnum<'a> {
-        let arguments = &call
-            .arguments
-            .iter()
-            .map(|expr| self.eval_expr(expr))
-            .collect::<Vec<_>>();
-        self.builder
-            .build_call(
-                self.module.get_function(&call.mangled_name).unwrap(),
-                arguments,
-                "call",
-            )
-            .try_as_basic_value()
-            .left()
-            .unwrap()
+    fn eval_function(&mut self, call: &MirFunctionCall) -> Option<values::BasicValueEnum<'a>> {
+        let mut arguments: Vec<values::BasicValueEnum<'a>> =
+            Vec::with_capacity(call.arguments.len());
+        for arg in &call.arguments {
+            arguments.push(self.eval_expr(&arg)?);
+        }
+
+        Some(
+            self.builder
+                .build_call(
+                    self.module.get_function(&call.mangled_name).unwrap(),
+                    &arguments,
+                    "call",
+                )
+                .try_as_basic_value()
+                .left()
+                .unwrap(),
+        )
     }
 
-    fn eval_literal(&mut self, expr: &MirExpr) -> inkwell::values::BasicValueEnum<'a> {
+    fn eval_literal(&mut self, expr: &MirExpr) -> values::BasicValueEnum<'a> {
         let ty = self.from_mir_ty(&expr.ty);
         match ty {
             inkwell::types::BasicTypeEnum::IntType(int) => {
@@ -273,20 +275,23 @@ impl<'a> CodeGenModule<'a> {
         }
     }
 
-    fn gen_block(&mut self, block: &MirBlock) -> inkwell::values::BasicValueEnum<'a> {
+    fn gen_block(&mut self, block: &MirBlock) -> Option<values::BasicValueEnum<'a>> {
         let ty = self.from_mir_ty(&block.ty);
         let alloca = self.builder.build_alloca(ty, "block");
 
         for stmt in block.stmts.iter() {
             if let MirStmt::Yield(yield_stmt) = stmt {
                 let expr = self.eval_expr(&yield_stmt.value);
-                self.builder.build_store(alloca, expr);
-                continue;
+                self.builder.build_store(alloca, expr?);
             }
             self.gen_stmt_pass_2(stmt);
+
+            if stmt.diverges() {
+                return None;
+            }
         }
 
-        alloca.as_basic_value_enum()
+        Some(alloca.as_basic_value_enum())
     }
 
     fn from_mir_ty(&mut self, mir_ty: &MirType) -> types::BasicTypeEnum<'a> {

@@ -1,6 +1,6 @@
 let entry = () -> i32 {
-    let x: i32 = {
-        return 10;
+    let x: i64 = {
+        yield 10;
     };
     return 10;
 };

@@ -64,7 +64,7 @@ pub struct Conditional {
 
 #[derive(Debug, Clone)]
 pub struct BlockMetadata {
-    pub returns: bool,
+    pub diverges: bool,
 }
 
 #[derive(Derivative, Clone)]
@@ -107,7 +107,6 @@ pub enum MirExprEnum {
     Literal,
     Block(MirBlock),
     Conditional(Box<Conditional>),
-    RefID(Rc<ast::Namespace>),
     FunctionCall(MirFunctionCall),
 }
 

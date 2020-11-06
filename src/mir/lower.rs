@@ -73,6 +73,30 @@ impl ExprData {
     }
 }
 
+impl MirStmt {
+    pub fn diverges(&self) -> bool {
+        match self {
+            MirStmt::Return(_) => true,
+            MirStmt::Expression(expr) => expr.diverges(),
+            MirStmt::VariableAssign(var) => var
+                .value
+                .as_ref()
+                .map_left(|expr| expr.diverges())
+                .left_or(false),
+            _ => false,
+        }
+    }
+}
+
+impl MirExpr {
+    fn diverges(&self) -> bool {
+        match &self.value {
+            MirExprEnum::Block(bl) => bl.stmts.iter().any(|stmt| stmt.diverges()),
+            _ => false,
+        }
+    }
+}
+
 impl TypedExpr {
     fn into_mir(
         self,
@@ -186,7 +210,7 @@ impl TypedExpr {
                                 Some(MirExpr {
                                     pos: self.pos,
                                     ty: ty.clone(),
-                                    value: MirExprEnum::RefID(var_assign.binder.name.unwrap()),
+                                    value: MirExprEnum::Variable(var_assign.binder.name.unwrap()),
                                 }),
                                 expr_data,
                             ));
@@ -200,7 +224,7 @@ impl TypedExpr {
                     Some(MirExpr {
                         pos: self.pos,
                         ty: ty.clone(),
-                        value: MirExprEnum::RefID(
+                        value: MirExprEnum::Variable(
                             var_assign
                                 .binder
                                 .name
@@ -258,21 +282,17 @@ impl TypedExpr {
             )),
             TypedExprEnum::Block(block) => {
                 let mut stmts = Vec::with_capacity(block.stmts.len());
-                let mut metadata = super::BlockMetadata { returns: false };
-                for stmt in block.stmts {
-                    if let TypedStmtEnum::Expression(TypedExpr {
-                        expr: TypedExprEnum::Return(_),
-                        ..
-                    }) = stmt.stmt
-                    {
-                        metadata.returns = true;
-                    }
 
+                for stmt in block.stmts {
                     match stmt.into_mir(&mut stmts)? {
                         Some(s) => stmts.push(s),
                         None => {}
                     };
                 }
+
+                let metadata = super::BlockMetadata {
+                    diverges: stmts.iter().any(|stmt: &MirStmt| stmt.diverges()),
+                };
 
                 let block_mir_ty = block.ty.into_mir()?;
 
@@ -299,12 +319,13 @@ impl MirExpr {
     fn into_block(self) -> Result<super::MirBlock, ErrorValue> {
         match self.value {
             MirExprEnum::Block(block) => Ok(block),
-            MirExprEnum::RefID(_)
-            | MirExprEnum::FunctionCall(_)
+            MirExprEnum::FunctionCall(_)
             | MirExprEnum::Literal
             | MirExprEnum::Variable(_)
             | MirExprEnum::Conditional(_) => Ok(super::MirBlock {
-                metadata: super::BlockMetadata { returns: true },
+                metadata: super::BlockMetadata {
+                    diverges: self.diverges(),
+                },
                 pos: self.pos,
                 ty: self.ty.clone(),
                 stmts: vec![MirStmt::Yield(super::MirYield {
