@@ -19,7 +19,7 @@ use std::time::Instant;
 
 #[derive(Clone)]
 pub struct CodeGenSymbTab<'a> {
-    items: HashMap<Rc<ast::Namespace>, values::BasicValueEnum<'a>>,
+    items: HashMap<Rc<ast::Namespace>, values::PointerValue<'a>>,
 }
 
 impl<'a> CodeGenSymbTab<'a> {
@@ -33,11 +33,11 @@ impl<'a> CodeGenSymbTab<'a> {
         self.items.clear();
     }
 
-    fn insert(&mut self, name: Rc<ast::Namespace>, value: values::BasicValueEnum<'a>) {
+    fn insert(&mut self, name: Rc<ast::Namespace>, value: values::PointerValue<'a>) {
         self.items.insert(name, value);
     }
 
-    fn get(&mut self, name: Rc<ast::Namespace>) -> values::BasicValueEnum<'a> {
+    fn get(&mut self, name: Rc<ast::Namespace>) -> values::PointerValue<'a> {
         *self.items.get(&name).unwrap()
     }
 }
@@ -114,6 +114,10 @@ impl<'a> CodeGenModule<'a> {
             MirStmt::FunctionDef(fd) => self.gen_function_prototype(fd),
             MirStmt::VariableAssign(var_assign) => self.gen_var_prototype(var_assign),
             MirStmt::Tag(_) => {}
+            MirStmt::Expression(MirExpr {
+                value: MirExprEnum::Variable(..),
+                ..
+            }) => {}
             _ => panic!("{:?}\nFound statement where it shouldn't be!", stmt),
         }
     }
@@ -131,9 +135,12 @@ impl<'a> CodeGenModule<'a> {
             MirStmt::Yield(_) => {}
 
             MirStmt::Expression(expr) => {
-                // Expr's generally don't do anything, so we can throw it away,
-                // special case for the block expression
-                self.eval_expr(expr);
+                if let MirExprEnum::Variable(..) = expr.value {
+                } else {
+                    // Expr's generally don't do anything, so we can throw it away,
+                    // special case for the block expression
+                    self.eval_expr(expr);
+                }
             }
         }
     }
@@ -166,13 +173,11 @@ impl<'a> CodeGenModule<'a> {
                     func.get_nth_param(idx.try_into().unwrap()).unwrap(),
                 );
 
-                self.symbtab
-                    .insert(Rc::clone(&argument), argument_alloca.as_basic_value_enum());
+                self.symbtab.insert(Rc::clone(&argument), argument_alloca);
             }
             self.builder = builder;
             if let Some(inkwell_return) = self.gen_block(block) {
-                let pointee = self.builder.build_load(inkwell_return.into_pointer_value(), "return_load");
-                self.builder.build_return(Some(&pointee));
+                self.builder.build_return(Some(&inkwell_return));
             }
             self.current_function = None;
         }
@@ -196,10 +201,8 @@ impl<'a> CodeGenModule<'a> {
             let ty = self.from_mir_ty(ty);
             let pointer = self.builder.build_alloca(ty, &var_assign.var_name.mangle());
 
-            self.symbtab.insert(
-                Rc::clone(&var_assign.var_name),
-                values::BasicValueEnum::PointerValue(pointer),
-            );
+            self.symbtab
+                .insert(Rc::clone(&var_assign.var_name), pointer);
         };
     }
 
@@ -207,10 +210,8 @@ impl<'a> CodeGenModule<'a> {
         if let Either::Left(ref expr) = var_assign.value {
             let ty = self.from_mir_ty(&expr.ty);
             let pointer = self.builder.build_alloca(ty, &var_assign.var_name.mangle());
-            self.symbtab.insert(
-                Rc::clone(&var_assign.var_name),
-                values::BasicValueEnum::PointerValue(pointer),
-            );
+            self.symbtab
+                .insert(Rc::clone(&var_assign.var_name), pointer);
 
             let inkwell_expr = self.eval_expr(expr)?;
             self.builder.build_store(pointer, inkwell_expr);
@@ -221,7 +222,11 @@ impl<'a> CodeGenModule<'a> {
     fn eval_expr(&mut self, expr: &MirExpr) -> Option<values::BasicValueEnum<'a>> {
         match &expr.value {
             MirExprEnum::Block(bl) => self.gen_block(&bl),
-            MirExprEnum::Variable(var) => Some(self.symbtab.get(Rc::clone(&var))),
+            MirExprEnum::Variable(var) => {
+                let ptr = self.symbtab.get(Rc::clone(&var));
+                let pointee = self.builder.build_load(ptr, &var.mangle());
+                Some(pointee)
+            }
             MirExprEnum::Literal => Some(self.eval_literal(expr)),
             MirExprEnum::FunctionCall(call) => Some(self.eval_function(call)?),
             MirExprEnum::Struct(struct_val) => Some(self.eval_struct(struct_val, &expr.ty)?),
@@ -291,13 +296,9 @@ impl<'a> CodeGenModule<'a> {
     }
 
     fn gen_block(&mut self, block: &MirBlock) -> Option<values::BasicValueEnum<'a>> {
-        let ty = self.from_mir_ty(&block.ty);
-        let alloca = self.builder.build_alloca(ty, "block");
-
         for stmt in block.stmts.iter() {
             if let MirStmt::Yield(yield_stmt) = stmt {
-                let expr = self.eval_expr(&yield_stmt.value);
-                self.builder.build_store(alloca, expr?);
+                return self.eval_expr(&yield_stmt.value);
             }
             self.gen_stmt_pass_2(stmt);
 
@@ -306,7 +307,7 @@ impl<'a> CodeGenModule<'a> {
             }
         }
 
-        Some(alloca.as_basic_value_enum())
+        return None;
     }
 
     fn from_mir_ty(&mut self, mir_ty: &MirType) -> types::BasicTypeEnum<'a> {

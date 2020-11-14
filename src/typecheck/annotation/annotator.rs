@@ -76,7 +76,11 @@ impl Annotator {
                 ),
                 ty.pos,
             ),
-            ast::TypeType::Function(_, _) => todo!(),
+            ast::TypeType::Function(args_ty, ret_ty) => AnnotationType::Function(
+                Rc::new(args_ty.iter().map(|ty| self.annon_type(ty)).collect()),
+                Rc::new(self.annon_type(ret_ty)),
+                ty.pos,
+            ),
         }
     }
 

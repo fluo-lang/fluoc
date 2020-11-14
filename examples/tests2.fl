@@ -1,3 +1,7 @@
-let entry = () {
-    let value: i32 = 10;
+extern let print_int: (i32) -> ();
+
+let entry: () -> i32 = () -> i32 {
+    let value: i32 = 100;
+    print_int(value);
+    yield value;
 };

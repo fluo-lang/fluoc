@@ -180,7 +180,12 @@ impl ast::VariableAssignDeclaration {
                     ty
                 }
             }
-            ty => ty,
+            ty => {
+                if let Some(expr) = &mut self.expr {
+                    expr.pass_1(annotator, context)?;
+                }
+                ty
+            }
         };
 
         context.set_local(Rc::clone(&self.name), typed_type.clone());
