@@ -99,8 +99,6 @@ impl<'a> CodeGenModule<'a> {
             self.gen_stmt_pass_2(statement)
         }
 
-        println!("{}", self.module.print_to_string().to_string());
-
         self.logger.borrow().log_verbose(&|| {
             format!(
                 "{}: LLVM IR generated",
@@ -172,7 +170,10 @@ impl<'a> CodeGenModule<'a> {
                     .insert(Rc::clone(&argument), argument_alloca.as_basic_value_enum());
             }
             self.builder = builder;
-            self.gen_block(block);
+            if let Some(inkwell_return) = self.gen_block(block) {
+                let pointee = self.builder.build_load(inkwell_return.into_pointer_value(), "return_load");
+                self.builder.build_return(Some(&pointee));
+            }
             self.current_function = None;
         }
     }
@@ -191,33 +192,29 @@ impl<'a> CodeGenModule<'a> {
     }
 
     fn gen_var_prototype(&mut self, var_assign: &MirVariableAssign) {
-        let ty = self.from_mir_ty(match &var_assign.value {
-            Either::Left(expr) => &expr.ty,
-            Either::Right(ty) => ty,
-        });
+        if let Either::Right(ref ty) = var_assign.value {
+            let ty = self.from_mir_ty(ty);
+            let pointer = self.builder.build_alloca(ty, &var_assign.var_name.mangle());
 
-        let pointer = self.builder.build_alloca(ty, &var_assign.var_name.mangle());
-
-        self.symbtab.insert(
-            Rc::clone(&var_assign.var_name),
-            values::BasicValueEnum::PointerValue(pointer),
-        );
-
+            self.symbtab.insert(
+                Rc::clone(&var_assign.var_name),
+                values::BasicValueEnum::PointerValue(pointer),
+            );
+        };
     }
 
     fn gen_var_concrete(&mut self, var_assign: &MirVariableAssign) -> Option<()> {
-        match &var_assign.value {
-            Either::Left(expr) => {
-                let inkwell_expr = self.eval_expr(expr)?;
-                let var_ptr = self
-                    .symbtab
-                    .get(Rc::clone(&var_assign.var_name))
-                    .into_pointer_value();
-                self.builder.build_store(var_ptr, inkwell_expr);
-            }
-            Either::Right(_) => {}
-        }
+        if let Either::Left(ref expr) = var_assign.value {
+            let ty = self.from_mir_ty(&expr.ty);
+            let pointer = self.builder.build_alloca(ty, &var_assign.var_name.mangle());
+            self.symbtab.insert(
+                Rc::clone(&var_assign.var_name),
+                values::BasicValueEnum::PointerValue(pointer),
+            );
 
+            let inkwell_expr = self.eval_expr(expr)?;
+            self.builder.build_store(pointer, inkwell_expr);
+        };
         Some(())
     }
 
@@ -227,8 +224,26 @@ impl<'a> CodeGenModule<'a> {
             MirExprEnum::Variable(var) => Some(self.symbtab.get(Rc::clone(&var))),
             MirExprEnum::Literal => Some(self.eval_literal(expr)),
             MirExprEnum::FunctionCall(call) => Some(self.eval_function(call)?),
+            MirExprEnum::Struct(struct_val) => Some(self.eval_struct(struct_val, &expr.ty)?),
             _ => todo!("{:?} Unimplemented", expr.value),
         }
+    }
+
+    fn eval_struct(
+        &mut self,
+        struct_val: &MirStruct,
+        ty: &MirType,
+    ) -> Option<values::BasicValueEnum<'a>> {
+        let inkwell_ty = self.from_mir_ty(ty);
+        let struct_values = struct_val
+            .fields
+            .iter()
+            .map(|field| self.eval_expr(field))
+            .collect::<Option<Vec<_>>>()?;
+        let inkwell_struct = inkwell_ty
+            .into_struct_type()
+            .const_named_struct(&struct_values);
+        Some(inkwell_struct.as_basic_value_enum())
     }
 
     fn eval_function(&mut self, call: &MirFunctionCall) -> Option<values::BasicValueEnum<'a>> {
@@ -312,10 +327,10 @@ impl<'a> CodeGenModule<'a> {
                 Prim::Bool => self.context.bool_type().into(),
                 Prim::Infer => panic!(),
             },
-            MirType::Tuple(tuple, _) => self
+            MirType::Union(union, _) => self
                 .context
                 .struct_type(
-                    &tuple
+                    &union
                         .iter()
                         .map(|ty| self.from_mir_ty(ty).into())
                         .collect::<Vec<types::BasicTypeEnum<'_>>>(),

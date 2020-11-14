@@ -21,8 +21,8 @@ pub struct MirFunctionSig {
 
 #[derive(Debug, Clone)]
 pub enum MirType {
-    /// Tuple types, E.g., (int, int), (str, my::type)
-    Tuple(Vec<MirType>, helpers::Span),
+    /// Things like structs and tuples
+    Union(Vec<MirType>, helpers::Span),
 
     /// Primitives
     Primitive(Prim, helpers::Span),
@@ -97,8 +97,11 @@ pub struct MirTag {
 pub struct MirFunctionCall {
     pub arguments: Vec<MirExpr>,
     pub mangled_name: String,
-    #[derivative(Debug = "ignore")]
-    pub pos: helpers::Span,
+}
+
+#[derive(Debug, Clone)]
+pub struct MirStruct {
+    pub fields: Vec<MirExpr>,
 }
 
 #[derive(Debug, Clone)]
@@ -108,6 +111,7 @@ pub enum MirExprEnum {
     Block(MirBlock),
     Conditional(Box<Conditional>),
     FunctionCall(MirFunctionCall),
+    Struct(MirStruct)
 }
 
 #[derive(Derivative, Clone)]

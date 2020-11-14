@@ -97,6 +97,29 @@ impl MirExpr {
     }
 }
 
+fn convert_exprs(
+    mir: &mut Vec<MirStmt>,
+    exprs: Vec<TypedExpr>,
+    expr_data: ExprData,
+) -> Result<Option<Vec<MirExpr>>, ErrorValue> {
+    let mut mir_exprs = Vec::with_capacity(exprs.len());
+    for expr in exprs {
+        match expr.into_mir(mir, expr_data.clone())? {
+            (Some(expr), _) => {
+                mir_exprs.push(expr);
+            }
+            (None, _) => {
+                // Some expression that will prevent this function call
+                // E.g. a return or yield expr
+                // We still want to evaluate every expression before this point;
+                mir.extend(mir_exprs.into_iter().map(|a| MirStmt::Expression(a)));
+                return Ok(None);
+            }
+        }
+    }
+    Ok(Some(mir_exprs))
+}
+
 impl TypedExpr {
     fn into_mir(
         self,
@@ -126,7 +149,6 @@ impl TypedExpr {
                         value: MirExprEnum::FunctionCall(super::MirFunctionCall {
                             arguments,
                             mangled_name: func_call.name.to_string(),
-                            pos: self.pos,
                         }),
                         pos: self.pos,
                         ty: func_call.ty.into_mir()?,
@@ -251,6 +273,14 @@ impl TypedExpr {
 
                 ret
             }
+            TypedExprEnum::RefID(id) => Ok((
+                Some(MirExpr {
+                    pos: self.pos,
+                    value: MirExprEnum::Variable(id.name),
+                    ty: id.ty.into_mir()?
+                }),
+                expr_data,
+            )),
             TypedExprEnum::Return(ret) => {
                 if let Some(expr) = ret.expr.into_mir(mir, ExprData::default())?.0 {
                     // Push return statement onto statement list
@@ -273,7 +303,7 @@ impl TypedExpr {
                 Ok((None, expr_data.is_null(true)))
             }
             TypedExprEnum::Literal(lit) => Ok((
-                Some(super::MirExpr {
+                Some(MirExpr {
                     value: MirExprEnum::Literal,
                     ty: lit.ty.into_mir()?,
                     pos: lit.value.pos,
@@ -310,6 +340,24 @@ impl TypedExpr {
                     expr_data,
                 ))
             }
+            TypedExprEnum::Tuple(tup) => {
+                let mir_exprs = match convert_exprs(mir, tup.exprs, expr_data.clone())? {
+                    Some(fields) => fields,
+                    None => return Ok((None, expr_data)),
+                };
+
+                Ok((
+                    Some(super::MirExpr {
+                        ty: MirType::Union(
+                            mir_exprs.iter().map(|e| e.ty.clone()).collect(),
+                            tup.pos,
+                        ),
+                        value: MirExprEnum::Struct(super::MirStruct { fields: mir_exprs }),
+                        pos: tup.pos,
+                    }),
+                    expr_data,
+                ))
+            }
             val => todo!("{:#?}", val),
         }
     }
@@ -317,11 +365,12 @@ impl TypedExpr {
 
 impl MirExpr {
     fn into_block(self) -> Result<super::MirBlock, ErrorValue> {
-        match self.value {
+        let var_name = match self.value {
             MirExprEnum::Block(block) => Ok(block),
             MirExprEnum::FunctionCall(_)
             | MirExprEnum::Literal
             | MirExprEnum::Variable(_)
+            | MirExprEnum::Struct(_)
             | MirExprEnum::Conditional(_) => Ok(super::MirBlock {
                 metadata: super::BlockMetadata {
                     diverges: self.diverges(),
@@ -333,7 +382,8 @@ impl MirExpr {
                     value: self,
                 })],
             }),
-        }
+        };
+        var_name
     }
 }
 
@@ -345,7 +395,7 @@ impl AnnotationType {
 
         match self {
             AnnotationType::Type(_, _) => panic!("Custom types are not implemented yet"),
-            AnnotationType::Tuple(tup, pos) => Ok(MirType::Tuple(
+            AnnotationType::Tuple(tup, pos) => Ok(MirType::Union(
                 (*tup)
                     .clone()
                     .into_iter()
