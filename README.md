@@ -29,7 +29,7 @@ let entry = () {
 
 ```rust
 let fib = (n: i64) -> i64 {
-    if n <= 1 { 
+    if n <= 1 {
         return 1
     }
     return fib(n - 1) + fib(n - 2)
@@ -39,6 +39,7 @@ let entry = () {
     print(fib(46))
 }
 ```
+
 <br>
 
 ## Installation
@@ -46,12 +47,14 @@ let entry = () {
 1. [Install LLVM](https://github.com/fluo-lang/fluo#installing-llvm)
 
 2. Install cargo and switch to nightly branch:
+
    ```bash
    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
    rustup default nightly
    ```
 
 3. Clone this repo (important: **clone recursively**):
+
    ```bash
    git clone --recurse-submodules -j8 git@github.com:fluo-lang/fluoc.git
    ```
@@ -61,22 +64,26 @@ let entry = () {
 <br>
 
 ## Usage
+
 Make sure you're in the fluo directory:
+
 ```bash
 cd fluo
 ```
 
 Fluo generates an output file `a.out`:
+
 ```bash
 cargo run examples/tests.fl
 ./a.out
 ```
 
-NOTE: you may also need to set `LLVM_SYS_100_PREFIX` to `/usr/lib/llvm-<version>`.
+NOTE: you may also need to set `LLVM_SYS_100_PREFIX` to `/usr/lib/llvm-<version>` on Linux, or to `/usr/local/opt/llvm` on MacOS.
 
 <br>
 
 ## Installing LLVM
+
 Currently, you will need to install LLVM on your own. In the future, this will change.
 
 | Operating System                              | Install Command                                                                                                    |
@@ -90,6 +97,7 @@ Currently, you will need to install LLVM on your own. In the future, this will c
 <br>
 
 ## More Examples
+
 ```rust
 let make_func = (closure: () -> int) -> () -> int {
     return closure
@@ -99,7 +107,6 @@ let entry = () {
     let x: int = make_closure(() { return 10 })()
 
     -- Prints 10
-    print(x) 
+    print(x)
 }
 ```
-
