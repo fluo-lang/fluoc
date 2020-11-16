@@ -2,7 +2,7 @@
 
 let entry = () -> i32 {
     let inner = () {
-        let x: i32 = 10;
-    };
-    yield x;
-};
+        let x: i32 = 10
+    }
+    yield x
+}

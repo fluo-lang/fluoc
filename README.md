@@ -14,30 +14,30 @@
 ```rust
 let fizzbuzz = (value: i32) {
     match loop 1..value {
-        %% 15 -> print("Fizzbuzz");
-        %% 3  -> print("Fizz");
-        %% 5  -> print("Fizz");
-        _     -> print(_);
+        %% 15 -> print("Fizzbuzz")
+        %% 3  -> print("Fizz")
+        %% 5  -> print("Fizz")
+        _     -> print(_)
     }
-};
+}
 
 let entry = () {
-    print("Hello, world!");
-    fizzbuzz(100);
-};
+    print("Hello, world!")
+    fizzbuzz(100)
+}
 ```
 
 ```rust
 let fib = (n: i64) -> i64 {
     if n <= 1 { 
-        return 1;
+        return 1
     }
-    return fib(n - 1) + fib(n - 2);
-};
+    return fib(n - 1) + fib(n - 2)
+}
 
 let entry = () {
-    print(fib(46));
-};
+    print(fib(46))
+}
 ```
 <br>
 
@@ -92,14 +92,14 @@ Currently, you will need to install LLVM on your own. In the future, this will c
 ## More Examples
 ```rust
 let make_func = (closure: () -> int) -> () -> int {
-    return closure;
-};
+    return closure
+}
 
 let entry = () {
-    let x: int = make_closure(() { return 10; })();
+    let x: int = make_closure(() { return 10 })()
 
     -- Prints 10
-    print(x); 
-};
+    print(x) 
+}
 ```
 

@@ -12,7 +12,6 @@ const EOF_STR: &'static str = "\0";
 /// Type of tokens
 pub enum TokenType {
     String,
-    CodeValue,
 
     Def,
     Type,
@@ -69,10 +68,11 @@ pub enum TokenType {
     Equals,
     Colon,
     DoubleColon,
-    Dollar,
-    Semi,
     Comma,
     EOF,
+
+    /// Line terminator (not every newline)
+    LineTerm,
 
     True,
     False,
@@ -120,7 +120,6 @@ impl TokenType {
             TokenType::LE => "operator `<=`",
             TokenType::EQ => "operator `==`",
 
-            TokenType::Dollar => "token `$`",
             TokenType::At => "token `@`",
 
             TokenType::DoubleColon => "token `::`",
@@ -135,11 +134,12 @@ impl TokenType {
             TokenType::LB => "token `[`",
             TokenType::RB => "token `]`",
 
+            TokenType::LineTerm => "line terminator",
+
             TokenType::Question => "token `?`",
             TokenType::Dot => "token `.`",
             TokenType::Equals => "token `=`",
             TokenType::Colon => "token `:`",
-            TokenType::Semi => "terminator `;`",
             TokenType::Comma => "token `,`",
             TokenType::EOF => "end of file",
             TokenType::Underscore => "underscore",
@@ -149,7 +149,6 @@ impl TokenType {
             TokenType::Whitespace(_) => "whitespace",
 
             TokenType::String => "string literal",
-            TokenType::CodeValue => "code value",
             TokenType::Identifier => "identifier",
             TokenType::Number => "number",
             TokenType::Unknown => "unknown token",
@@ -171,9 +170,6 @@ impl Token {
                 "string literal `{}`",
                 sourcemap.borrow().get_segment(self.pos)
             ),
-            TokenType::CodeValue => {
-                format!("code value `{}`", sourcemap.borrow().get_segment(self.pos))
-            }
             TokenType::Identifier => {
                 format!("identifier `{}`", sourcemap.borrow().get_segment(self.pos))
             }
@@ -197,8 +193,7 @@ impl<'a> PartialEq for Token {
 /// Check if character is a whitespace character
 pub fn is_whitespace(c: char) -> bool {
     match c {
-        | '\u{0009}' // \t
-            | '\u{000A}' // \n
+        '\u{0009}' // \t
             | '\u{000B}' // vertical tab
             | '\u{000C}' // form feed
             | '\u{000D}' // \r
@@ -224,12 +219,12 @@ pub fn is_whitespace(c: char) -> bool {
 pub struct Lexer {
     pub filename: usize,
     pub position: usize,
-    pub current_token: Token,
 
     unicode_iter: std::iter::Peekable<GraphemeIdxs>,
 
     change_peek: bool,
     sourcemap: SourceMap,
+    previous_token: Token,
 }
 
 /// Check if ID is continue
@@ -243,32 +238,13 @@ impl Lexer {
         Lexer {
             filename,
             position: 0,
-            current_token: Token {
+            previous_token: Token {
                 token: TokenType::EOF,
                 pos: helpers::Span::new(0, 0, filename),
             },
             unicode_iter: GraphemeIdxs::new(Rc::clone(&sourcemap), filename).peekable(),
             change_peek: true,
             sourcemap,
-        }
-    }
-
-    /// Generate a unit test for the lexer
-    pub fn get_unit_test(&mut self) {
-        loop {
-            let token = self.peek();
-            self.eat();
-
-            if let Ok(tok) = token {
-                match tok.token {
-                    TokenType::EOF => {
-                        break;
-                    }
-                    _ => {
-                        println!("assert_eq!(*l.advance().unwrap(), {:?});", tok);
-                    }
-                }
-            }
         }
     }
 
@@ -311,6 +287,14 @@ impl Lexer {
                     _ => TokenType::Sub,
                 },
 
+                '\n' => {
+                    if self.emit_line_break() {
+                        TokenType::LineTerm
+                    } else {
+                        return self.get_next_tok_type();
+                    }
+                }
+
                 c if is_whitespace(c) => {
                     self.whitespace()?;
                     return self.get_next_tok_type();
@@ -338,7 +322,6 @@ impl Lexer {
                     }
                     _ => TokenType::Mod,
                 },
-                '$' => TokenType::Dollar,
                 '>' => match self.peek_char().front {
                     '=' => {
                         self.bump();
@@ -364,7 +347,6 @@ impl Lexer {
                 ']' => TokenType::RB,
 
                 '.' => TokenType::Dot,
-                ';' => TokenType::Semi,
                 '=' => match self.peek_char().front {
                     '=' => {
                         self.bump();
@@ -410,19 +392,26 @@ impl Lexer {
         ))
     }
 
-    pub fn advance(&mut self) -> Result<Token, ErrorValue> {
-        self.peek()?;
-        Ok(self.eat())
+    fn emit_line_break(&mut self) -> bool {
+        // We break if the previous character was a valid ending:
+        // RP, RCP, RB, Identifier, True, False, Number, String
+        // Anything else is invalid, so don't insert an ending
+        match self.previous_token.token {
+            TokenType::RP
+            | TokenType::RCP
+            | TokenType::RB
+            | TokenType::Identifier
+            | TokenType::True
+            | TokenType::False
+            | TokenType::Number
+            | TokenType::String => true,
+            _ => false,
+        }
     }
 
-    pub fn eat(&mut self) -> Token {
-        self.change_peek = true;
-        self.current_token
-    }
-
-    /// Get next token in input stream, but don't advance
-    pub fn peek(&mut self) -> Result<Token, ErrorValue> {
-        if self.change_peek {
+    pub fn get_tokens(&mut self) -> Result<Vec<Token>, ErrorValue> {
+        let mut tokens = Vec::new();
+        loop {
             let (token_kind, mut start_pos) = self.get_next_tok_type()?;
             let end_pos = self.position;
 
@@ -430,14 +419,34 @@ impl Lexer {
                 start_pos += 1;
             }
 
-            self.current_token = Token {
+            let token = Token {
                 pos: helpers::Span::new(start_pos - 1, end_pos, self.filename),
                 token: token_kind,
             };
 
-            self.change_peek = false
+            match token_kind {
+                TokenType::EOF if self.previous_token.token != TokenType::LineTerm => {
+                    let mut new_token = token;
+                    new_token.token = TokenType::LineTerm;
+                    tokens.push(new_token);
+                }
+                TokenType::RCP if self.emit_line_break() => {
+                    let mut new_token = token;
+                    new_token.token = TokenType::LineTerm;
+                    tokens.push(new_token);
+                }
+                _ => {}
+            }
+
+            tokens.push(token);
+
+            if token_kind == TokenType::EOF {
+                break;
+            }
+
+            self.previous_token = token;
         }
-        Ok(self.current_token)
+        Ok(tokens)
     }
 
     /// Tokenize integer
@@ -598,7 +607,8 @@ mod lexer_tests {
                     .insert_file(path::PathBuf::from("test_fl.fl"), $source.to_string());
 
                 let mut l = Lexer::new(filename_id, sourcemap);
-                assert_eq!(l.advance().map(|tok| tok.token), Ok($token))
+                let toks = l.get_tokens().unwrap();
+                assert_eq!(toks[toks.len() - 3].token, $token)
             }
         };
     }
@@ -664,9 +674,6 @@ mod lexer_tests {
     lex_assert!(" =", TokenType::Equals, equals_test);
     lex_assert!(" :", TokenType::Colon, color_test);
     lex_assert!(" ::", TokenType::DoubleColon, double_colon_test);
-    lex_assert!(" $", TokenType::Dollar, dollar_test);
-    lex_assert!(" ;", TokenType::Semi, semi_test);
     lex_assert!(" ,", TokenType::Comma, comma_test);
     lex_assert!(" _", TokenType::Underscore, underscore_test);
-    lex_assert!("", TokenType::EOF, eof_test);
 }

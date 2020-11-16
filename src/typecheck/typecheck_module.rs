@@ -158,127 +158,127 @@ mod typecheck_tests {
 
     assert_error!(
         r#"let entry = () -> () {
-    x;
-};"#,
+    x
+}"#,
         vec![ErrorType::UndefinedSymbol],
         undef_var
     );
 
     assert_error!(
         r#"let entry = () -> (i32, i32) {
-    return (123, 123 is i64);
-};"#,
+    return (123, 123 is i64)
+}"#,
         vec![ErrorType::TypeMismatch],
         tuple_type_mismatch
     );
 
     assert_error!(
         r#"let entry = () -> i64 {
-};"#,
+}"#,
         vec![ErrorType::TypeMismatch],
         implict_block_return_mismatch
     );
 
     assert_error!(
         r#"let entry = () {
-    return 1923;
-};"#,
+    return 1923
+}"#,
         vec![ErrorType::TypeMismatch],
         implicit_return_mismatch
     );
 
     assert_error!(
         r#"let entry = () -> i32 {
-    return 1923 is i64;
-};"#,
+    return 1923 is i64
+}"#,
         vec![ErrorType::TypeMismatch],
         return_is_mismatch
     );
 
     assert_error!(
         r#"let entry = () -> () {
-    return 1923;
-};"#,
+    return 1923
+}"#,
         vec![ErrorType::TypeMismatch],
         explicit_return_mismatch
     );
 
     assert_error!(
         r#"let entry = () -> (bool, i32) {
-    let y = 10;
-    let y = y;
+    let y = 10
+    let y = y
     let my_func = () -> _ {
-        return y;
-    };
-    return (x(x(y)), my_func());
-};
+        return y
+    }
+    return (x(x(y)), my_func())
+}
 
 let x = (a: _) -> _ {
-    return a;
-};"#,
+    return a
+}"#,
         vec![ErrorType::TypeMismatch],
         complex_infer_mismatch
     );
 
     assert_ok!(
         r#"let entry = () {
-    let x: i32 = 10;
-};"#,
+    let x: i32 = 10
+}"#,
         ok_implicit_empty
     );
 
     assert_ok!(
         r#"let entry = () -> (i32, i32, i64) {
-    let x = 10;
-    return (x, 123 is i32, 123);
-};"#,
+    let x = 10
+    return (x, 123 is i32, 123)
+}"#,
         tuple_match
     );
 
     assert_ok!(
         r#"let entry = () -> i32 {
-    let x = 10;
-    return x;
-};"#,
+    let x = 10
+    return x
+}"#,
         basic_i32_infer
     );
 
     assert_ok!(
         r#"let entry = () -> i32 {
-    let y = 10;
-    return x(y);
-};
+    let y = 10
+    return x(y)
+}
 
 let x = (a: _) -> _ {
-    return a;
-};"#,
+    return a
+}"#,
         identity_func_infer
     );
 
     assert_ok!(
         r#"let entry = () -> i32 {
-    yield 10;
-};
+    yield 10
+}
 
 let x = () -> _ {
-    yield entry();
-};"#,
+    yield entry()
+}"#,
         reverse_test
     );
 
     assert_ok!(
         r#"let entry = () -> (i32, i32) {
-    let y = 10;
-    let y = y;
+    let y = 10
+    let y = y
     let my_func = () -> _ {
-        return y;
-    };
-    return (x(x(y)), my_func());
-};
+        return y
+    }
+    return (x(x(y)), my_func())
+}
 
 let x = (a: _) -> _ {
-    return a;
-};"#,
+    return a
+}"#,
         complex
     );
 }

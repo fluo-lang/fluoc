@@ -1,11 +1,11 @@
 -- OK
 
 let entry = () -> i32 {
-    let value = { yield print(10); };
-    let other = () { yield print(value); };
-    yield other();
-};
+    let value = { yield print(10) }
+    let other = () { yield print(value) }
+    yield other()
+}
 
 let print = (to_print: _) -> _ {
-    yield to_print;
-};
+    yield to_print
+}

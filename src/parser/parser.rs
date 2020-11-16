@@ -147,7 +147,7 @@ impl Parser {
 
     #[inline]
     /// Validate next token
-    pub fn next(
+    pub fn validate_token(
         &mut self,
         token_type: lexer::TokenType,
         position: usize,
@@ -225,18 +225,7 @@ impl Parser {
     }
 
     fn fill_token_stream(&mut self) -> Result<(), ErrorValue> {
-        loop {
-            let next = self.lexer.advance();
-            match next {
-                Ok(val) => {
-                    self.tokens.push(val);
-                    if val.token == lexer::TokenType::EOF {
-                        break;
-                    }
-                }
-                Err(e) => return Err(e),
-            }
-        }
+        self.tokens.append(&mut self.lexer.get_tokens()?);
         Ok(())
     }
 
@@ -331,7 +320,7 @@ impl Parser {
     /// Parse basic block
     pub fn block(&mut self, scope: Scope) -> Result<ast::Block, ErrorGen> {
         let position = self.token_pos;
-        self.next(lexer::TokenType::LCP, position, false)?;
+        self.validate_token(lexer::TokenType::LCP, position, false)?;
 
         let mut ast_list: Vec<Statement> = Vec::new();
         loop {
@@ -387,7 +376,7 @@ impl Parser {
         }
 
         // Check for closing brace here
-        self.next(lexer::TokenType::RCP, position, false)?;
+        self.validate_token(lexer::TokenType::RCP, position, false)?;
 
         Ok(ast::Block {
             nodes: ast_list,
@@ -406,15 +395,15 @@ impl Parser {
         } else {
             ast::Visibility::Private
         };
-        self.next(lexer::TokenType::Type, position, true)?;
+        self.validate_token(lexer::TokenType::Type, position, true)?;
 
         let name = self.namespace()?;
 
-        self.next(lexer::TokenType::Equals, position, false)?;
+        self.validate_token(lexer::TokenType::Equals, position, false)?;
 
         let value = self.type_expr()?;
 
-        self.next(lexer::TokenType::Semi, position, false)?;
+        self.validate_token(lexer::TokenType::LineTerm, position, false)?;
 
         Ok(Statement::TypeAssign(ast::TypeAssign {
             value,
@@ -426,7 +415,7 @@ impl Parser {
 
     fn unit(&mut self) -> Result<Statement, ErrorGen> {
         let position = self.token_pos;
-        self.next(lexer::TokenType::Unit, position, true)?;
+        self.validate_token(lexer::TokenType::Unit, position, true)?;
         let name = self.namespace()?;
 
         let block = self.block(Scope::Outer)?;
@@ -556,11 +545,11 @@ impl Parser {
     /// Imports
     fn import(&mut self) -> Result<Statement, ErrorGen> {
         let position = self.token_pos;
-        self.next(lexer::TokenType::Unit, position, true)?;
+        self.validate_token(lexer::TokenType::Unit, position, true)?;
 
         let namespace = self.namespace()?;
 
-        self.next(lexer::TokenType::Semi, position, false)?;
+        self.validate_token(lexer::TokenType::LineTerm, position, false)?;
 
         self.add_file(namespace)
     }
@@ -568,13 +557,14 @@ impl Parser {
     fn compiler_tag(&mut self) -> Result<Statement, ErrorGen> {
         let position = self.token_pos;
 
-        self.next(lexer::TokenType::At, position, true)?;
-        self.next(lexer::TokenType::LB, position, false)?;
+        self.validate_token(lexer::TokenType::At, position, true)?;
+        self.validate_token(lexer::TokenType::LB, position, false)?;
 
         // For now, tags can only be ids
         let id = self.name_id()?;
 
-        self.next(lexer::TokenType::RB, position, false)?;
+        self.validate_token(lexer::TokenType::RB, position, false)?;
+        self.validate_token(lexer::TokenType::LineTerm, position, false)?;
 
         Ok(Statement::Tag(ast::Tag {
             content: id,
@@ -594,7 +584,7 @@ impl Parser {
 
             let id = self.namespace()?;
 
-            self.next(lexer::TokenType::Colon, position, false)?;
+            self.validate_token(lexer::TokenType::Colon, position, false)?;
 
             let arg_type = self.type_expr()?;
 
@@ -616,7 +606,7 @@ impl Parser {
     fn function_expr(&mut self) -> Result<Expr, ErrorGen> {
         let position = self.token_pos;
 
-        self.next(lexer::TokenType::LP, position, false)?;
+        self.validate_token(lexer::TokenType::LP, position, false)?;
 
         let arguments = match self.parse_arguments() {
             Ok(val) => val,
@@ -626,7 +616,7 @@ impl Parser {
             }
         };
 
-        self.next(lexer::TokenType::RP, position, false)?;
+        self.validate_token(lexer::TokenType::RP, position, false)?;
 
         let block;
         let return_type: ast::Type = if self.peek().token == lexer::TokenType::Arrow {
@@ -655,7 +645,7 @@ impl Parser {
     fn yield_expr(&mut self) -> Result<Expr, ErrorGen> {
         let position = self.token_pos;
 
-        self.next(lexer::TokenType::Yield, position, true)?;
+        self.validate_token(lexer::TokenType::Yield, position, true)?;
 
         let expr = self.expr(Prec::Lowest)?;
 
@@ -669,7 +659,7 @@ impl Parser {
     fn return_expr(&mut self) -> Result<Expr, ErrorGen> {
         let position = self.token_pos;
 
-        self.next(lexer::TokenType::Return, position, true)?;
+        self.validate_token(lexer::TokenType::Return, position, true)?;
 
         let expr = self.expr(Prec::Lowest)?;
 
@@ -684,7 +674,7 @@ impl Parser {
         let position = self.token_pos;
         let expr = self.expr(Prec::Lowest)?;
 
-        self.next(lexer::TokenType::Semi, position, false)?;
+        self.validate_token(lexer::TokenType::LineTerm, position, false)?;
 
         Ok(ast::Statement::ExpressionStatement(
             ast::ExpressionStatement {
@@ -727,11 +717,11 @@ impl Parser {
 
         let namespace = Rc::new(self.namespace()?);
 
-        self.next(lexer::TokenType::LP, position, false)?;
+        self.validate_token(lexer::TokenType::LP, position, false)?;
 
         let arguments = self.arguments_call()?;
 
-        self.next(lexer::TokenType::RP, position, false)?;
+        self.validate_token(lexer::TokenType::RP, position, false)?;
 
         Ok(Expr::FunctionCall(ast::FunctionCall {
             arguments,
@@ -758,7 +748,7 @@ impl Parser {
             self.forward();
         }
 
-        self.next(lexer::TokenType::Let, position, true)?;
+        self.validate_token(lexer::TokenType::Let, position, true)?;
 
         let namespace = self.namespace()?;
 
@@ -773,7 +763,7 @@ impl Parser {
         };
 
         let expr = if !is_extern {
-            self.next(lexer::TokenType::Equals, position, false)?;
+            self.validate_token(lexer::TokenType::Equals, position, false)?;
             Some(Box::new(self.expr(Prec::Lowest)?))
         } else {
             None
@@ -820,7 +810,7 @@ impl Parser {
     fn if_cond(&mut self) -> Result<ast::IfBranch, ErrorGen> {
         let position = self.token_pos;
 
-        self.next(lexer::TokenType::If, position, true)?;
+        self.validate_token(lexer::TokenType::If, position, true)?;
         let cond = self.expr(Prec::Lowest)?;
 
         let block = self.block(Scope::Block)?;
@@ -835,8 +825,8 @@ impl Parser {
     fn else_if_cond(&mut self) -> Result<ast::IfBranch, ErrorGen> {
         let position = self.token_pos;
 
-        self.next(lexer::TokenType::Else, position, true)?;
-        self.next(lexer::TokenType::If, position, true)?;
+        self.validate_token(lexer::TokenType::Else, position, true)?;
+        self.validate_token(lexer::TokenType::If, position, true)?;
 
         let cond = self.expr(Prec::Lowest)?;
 
@@ -852,7 +842,7 @@ impl Parser {
     fn else_cond(&mut self) -> Result<ast::ElseBranch, ErrorGen> {
         let position = self.token_pos;
 
-        self.next(lexer::TokenType::Else, position, true)?;
+        self.validate_token(lexer::TokenType::Else, position, true)?;
         let block = self.block(Scope::Block)?;
 
         Ok(ast::ElseBranch {
@@ -1008,7 +998,6 @@ impl Parser {
             Parser::variable_assign_full,
             Parser::function_expr,
             Parser::tuple_expr,
-            Parser::dollar_expr,
             Parser::ref_expr,
             Parser::conditional,
             Parser::return_expr,
@@ -1145,7 +1134,7 @@ impl Parser {
                 break;
             }
 
-            self.next(lexer::TokenType::DoubleColon, position, false)?;
+            self.validate_token(lexer::TokenType::DoubleColon, position, false)?;
 
             match self.name_id() {
                 Ok(id) => {
@@ -1199,13 +1188,13 @@ impl Parser {
 
     fn tuple(&mut self) -> Result<ast::Tuple, ErrorGen> {
         let position = self.token_pos;
-        self.next(lexer::TokenType::LP, position, false)?;
+        self.validate_token(lexer::TokenType::LP, position, false)?;
 
         let values = match self.items() {
             Ok(items) => {
                 if items.len() == 1 {
                     // Required trailing comma
-                    self.next(lexer::TokenType::Comma, position, false)?;
+                    self.validate_token(lexer::TokenType::Comma, position, false)?;
                 } else {
                     // Optional trailing comma
                     if let lexer::TokenType::Comma = self.peek().token {
@@ -1223,7 +1212,7 @@ impl Parser {
             }
         };
 
-        self.next(lexer::TokenType::RP, position, false)?;
+        self.validate_token(lexer::TokenType::RP, position, false)?;
 
         Ok(ast::Tuple {
             values,
@@ -1258,7 +1247,7 @@ impl Parser {
     fn function_type(&mut self) -> Result<ast::Type, ErrorGen> {
         let position = self.token_pos;
 
-        self.next(lexer::TokenType::LP, position, false)?;
+        self.validate_token(lexer::TokenType::LP, position, false)?;
 
         let arguments = match self.function_type_args() {
             Ok(val) => val,
@@ -1268,9 +1257,9 @@ impl Parser {
             }
         };
 
-        self.next(lexer::TokenType::RP, position, false)?;
+        self.validate_token(lexer::TokenType::RP, position, false)?;
 
-        self.next(lexer::TokenType::Arrow, position, false)?;
+        self.validate_token(lexer::TokenType::Arrow, position, false)?;
         let return_type = self.type_expr()?;
 
         Ok(ast::Type {
@@ -1315,7 +1304,7 @@ impl Parser {
     }
 
     fn underscore_type(&mut self) -> Result<ast::Type, ErrorGen> {
-        let pos = self.next(lexer::TokenType::Underscore, self.token_pos, false)?;
+        let pos = self.validate_token(lexer::TokenType::Underscore, self.token_pos, false)?;
 
         Ok(ast::Type {
             pos,
@@ -1335,13 +1324,13 @@ impl Parser {
     fn tuple_type(&mut self) -> Result<ast::Type, ErrorGen> {
         let position = self.token_pos;
 
-        self.next(lexer::TokenType::LP, position, false)?;
+        self.validate_token(lexer::TokenType::LP, position, false)?;
 
         let values = match self.items_type() {
             Ok(items) => {
                 if items.len() == 1 {
                     // Required trailing comma
-                    if let Err(why) = self.next(lexer::TokenType::Comma, position, false) {
+                    if let Err(why) = self.validate_token(lexer::TokenType::Comma, position, false) {
                         let pos = *&why.position;
                         return Err(ErrorGen::new(
                             Box::new(move || {
@@ -1370,7 +1359,7 @@ impl Parser {
                 Vec::new()
             }
         };
-        self.next(lexer::TokenType::RP, position, false)?;
+        self.validate_token(lexer::TokenType::RP, position, false)?;
 
         Ok(ast::Type {
             value: ast::TypeType::Tuple(values),
@@ -1442,23 +1431,6 @@ impl Parser {
         self.set_pos(position);
         temp
     }
-
-    fn dollar_expr(&mut self) -> Result<Expr, ErrorGen> {
-        Ok(Expr::DollarID(self.dollar_id()?))
-    }
-
-    /// Parse dollar id
-    fn dollar_id(&mut self) -> Result<ast::DollarID, ErrorGen> {
-        let position = self.token_pos;
-
-        self.next(lexer::TokenType::Dollar, position, false)?;
-        let id = self.namespace()?;
-
-        Ok(ast::DollarID {
-            value: Rc::new(id),
-            pos: self.get_relative_pos(position),
-        })
-    }
 }
 
 #[cfg(test)]
@@ -1489,9 +1461,6 @@ pub mod parser_tests {
         move |value| Parser::expr(value, Prec::Lowest),
         expr
     );
-
-    parser_run!("$heloa1234_123", Parser::dollar_id, dollar_id);
-    parser_run!("$heloa1234_123", Parser::dollar_expr, dollar_expr);
 
     parser_run!("(int, int, str)", Parser::tuple_type, tuple_type_4);
     parser_run!("(int,)", Parser::tuple_type, tuple_type_3);
@@ -1560,43 +1529,43 @@ pub mod parser_tests {
     );
 
     parser_run!(
-        "return ((let x: int = 10, hello, 1, \"another_test\"));",
+        "return ((let x: int = 10, hello, 1, \"another_test\"))",
         Parser::return_expr,
         return_statement
     );
 
     parser_run!(
-        "yield ((let x: int = 10, hello, 1, \"another_test\"));",
+        "yield ((let x: int = 10, hello, 1, \"another_test\"))",
         Parser::yield_expr,
         yield_statement
     );
 
     parser_run!(
-        "let add_overload_test9 = (val: int, val: int) -> int {};",
+        "let add_overload_test9 = (val: int, val: int) -> int {}",
         Parser::expression_statement,
         function_define
     );
 
     parser_run!(
-        "pub let add_overload_test9 = (val: int, val: int) -> int {};",
+        "pub let add_overload_test9 = (val: int, val: int) -> int {}",
         Parser::expression_statement,
         function_define_pub
     );
 
     parser_run!(
-        "pub extern let test: int;",
+        "pub extern let test: int",
         Parser::expression_statement,
         extern_let_pub
     );
 
     parser_run!(
-        "extern let test: int;",
+        "extern let test: int",
         Parser::expression_statement,
         extern_let
     );
 
     parser_run!(
-        "extern let test: (i32, i32) -> i32;",
+        "extern let test: (i32, i32) -> i32",
         Parser::expression_statement,
         extern_let_func
     );
@@ -1617,9 +1586,6 @@ pub mod parser_tests {
     parser_run!("(\"dab\")", Parser::item, string_literal_1_paren);
     parser_run!("(\"\")", Parser::item, string_literal_2_paren);
 
-    parser_run!("$hello", Parser::item, dollar_expr_item);
-    parser_run!("($hello)", Parser::item, dollar_expr_paren);
-
     parser_run!("a(10, 10, \"hello\")", Parser::item, call_expr_1_item);
     parser_run!("a(10, 10,)", Parser::item, call_expr_2_item);
     parser_run!("(a(10, 10, \"hello\"))", Parser::item, call_expr_1_paren);
@@ -1630,7 +1596,7 @@ pub mod parser_tests {
 
     parser_run!("let x = 5", Parser::item, variable_assign_full_item_no_type);
     parser_run!(
-        "let x = 5;",
+        "let x = 5",
         Parser::expression_statement,
         variable_assign_full_item_no_type_stmt
     );
@@ -1649,61 +1615,58 @@ pub mod parser_tests {
         tuple_paren
     );
 
-    parser_run!("(19);", Parser::item, int_1_paren_stmt);
-    parser_run!("(1);", Parser::item, int_2_paren_stmt);
-    parser_run!("1;", Parser::item, int_1_stmt);
-    parser_run!("19;", Parser::item, int_2_stmt);
+    parser_run!("(19)", Parser::item, int_1_paren_stmt);
+    parser_run!("(1)", Parser::item, int_2_paren_stmt);
+    parser_run!("1", Parser::item, int_1_stmt);
+    parser_run!("19", Parser::item, int_2_stmt);
 
-    parser_run!("(true);", Parser::item, bool_true_paren_stmt);
-    parser_run!("(false);", Parser::item, bool_false_paren_stmt);
-    parser_run!("true;", Parser::item, bool_true_item_stmt);
-    parser_run!("false;", Parser::item, bool_false_item_stmt);
+    parser_run!("(true)", Parser::item, bool_true_paren_stmt);
+    parser_run!("(false)", Parser::item, bool_false_paren_stmt);
+    parser_run!("true", Parser::item, bool_true_item_stmt);
+    parser_run!("false", Parser::item, bool_false_item_stmt);
 
-    parser_run!("\"dab\";", Parser::item, string_literal_1_item_stmt);
-    parser_run!("\"\";", Parser::item, string_literal_2_item_stmt);
-    parser_run!("(\"dab\");", Parser::item, string_literal_1_paren_stmt);
-    parser_run!("(\"\");", Parser::item, string_literal_2_paren_stmt);
+    parser_run!("\"dab\"", Parser::item, string_literal_1_item_stmt);
+    parser_run!("\"\"", Parser::item, string_literal_2_item_stmt);
+    parser_run!("(\"dab\")", Parser::item, string_literal_1_paren_stmt);
+    parser_run!("(\"\")", Parser::item, string_literal_2_paren_stmt);
 
-    parser_run!("$hello;", Parser::item, dollar_expr_item_stmt);
-    parser_run!("($hello);", Parser::item, dollar_expr_paren_stmt);
-
-    parser_run!("a(10, 10, \"hello\");", Parser::item, call_expr_1_item_stmt);
-    parser_run!("a(10, 10,);", Parser::item, call_expr_2_item_stmt);
+    parser_run!("a(10, 10, \"hello\")", Parser::item, call_expr_1_item_stmt);
+    parser_run!("a(10, 10,)", Parser::item, call_expr_2_item_stmt);
     parser_run!(
-        "(a(10, 10, \"hello\"));",
+        "(a(10, 10, \"hello\"))",
         Parser::item,
         call_expr_1_paren_stmt
     );
-    parser_run!("(a(10, 10,));", Parser::item, call_expr_2_paren_stmt);
+    parser_run!("(a(10, 10,))", Parser::item, call_expr_2_paren_stmt);
 
-    parser_run!("{};", Parser::expression_statement, block_expr_stmt_1);
+    parser_run!("{}", Parser::expression_statement, block_expr_stmt_1);
     parser_run!(
-        "{yield let x = 5;};",
+        "{yield let x = 5}",
         Parser::expression_statement,
         block_expr_stmt_2
     );
 
     parser_run!(
-        "(let x: int = 5);",
+        "(let x: int = 5)",
         Parser::item,
         variable_assign_full_paren_stmt
     );
     parser_run!(
-        "let x: int = 5;",
+        "let x: int = 5",
         Parser::item,
         variable_assign_full_item_stmt
     );
 
-    parser_run!("(i);", Parser::item, ref_id_paren_stmt);
-    parser_run!("i3_hello_world;", Parser::item, ref_id_item_stmt);
+    parser_run!("(i)", Parser::item, ref_id_paren_stmt);
+    parser_run!("i3_hello_world", Parser::item, ref_id_item_stmt);
 
     parser_run!(
-        "(let x: int = 10, hello, 1, \"another_test\");",
+        "(let x: int = 10, hello, 1, \"another_test\")",
         Parser::item,
         tuple_item_stmt
     );
     parser_run!(
-        "((let x: int = 10, hello, 1, \"another_test\"));",
+        "((let x: int = 10, hello, 1, \"another_test\"))",
         Parser::item,
         tuple_paren_stmt
     );

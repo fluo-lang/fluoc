@@ -1,16 +1,16 @@
 /*overload + add_ints(left: int, right: int) -> int {
-  return core::op::add(left, right);
+  return core::op::add(left, right)
   }*/
 
 let do_something = (val: int) -> int {
-    return val;
-};
+    return val
+}
 
 let do_something = () -> bool {
-    return true;
-};
+    return true
+}
 
 let entry = () {
-    let my_int: bool = do_something();
-    let my_other: int = do_something(19);
-};
+    let my_int: bool = do_something()
+    let my_other: int = do_something(19)
+}

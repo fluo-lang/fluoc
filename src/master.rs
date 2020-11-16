@@ -19,21 +19,27 @@ use inkwell::module;
 use inkwell::passes::PassManager;
 use inkwell::targets::TargetMachine;
 
+use clap::ArgMatches;
+use rand::distributions::Alphanumeric;
+use rand::Rng;
+
 pub struct Master<'a> {
     context: &'a Context,
     pub logger: Logger,
     modules: HashMap<usize, CodeGenModule<'a>>,
     sourcemap: SourceMap,
+    args: ArgMatches<'a>,
 }
 
 impl<'a> Master<'a> {
-    pub fn new(context: &'a Context, verbose: bool) -> Master<'a> {
+    pub fn new(context: &'a Context, args: ArgMatches<'a>) -> Master<'a> {
         let sourcemap = SourceMapInner::new();
         Master {
             context,
             modules: HashMap::new(),
-            logger: LoggerInner::new(verbose, Rc::clone(&sourcemap)),
+            logger: LoggerInner::new(args.is_present("verbose"), Rc::clone(&sourcemap)),
             sourcemap,
+            args,
         }
     }
 
@@ -71,13 +77,29 @@ impl<'a> Master<'a> {
 
         let pass_manager = self.init_passes();
         pass_manager.run_on(&self.modules[&filename_id].module);
-        println!("{}", &self.modules[&filename_id].module.print_to_string().to_string());
+
+        let filename = format!(
+            "__temp__fl_obj_{}.o",
+            rand::thread_rng()
+                .sample_iter(Alphanumeric)
+                .take(10)
+                .collect::<String>()
+        );
 
         self.link_to_obj(
-            filename_id,
+            &filename,
             self.modules[&filename_id].module.print_to_string(),
         );
-        self.link_objs(filename_id);
+        self.link_objs(&filename);
+
+        if self.args.occurrences_of("object-file") != 0 {
+            let _ = fs::rename(&filename, self.args.value_of("object-file").unwrap());
+        } else {
+            let _ = fs::remove_file(&filename);
+        }
+        // Just a reminder not to try and use it beyond this point
+        // (deleted!)
+        std::mem::drop(filename);
     }
 
     fn init_passes(&self) -> PassManager<module::Module<'a>> {
@@ -139,18 +161,11 @@ impl<'a> Master<'a> {
         });
     }
 
-    fn link_to_obj(&self, filename_id: usize, pipe: inkwell::support::LLVMString) {
+    fn link_to_obj(&self, filename: &str, pipe: inkwell::support::LLVMString) {
         let ir_to_asm = Instant::now();
-        let module = self.modules.get(&filename_id).unwrap();
 
         match Command::new("llc")
-            .args(&[
-                "-filetype".to_string(),
-                "obj".to_string(),
-                "-O3".to_string(),
-                "-o".to_string(),
-                paths::path_to_str(&module.output_obj).to_string(),
-            ])
+            .args(&["-filetype", "obj", "-O3", "-o", filename])
             .stdin(Stdio::piped())
             .spawn()
         {
@@ -193,17 +208,11 @@ impl<'a> Master<'a> {
         });
     }
 
-    fn link_objs(&self, filename_id: usize) {
+    fn link_objs(&self, filename: &str) {
         let link_start = Instant::now();
-        let module = self.modules.get(&filename_id).unwrap();
-
-        let args = vec![
-            paths::path_to_str(&module.output_obj).to_string(),
-            "-no-pie".to_string(),
-            "-g".to_string(),
-        ];
-
-        match Command::new("gcc").args(&args[..]).spawn() {
+        let args = [filename, "-o", "a.out"];
+        // TODO: package our own libstd instead of using glibc
+        match Command::new("clang").args(&args).spawn() {
             Ok(mut child) => match child.wait() {
                 Ok(_) => {}
                 Err(e) => {
@@ -219,16 +228,9 @@ impl<'a> Master<'a> {
 
         self.logger.borrow().log_verbose(&|| {
             format!(
-                "Linker command invoked: {}`gcc {}`",
-                Font::Reset,
+                "{}: Objects linked with `clang {}`",
+                helpers::display_duration(link_start.elapsed()),
                 args.join(" ")
-            )
-        });
-
-        self.logger.borrow().log_verbose(&|| {
-            format!(
-                "{}: Objects linked",
-                helpers::display_duration(link_start.elapsed())
             )
         });
     }

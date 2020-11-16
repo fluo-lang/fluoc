@@ -3,7 +3,7 @@
 
 let entry = () {
     let x = {
-        yield 10;
-    };
-    print(x);
-};
+        yield 10
+    }
+    print(x)
+}

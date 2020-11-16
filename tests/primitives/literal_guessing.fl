@@ -2,7 +2,7 @@
 -- OUTPUT 123
 
 let entry = () -> _ {
-    let hi = 123;
-    print(hi);
-    yield hi;
-};
+    let hi = 123
+    print(hi)
+    yield hi
+}

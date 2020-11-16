@@ -74,7 +74,7 @@ fn main() {
         )
     };
 
-    let mut master = master::Master::new(&context, matches.is_present("verbose"));
+    let mut master = master::Master::new(&context, matches);
     master.logger.borrow().log_verbose(&|| {
         format!(
             "{}: Read file",

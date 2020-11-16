@@ -3,22 +3,22 @@
 -- Print is a statement
 syntax print -> statement {
     parse {
-        `print`;
-        `->`;
-        value: $expr;
-        `;`; -- Macros must end with a semicolon
+        `print`
+        `->`
+        value: $expr
+        `` -- Macros must end with a semicolon
     }
 
     eval {
         if $value is int {
-            `std::core::print($value);`;
+            `std::core::print($value)`
         } else {
-            comp::raise("Invalid print type $value.type");
+            comp::raise("Invalid print type $value.type")
         }
     }
 }
 
 let entry = () {
-    print -> 10;
-};
+    print -> 10
+}
 

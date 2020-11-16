@@ -1,13 +1,13 @@
 -- OK
 
 rec<T> Maybe {
-    let value: i32;
+    let value: i32
 
     Just(T),
     None
-};
+}
 
 let entry = () {
-    let some: Maybe = Maybe.Just(10, value: 10);
-    let some: Maybe = Maybe.None(value: 10);
-};
+    let some: Maybe = Maybe.Just(10, value: 10)
+    let some: Maybe = Maybe.None(value: 10)
+}

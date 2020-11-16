@@ -3,11 +3,11 @@
 rec<T> Maybe {
     Just(T),
     None
-};
+}
 
 let entry = () -> (Maybe, Maybe) {
-    let some: Maybe = Maybe.Just(10);
-    let none: Maybe = Maybe.None;
+    let some: Maybe = Maybe.Just(10)
+    let none: Maybe = Maybe.None
 
-    yield (some, none);
-};
+    yield (some, none)
+}

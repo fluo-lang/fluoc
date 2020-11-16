@@ -2,8 +2,8 @@
 -- OUTPUT 10
 
 let entry = () {
-    let x = true;
+    let x = true
     if x {
-        print(10);
-    };
-};
+        print(10)
+    }
+}

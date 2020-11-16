@@ -1,16 +1,16 @@
 
 let hi<T> = (val: T) -> T {
-    yield val;
-};
+    yield val
+}
 
 let entry = () {
     -- Ok
-    let test_1 = hi(true);
+    let test_1 = hi(true)
 
     -- Ok
-    let test_2 = hi<bool>(true);
+    let test_2 = hi<bool>(true)
 
     -- Error!
-    let test_3 = hi<i32>(true);
-};
+    let test_3 = hi<i32>(true)
+}
 

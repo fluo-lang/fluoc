@@ -8,18 +8,38 @@ args:
         index: 1
         conflicts_with: code
     - output:
-        help: Output object file, by default `./out.o`
+        help: Output object file, defualts to `out.o`
         short: o
         long: output
         takes_value: true
     - verbose:
         short: v
+        long: verbose
         help: Verbose mode
     - version:
         short: V
+        long: version
         help: Print version
     - code:
         short: c
+        long: code
         help: Compile from input string
         takes_value: true
         conflicts_with: entry
+    - platform:
+        short: plat
+        long: platform
+        required: false
+        takes_value: true
+        help: Set the platform to use, defaults to the current os
+        possible_values:
+          - linux
+          - macos
+          - windows
+    - object-file:
+        short: objf
+        long: object-file
+        required: false
+        takes_value: true
+        default_value: out.o
+        help: Emit an object file and a binary

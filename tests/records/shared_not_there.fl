@@ -1,13 +1,13 @@
 -- ERROR missing_field
 
 rec Test {
-    let shared: i32;
+    let shared: i32
 
     One,
     Two
-};
+}
 
 let entry = () {
     -- Ooops!
-    Test.One;
+    Test.One
 }

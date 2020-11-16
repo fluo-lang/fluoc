@@ -2,12 +2,12 @@
 -- OUTPUT 3
 
 let entry = () {
-    let x = true;
+    let x = true
     let y = if x {
-        yield 10;
+        yield 10
     } else {
-        yield 3;
-    };
+        yield 3
+    }
 
-    print(y);
-};
+    print(y)
+}

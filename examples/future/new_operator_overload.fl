@@ -1,15 +1,15 @@
 -- Implement addition for int and int
 impl int: Add<int, int> {
-    type output = int;
+    type output = int
 
-    extern let add_int: (int, int) -> output;
+    extern let add_int: (int, int) -> output
 }
 
 
 -- The Add interface is something like
 pattern Add<left, right> {
-    type output;
+    type output
 
-    let add_int: (left, right) -> output;
+    let add_int: (left, right) -> output
 }
 
