@@ -1,14 +1,14 @@
 -- OK
 
-let entry = () -> i32 {
+let entry = () :: i32 {
     let x = 10
-    let y = () -> _ {
+    let y = () :: _ {
         yield x
     }
 
     yield ident(y())
 }
 
-let ident = (x: _) -> _ {
+let ident = (x: _) :: _ {
     yield x
 }

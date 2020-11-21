@@ -1,7 +1,7 @@
 -- OK
 -- OUTPUT 3
 
-let entry = () {
+let entry = () :: {
     let x = true
     let y = if x {
         yield 10

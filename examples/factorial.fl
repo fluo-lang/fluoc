@@ -1,4 +1,4 @@
-let factorial = (value: long) -> long {
+let factorial = (value: long) :: long {
     if value == 0 {
         return 1
     } else {
@@ -6,7 +6,7 @@ let factorial = (value: long) -> long {
     }
 }
 
-let entry = () {
+let entry = () :: {
     std::fmt::print(factorial(20))
 }
 

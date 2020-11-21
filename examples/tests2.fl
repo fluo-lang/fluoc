@@ -1,10 +1,10 @@
-extern let print_int: (i32) -> ()
-let entry = () -> i32 {
-    let value =
-        023
-    print_int(
-        value,
-    )
-    print_int(102)
+extern let print_int: (i32) :: ()
+let other_func = (value: _) :: _ {
+    yield value
+}
+
+let entry = () :: i32 {
+    let value: i32 = 023
+    print_int(other_func(value))
     yield 0
 }

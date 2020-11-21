@@ -1,9 +1,9 @@
 -- OK
 
 pattern Animal {
-    let fart: () -> ()
+    let fart: () :: ()
 }
 
-let entry = () {}
+let entry = () :: {}
 
-let take_animal<T: Animal> = (val: T) {}
+let take_animal<T: Animal> = (val: T) :: {}

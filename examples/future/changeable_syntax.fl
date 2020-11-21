@@ -1,10 +1,10 @@
 
 -- Generic print with static dispatch
 -- Print is a statement
-syntax print -> statement {
+syntax print :: statement {
     parse {
         `print`
-        `->`
+        `::`
         value: $expr
         `` -- Macros must end with a semicolon
     }
@@ -18,7 +18,7 @@ syntax print -> statement {
     }
 }
 
-let entry = () {
-    print -> 10
+let entry = () :: {
+    print :: 10
 }
 

@@ -1,6 +1,6 @@
 -- ERROR undefined_symbol
 
-let entry = () -> i32 {
+let entry = () :: i32 {
     let inner = () {
         let x: i32 = 10
     }

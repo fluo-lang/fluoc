@@ -1,9 +1,9 @@
 
-let hi<T> = (val: T) -> T {
+let hi<T> = (val: T) :: T {
     yield val
 }
 
-let entry = () {
+let entry = () :: {
     -- Ok
     let test_1 = hi(true)
 

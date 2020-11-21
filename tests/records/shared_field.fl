@@ -7,7 +7,7 @@ rec<T> Maybe {
     None
 }
 
-let entry = () {
+let entry = () :: {
     let some: Maybe = Maybe.Just(10, value: 10)
     let some: Maybe = Maybe.None(value: 10)
 }

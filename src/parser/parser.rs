@@ -617,18 +617,19 @@ impl Parser {
         };
 
         self.validate_token(lexer::TokenType::RP, position, false)?;
+        self.validate_token(lexer::TokenType::DoubleColon, position, false)?;
 
-        let block;
-        let return_type: ast::Type = if self.peek().token == lexer::TokenType::Arrow {
-            self.forward();
-            let temp = self.type_expr()?;
-            block = Expr::Block(self.block(Scope::Block)?);
-            temp
-        } else {
-            block = Expr::Block(self.block(Scope::Block)?);
-            ast::Type {
-                value: ast::TypeType::Unknown,
-                pos: block.pos(),
+        let (return_type, block) = match self.type_expr() {
+            Ok(ty) => (ty, Expr::Block(self.block(Scope::Block)?)),
+            Err(_) => {
+                let block = self.block(Scope::Block)?;
+                (
+                    ast::Type {
+                        value: ast::TypeType::Unknown,
+                        pos: block.pos,
+                    },
+                    Expr::Block(block),
+                )
             }
         };
 
@@ -1259,7 +1260,7 @@ impl Parser {
 
         self.validate_token(lexer::TokenType::RP, position, false)?;
 
-        self.validate_token(lexer::TokenType::Arrow, position, false)?;
+        self.validate_token(lexer::TokenType::DoubleColon, position, false)?;
         let return_type = self.type_expr()?;
 
         Ok(ast::Type {
@@ -1330,7 +1331,8 @@ impl Parser {
             Ok(items) => {
                 if items.len() == 1 {
                     // Required trailing comma
-                    if let Err(why) = self.validate_token(lexer::TokenType::Comma, position, false) {
+                    if let Err(why) = self.validate_token(lexer::TokenType::Comma, position, false)
+                    {
                         let pos = *&why.position;
                         return Err(ErrorGen::new(
                             Box::new(move || {

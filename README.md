@@ -13,7 +13,7 @@
 > — Leonardo da Vinci
 
 ```rust
-let fizzbuzz = (value: i32) {
+let fizzbuzz = (value: i32) :: {
     match loop 1..value {
         %% 15 -> print("Fizzbuzz")
         %% 3  -> print("Fizz")
@@ -22,21 +22,21 @@ let fizzbuzz = (value: i32) {
     }
 }
 
-let entry = () {
+let entry = () :: {
     print("Hello, world!")
     fizzbuzz(100)
 }
 ```
 
 ```rust
-let fib = (n: i64) -> i64 {
+let fib = (n: i64) :: i64 {
     if n <= 1 {
         return 1
     }
     return fib(n - 1) + fib(n - 2)
 }
 
-let entry = () {
+let entry = () :: {
     print(fib(46))
 }
 ```
@@ -100,11 +100,11 @@ Currently, you will need to install LLVM on your own. In the future, this will c
 ## More Examples
 
 ```rust
-let make_func = (closure: () -> int) -> () -> int {
+let make_func = (closure: () -> int) :: () :: int {
     return closure
 }
 
-let entry = () {
+let entry = () :: {
     let x: int = make_closure(() { return 10 })()
 
     -- Prints 10

@@ -7,7 +7,7 @@ rec Test {
     Two
 }
 
-let entry = () {
+let entry = () :: {
     -- Ooops!
     Test.One
 }
