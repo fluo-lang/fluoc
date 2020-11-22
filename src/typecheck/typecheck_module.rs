@@ -157,7 +157,7 @@ mod typecheck_tests {
     }
 
     assert_error!(
-        r#"let entry = () -> () {
+        r#"let entry = () :: () {
     x
 }"#,
         vec![ErrorType::UndefinedSymbol],
@@ -165,7 +165,7 @@ mod typecheck_tests {
     );
 
     assert_error!(
-        r#"let entry = () -> (i32, i32) {
+        r#"let entry = () :: (i32, i32) {
     return (123, 123 is i64)
 }"#,
         vec![ErrorType::TypeMismatch],
@@ -173,14 +173,14 @@ mod typecheck_tests {
     );
 
     assert_error!(
-        r#"let entry = () -> i64 {
+        r#"let entry = () :: i64 {
 }"#,
         vec![ErrorType::TypeMismatch],
         implict_block_return_mismatch
     );
 
     assert_error!(
-        r#"let entry = () {
+        r#"let entry = () :: {
     return 1923
 }"#,
         vec![ErrorType::TypeMismatch],
@@ -188,7 +188,7 @@ mod typecheck_tests {
     );
 
     assert_error!(
-        r#"let entry = () -> i32 {
+        r#"let entry = () :: i32 {
     return 1923 is i64
 }"#,
         vec![ErrorType::TypeMismatch],
@@ -196,7 +196,7 @@ mod typecheck_tests {
     );
 
     assert_error!(
-        r#"let entry = () -> () {
+        r#"let entry = () :: () {
     return 1923
 }"#,
         vec![ErrorType::TypeMismatch],
@@ -204,16 +204,16 @@ mod typecheck_tests {
     );
 
     assert_error!(
-        r#"let entry = () -> (bool, i32) {
+        r#"let entry = () :: (bool, i32) {
     let y = 10
     let y = y
-    let my_func = () -> _ {
+    let my_func = () :: _ {
         return y
     }
     return (x(x(y)), my_func())
 }
 
-let x = (a: _) -> _ {
+let x = (a: _) :: _ {
     return a
 }"#,
         vec![ErrorType::TypeMismatch],
@@ -221,14 +221,14 @@ let x = (a: _) -> _ {
     );
 
     assert_ok!(
-        r#"let entry = () {
+        r#"let entry = () :: {
     let x: i32 = 10
 }"#,
         ok_implicit_empty
     );
 
     assert_ok!(
-        r#"let entry = () -> (i32, i32, i64) {
+        r#"let entry = () :: (i32, i32, i64) {
     let x = 10
     return (x, 123 is i32, 123)
 }"#,
@@ -236,7 +236,7 @@ let x = (a: _) -> _ {
     );
 
     assert_ok!(
-        r#"let entry = () -> i32 {
+        r#"let entry = () :: i32 {
     let x = 10
     return x
 }"#,
@@ -244,39 +244,39 @@ let x = (a: _) -> _ {
     );
 
     assert_ok!(
-        r#"let entry = () -> i32 {
+        r#"let entry = () :: i32 {
     let y = 10
     return x(y)
 }
 
-let x = (a: _) -> _ {
+let x = (a: _) :: _ {
     return a
 }"#,
         identity_func_infer
     );
 
     assert_ok!(
-        r#"let entry = () -> i32 {
+        r#"let entry = () :: i32 {
     yield 10
 }
 
-let x = () -> _ {
+let x = () :: _ {
     yield entry()
 }"#,
         reverse_test
     );
 
     assert_ok!(
-        r#"let entry = () -> (i32, i32) {
+        r#"let entry = () :: (i32, i32) {
     let y = 10
     let y = y
-    let my_func = () -> _ {
+    let my_func = () :: _ {
         return y
     }
     return (x(x(y)), my_func())
 }
 
-let x = (a: _) -> _ {
+let x = (a: _) :: _ {
     return a
 }"#,
         complex

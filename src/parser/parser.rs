@@ -1543,13 +1543,13 @@ pub mod parser_tests {
     );
 
     parser_run!(
-        "let add_overload_test9 = (val: int, val: int) -> int {}",
+        "let add_overload_test9 = (val: int, val: int) :: int {}",
         Parser::expression_statement,
         function_define
     );
 
     parser_run!(
-        "pub let add_overload_test9 = (val: int, val: int) -> int {}",
+        "pub let add_overload_test9 = (val: int, val: int) :: int {}",
         Parser::expression_statement,
         function_define_pub
     );
@@ -1567,7 +1567,7 @@ pub mod parser_tests {
     );
 
     parser_run!(
-        "extern let test: (i32, i32) -> i32",
+        "extern let test: (i32, i32) :: i32",
         Parser::expression_statement,
         extern_let_func
     );

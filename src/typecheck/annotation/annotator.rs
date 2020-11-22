@@ -155,7 +155,7 @@ pub mod annotator_test {
 
     #[test]
     fn annotate_identity() {
-        let ast = parser_run!("(a: i32) -> _ { yield a }");
+        let ast = parser_run!("(a: i32) :: _ { yield a }");
         let mut annotator = Annotator::new();
 
         let typed_ast = annotator
