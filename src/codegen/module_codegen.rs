@@ -37,7 +37,6 @@ impl<'a> CodeGenSymbTab<'a> {
     }
 
     fn get(&mut self, name: Rc<ast::Namespace>) -> values::PointerValue<'a> {
-        println!("{}", name);
         *self.items.get(&name).unwrap()
     }
 }

@@ -15,8 +15,6 @@ use std::rc::Rc;
 use std::time::Instant;
 
 use inkwell::context::Context;
-use inkwell::module;
-use inkwell::passes::PassManager;
 use inkwell::targets::TargetMachine;
 
 use clap::ArgMatches;
@@ -71,9 +69,6 @@ impl<'a> Master<'a> {
 
         self.link_ir(filename_id);
 
-        let pass_manager = self.init_passes();
-        pass_manager.run_on(&self.modules[&filename_id].module);
-
         let filename = format!(
             "__temp__fl_obj_{}.o",
             rand::thread_rng()
@@ -96,23 +91,6 @@ impl<'a> Master<'a> {
         // Just a reminder not to try and use it beyond this point
         // (deleted!)
         std::mem::drop(filename);
-    }
-
-    fn init_passes(&self) -> PassManager<module::Module<'a>> {
-        let fpm: PassManager<module::Module<'_>> = PassManager::create(());
-
-        fpm.add_verifier_pass();
-        fpm.add_instruction_combining_pass();
-        fpm.add_function_inlining_pass();
-        fpm.add_reassociate_pass();
-        fpm.add_cfg_simplification_pass();
-        fpm.add_basic_alias_analysis_pass();
-        fpm.add_tail_call_elimination_pass();
-        fpm.add_promote_memory_to_register_pass();
-        fpm.add_instruction_combining_pass();
-        fpm.add_reassociate_pass();
-
-        return fpm;
     }
 
     fn link_ir(&self, filename_id: usize) {
