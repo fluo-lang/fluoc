@@ -1,36 +1,42 @@
 use super::{MirExpr, MirExprEnum, MirStmt, MirType};
 
 use crate::logger::{ErrorAnnotation, ErrorDisplayType, ErrorType, ErrorValue};
-use crate::parser::ast;
+use crate::parser::{ast, ast::Namespace};
 use crate::typecheck::annotation::*;
 
 use either::Either;
 use std::rc::Rc;
 
 pub fn lower_to_mir(typed_ast: Vec<TypedStmt>) -> Result<Vec<MirStmt>, Vec<ErrorValue>> {
-    let mut mir = Vec::with_capacity(typed_ast.len());
+    let mut outer_mir = Vec::new();
+    let mut inner_mir = Vec::with_capacity(typed_ast.len());
     let mut errors = Vec::new();
 
     for typed_stmt in typed_ast.into_iter() {
-        match typed_stmt.into_mir(&mut mir) {
-            Ok(Some(mir_stmt)) => mir.push(mir_stmt),
+        match typed_stmt.into_mir(&mut outer_mir, &mut inner_mir) {
+            Ok(Some(mir_stmt)) => inner_mir.push(mir_stmt),
             Ok(None) => { /* Nothing to do */ }
             Err(e) => errors.push(e),
         }
     }
 
     if errors.is_empty() {
-        Ok(mir)
+        outer_mir.append(&mut inner_mir);
+        Ok(outer_mir)
     } else {
         Err(errors)
     }
 }
 
 impl TypedStmt {
-    fn into_mir(self, mir: &mut Vec<MirStmt>) -> Result<Option<MirStmt>, ErrorValue> {
+    fn into_mir(
+        self,
+        outer_mir: &mut Vec<MirStmt>,
+        inner_mir: &mut Vec<MirStmt>,
+    ) -> Result<Option<MirStmt>, ErrorValue> {
         match self.stmt {
             TypedStmtEnum::Expression(expr) => Ok(Some(MirStmt::Expression(
-                match expr.into_mir(mir, ExprData::default())?.0 {
+                match expr.into_mir(outer_mir, inner_mir, ExprData::default())?.0 {
                     Some(expr) => expr,
                     None => return Ok(None),
                 },
@@ -44,30 +50,32 @@ impl TypedStmt {
 #[derive(Clone)]
 pub struct ExprData {
     is_null: bool,
-    expr_name: Option<Rc<ast::Namespace>>,
+    expr_name: Option<Rc<Namespace>>,
     visibility: Option<ast::Visibility>,
 }
 
-impl ExprData {
-    pub fn default() -> Self {
+impl Default for ExprData {
+    fn default() -> Self {
         Self {
             is_null: false,
             expr_name: None,
             visibility: None,
         }
     }
+}
 
-    pub fn is_null(mut self, val: bool) -> Self {
+impl ExprData {
+    fn is_null(mut self, val: bool) -> Self {
         self.is_null = val;
         self
     }
 
-    pub fn expr_name(mut self, val: Option<Rc<ast::Namespace>>) -> Self {
+    fn expr_name(mut self, val: Option<Rc<Namespace>>) -> Self {
         self.expr_name = val;
         self
     }
 
-    pub fn visibility(mut self, val: Option<ast::Visibility>) -> Self {
+    fn visibility(mut self, val: Option<ast::Visibility>) -> Self {
         self.visibility = val;
         self
     }
@@ -97,14 +105,17 @@ impl MirExpr {
     }
 }
 
+/// Evaluate a list of expressions. If the expression has type `!` (e.g. return expressions),
+/// we evaluate all expressions before it.
 fn convert_exprs(
-    mir: &mut Vec<MirStmt>,
+    outer_mir: &mut Vec<MirStmt>,
+    inner_mir: &mut Vec<MirStmt>,
     exprs: Vec<TypedExpr>,
     expr_data: ExprData,
 ) -> Result<Option<Vec<MirExpr>>, ErrorValue> {
     let mut mir_exprs = Vec::with_capacity(exprs.len());
     for expr in exprs {
-        match expr.into_mir(mir, expr_data.clone())? {
+        match expr.into_mir(outer_mir, inner_mir, expr_data.clone())? {
             (Some(expr), _) => {
                 mir_exprs.push(expr);
             }
@@ -112,7 +123,7 @@ fn convert_exprs(
                 // Some expression that will prevent this function call
                 // E.g. a return or yield expr
                 // We still want to evaluate every expression before this point;
-                mir.extend(mir_exprs.into_iter().map(|a| MirStmt::Expression(a)));
+                inner_mir.extend(mir_exprs.into_iter().map(|a| MirStmt::Expression(a)));
                 return Ok(None);
             }
         }
@@ -123,14 +134,15 @@ fn convert_exprs(
 impl TypedExpr {
     fn into_mir(
         self,
-        mir: &mut Vec<MirStmt>,
+        outer_mir: &mut Vec<MirStmt>,
+        inner_mir: &mut Vec<MirStmt>,
         expr_data: ExprData,
     ) -> Result<(Option<MirExpr>, ExprData), ErrorValue> {
         match self.expr {
             TypedExprEnum::FunctionCall(func_call) => {
                 let mut arguments = Vec::with_capacity(func_call.arguments.len());
                 for arg in func_call.arguments.into_iter() {
-                    match arg.into_mir(mir, expr_data.clone())? {
+                    match arg.into_mir(outer_mir, inner_mir, expr_data.clone())? {
                         (Some(expr), _) => {
                             arguments.push(expr);
                         }
@@ -138,7 +150,7 @@ impl TypedExpr {
                             // Some expression that will prevent this function call
                             // E.g. a return or yield expr
                             // We still want to evaluate every expression before this point;
-                            mir.extend(arguments.into_iter().map(|a| MirStmt::Expression(a)));
+                            inner_mir.extend(arguments.into_iter().map(|a| MirStmt::Expression(a)));
                             return Ok((None, expr_data));
                         }
                     }
@@ -158,10 +170,14 @@ impl TypedExpr {
             }
             TypedExprEnum::Function(function) => {
                 let mut scope = Vec::new();
-                match function.block.into_mir(&mut scope, expr_data.clone())?.0 {
+                match function
+                    .block
+                    .into_mir(outer_mir, &mut scope, expr_data.clone())?
+                    .0
+                {
                     Some(block) => match function.ty {
                         AnnotationType::Function(pos_args, ret_ty, pos) => {
-                            mir.push(MirStmt::FunctionDef(super::MirFunctionDef {
+                            outer_mir.push(MirStmt::FunctionDef(super::MirFunctionDef {
                                 mangled_name: expr_data
                                     .expr_name
                                     .map(|name| Rc::clone(&name).to_string())
@@ -191,7 +207,11 @@ impl TypedExpr {
                 Ok((None, ExprData::default().is_null(true)))
             }
             TypedExprEnum::Is(is) => {
-                let mut expr = match is.expr.into_mir(mir, ExprData::default())?.0 {
+                let mut expr = match is
+                    .expr
+                    .into_mir(outer_mir, inner_mir, ExprData::default())?
+                    .0
+                {
                     Some(expr) => expr,
                     None => return Ok((None, ExprData::default().is_null(true))),
                 };
@@ -203,7 +223,8 @@ impl TypedExpr {
                 let expr = match var_assign.expr {
                     Either::Left(expr) => match expr
                         .into_mir(
-                            mir,
+                            outer_mir,
+                            inner_mir,
                             ExprData::default()
                                 .visibility(Some(var_assign.visibility))
                                 .expr_name(var_assign.binder.name.as_ref().map(|n| Rc::clone(&n))),
@@ -215,7 +236,7 @@ impl TypedExpr {
                     },
                     Either::Right(ty) => match ty.into_mir()? {
                         MirType::FunctionType(pos_args, return_type, pos) => {
-                            mir.push(MirStmt::FunctionDef(super::MirFunctionDef {
+                            inner_mir.push(MirStmt::FunctionDef(super::MirFunctionDef {
                                 arg_names: Vec::new(),
                                 block: None,
                                 visibility: var_assign.visibility,
@@ -258,7 +279,7 @@ impl TypedExpr {
                     expr_data,
                 ));
 
-                mir.push(MirStmt::VariableAssign(Box::new(
+                inner_mir.push(MirStmt::VariableAssign(Box::new(
                     super::MirVariableAssign {
                         var_name: var_assign
                             .binder
@@ -277,14 +298,18 @@ impl TypedExpr {
                 Some(MirExpr {
                     pos: self.pos,
                     value: MirExprEnum::Variable(id.name),
-                    ty: id.ty.into_mir()?
+                    ty: id.ty.into_mir()?,
                 }),
                 expr_data,
             )),
             TypedExprEnum::Return(ret) => {
-                if let Some(expr) = ret.expr.into_mir(mir, ExprData::default())?.0 {
+                if let Some(expr) = ret
+                    .expr
+                    .into_mir(outer_mir, inner_mir, ExprData::default())?
+                    .0
+                {
                     // Push return statement onto statement list
-                    mir.push(MirStmt::Return(super::MirReturn {
+                    inner_mir.push(MirStmt::Return(super::MirReturn {
                         value: expr,
                         pos: self.pos,
                     }));
@@ -293,9 +318,13 @@ impl TypedExpr {
                 Ok((None, expr_data.is_null(true)))
             }
             TypedExprEnum::Yield(ret) => {
-                if let Some(expr) = ret.expr.into_mir(mir, ExprData::default())?.0 {
+                if let Some(expr) = ret
+                    .expr
+                    .into_mir(outer_mir, inner_mir, ExprData::default())?
+                    .0
+                {
                     // Push yield statement onto statement list
-                    mir.push(MirStmt::Yield(super::MirYield {
+                    inner_mir.push(MirStmt::Yield(super::MirYield {
                         value: expr,
                         pos: self.pos,
                     }));
@@ -314,7 +343,7 @@ impl TypedExpr {
                 let mut stmts = Vec::with_capacity(block.stmts.len());
 
                 for stmt in block.stmts {
-                    match stmt.into_mir(&mut stmts)? {
+                    match stmt.into_mir(outer_mir, &mut stmts)? {
                         Some(s) => stmts.push(s),
                         None => {}
                     };
@@ -341,10 +370,11 @@ impl TypedExpr {
                 ))
             }
             TypedExprEnum::Tuple(tup) => {
-                let mir_exprs = match convert_exprs(mir, tup.exprs, expr_data.clone())? {
-                    Some(fields) => fields,
-                    None => return Ok((None, expr_data)),
-                };
+                let mir_exprs =
+                    match convert_exprs(outer_mir, inner_mir, tup.exprs, expr_data.clone())? {
+                        Some(fields) => fields,
+                        None => return Ok((None, expr_data)),
+                    };
 
                 Ok((
                     Some(super::MirExpr {
@@ -358,7 +388,6 @@ impl TypedExpr {
                     expr_data,
                 ))
             }
-            val => todo!("{:#?}", val),
         }
     }
 }

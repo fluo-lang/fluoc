@@ -47,8 +47,6 @@ impl<'a> Master<'a> {
         &mut self,
         filename: path::PathBuf,
         contents: String,
-        output_file_ir: &'a path::Path,
-        output_file_obj: &'a path::Path,
     ) {
         let module = self
             .context
@@ -65,8 +63,6 @@ impl<'a> Master<'a> {
             Rc::clone(&self.sourcemap),
             filename_id,
             Rc::clone(&self.logger),
-            output_file_ir,
-            output_file_obj,
         );
 
         helpers::error_or_other(code_gen_mod.generate(), Rc::clone(&self.logger));

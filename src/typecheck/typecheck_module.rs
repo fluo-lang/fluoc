@@ -1,9 +1,9 @@
 use super::constraint_gen::generate;
-use super::context::Context;
 use super::substitute;
 use super::unifier::unify;
 use super::{annotation, annotation::TypedStmt};
 
+use crate::context::Context;
 use crate::helpers;
 use crate::logger::{ErrorValue, Logger};
 use crate::parser::Parser;

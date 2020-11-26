@@ -14,7 +14,7 @@ pub mod codegen;
 pub mod helpers;
 pub mod lexer;
 pub mod logger;
-//pub mod mangle;
+// pub mod mangle;
 pub mod master;
 pub mod mir;
 pub mod parser;
@@ -22,6 +22,7 @@ pub mod paths;
 pub mod segmentation;
 pub mod tags;
 pub mod typecheck;
+pub mod context;
 
 #[macro_use]
 extern crate clap;
@@ -85,8 +86,6 @@ fn main() {
     master.generate_file(
         filename,
         source,
-        path::Path::new("out.ll"),
-        path::Path::new("out.o"),
     );
 
     master.logger.borrow().log(format!(

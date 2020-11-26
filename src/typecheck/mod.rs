@@ -1,6 +1,5 @@
 pub mod annotation;
 pub mod constraint_gen;
-pub mod context;
 pub mod substitute;
 pub mod typecheck_module;
 pub mod unifier;

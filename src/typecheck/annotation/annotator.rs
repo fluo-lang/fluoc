@@ -1,9 +1,9 @@
 use super::{typed_ast, AdditionalContraints, AnnotationType};
 
+use crate::context::Context;
 use crate::helpers::Span;
 use crate::logger::ErrorValue;
 use crate::parser::{ast, ast::Statement};
-use crate::typecheck::context::Context;
 
 use std::rc::Rc;
 
@@ -106,7 +106,7 @@ pub mod annotator_test {
     use crate::logger::LoggerInner;
     use crate::parser::Parser;
     use crate::sourcemap::SourceMapInner;
-    use crate::{typecheck, typecheck::annotation::*};
+    use crate::typecheck::annotation::*;
 
     use std::path;
     use std::rc::Rc;
@@ -159,7 +159,7 @@ pub mod annotator_test {
         let mut annotator = Annotator::new();
 
         let typed_ast = annotator
-            .annotate(ast, &mut typecheck::context::Context::new())
+            .annotate(ast, &mut Context::new())
             .unwrap();
 
         match &typed_ast[0] {

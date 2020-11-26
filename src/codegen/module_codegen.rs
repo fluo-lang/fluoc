@@ -13,7 +13,6 @@ use either::Either;
 
 use std::collections::HashMap;
 use std::convert::TryInto;
-use std::path;
 use std::rc::Rc;
 use std::time::Instant;
 
@@ -38,6 +37,7 @@ impl<'a> CodeGenSymbTab<'a> {
     }
 
     fn get(&mut self, name: Rc<ast::Namespace>) -> values::PointerValue<'a> {
+        println!("{}", name);
         *self.items.get(&name).unwrap()
     }
 }
@@ -51,8 +51,6 @@ pub struct CodeGenModule<'a> {
     typecheck: TypeCheckModule,
     builder: builder::Builder<'a>,
     symbtab: CodeGenSymbTab<'a>,
-    output_ir: &'a path::Path,
-    pub output_obj: &'a path::Path,
     sourcemap: SourceMap,
     logger: Logger,
     current_function: Option<values::FunctionValue<'a>>,
@@ -66,8 +64,6 @@ impl<'a> CodeGenModule<'a> {
         sourcemap: SourceMap,
         filename_id: usize,
         logger: Logger,
-        output_ir: &'a path::Path,
-        output_obj: &'a path::Path,
     ) -> CodeGenModule<'a> {
         let typecheck =
             TypeCheckModule::new(filename_id, Rc::clone(&logger), Rc::clone(&sourcemap));
@@ -77,8 +73,6 @@ impl<'a> CodeGenModule<'a> {
             typecheck,
             builder: context.create_builder(),
             symbtab: CodeGenSymbTab::new(),
-            output_ir,
-            output_obj,
             sourcemap,
             logger,
             current_function: None,

@@ -26,7 +26,7 @@ pub struct Context<T> {
     objects: HashMap<Rc<ast::Namespace>, T>,
 }
 
-impl<T: fmt::Display> Context<T> {
+impl<T> Context<T> {
     pub fn new() -> Self {
         Context {
             objects: HashMap::new(),

@@ -1,38 +1,10 @@
-/*
-Iterative, not allowed in fluo
-
-let n1 = 0
-let n2 = 1
-while True {
-    std::fmt::print(n1)
-    let temp = n1 + n2
-    n1 = n2
-    n2 = temp
-}
-*/
-
-/*
--- recursive with no mutation
-let fib = (n1: i32, n2: i32) :: (i32, i32) {
-    return fib(n2, n1)
-}
-*/
-
-/*
-let sum = (res: i32, array: [i32]) :: i32 {
-    return sum(res + array[0], array[1..])
-}
-*/
-
-let entry = () :: (i32, i32) {
-    let y = 11
-    let y = y
-    let my_func = () :: _ {
-        return y
-    }
-    return (x(x(y)), my_func())
+extern let print_int: (i32) :: ()
+let other_func = (value: _) :: _ {
+    yield value
 }
 
-let x = (a: _) :: _ {
-    return a
+let entry = () :: i32 {
+    let value: i32 = 023
+    print_int(other_func(value))
+    yield 0
 }

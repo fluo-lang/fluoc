@@ -1,8 +1,8 @@
 use super::{typed_ast::*, AdditionalContraint, AnnotationType, Annotator};
 
+use crate::context::{Context, TOption};
 use crate::logger::{not_a_err, ErrorAnnotation, ErrorDisplayType, ErrorType, ErrorValue};
 use crate::parser::ast;
-use crate::typecheck::context::{Context, TOption};
 
 use either::Either;
 use std::rc::Rc;
