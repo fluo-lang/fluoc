@@ -158,30 +158,27 @@ pub mod annotator_test {
         let ast = parser_run!("(a: i32) :: _ { yield a }");
         let mut annotator = Annotator::new();
 
-        let typed_ast = annotator
-            .annotate(ast, &mut Context::new())
-            .unwrap();
+        let typed_ast = annotator.annotate(ast, &mut Context::new()).unwrap();
 
         match &typed_ast[0] {
             TypedStmt {
                 stmt:
                     TypedStmtEnum::Expression(TypedExpr {
-                        expr:
-                            TypedExprEnum::Function(TypedFunction {
-                                ty: ty @ AnnotationType::Function(ref arguments, _, _),
-                                block,
-                                ..
-                            }),
+                        expr: TypedExprEnum::Function(TypedFunction { ty, block, .. }),
                         pos: _,
                     }),
                 pos: _,
             } => {
-                assert_eq!(arguments.len(), 1);
+                if let AnnotationType::Function(ref arguments, _, _) = ty {
+                    assert_eq!(arguments.len(), 1);
 
-                assert_ne!(ty, block.ty());
-                assert_ne!(&arguments[0], ty);
+                    assert_ne!(ty, block.ty());
+                    assert_ne!(&arguments[0], ty);
 
-                assert_ne!(&arguments[0], block.ty())
+                    assert_ne!(&arguments[0], block.ty())
+                } else {
+                    panic!()
+                }
             }
             _ => panic!(),
         }

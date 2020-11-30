@@ -76,27 +76,29 @@ fn generate_expr(
     let mut constraints = Constraints::new();
     match &expr.expr {
         TypedExprEnum::Function(TypedFunction {
-            ty: ty @ AnnotationType::Function(ref func_args, ref ret, _),
+            ty,
             block,
             arg_names: _,
         }) => {
-            constraints.0.extend(
-                // Set the outer and inner return type to be function annotation type
-                generate_expr(
-                    block,
-                    Some(ret.as_ref().clone()),
-                    Some(ret.as_ref().clone()),
-                )
-                .0,
-            );
-            constraints.0.insert(Constraint::new(
-                ty.clone(),
-                AnnotationType::Function(
-                    Rc::clone(func_args),
-                    Rc::new(block.ty().clone()),
-                    expr.pos,
-                ),
-            ));
+            if let AnnotationType::Function(ref func_args, ref ret, _) = ty {
+                constraints.0.extend(
+                    // Set the outer and inner return type to be function annotation type
+                    generate_expr(
+                        block,
+                        Some(ret.as_ref().clone()),
+                        Some(ret.as_ref().clone()),
+                    )
+                    .0,
+                );
+                constraints.0.insert(Constraint::new(
+                    ty.clone(),
+                    AnnotationType::Function(
+                        Rc::clone(func_args),
+                        Rc::new(block.ty().clone()),
+                        expr.pos,
+                    ),
+                ));
+            }
         }
 
         TypedExprEnum::FunctionCall(func_call) => {
@@ -193,8 +195,6 @@ fn generate_expr(
                 ),
             ));
         }
-
-        _ => unimplemented!(),
     }
     constraints
 }

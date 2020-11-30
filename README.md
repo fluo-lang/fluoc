@@ -47,11 +47,10 @@ let entry = () :: {
 
 1. [Install LLVM](https://github.com/fluo-lang/fluo#installing-llvm)
 
-2. Install cargo and switch to nightly branch:
+2. Install cargo:
 
    ```bash
    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-   rustup default nightly
    ```
 
 3. Clone this repo (important: **clone recursively**):

@@ -1,4 +1,3 @@
-#![feature(backtrace, bindings_after_at)]
 #![warn(rust_2018_idioms)]
 
 #[macro_use]
@@ -32,7 +31,6 @@ use inkwell::context::Context;
 
 use logger::{Color, Font};
 
-use std::backtrace;
 use std::panic;
 use std::path;
 use std::process;
@@ -41,10 +39,8 @@ use std::time::Instant;
 fn main() {
     let master_start = Instant::now();
     panic::set_hook(Box::new(|value| {
-        let bt = backtrace::Backtrace::force_capture();
         eprintln!(
-            "{}\n{}.\n{}This is likely a problem with the fluo compiler and not your code. Please report the issue to the fluo github: https://github.com/fluo-lang/fluoc{}",
-            bt,
+            "{}.\n{}This is likely a problem with the fluo compiler and not your code. Please report the issue to the fluo github: https://github.com/fluo-lang/fluoc{}",
             value,
             Color::Red,
             Font::Reset

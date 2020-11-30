@@ -184,9 +184,10 @@ impl<'a> Master<'a> {
 
     fn link_objs(&self, filename: &str) {
         let link_start = Instant::now();
-        let args = [filename, "-o", "a.out"];
+        let args = [filename, "-o", "a.out", "-no-pie"];
+
         // TODO: package our own libstd instead of using glibc
-        match Command::new("clang").args(&args).spawn() {
+        match Command::new("gcc").args(&args).spawn() {
             Ok(mut child) => match child.wait() {
                 Ok(_) => {}
                 Err(e) => {
@@ -202,7 +203,7 @@ impl<'a> Master<'a> {
 
         self.logger.borrow().log_verbose(&|| {
             format!(
-                "{}: Objects linked with `clang {}`",
+                "{}: Objects linked with `gcc {}`",
                 helpers::display_duration(link_start.elapsed()),
                 args.join(" ")
             )
