@@ -489,7 +489,8 @@ impl Namespace {
     }
 
     pub fn mangle(&self) -> String {
-        let mut mangled = String::with_capacity(self.scopes.iter().map(|x| x.pos.len() + 1).count());
+        let mut mangled =
+            String::with_capacity(self.scopes.iter().map(|x| x.pos.len() + 1).count());
         for sign in &self.scopes {
             mangled.push_str(&sign.pos.len().to_string());
             mangled.push_str(sign.sourcemap.borrow().get_segment(sign.pos));

@@ -28,9 +28,9 @@ use inkwell::context::Context;
 
 use logger::{Color, Font};
 
+use std::io::{self, Read};
 use std::panic;
 use std::path;
-use std::io::{self, Read};
 use std::time::Instant;
 
 use clap::Clap;
@@ -56,7 +56,9 @@ fn main() {
         (_, Some(ref filename)) if filename == "-" => {
             let mut buffer = String::new();
             let mut stdin = io::stdin(); // We get `Stdin` here.
-            stdin.read_to_string(&mut buffer).expect("Failed to read from stdin");
+            stdin
+                .read_to_string(&mut buffer)
+                .expect("Failed to read from stdin");
             (buffer, path::PathBuf::from("<stdin>"))
         }
         (_, Some(ref f)) => {

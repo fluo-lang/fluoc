@@ -122,15 +122,18 @@ impl LoggerInner {
     /// Static method for error that parses the furthest.
     /// Useful when you have multiple errors and want to know which one is the most accurate.
     pub fn longest(errors: Vec<ErrorGen>) -> ErrorGen {
-        errors.into_iter().max_by_key(|x| {
-            (
-                // Urgents have a greater priority (i.e. a wrong scope error)
-                if x.urgent { 1 } else { 0 },
-                // If its urgent, the one first wins
-                Reverse(if x.urgent { x.position.s } else { 0 }),
-                // Otherwise classify as the end position (the error that parses the furthest)
-                x.position.e,
-            )
-        }).unwrap()
+        errors
+            .into_iter()
+            .max_by_key(|x| {
+                (
+                    // Urgents have a greater priority (i.e. a wrong scope error)
+                    if x.urgent { 1 } else { 0 },
+                    // If its urgent, the one first wins
+                    Reverse(if x.urgent { x.position.s } else { 0 }),
+                    // Otherwise classify as the end position (the error that parses the furthest)
+                    x.position.e,
+                )
+            })
+            .unwrap()
     }
 }

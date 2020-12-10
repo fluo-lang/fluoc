@@ -111,7 +111,7 @@ pub enum MirExprEnum {
     Block(MirBlock),
     Conditional(Box<Conditional>),
     FunctionCall(MirFunctionCall),
-    Struct(MirStruct)
+    Struct(MirStruct),
 }
 
 #[derive(Derivative, Clone)]

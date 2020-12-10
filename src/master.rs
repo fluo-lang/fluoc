@@ -17,9 +17,9 @@ use std::time::Instant;
 use inkwell::context::Context;
 use inkwell::targets::TargetMachine;
 
+use crate::opts::Opts;
 use rand::distributions::Alphanumeric;
 use rand::Rng;
-use crate::opts::Opts;
 
 pub struct Master<'a> {
     context: &'a Context,
@@ -41,11 +41,7 @@ impl<'a> Master<'a> {
         }
     }
 
-    pub fn generate_file(
-        &mut self,
-        filename: path::PathBuf,
-        contents: String,
-    ) {
+    pub fn generate_file(&mut self, filename: path::PathBuf, contents: String) {
         let module = self
             .context
             .create_module(filename.to_str().expect("Filename specified is not valid"));

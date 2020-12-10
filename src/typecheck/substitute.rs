@@ -95,9 +95,21 @@ impl TypedExpr {
                         (Prim::I64, LiteralType::Number) => {}
                         (Prim::Infer, _) => {}
 
-                        (_, _) => return Err(bad_literal(&literal.ty, literal.value.literal_type, self.pos)),
+                        (_, _) => {
+                            return Err(bad_literal(
+                                &literal.ty,
+                                literal.value.literal_type,
+                                self.pos,
+                            ))
+                        }
                     },
-                    None => return Err(bad_literal(&literal.ty, literal.value.literal_type, self.pos)),
+                    None => {
+                        return Err(bad_literal(
+                            &literal.ty,
+                            literal.value.literal_type,
+                            self.pos,
+                        ))
+                    }
                 }
             }
             TypedExprEnum::Function(func) => {
@@ -162,12 +174,11 @@ fn cannot_infer_err(pos: Span) -> ErrorValue {
         ErrorType::TypeMismatch,
         pos,
         ErrorDisplayType::Error,
-        vec![
-            ErrorAnnotation::new(
-                Some("type found here".to_string()),
-                pos,
-                ErrorDisplayType::Error,
-            ),
-        ],
-    ).with_note("help: annotate the type".to_string())
+        vec![ErrorAnnotation::new(
+            Some("type found here".to_string()),
+            pos,
+            ErrorDisplayType::Error,
+        )],
+    )
+    .with_note("help: annotate the type".to_string())
 }
