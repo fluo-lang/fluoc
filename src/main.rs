@@ -14,27 +14,26 @@ pub mod helpers;
 pub mod lexer;
 pub mod logger;
 // pub mod mangle;
+pub mod context;
 pub mod master;
 pub mod mir;
+pub mod opts;
 pub mod parser;
 pub mod paths;
 pub mod segmentation;
 pub mod tags;
 pub mod typecheck;
-pub mod context;
 
-#[macro_use]
-extern crate clap;
-
-use clap::App;
 use inkwell::context::Context;
 
 use logger::{Color, Font};
 
 use std::panic;
 use std::path;
-use std::process;
+use std::io::{self, Read};
 use std::time::Instant;
+
+use clap::Clap;
 
 fn main() {
     let master_start = Instant::now();
@@ -46,32 +45,28 @@ fn main() {
             Font::Reset
         );
     }));
-    let yaml = load_yaml!("cli.yml");
-    let matches = App::from_yaml(yaml).get_matches();
 
-    if matches.is_present("version") {
-        println!(
-            "{}You are using fluo version 0.0.1{}",
-            Color::Blue,
-            Font::Reset
-        );
-        process::exit(0);
-    }
+    let opts = opts::Opts::parse();
 
     let context = Context::create();
 
     let read_file_start = Instant::now();
-    let (source, filename) = if matches.is_present("entry") {
-        let filename = paths::process_str(matches.value_of("entry").unwrap());
-        (paths::read_file(filename.as_path()), filename)
-    } else {
-        (
-            matches.value_of("code").unwrap().to_string(),
-            path::PathBuf::from("<string>.fl"),
-        )
+    let (source, filename) = match (&opts.code, &opts.entry) {
+        (Some(ref code), _) => (code.clone(), path::PathBuf::from("<string>")),
+        (_, Some(ref filename)) if filename == "-" => {
+            let mut buffer = String::new();
+            let mut stdin = io::stdin(); // We get `Stdin` here.
+            stdin.read_to_string(&mut buffer).expect("Failed to read from stdin");
+            (buffer, path::PathBuf::from("<stdin>"))
+        }
+        (_, Some(ref f)) => {
+            let filename = paths::process_str(f);
+            (paths::read_file(filename.as_path()), filename)
+        }
+        _ => panic!(),
     };
 
-    let mut master = master::Master::new(&context, matches);
+    let mut master = master::Master::new(&context, opts);
     master.logger.borrow().log_verbose(&|| {
         format!(
             "{}: Read file",
@@ -79,10 +74,7 @@ fn main() {
         )
     }); // Lazily run it so no impact on performance
 
-    master.generate_file(
-        filename,
-        source,
-    );
+    master.generate_file(filename, source);
 
     master.logger.borrow().log(format!(
         "{}: All Done",

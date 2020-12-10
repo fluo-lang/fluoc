@@ -17,27 +17,27 @@ use std::time::Instant;
 use inkwell::context::Context;
 use inkwell::targets::TargetMachine;
 
-use clap::ArgMatches;
 use rand::distributions::Alphanumeric;
 use rand::Rng;
+use crate::opts::Opts;
 
 pub struct Master<'a> {
     context: &'a Context,
     pub logger: Logger,
     modules: HashMap<usize, CodeGenModule<'a>>,
     sourcemap: SourceMap,
-    args: ArgMatches<'a>,
+    opts: Opts,
 }
 
 impl<'a> Master<'a> {
-    pub fn new(context: &'a Context, args: ArgMatches<'a>) -> Master<'a> {
+    pub fn new(context: &'a Context, opts: Opts) -> Master<'a> {
         let sourcemap = SourceMapInner::new();
         Master {
             context,
             modules: HashMap::new(),
-            logger: LoggerInner::new(args.is_present("verbose"), Rc::clone(&sourcemap)),
+            logger: LoggerInner::new(opts.verbose, Rc::clone(&sourcemap)),
             sourcemap,
-            args,
+            opts,
         }
     }
 
@@ -83,8 +83,10 @@ impl<'a> Master<'a> {
         );
         self.link_objs(&filename);
 
-        if self.args.occurrences_of("object-file") != 0 {
-            let _ = fs::rename(&filename, self.args.value_of("object-file").unwrap());
+        if let Some(Some(ref obj_file_name)) = self.opts.objfile {
+            let _ = fs::rename(&filename, obj_file_name);
+        } else if let Some(None) = self.opts.objfile {
+            let _ = fs::rename(&filename, "out.o");
         } else {
             let _ = fs::remove_file(&filename);
         }

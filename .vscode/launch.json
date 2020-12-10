@@ -1,34 +1,27 @@
 {
-    "version": "0.2.0",
-    "configurations": [
-        {
-            "type": "lldb",
-            "request": "launch",
-            "name": "Debug executable 'bin'",
-            "cargo": {
-                "args": [
-                    "build",
-                    "--bin=bin",
-                    "--package=fluo",
-                    "--release"
-                ],
-                "filter": {
-                    "name": "bin",
-                    "kind": "bin"
-                }
-            },
-            "args": [
-                "examples/tests.fl"
-            ],
-            "program": "${workspaceRoot}/target/debug/bin",
-            "cwd": "${workspaceFolder}"
-        },
-        {
-            "type": "lldb",
-            "request": "launch",
-            "name": "Debug executable 'a.out'",
-            "program": "${workspaceRoot}/a.out",
-            "cwd": "${workspaceFolder}"
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug executable 'bin'",
+      "cargo": {
+        "args": ["build", "--bin=bin", "--package=fluo", "--release"],
+        "filter": {
+          "name": "bin",
+          "kind": "bin"
         }
-    ]
+      },
+      "args": ["examples/tests.fl"],
+      "program": "${workspaceRoot}/target/debug/bin",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug executable 'a.out'",
+      "program": "${workspaceRoot}/a.out",
+      "cwd": "${workspaceFolder}"
+    }
+  ]
 }

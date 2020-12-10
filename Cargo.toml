@@ -1,11 +1,12 @@
 [package]
-name = "fluo"
+name = "fluoc"
 version = "0.0.1"
+description = "The compiler for the fluo programming language"
 authors = ["Monlih <MonliH@users.noreply.github.com>"]
 edition = "2018"
 
 [dependencies]
-clap = {version = "2.33.0", features = ["yaml"]}
+clap = "3.0.0-beta.2"
 inkwell = { git = "https://github.com/TheDan64/inkwell", branch = "llvm10-0" }
 shellexpand = "1.1.1"
 lazy_static = "1.4.0"
