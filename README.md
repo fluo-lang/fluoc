@@ -68,7 +68,7 @@ let entry = () :: {
 Make sure you're in the fluo directory:
 
 ```bash
-cd fluo
+cd fluoc
 ```
 
 Fluo generates an output file `a.out`:
