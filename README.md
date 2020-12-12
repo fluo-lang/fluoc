@@ -91,7 +91,7 @@ Currently, you will need to install LLVM on your own. In the future, this will c
 | Mac OS                                        | `brew install llvm`                                                                                                |
 | Debian Method One (Recommended)               | `bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)"`                                                              |
 | Debian Method Two (If the above doesn't work) | `apt install llvm-10`                                                                                              |
-| Arch                                          | [AUR](https://www.archlinux.org/packages/extra/x86_64/llvm/)                                                       |
+| Arch                                          | `pacman -S llvm`                                                                                                   |
 | Windows + Other                               | [Prebuilt Binaries](https://releases.llvm.org/download.html#10.0.0), make sure to set proper environment variables |
 
 <br>
@@ -99,12 +99,16 @@ Currently, you will need to install LLVM on your own. In the future, this will c
 ## More Examples
 
 ```rust
-let make_func = (closure: () -> int) :: () :: int {
+let make_func = (closure: () -> i32) :: () :: i32 {
     return closure
 }
 
 let entry = () :: {
-    let x: int = make_closure(() { return 10 })()
+    let x: int = make_func(
+        () {
+            return 10
+        }
+    )()
 
     -- Prints 10
     print(x)
