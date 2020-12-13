@@ -1,6 +1,10 @@
 let entry = () :: i32 {
     let value = 0
     let inner = () :: _ {
+        let vsoid = 0 is i32
+        let vroid = 0 is i32
+        let vsrid = 0 is i32
+        let vsord = 0 is i32
         yield value
     }
 

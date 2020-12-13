@@ -181,7 +181,7 @@ impl TypedExpr {
                                 mangled_name: expr_data
                                     .expr_name
                                     .map(|name| Rc::clone(&name).to_string())
-                                    .unwrap_or_else(|| "anon".to_string()),
+                                    .unwrap_or_else(|| format!("anon_{}_{}", pos.s, pos.e)),
                                 signature: super::MirFunctionSig {
                                     pos_args: (*pos_args)
                                         .clone()

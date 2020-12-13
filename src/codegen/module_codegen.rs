@@ -4,6 +4,7 @@ use crate::mir::*;
 use crate::parser::ast;
 use crate::sourcemap::SourceMap;
 use crate::typecheck::{Prim, TypeCheckModule};
+use crate::closure::transform_closures;
 
 use inkwell::types::BasicType;
 use inkwell::{builder, context, module, types, values};
@@ -80,7 +81,7 @@ impl<'a> CodeGenModule<'a> {
 
     pub fn generate(&mut self) -> Result<(), Vec<ErrorValue>> {
         let typed_ast = self.typecheck.type_check()?;
-        let mir_rep = lower_to_mir(typed_ast)?;
+        let mir_rep = lower_to_mir(transform_closures(typed_ast))?;
 
         let gen_start = Instant::now();
 
