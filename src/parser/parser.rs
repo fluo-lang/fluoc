@@ -166,17 +166,17 @@ impl Parser {
 
     #[inline]
     pub fn get_relative_pos(&mut self, position: usize) -> helpers::Span {
-        helpers::Span {
-            s: self.tokens[position].pos.s,
-            e: self.tokens[if self.token_pos > 0 {
+        helpers::Span::new(
+            self.tokens[position].pos.s,
+            self.tokens[if self.token_pos > 0 {
                 self.token_pos - 1
             } else {
                 self.token_pos
             }]
             .pos
             .e,
-            filename_id: self.lexer.filename,
-        }
+            self.lexer.filename,
+        )
     }
 
     pub fn initialize_expr(&mut self) {

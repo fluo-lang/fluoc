@@ -18,11 +18,14 @@ pub struct Span {
     /// Filename of pos
     /// The file comes from looking it up on the sourcemap
     pub filename_id: usize,
+
+    /// If the value is inserted
+    pub is_inserted: bool
 }
 
 impl Span {
     pub fn new(s: usize, e: usize, filename_id: usize) -> Self {
-        Self { s, e, filename_id }
+        Self { s, e, filename_id, is_inserted: false }
     }
 
     pub fn to_tuple(&self) -> (usize, usize) {
@@ -34,6 +37,7 @@ impl Span {
             s: lower.s,
             e: higher.e,
             filename_id: lower.filename_id,
+            is_inserted: false,
         }
     }
 

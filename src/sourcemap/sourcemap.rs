@@ -13,7 +13,9 @@ pub type SourceMap = Rc<RefCell<SourceMapInner>>;
 pub struct SourceMapInner {
     files: HashMap<usize, String>,
     file_ids: HashMap<usize, path::PathBuf>,
+    inserted_values: HashMap<usize, String>,
     current_id: usize,
+    current_id_inserted: usize,
 }
 
 impl SourceMapInner {
@@ -21,7 +23,9 @@ impl SourceMapInner {
         Rc::new(RefCell::new(SourceMapInner {
             files: HashMap::new(),
             file_ids: HashMap::new(),
+            inserted_values: HashMap::new(),
             current_id: 0,
+            current_id_inserted: 0,
         }))
     }
 
@@ -33,9 +37,22 @@ impl SourceMapInner {
         original
     }
 
+    pub fn insert_string(&mut self, contents: String, mut span: helpers::Span) -> helpers::Span {
+        self.current_id_inserted += 1;
+        self.inserted_values
+            .insert(self.current_id_inserted, contents);
+        span.filename_id = self.current_id_inserted;
+        span.is_inserted = true;
+        span
+    }
+
     #[inline]
     pub fn get_segment(&self, pos: helpers::Span) -> &str {
-        &self.files[&pos.filename_id][pos.s..pos.e]
+        if !pos.is_inserted {
+            &self.files[&pos.filename_id][pos.s..pos.e]
+        } else {
+            &self.inserted_values[&pos.filename_id]
+        }
     }
 
     #[inline]

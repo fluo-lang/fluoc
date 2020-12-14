@@ -374,11 +374,7 @@ impl Lexer {
                 EOF => TokenType::EOF,
 
                 unknown => {
-                    let pos = helpers::Span {
-                        s: self.position - 1,
-                        e: self.position,
-                        filename_id: self.filename,
-                    };
+                    let pos = helpers::Span::new(self.position - 1, self.position, self.filename);
                     return Err(ErrorValue::new(
                         format!("Unknown character `{}`", unknown.to_string()),
                         ErrorType::UnknownCharacter,
@@ -513,11 +509,7 @@ impl Lexer {
             c = self.bump().front;
         }
 
-        let position_err = helpers::Span {
-            s: pos - 1,
-            e: self.position - 1,
-            filename_id: self.filename,
-        };
+        let position_err = helpers::Span::new(pos - 1, self.position - 1, self.filename);
 
         Err(ErrorValue::new(
             format!("Unterminated {}", name),
