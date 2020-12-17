@@ -1,4 +1,7 @@
-let entry = () :: i32 {
+-- OK
+-- OUTPUT 0
+
+let entry = () :: {
     let nope = () :: _ {
         let other = () :: _ {
             let test = 0
@@ -13,5 +16,5 @@ let entry = () :: i32 {
         yield other()
     }
 
-    yield nope()
+    print(10)
 }

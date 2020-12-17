@@ -1,10 +1,10 @@
+use crate::closure::transform_closures;
 use crate::helpers;
 use crate::logger::{ErrorValue, Logger};
 use crate::mir::*;
 use crate::parser::ast;
 use crate::sourcemap::SourceMap;
 use crate::typecheck::{Prim, TypeCheckModule};
-use crate::closure::transform_closures;
 
 use inkwell::types::BasicType;
 use inkwell::{builder, context, module, types, values};

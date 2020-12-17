@@ -14,6 +14,7 @@ pub mod helpers;
 pub mod lexer;
 pub mod logger;
 // pub mod mangle;
+pub mod closure;
 pub mod context;
 pub mod master;
 pub mod mir;
@@ -23,7 +24,6 @@ pub mod paths;
 pub mod segmentation;
 pub mod tags;
 pub mod typecheck;
-pub mod closure;
 
 use inkwell::context::Context;
 
@@ -40,7 +40,7 @@ fn main() {
     let master_start = Instant::now();
     panic::set_hook(Box::new(|value| {
         eprintln!(
-            "{}.\n{}This is likely a problem with the fluo compiler and not your code. Please report the issue to the fluo github: https://github.com/fluo-lang/fluoc{}",
+            "{}.\n{}You have probably run into something currently unsupported or found a bug in the fluo compiler.\nPlease report the issue to the fluo github: https://github.com/fluo-lang/fluoc/issues{}",
             value,
             Color::Red,
             Font::Reset

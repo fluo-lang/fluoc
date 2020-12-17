@@ -20,12 +20,17 @@ pub struct Span {
     pub filename_id: usize,
 
     /// If the value is inserted
-    pub is_inserted: bool
+    pub is_inserted: bool,
 }
 
 impl Span {
     pub fn new(s: usize, e: usize, filename_id: usize) -> Self {
-        Self { s, e, filename_id, is_inserted: false }
+        Self {
+            s,
+            e,
+            filename_id,
+            is_inserted: false,
+        }
     }
 
     pub fn to_tuple(&self) -> (usize, usize) {
