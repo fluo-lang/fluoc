@@ -2,6 +2,8 @@ extern let putchar: (i32) :: ()
 
 let entry = () :: i32 {
     -- Print "Hello, world!"
+    -- Yes, this is ridiculous, but fluo doesn't have strings yet
+    -- ¯\_(🙃)_/¯
     putchar(72)
     putchar(101)
     putchar(108)
