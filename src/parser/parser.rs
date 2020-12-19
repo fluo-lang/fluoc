@@ -1603,6 +1603,11 @@ pub mod parser_tests {
         variable_assign_full_item_no_type_stmt
     );
 
+    parser_run!("let x<Ty: X> = 5", Parser::item, variable_assign_generic_with_bound);
+    parser_run!("let x<X> = 5", Parser::item, variable_assign_generic_without_bound);
+    parser_run!("(let x<Ty: X> = 5)", Parser::item, variable_assign_generic_with_bound_paren);
+    parser_run!("(let x<X> = 5)", Parser::item, variable_assign_generic_without_bound_paren);
+
     parser_run!("(i)", Parser::item, ref_id_paren);
     parser_run!("i3_hello_world", Parser::item, ref_id_item);
 

@@ -18,7 +18,17 @@ IMPORT_STMT -> import NAMESPACE.
 VAR_ASSIGN -> pub extern let NAMESPACE colon TYPE eq EXPR
             | pub let NAMESPACE colon TYPE eq EXPR
             | extern let NAMESPACE colon TYPE eq EXPR
-            | let NAMESPACE colon TYPE eq EXPR.
+            | let NAMESPACE colon TYPE eq EXPR
+            | pub extern langle GENERIC_TY rangle let NAMESPACE colon TYPE eq EXPR
+            | pub let langle GENERIC_TY rangle NAMESPACE colon TYPE eq EXPR
+            | extern let langle GENERIC_TY rangle NAMESPACE colon TYPE eq EXPR
+            | let NAMESPACE langle GENERIC_TY rangle colon TYPE eq EXPR.
+
+GENERIC_TY -> GENERIC_TY_ITEMS
+            | GENERIC_TY_ITEMS comma.
+
+GENERIC_TY_ITEMS -> NAMESPACE colon NAMESPACE
+                  | GENERIC_TY_ITEMS comma NAMESPACE colon NAMESPACE.
 
 EXPR_STMT -> EXPR.
 
