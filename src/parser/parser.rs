@@ -733,6 +733,51 @@ impl Parser {
         }))
     }
 
+    /// Generic values
+    fn generic(&mut self) -> Result<ast::Generics, ErrorGen> {
+        let mut items = HashMap::new();
+        let first_item = self.generic_item()?;
+        items.insert(first_item.0, first_item.1);
+
+        loop {
+            if self.peek().token == lexer::TokenType::Comma {
+                self.forward();
+                // possible trailing comma
+                if let Ok((ty_name, patterns)) = self.generic_item() {
+                    items.insert(ty_name, patterns);
+                }
+            } else {
+                break;
+            }
+        }
+        Ok(ast::Generics { ty_map: items })
+    }
+
+    fn generic_item(&mut self) -> Result<(ast::Namespace, Vec<ast::Namespace>), ErrorGen> {
+        let ty_name = self.namespace()?;
+        let patterns = if self.peek().token == lexer::TokenType::Colon {
+            self.forward();
+            self.patterns()?
+        } else {
+            Vec::new()
+        };
+
+        Ok((ty_name, patterns))
+    }
+
+    fn patterns(&mut self) -> Result<Vec<ast::Namespace>, ErrorGen> {
+        let mut patterns = vec![self.namespace()?];
+        loop {
+            if self.peek().token == lexer::TokenType::Add {
+                self.forward();
+                patterns.push(self.namespace()?);
+            } else {
+                break;
+            }
+        }
+        Ok(patterns)
+    }
+
     /// Full variable assign with type declaration and expression
     fn variable_assign_full(&mut self) -> Result<Expr, ErrorGen> {
         let position = self.token_pos;
@@ -752,6 +797,16 @@ impl Parser {
         self.validate_token(lexer::TokenType::Let, position, true)?;
 
         let namespace = self.namespace()?;
+
+        let generics = if self.peek().token == lexer::TokenType::LT {
+            self.forward();
+            // Generic types goes before colon
+            let generics = self.generic()?;
+            self.validate_token(lexer::TokenType::GT, position, false)?;
+            Some(generics)
+        } else {
+            None
+        };
 
         let var_type = if lexer::TokenType::Colon == self.peek().token {
             self.forward();
@@ -776,6 +831,7 @@ impl Parser {
                 typecheck_type: None,
                 name: Rc::new(namespace),
                 expr,
+                generics,
                 visibility,
                 pos: self.get_relative_pos(position),
             },
@@ -1603,10 +1659,35 @@ pub mod parser_tests {
         variable_assign_full_item_no_type_stmt
     );
 
-    parser_run!("let x<Ty: X> = 5", Parser::item, variable_assign_generic_with_bound);
-    parser_run!("let x<X> = 5", Parser::item, variable_assign_generic_without_bound);
-    parser_run!("(let x<Ty: X> = 5)", Parser::item, variable_assign_generic_with_bound_paren);
-    parser_run!("(let x<X> = 5)", Parser::item, variable_assign_generic_without_bound_paren);
+    parser_run!(
+        "let x<Ty: X> = 5",
+        Parser::item,
+        variable_assign_generic_with_bound
+    );
+    parser_run!(
+        "let x<X> = 5",
+        Parser::item,
+        variable_assign_generic_without_bound
+    );
+    parser_run!(
+        "(let x<Ty: X> = 5)",
+        Parser::item,
+        variable_assign_generic_with_bound_paren
+    );
+    parser_run!(
+        "(let x<X> = 5)",
+        Parser::item,
+        variable_assign_generic_without_bound_paren
+    );
+
+    parser_run!("hi: hi + hi, hi: hi", Parser::generic, generic_complex);
+    parser_run!("hi: hi", Parser::generic, generic_simple);
+    parser_run!(
+        "hi: hi + hi, hi: hi,",
+        Parser::generic,
+        generic_complex_trailing
+    );
+    parser_run!("hi: hi,", Parser::generic, generic_simple_trailing);
 
     parser_run!("(i)", Parser::item, ref_id_paren);
     parser_run!("i3_hello_world", Parser::item, ref_id_item);
@@ -1701,6 +1782,9 @@ pub mod parser_tests {
     parser_err!("::", Parser::namespace, unmatched_namespace_err_2);
 
     parser_err!("hello::123", Parser::namespace, bad_nameid_namespace_err_1);
+
+    parser_err!("hi: ", Parser::generic, generic_simple_other_fail);
+    parser_err!("hi: hi +", Parser::generic, generic_simple_fail);
 
     parser_err!(
         "hello 1,2,3,4)",

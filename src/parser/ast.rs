@@ -11,6 +11,7 @@ use std::fmt;
 use std::fmt::{Debug, Display};
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
+use std::collections::HashMap;
 
 use smallvec::{smallvec, SmallVec};
 
@@ -204,6 +205,13 @@ pub struct TypeAssign {
     pub pos: helpers::Span,
 }
 
+
+#[derive(Debug, Clone, PartialEq)]
+/// Generic parameters
+pub struct Generics {
+    pub ty_map: HashMap<Namespace, Vec<Namespace>>
+}
+
 #[derive(Debug, Clone, PartialEq)]
 /// Variable Assign + Declaration i.e.:
 ///
@@ -213,6 +221,7 @@ pub struct VariableAssignDeclaration {
     pub typecheck_type: Option<AnnotationType>,
     pub name: Rc<Namespace>,
     pub expr: Option<Box<Expr>>,
+    pub generics: Option<Generics>,
     pub visibility: Visibility,
     pub pos: helpers::Span,
 }

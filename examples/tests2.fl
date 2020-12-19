@@ -1,17 +1,1 @@
-let entry = () :: i32 {
-    let nope = () :: _ {
-        let other = () :: _ {
-            let test = 0
-            let nope2 = () :: _ {
-                let otherr2 = () :: _ {
-                    yield test
-                }
-                yield otherr2()
-            }
-            yield nope2()
-        }
-        yield other()
-    }
-
-    yield nope()
-}
+let test<x:hi> = 10
