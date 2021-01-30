@@ -1,5 +1,0 @@
--- OK
-
-let entry = () :: {
-    yield 10 is i32
-}

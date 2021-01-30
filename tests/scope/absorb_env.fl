@@ -1,9 +1,0 @@
--- OK
-
-let entry = () :: i32 {
-    let x: i32 = 10
-    let inner = () :: i32 {
-        return x
-    }
-    return inner()
-}
