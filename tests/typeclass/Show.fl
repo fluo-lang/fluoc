@@ -2,7 +2,7 @@
 # DESCRIPTION == Custom `Show` interface 
 
 class MyShow [T]:
-    fun my_to_string(T) -> String
+    fun my_to_string(T) String
 
 rec Test = Null
 
