@@ -3,6 +3,8 @@
 
 rec Wrapper[T] = Wrapped T
 
-fun entry ():
-    pattern Wrapper.Wrapped 10:
+fun entry () {
+    pattern Wrapper.Wrapped 10 {
         Wrapper.Wrapped val -> print(val)
+    }
+}

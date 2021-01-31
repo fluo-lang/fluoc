@@ -1,17 +1,22 @@
 # STDOUT == null\n
 # DESCRIPTION == Custom `Show` interface 
 
-class MyShow [T]:
+class MyShow [T] {
     fun my_to_string(T) String
+}
 
 rec Test = Null
 
-instance MyShow [Test]:
-    fun my_to_string(self):
+instance MyShow [Test] {
+    fun my_to_string(self) {
         return "null"
+    }
+}
 
-fun my_print[T: MyShow] (val: T):
+fun my_print[T: MyShow] (val: T) {
     print(val.my_to_string())
+}
 
-fun entry ():
+fun entry () {
     my_print(Test.Null)
+}

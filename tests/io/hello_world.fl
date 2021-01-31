@@ -1,5 +1,6 @@
 # STDOUT == Hello, world!\n
 # DESCRIPTION == Print hello world
 
-fun entry ():
+fun entry () {
     print("Hello, world!")
+}

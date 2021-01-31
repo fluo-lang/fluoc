@@ -1,10 +1,12 @@
 # STDOUT == Hello\nhi\nhiii\nHello\n
 # DESCRIPTION == Multiple typed required keyword arguments print
 
-fun my_print (value = "Hello" : String, other = "hi" : String):
+fun my_print (value = "Hello" : String, other = "hi" : String) {
     print(value)?
     print(other)?
+}
 
-fun entry ():
+fun entry () {
     my_print(value="Hello")?
     my_print(value="hiii", other="Hello")?
+}

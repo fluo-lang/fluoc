@@ -1,9 +1,11 @@
 # STDOUT == Hello\nhi\n
 # DESCRIPTION == Typed required keyword arguments print
 
-fun my_print (value =: String):
+fun my_print (value =: String) {
     print(value)?
+}
 
-fun entry ():
+fun entry () {
     my_print(value="Hello")?
     my_print(value="hi")?
+}

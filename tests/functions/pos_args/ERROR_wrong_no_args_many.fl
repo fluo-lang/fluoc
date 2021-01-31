@@ -1,8 +1,10 @@
 # ERROR == COMPILER_ERROR
 # DESCRIPTION == Wrong number of positional arguments (too many)
 
-fun id(a: I32):
+fun id(a: I32) {
     return a
+}
 
-fun entry ():
+fun entry () {
     print(id(1, 2))
+}

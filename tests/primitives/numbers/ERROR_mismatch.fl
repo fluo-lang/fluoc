@@ -3,8 +3,10 @@
 # WHERE == %%a%% != %%b%%
 # DESCRIPTION == Types %%a%% and %%b%% should mismatch
 
-fun add (a: %%a%%, b: %%b%%):
+fun add (a: %%a%%, b: %%b%%) {
     return a + b
+}
 
-fun entry ():
+fun entry () {
     print(add(1, 2))
+}

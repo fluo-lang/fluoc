@@ -1,8 +1,10 @@
 # ERROR == COMPILER_ERROR
 # DESCRIPTION == Generic does not exist
 
-fun my_print[T] (val: U):
+fun my_print[T] (val: U) {
     print(val)?
+}
 
-fun entry ():
+fun entry () {
     my_print("Hello, world!")?
+}

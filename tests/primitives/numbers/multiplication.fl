@@ -2,8 +2,10 @@
 # VARIABLES == {"a": ["I128", "I64", "I32", "I16", "I8", "U128", "U64", "U32", "U16", "U8"]}
 # DESCRIPTION == Multiply %%a%% types
 
-fun mul (a: %%a%%, b: %%a%%):
+fun mul (a: %%a%%, b: %%a%%) {
     return a * b
+}
 
-fun entry ():
+fun entry () {
     print(mul(3, 4))
+}

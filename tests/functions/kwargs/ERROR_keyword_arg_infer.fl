@@ -1,8 +1,10 @@
 # ERROR == COMPILER_ERROR
 # DESCRIPTION == Inferred keyword argument not given, but required
 
-fun my_print (value =: _):
+fun my_print (value =: _) {
     print(value)?
+}
 
-fun entry ():
+fun entry () {
     my_print()?
+}

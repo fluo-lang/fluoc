@@ -1,8 +1,10 @@
 # STDOUT == 123\n
 # DESCRIPTION == Identity function inferred types
 
-fun id(a):
+fun id(a) {
     return a
+}
 
-fun entry ():
+fun entry () {
     print(id(123))
+}
