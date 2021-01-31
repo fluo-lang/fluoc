@@ -1,0 +1,10 @@
+# ERROR == COMPILER_ERROR
+# DESCRIPTION == Generic bound is not tight enough
+
+fun my_print[T] (val: T) {
+    print(val)?
+}
+
+fun entry () {
+    my_print("Hello, world!")?
+}

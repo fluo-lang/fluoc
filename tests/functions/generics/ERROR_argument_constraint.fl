@@ -1,0 +1,12 @@
+# ERROR == COMPILER_ERROR
+# DESCRIPTION == Argument of generic funciton does not match constraint
+
+fun my_print[T: Show] (val: Show) {
+    print(val)?
+}
+
+rec Test = Null;
+
+fun entry () {
+    my_print(Test.Null)?
+}

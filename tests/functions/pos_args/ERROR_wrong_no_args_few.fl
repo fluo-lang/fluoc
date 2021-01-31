@@ -1,0 +1,10 @@
+# ERROR == COMPILER_ERROR
+# DESCRIPTION == Wrong number of positional arguments (too few)
+
+fun id(a: I32) {
+    return a
+}
+
+fun entry () {
+    print(id())
+}

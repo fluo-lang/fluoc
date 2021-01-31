@@ -1,0 +1,10 @@
+# STDOUT == 4\n
+# DESCRIPTION == Add 1 and 3, inferred
+
+fun add (a, b) {
+    return a + b
+}
+
+fun entry () {
+    print(add(1, 3)?)?
+}

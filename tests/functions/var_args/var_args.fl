@@ -1,0 +1,10 @@
+# STDOUT == 123 Hello world\n
+# DESCRIPTION == Identity function typed
+
+fun id(a: I32) I32 {
+    return a
+}
+
+fun entry () {
+    print(id(123))
+}

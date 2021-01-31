@@ -1,0 +1,12 @@
+# ERROR = COMPILER_ERROR
+# VARIABLES == {"a": ["I128", "I64", "I32", "I16", "I8", "U128", "U64", "U32", "U16", "U8"], "b": ["I128", "I64", "I32", "I16", "I8", "U128", "U64", "U32", "U16", "U8"]}
+# WHERE == %%a%% != %%b%%
+# DESCRIPTION == Types %%a%% and %%b%% should mismatch
+
+fun add(a: %%a%%, b: %%b%%) {
+    return a + b
+}
+
+fun entry() {
+    print(add(1, 2))
+}

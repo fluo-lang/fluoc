@@ -1,0 +1,13 @@
+# STDOUT == Hello, world!\n10\n
+# DESCRIPTION == Custom print generic, multiple arguments
+
+import std.string.Show
+
+fun my_print[T: Show] (val: T, other: T) {
+    print(val)?
+    print(other)?
+}
+
+fun entry () {
+    my_print("Hello, world!", 10)?
+}

@@ -1,0 +1,11 @@
+# ERROR == COMPILER_ERROR
+# DESCRIPTION == Mixed keyword arguments not given, but required
+
+fun my_print (value = "test" : _, other =: String) {
+    print(value)?
+    print(other)?
+}
+
+fun entry () {
+    my_print()?
+}
