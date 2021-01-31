@@ -1,11 +1,9 @@
 # STDOUT == Hello\nhi\n
 # DESCRIPTION == Multiple inferred required keyword arguments print
 
-fun my_print (value =: _, other =: _) {
+fun my_print (value =: _, other =: _):
     print(value)?
     print(other)?
-}
 
-fun entry () {
+fun entry ():
     my_print(value="Hello", other="hi")?
-}

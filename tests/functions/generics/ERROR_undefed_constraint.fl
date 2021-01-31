@@ -1,8 +1,8 @@
 # ERROR == COMPILER_ERROR
 # DESCRIPTION == Generic bound does not exist
 
-fun my_print[T: Huh] (val: T) { }
+fun my_print[T: Huh] (val: T):
+    pass
 
-fun entry () {
+fun entry ():
     my_print("Hello, world!")?
-}

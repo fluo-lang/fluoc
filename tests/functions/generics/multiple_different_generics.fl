@@ -3,11 +3,9 @@
 
 import std.string.(Show, Debug)
 
-fun my_print[T: Show, U: Debug] (val: T, other: U) {
+fun my_print[T: Show, U: Debug] (val: T, other: U):
     print(val)?
     print(other)?
-}
 
-fun entry () {
+fun entry ():
     my_print("Hello, world!", 10)?
-}

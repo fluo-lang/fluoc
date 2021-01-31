@@ -1,6 +1,5 @@
 # STDOUT == 2020\n
 # DESCRIPTION == Print 2020
 
-fun entry() {
+fun entry ():
     print(2020)
-}

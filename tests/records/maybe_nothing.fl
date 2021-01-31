@@ -1,0 +1,9 @@
+# STDOUT == nothing\n
+# DESCRIPTION == Maybe with pattern match, nothing
+
+rec Maybe[T] = Some T | Nothing;
+
+fun entry ():
+    pattern Maybe.Nothing:
+        Some val -> print(val)
+        Nothing -> print("nothing")

@@ -1,10 +1,8 @@
 # STDOUT == 100\n
 # DESCRIPTION == Add 1 and 3, typed
 
-fun add (a: I32, b: I32) Result[ArithmeticErr, I32] {
+fun add (a: I32, b: I32) Result[ArithmeticErr, I32]:
     return a + b
-}
 
-fun entry () {
+fun entry ():
     print(add(45, 55))?
-}

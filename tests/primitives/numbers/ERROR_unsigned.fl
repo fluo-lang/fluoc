@@ -2,8 +2,8 @@
 # VARIABLES == {"a": ["U128", "U64", "U32", "U16", "U8"]}
 # DESCRIPTION == Type %%a%% should not be negative
 
-fun ident(a: %%a%%) {}
+fun ident (a: %%a%%):
+    pass
 
-fun entry() {
+fun entry ():
     add(-100)
-}
