@@ -12,6 +12,8 @@
 > <br>
 > — Leonardo da Vinci
 
+Note, **currently being rewritten (changed syntax!) [on the `rewrite` branch](https://github.com/fluo-lang/fluoc/tree/rewrite)**
+
 ```rust
 let fizzbuzz = (value: i32) :: {
     match loop 1..value {
