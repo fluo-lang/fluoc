@@ -1,10 +1,13 @@
-# STDOUT == 123 Hello world\n
-# DESCRIPTION == Identity function typed
+# STDOUT == [123, 123, 123]\n
+# DESCRIPTION == Variable args
 
-fun id(a: I32) :: I32 {
-    return a
+import std.string.Show;
+
+# [] (array) implements std.iter.Collect, so we can use it as a wrapper
+fun vararg[T: Show](...test: [T]) :: I32 {
+    print(test)
 }
 
 fun entry () {
-    print(id(123))
+    vararg(123, 123, 123)
 }
