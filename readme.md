@@ -17,8 +17,8 @@ class MyShow[T] {
 
 # Implement `MyShow` for Maybe, where the value of `Maybe` implements `Show` (not `MyShow`!)
 instance MyShow [Maybe[T: Show]] {
-    fun my_to_string(self) {
-        pattern self {
+    fun my_to_string(maybe) {
+        pattern maybe {
             # We can use `.to_string()` on the `val` because it implements `Show`
             Maybe.Some val -> "Some " + val.to_string()
             Maybe.Nothing -> "Nothing"
@@ -43,6 +43,6 @@ fun entry () {
 
 ## Design
 
-* Simple
-* Fast garbage collector
-* Embedded DSLs (powerful syntax additions)
+- Simple
+- Embedded DSLs (powerful syntax additions)
+- No garbage collector, but it feels like there is one ([based off this thesis](https://www.cl.cam.ac.uk/techreports/UCAM-CL-TR-908.pdf))
