@@ -20,7 +20,7 @@ instance MyShow [Maybe[T: Show]] {
     fun my_to_string(maybe) {
         pattern maybe {
             # We can use `.to_string()` on the `val` because it implements `Show`
-            Maybe.Some val -> "Some " + val.to_string()
+            Maybe.Some val -> "Some " ++ val.to_string()
             Maybe.Nothing -> "Nothing"
         }
     }
