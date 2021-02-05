@@ -9,14 +9,14 @@ rec Test = Null
 
 instance MyShow [Test] {
     fun my_to_string(self) {
-        "null"
+        return "null"
     }
 }
 
 fun my_print[T: MyShow] (val: T) {
-    print(val.my_to_string())
+    print(val.my_to_string())?
 }
 
 fun entry () {
-    my_print(Test.Null)
+    my_print(Test.Null)?
 }

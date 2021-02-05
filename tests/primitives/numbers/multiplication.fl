@@ -3,9 +3,9 @@
 # DESCRIPTION == Multiply %%a%% types
 
 fun mul (a: %%a%%, b: %%a%%) {
-    a * b
+    return a * b
 }
 
 fun entry () {
-    print(mul(3, 4))
+    print(mul(3, 4)?)?
 }

@@ -6,6 +6,6 @@ rec Foo = Foo;
 fun binary+ (fst: Foo, snd: Foo) :: Foo { 3 }
 
 fun entry() {
-    print(3 + 2)
-    print(Foo + Foo)
+    print((3 + 2)?)?
+    print(Foo + Foo)?
 }

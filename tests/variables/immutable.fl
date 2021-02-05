@@ -3,5 +3,5 @@
 
 fun entry () {
     let value = 10
-    print(value)
+    print(value)?
 }

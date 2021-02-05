@@ -2,5 +2,5 @@
 # DESCRIPTION == Print 2020
 
 fun entry () {
-    print(2020)
+    print(2020)?
 }

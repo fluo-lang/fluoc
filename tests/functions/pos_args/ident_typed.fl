@@ -2,7 +2,7 @@
 # DESCRIPTION == Identity function typed
 
 fun id(a: I32) :: I32 {
-    a
+    return a
 }
 
 fun entry () {

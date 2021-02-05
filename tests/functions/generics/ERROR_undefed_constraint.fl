@@ -3,5 +3,6 @@
 
 fun my_print[T: Huh] (val: T) { }
 
-fun entry ():
+fun entry () {
     my_print("Hello, world!")?
+}

@@ -1,0 +1,68 @@
+(* High level *)
+program = { outer statement } ;
+outer statement = record definition | function definition | import | typeclass | instance | var def ;
+inner statement = var def | return | pattern match | expr ;
+
+block = lcurly, { inner statement }, rcurly ;
+
+var def = let, ident, [colon, type], equals, expr, newline ;
+return statement = return, expr, newline ;
+pattern match = pattern, expr, lcurly, pattern, rcurly ;
+
+expr = item
+      | (item, op, item)
+      | (item, op)
+      | (op, item) ;
+
+item = number | float | ident | function call | record init | block ;
+
+function call = namespace, lparen, call args, rparen ;
+
+call args = pos args, keyword args;
+pos args = {expr, comma}, [expr];
+keyword args = {equals pair, comma}, [equals pair];
+equals pair = ident equals expr;
+
+record init = namspace, [sum record | struct record];
+sum record = { expr }- ;
+struct record = lcurly, {struct value, comma}, [struct value], rcurly;
+struct value = ident, colon, expr;
+
+type = ident | (ident, generic) ;
+generic = lbracket, {type, comma}, [type], rbracket ;
+
+ident = letter, {digit | letter} ;
+number = { digit }- ;
+float = { digit }-, dot, { digit }- ;
+op = { symbol }- ;
+
+namespace = ident, [{dot ident}] ;
+
+(* Constants *)
+let = "let" ;
+return = "return" ;
+colon = ":" ;
+equals = "=" ;
+dot = "." ;
+
+lbracket = "[" ;
+rbracket = "]" ;
+lparen = "(" ;
+rparen = ")" ;
+lcurly = "{" ;
+rcurly = "}" ;
+
+newline = "\n" ;
+
+letter = "A" | "B" | "C" | "D" | "E" | "F" | "G"
+       | "H" | "I" | "J" | "K" | "L" | "M" | "N"
+       | "O" | "P" | "Q" | "R" | "S" | "T" | "U"
+       | "V" | "W" | "X" | "Y" | "Z" | "a" | "b"
+       | "c" | "d" | "e" | "f" | "g" | "h" | "i"
+       | "j" | "k" | "l" | "m" | "n" | "o" | "p"
+       | "q" | "r" | "s" | "t" | "u" | "v" | "w"
+       | "x" | "y" | "z" ;
+
+digit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ;
+
+symbol = "+" | "*" | "-" | "/" | "<" | ">" | "|" | ":" | "$" | "#" | "^" | "@" | "!" | "~" ;

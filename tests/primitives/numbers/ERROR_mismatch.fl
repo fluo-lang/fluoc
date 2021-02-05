@@ -4,9 +4,9 @@
 # DESCRIPTION == Types %%a%% and %%b%% should mismatch
 
 fun add (a: %%a%%, b: %%b%%) {
-    a + b
+    return a + b
 }
 
 fun entry () {
-    print(add(1, 2))
+    print(add(1, 2)?)?
 }

@@ -2,5 +2,5 @@
 # DESCRIPTION == Print hello world
 
 fun entry () {
-    print("Hello, world!")
+    print("Hello, world!")?
 }

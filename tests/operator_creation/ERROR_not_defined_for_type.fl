@@ -4,5 +4,5 @@
 rec Foo = Foo;
 
 fun entry() {
-    print(Foo + Foo)
+    print(Foo + Foo)?
 }

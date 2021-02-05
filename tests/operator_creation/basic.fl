@@ -6,5 +6,5 @@ rec MyRec = MyRec;
 fun unary! (expr: MyRec) :: I32 { 5 }
 
 fun entry () {
-    print(MyRec!)
+    print(MyRec!)?
 }

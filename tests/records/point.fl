@@ -8,6 +8,6 @@ rec Point = Point {
 
 fun entry () {
     let point = Point { x: 12, y: 123 }
-    print(point.x)
-    print(point.y)
+    print(point.x)?
+    print(point.y)?
 }

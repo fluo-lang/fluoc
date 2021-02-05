@@ -3,9 +3,9 @@
 # DESCRIPTION == Add %%a%% types
 
 fun add (a: %%a%%, b: %%a%%) {
-    a + b
+    return a + b
 }
 
 fun entry () {
-    print(add(1, 2))
+    print(add(1, 2)?)?
 }

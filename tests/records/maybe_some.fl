@@ -5,7 +5,7 @@ rec Maybe[T] = Some T | Nothing;
 
 fun entry () {
     pattern Maybe.Some 10 {
-        Maybe.Some val -> print(val)
-        Maybe.Nothing -> print("nothing")
+        Maybe.Some val -> print(val)?
+        Maybe.Nothing -> print("nothing")?
     }
 }
