@@ -1,0 +1,10 @@
+# OUTPUT == 5
+# DESCRIPTION == Custom unary operator
+
+rec MyRec = MyRec;
+
+fun unary! (expr: MyRec) :: I32 { 5 }
+
+fun entry () {
+    print(MyRec!)
+}

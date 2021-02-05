@@ -4,7 +4,7 @@
 import std.err.ArithmeticErr;
 
 fun add (a: I32, b: I32) :: Result[ArithmeticErr, I32] {
-    return a + b
+    a + b
 }
 
 fun entry () {

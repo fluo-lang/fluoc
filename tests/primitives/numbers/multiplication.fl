@@ -3,7 +3,7 @@
 # DESCRIPTION == Multiply %%a%% types
 
 fun mul (a: %%a%%, b: %%a%%) {
-    return a * b
+    a * b
 }
 
 fun entry () {

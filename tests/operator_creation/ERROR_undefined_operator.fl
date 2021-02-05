@@ -1,0 +1,6 @@
+# ERROR == COMPILER_ERROR
+# DESCRIPTION == Used non-defined operator
+
+fun entry () {
+    print(1 ~ 2)
+}

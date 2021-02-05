@@ -9,7 +9,7 @@ rec Test = Null
 
 instance MyShow [Test] {
     fun my_to_string(self) {
-        return "null"
+        "null"
     }
 }
 

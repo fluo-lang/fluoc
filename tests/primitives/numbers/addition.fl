@@ -3,7 +3,7 @@
 # DESCRIPTION == Add %%a%% types
 
 fun add (a: %%a%%, b: %%a%%) {
-    return a + b
+    a + b
 }
 
 fun entry () {

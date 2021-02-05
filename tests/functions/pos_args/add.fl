@@ -2,7 +2,7 @@
 # DESCRIPTION == Add 1 and 3, inferred
 
 fun add (a, b) {
-    return a + b
+    a + b
 }
 
 fun entry () {

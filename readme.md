@@ -45,4 +45,4 @@ fun entry () {
 
 - Simple
 - Embedded DSLs (powerful syntax additions)
-- No garbage collector, but it feels like there is one ([based off this thesis](https://www.cl.cam.ac.uk/techreports/UCAM-CL-TR-908.pdf))
+- No garbage collector, but it feels like there is one (based off [ASAP: As Static As Possible memory management](https://www.cl.cam.ac.uk/techreports/UCAM-CL-TR-908.pdf) and [Practical Static Memory Management](http://nathancorbyn.com/nc513.pdf))

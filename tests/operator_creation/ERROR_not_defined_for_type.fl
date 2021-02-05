@@ -1,0 +1,8 @@
+# ERROR == COMPILER_ERROR
+# DESCRIPTION == No operator for type
+
+rec Foo = Foo;
+
+fun entry() {
+    print(Foo + Foo)
+}

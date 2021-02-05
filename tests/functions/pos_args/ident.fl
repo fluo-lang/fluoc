@@ -2,7 +2,7 @@
 # DESCRIPTION == Identity function inferred types
 
 fun id(a) {
-    return a
+    a
 }
 
 fun entry () {

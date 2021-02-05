@@ -1,0 +1,11 @@
+# OUTPUT == 5\n3
+# DESCRIPTION == Overloaded binary operator
+
+rec Foo = Foo;
+
+fun binary+ (fst: Foo, snd: Foo) :: Foo { 3 }
+
+fun entry() {
+    print(3 + 2)
+    print(Foo + Foo)
+}

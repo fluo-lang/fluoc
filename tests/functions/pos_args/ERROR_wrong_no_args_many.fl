@@ -2,7 +2,7 @@
 # DESCRIPTION == Wrong number of positional arguments (too many)
 
 fun id(a: I32) {
-    return a
+    a
 }
 
 fun entry () {
