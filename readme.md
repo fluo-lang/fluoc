@@ -3,11 +3,11 @@
 Currently a WIP, with a mix of syntax from Haskell, Rust, and Go:
 
 ```python
-import std.string.Show;
+import std.string.Show
 
 # Algebraic data types are a thing
 # Like `Option<T>` in Rust, or `Maybe a` in Haskell.
-rec Maybe[T] = Some T | Nothing;
+rec Maybe[T] = Some T | Nothing
 
 # Create a typeclass called `MyShow`
 # A typeclass that converts a value into a `String`
@@ -15,8 +15,8 @@ class MyShow[T] {
     fun my_to_string(T) :: String
 }
 
-# Implement `MyShow` for Maybe, where the value of `Maybe` implements `Show` (not `MyShow`!)
-instance MyShow [Maybe[T: Show]] {
+# Implement `MyShow` for Maybe, where the value of `Maybe` is an instance of `Show` (not `MyShow`!)
+instance MyShow[Maybe[inst Show]] {
     fun my_to_string(maybe) {
         pattern maybe {
             # We can use `.to_string()` on the `val` because it implements `Show`
@@ -28,7 +28,7 @@ instance MyShow [Maybe[T: Show]] {
 
 # Take any value that implements the `MyShow` typeclass
 # The return type `Result[IOErr, ()]` is inferred here
-fun my_print[T: MyShow] (val: T) {
+fun my_print[T: MyShow] (val: T) { # Could also be written as (val: inst Show)
     print(val.my_to_string())? # IO may fail, so we use the `?` to propagate the error
 }
 
