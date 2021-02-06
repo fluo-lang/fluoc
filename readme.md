@@ -1,6 +1,6 @@
 # Fluo
 
-Currently a WIP, with a mix of syntax from Haskell, Rust, and Go:
+[Original `master branch`](https://github.com/fluo-lang/fluoc/tree/master), rewritten. Currently a WIP with a mix of syntax and semantics from Haskell, Rust, and Go:
 
 ```python
 import std.string.Show
