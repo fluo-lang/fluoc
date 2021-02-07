@@ -9,6 +9,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
 
+      - name: Install nightly
+        run: rustup install nightly
+
       - name: Install tarpaulin
         run: cargo install cargo-tarpaulin
 
