@@ -3,7 +3,7 @@ use std::fmt::{self, Display};
 
 use crate::diagnostics::Span;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 /// An error type
 pub enum DiagnosticType {
     UnexpectedCharacter,
@@ -23,7 +23,7 @@ impl DiagnosticType {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Level {
     Error,
     Warning,
@@ -38,14 +38,14 @@ struct Annotation {
 
 #[derive(Debug, PartialEq, Eq)]
 /// A generic error
-pub struct Error {
+pub struct Diagnostic {
     span: Span,
     ty: DiagnosticType,
     level: Level,
     annotations: SmallVec<[Annotation; 1]>,
 }
 
-impl Error {
+impl Diagnostic {
     pub fn build(level: Level, ty: DiagnosticType, span: Span) -> Self {
         Self {
             annotations: SmallVec::new(),
@@ -63,6 +63,54 @@ impl Error {
         });
         self
     }
+
+    pub fn ty(&self) -> DiagnosticType {
+        self.ty
+    }
 }
 
-pub type Failible<T> = Result<T, Error>;
+pub type Failible<T> = Result<T, Diagnostic>;
+
+#[cfg(test)]
+mod error_tests {
+    use super::*;
+    use crate::diagnostics::Sources;
+    use smallvec::smallvec;
+
+    #[test]
+    fn diagnostic_description() {
+        assert_eq!(
+            DiagnosticType::UnexpectedCharacter.description(),
+            DiagnosticType::UnexpectedCharacter.description()
+        );
+    }
+
+    #[test]
+    fn diagnostic_ty() {
+        assert_eq!(
+            DiagnosticType::UnexpectedCharacter.name(),
+            DiagnosticType::UnexpectedCharacter.name()
+        );
+    }
+
+    #[test]
+    fn diagnostic_builder() {
+        let sid = Sources::new().add_source("test".to_string());
+        let span = Span::new(0, 1, sid);
+        let message = "Test message".to_string();
+        assert_eq!(
+            Diagnostic {
+                span,
+                level: Level::Warning,
+                ty: DiagnosticType::UnexpectedCharacter,
+                annotations: smallvec![Annotation {
+                    message: message.clone(),
+                    level: Level::Error,
+                    span
+                }],
+            },
+            Diagnostic::build(Level::Warning, DiagnosticType::UnexpectedCharacter, span)
+                .annotation(Level::Error, message, span)
+        );
+    }
+}

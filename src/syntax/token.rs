@@ -47,6 +47,9 @@ pub enum Token {
     /// `...`
     DotDotDot,
 
+    /// E.g. `++` or `!@!`
+    Operator(Str),
+
     /// `(`
     LParen,
     /// `)`
