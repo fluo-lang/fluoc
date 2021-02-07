@@ -1,7 +1,7 @@
 # Fluo
 
 <a href="https://github.com/fluo-lang/fluoc/actions?query=workflow%3Abuild-test"><img alt="GitHub Workflow Status (branch)" src="https://img.shields.io/github/workflow/status/fluo-lang/fluoc/build-test/rewrite?style=for-the-badge" height="23"></a>
-<a href="https://codecov.io/gh/fluo-lang/fluoc/branch/rewrite"><img alt="Codecov" src="https://img.shields.io/codecov/c/github/fluo-lang/fluoc?style=for-the-badge" height="23"></a>
+<a href="https://app.codecov.io/gh/fluo-lang/fluoc/"><img alt="Codecov" src="https://img.shields.io/codecov/c/github/fluo-lang/fluoc?style=for-the-badge" height="23"></a>
 <img alt="Lines of code" src="https://img.shields.io/tokei/lines/github/fluo-lang/fluoc?style=for-the-badge" height="23">
 
 [Original `master branch`](https://github.com/fluo-lang/fluoc/tree/master), rewritten. Currently a WIP with a mix of syntax and semantics from Haskell, Rust, and Go:
