@@ -13,7 +13,7 @@ import = import, namespace, newline ;
 typeclass def = typeclass, ident, generic, lcurly, {function definition}, rcurly ;
 
 (* Instance *)
-instance statement = instance, ident, generic, lcurly, {function definition}, rcurly ;
+instance statement = inst, ident, generic, lcurly, {function definition}, rcurly ;
 
 (* Record Definition *)
 record definition = record, ident, [generic], equals, sum rec;
@@ -88,7 +88,6 @@ record = "rec" ;
 function = "fun" ;
 inst = "inst";
 typeclass = "class";
-instance = "instance";
 
 colon = ":" ;
 equals = "=" ;

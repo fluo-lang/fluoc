@@ -7,7 +7,7 @@ class MyShow [T] {
 
 rec Test = Null
 
-instance MyShow [Test] {
+inst MyShow [Test] {
     fun my_to_string(self) {
         return "null"
     }

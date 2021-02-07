@@ -16,7 +16,7 @@ class MyShow[T] {
 }
 
 # Implement `MyShow` for Maybe, where the value of `Maybe` is an instance of `Show` (not `MyShow`!)
-instance MyShow[Maybe[inst Show]] {
+inst MyShow[Maybe[inst Show]] {
     fun my_to_string(maybe) {
         pattern maybe {
             # We can use `.to_string()` on the `val` because it implements `Show`
@@ -45,4 +45,4 @@ fun entry () {
 
 - Simple
 - Embedded DSLs (powerful syntax additions)
-- No garbage collector, but it feels like there is one (based off [ASAP: As Static As Possible memory management](https://www.cl.cam.ac.uk/techreports/UCAM-CL-TR-908.pdf) and [Practical Static Memory Management](http://nathancorbyn.com/nc513.pdf))
+- No garbage collector, but it feels like there is one (based off work from [Proust (ASAP)](https://www.cl.cam.ac.uk/techreports/UCAM-CL-TR-908.pdf) and [Corbyn (Practical Static Memory Management)](http://nathancorbyn.com/nc513.pdf))
