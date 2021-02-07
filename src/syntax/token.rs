@@ -47,9 +47,6 @@ pub enum Token {
     /// `...`
     DotDotDot,
 
-    /// E.g. `++` or `!@!`
-    Operator(Str),
-
     /// `(`
     LParen,
     /// `)`
@@ -64,5 +61,8 @@ pub enum Token {
     RCurly,
 
     /// `\n`
-    Newline,
+    Break,
+
+    /// End of file
+    Eof,
 }

@@ -64,6 +64,7 @@ impl<'s> Lexer<'s> {
             ')' => Token::RParen,
 
             '_' if !Self::is_id_continue(self.peek()) => Token::Underscore,
+            c if c == EOF => Token::Eof,
             c if Self::is_whitespace(c) => {
                 self.consume_while(c, Self::is_whitespace);
                 self.next_token_type()?
@@ -120,7 +121,7 @@ impl<'s> Lexer<'s> {
             "=" => Token::Equals,
             "|" => Token::Pipe,
             "=:" => Token::EqColon,
-            _ => Token::Operator(Str::new(acc)),
+            _ => Token::Symbol(Str::new(acc)),
         }
     }
 
@@ -312,8 +313,8 @@ mod lexer_tests {
     next_token!(test "->".to_string(), &Token::Arrow, lexer_arrow);
     next_token!(test "_".to_string(), &Token::Underscore, lexer_underscore);
 
-    next_token!(test "!@!".to_string(), &Token::Operator(Str::new("!@!")), lexer_custom_operator);
-    next_token!(test "+*-/<>|:$^^@!~%.&=".to_string(), &Token::Operator(Str::new("+*-/<>|:$^^@!~%.&=")), lexer_long_operator);
+    next_token!(test "!@!".to_string(), &Token::Symbol(Str::new("!@!")), lexer_custom_operator);
+    next_token!(test "+*-/<>|:$^^@!~%.&=".to_string(), &Token::Symbol(Str::new("+*-/<>|:$^^@!~%.&=")), lexer_long_operator);
 
     next_token!(test "_wad".to_string(), &Token::Ident(Str::new("_wad")), lexer_ident_underscore_start);
     next_token!(test "awd_123".to_string(), &Token::Ident(Str::new("awd_123")), lexer_ident_number);
