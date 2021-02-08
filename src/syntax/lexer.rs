@@ -9,6 +9,7 @@ pub struct Lexer<'s> {
     source_id: SourceId,
     chars: Peekable<Chars<'s>>,
     position: usize,
+    emit_break: bool,
 }
 
 const EOF: char = '\0';
@@ -28,6 +29,7 @@ impl<'s> Lexer<'s> {
             chars: sources.get_source(&source_id).unwrap().chars().peekable(),
             source_id,
             position: 0,
+            emit_break: false,
         }
     }
 
@@ -48,14 +50,7 @@ impl<'s> Lexer<'s> {
     /// the token, and moves onto the next.
     fn next_token(&mut self) -> Failible<Spanned<Token>> {
         let s = self.position;
-        let tok = self.next_token_type()?;
-        let e = self.position;
-        Ok(Span::new(s, e, self.source_id).spanned(tok))
-    }
-
-    fn next_token_type(&mut self) -> Failible<Token> {
-        let s = self.position;
-        Ok(match self.eat() {
+        let tok = match self.eat() {
             '{' => Token::LCurly,
             '}' => Token::RCurly,
             '[' => Token::LBracket,
@@ -65,9 +60,16 @@ impl<'s> Lexer<'s> {
 
             '_' if !Self::is_id_continue(self.peek()) => Token::Underscore,
             c if c == EOF => Token::Eof,
+            c if Self::is_newline(c) => {
+                if self.emit_break {
+                    Token::Break
+                } else {
+                    return self.next_token();
+                }
+            }
             c if Self::is_whitespace(c) => {
                 self.consume_while(c, Self::is_whitespace);
-                self.next_token_type()?
+                return self.next_token();
             }
             c if Self::is_id_start(c) => self.eat_ident(c),
             c if Self::is_operator(c) => self.eat_operator(c),
@@ -85,7 +87,10 @@ impl<'s> Lexer<'s> {
                     span,
                 ));
             }
-        })
+        };
+        let e = self.position;
+        self.emit_break = Self::should_emit_break(&tok);
+        Ok(Span::new(s, e, self.source_id).spanned(tok))
     }
 
     #[inline]
@@ -139,13 +144,26 @@ impl<'s> Lexer<'s> {
         }
     }
 
+    fn should_emit_break(tok: &Token) -> bool {
+        match tok {
+            Token::RParen
+            | Token::RCurly
+            | Token::RBracket
+            | Token::Integer(_)
+            | Token::Float(_)
+            | Token::String(_)
+            | Token::Ident(_)
+            | Token::Symbol(_) => true,
+            _ => false,
+        }
+    }
+
     fn is_newline(c: char) -> bool {
         match c {
-            // NEXT LINE from latin1
-            '\u{0085}'
-                // Dedicated whitespace characters from Unicode
-                | '\u{2028}' // LINE SEPARATOR
-                | '\u{2029}' // PARAGRAPH SEPARATOR
+            '\n' // Normal line break
+                |'\u{0085}' // Next line from latin1
+                | '\u{2028}' // Line separator
+                | '\u{2029}' // Paragraph separator
                 => true,
 
             _ => false
@@ -294,7 +312,10 @@ mod lexer_tests {
 
     token_error!(test "`".to_string(), DiagnosticType::UnexpectedCharacter, lexer_dot_dot_fail);
 
+    next_token!(test "\n".to_string(), &Token::Eof, lexer_newline_eof);
+
     next_token!(test "10".to_string(), &Token::Integer(Str::new("10")), lexer_integer);
+    next_token!(test "0123456789".to_string(), &Token::Integer(Str::new("0123456789")), lexer_long_integer);
 
     next_token!(test "{".to_string(), &Token::LCurly, lexer_lcurly);
     next_token!(test "}".to_string(), &Token::RCurly, lexer_rcurly);
@@ -327,4 +348,31 @@ mod lexer_tests {
     next_token!(test "fun".to_string(), &Token::Function, lexer_function);
     next_token!(test "inst".to_string(), &Token::Instance, lexer_instance);
     next_token!(test "class".to_string(), &Token::Typeclass, lexer_typeclass);
+
+    macro_rules! nth_token {
+        (test $source: expr, $n: expr, $token: expr, $name: ident) => {
+            #[test]
+            fn $name() {
+                let mut sources = Sources::new();
+                let source_id = sources.add_source($source);
+                let mut lexer = Lexer::new(&sources, source_id);
+                let token = lexer.nth($n).unwrap();
+                assert_eq!(
+                    token.as_ref().map(|t| <Spanned<Token> as Deref>::deref(t)),
+                    Ok($token)
+                );
+            }
+        };
+    }
+
+    nth_token!(test "test\n".to_string(), 1, &Token::Break, lexer_break_after_id);
+    nth_token!(test "10\n".to_string(), 1, &Token::Break, lexer_break_after_num);
+    nth_token!(test ")\n".to_string(), 1, &Token::Break, lexer_break_after_rparen);
+    nth_token!(test "]\n".to_string(), 1, &Token::Break, lexer_break_after_rbracket);
+    nth_token!(test "}\n".to_string(), 1, &Token::Break, lexer_break_after_rcurly);
+    nth_token!(test "!@!\n".to_string(), 1, &Token::Break, lexer_break_after_symbol);
+
+    nth_token!(test "(\n".to_string(), 1, &Token::Eof, lexer_no_break_after_lparen);
+    nth_token!(test "[\n".to_string(), 1, &Token::Eof, lexer_no_break_after_lbracket);
+    nth_token!(test "{\n".to_string(), 1, &Token::Eof, lexer_no_break_after_lcurly);
 }
