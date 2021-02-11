@@ -59,6 +59,7 @@ impl<'s> Lexer<'s> {
             ')' => Token::RParen,
 
             '_' if !Self::is_id_continue(self.peek()) => Token::Underscore,
+            '"' => self.eat_string()?,
             c if c == EOF => Token::Eof,
             c if Self::is_newline(c) => {
                 if self.emit_break {
@@ -142,6 +143,50 @@ impl<'s> Lexer<'s> {
             "class" => Token::Typeclass,
             _ => Token::Ident(Str::new(acc)),
         }
+    }
+
+    fn eat_string(&mut self) -> Result<Token, Diagnostic> {
+        let mut acc = String::new();
+        loop {
+            let next = self.eat();
+            if next == '\\' {
+                match self.peek() {
+                    '\\' => {
+                        // Escaped backslash
+                        self.eat();
+                        acc.push('\\')
+                    }
+                    '"' => {
+                        // Escaped qoute
+                        self.eat();
+                        acc.push('"')
+                    }
+                    'n' => {
+                        // Escaped newline
+                        self.eat();
+                        acc.push('\n')
+                    }
+                    c => {
+                        let span = Span::new(self.position, self.position + 1, self.source_id);
+                        return Err(Diagnostic::build(
+                            Level::Error,
+                            DiagnosticType::InvalidEscapeSequence,
+                            span,
+                        )
+                        .annotation(
+                            Level::Error,
+                            format!("invalid escape `\\{}`", c),
+                            span,
+                        ));
+                    }
+                }
+            } else if next == '"' {
+                break;
+            } else {
+                acc.push(next);
+            }
+        }
+        Ok(Token::String(Str::new(acc)))
     }
 
     fn should_emit_break(tok: &Token) -> bool {
@@ -311,11 +356,17 @@ mod lexer_tests {
     }
 
     token_error!(test "`".to_string(), DiagnosticType::UnexpectedCharacter, lexer_dot_dot_fail);
+    token_error!(test r#""\@""#.to_string(), DiagnosticType::InvalidEscapeSequence, lexer_invalid_escape);
 
     next_token!(test "\n".to_string(), &Token::Eof, lexer_newline_eof);
 
     next_token!(test "10".to_string(), &Token::Integer(Str::new("10")), lexer_integer);
     next_token!(test "0123456789".to_string(), &Token::Integer(Str::new("0123456789")), lexer_long_integer);
+
+    next_token!(test r#""awdsad""#.to_string(), &Token::String(Str::new("awdsad")), lexer_string);
+    next_token!(test r#""awd\"sad""#.to_string(), &Token::String(Str::new(r#"awd"sad"#)), lexer_string_escaped_qoute);
+    next_token!(test r#""awdsad\\""#.to_string(), &Token::String(Str::new(r#"awdsad\"#)), lexer_string_escaped_backslash);
+    next_token!(test r#""\n""#.to_string(), &Token::String(Str::new("\n")), lexer_string_escaped_newline);
 
     next_token!(test "{".to_string(), &Token::LCurly, lexer_lcurly);
     next_token!(test "}".to_string(), &Token::RCurly, lexer_rcurly);
@@ -371,6 +422,7 @@ mod lexer_tests {
     nth_token!(test "]\n".to_string(), 1, &Token::Break, lexer_break_after_rbracket);
     nth_token!(test "}\n".to_string(), 1, &Token::Break, lexer_break_after_rcurly);
     nth_token!(test "!@!\n".to_string(), 1, &Token::Break, lexer_break_after_symbol);
+    nth_token!(test "\"test\"\n".to_string(), 1, &Token::Break, lexer_break_after_string);
 
     nth_token!(test "(\n".to_string(), 1, &Token::Eof, lexer_no_break_after_lparen);
     nth_token!(test "[\n".to_string(), 1, &Token::Eof, lexer_no_break_after_lbracket);

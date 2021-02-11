@@ -7,18 +7,21 @@ use crate::diagnostics::Span;
 /// An error type
 pub enum DiagnosticType {
     UnexpectedCharacter,
+    InvalidEscapeSequence,
 }
 
 impl DiagnosticType {
     pub fn description(&self) -> &'static str {
         match self {
             DiagnosticType::UnexpectedCharacter => "unexpected character while lexing",
+            DiagnosticType::InvalidEscapeSequence => "invalid escaped character",
         }
     }
 
     pub fn name(&self) -> &'static str {
         match self {
             DiagnosticType::UnexpectedCharacter => "unexpected_character",
+            DiagnosticType::InvalidEscapeSequence => "invalid_escape",
         }
     }
 }
