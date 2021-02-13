@@ -60,6 +60,10 @@ impl<'s> Lexer<'s> {
 
             '_' if !Self::is_id_continue(self.peek()) => Token::Underscore,
             '"' => self.eat_string()?,
+            '#' => {
+                self.eat_comment();
+                return self.next_token();
+            }
             c if c == EOF => Token::Eof,
             c if Self::is_newline(c) => {
                 if self.emit_break {
@@ -82,11 +86,8 @@ impl<'s> Lexer<'s> {
                     DiagnosticType::UnexpectedCharacter,
                     span,
                 )
-                .annotation(
-                    Level::Error,
-                    format!("unexpected character `{}`", c),
-                    span,
-                ));
+                .annotation(Level::Error, format!("unexpected character `{}`", c), span)
+                .into());
             }
         };
         let e = self.position;
@@ -110,6 +111,10 @@ impl<'s> Lexer<'s> {
             acc.push(self.eat());
         }
         acc
+    }
+
+    fn eat_comment(&mut self) {
+        self.consume_while(' ', |c| !Self::is_newline(c));
     }
 
     fn eat_number(&mut self, first: char) -> Token {
@@ -323,7 +328,7 @@ mod lexer_tests {
                     assert_eq!(
                         token
                             .as_ref()
-                            .map_err(|e| e.ty()),
+                            .map_err(|e| e.inner()[0].ty()),
                         Err($err)
                     );
                 }
@@ -338,7 +343,7 @@ mod lexer_tests {
                     assert_eq!(
                         token
                             .as_ref()
-                            .map_err(|e| e.ty()),
+                            .map_err(|e| e.inner()[0].ty()),
                         Err($err)
                     );
 
@@ -347,7 +352,7 @@ mod lexer_tests {
                     assert_eq!(
                         token
                             .as_ref()
-                            .map_err(|e| e.ty()),
+                            .map_err(|e| e.inner()[0].ty()),
                         Err($err) as Result<&Spanned<Token>, DiagnosticType>
                     );
                 }
@@ -362,6 +367,8 @@ mod lexer_tests {
 
     next_token!(test "10".to_string(), &Token::Integer(Str::new("10")), lexer_integer);
     next_token!(test "0123456789".to_string(), &Token::Integer(Str::new("0123456789")), lexer_long_integer);
+
+    next_token!(test "# Comment test\n0123456789".to_string(), &Token::Integer(Str::new("0123456789")), lexer_comment);
 
     next_token!(test r#""awdsad""#.to_string(), &Token::String(Str::new("awdsad")), lexer_string);
     next_token!(test r#""awd\"sad""#.to_string(), &Token::String(Str::new(r#"awd"sad"#)), lexer_string_escaped_qoute);

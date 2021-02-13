@@ -1,7 +1,27 @@
-use smallvec::SmallVec;
-use std::fmt::{self, Display};
+use smallvec::{smallvec, SmallVec};
 
 use crate::diagnostics::Span;
+
+pub type Failible<T> = Result<T, Diagnostics>;
+
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub struct Diagnostics(SmallVec<[Diagnostic; 1]>);
+
+impl Diagnostics {
+    pub fn inner(&self) -> &SmallVec<[Diagnostic; 1]> {
+        &self.0
+    }
+
+    pub fn into_inner(self) -> SmallVec<[Diagnostic; 1]> {
+        self.0
+    }
+}
+
+impl From<Diagnostic> for Diagnostics {
+    fn from(diagnostic: Diagnostic) -> Self {
+        Self(smallvec![diagnostic])
+    }
+}
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 /// An error type
@@ -32,14 +52,14 @@ pub enum Level {
     Warning,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 struct Annotation {
     level: Level,
     message: String,
     span: Span,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 /// A generic error
 pub struct Diagnostic {
     span: Span,
@@ -71,8 +91,6 @@ impl Diagnostic {
         self.ty
     }
 }
-
-pub type Failible<T> = Result<T, Diagnostic>;
 
 #[cfg(test)]
 mod error_tests {
@@ -115,5 +133,23 @@ mod error_tests {
             Diagnostic::build(Level::Warning, DiagnosticType::UnexpectedCharacter, span)
                 .annotation(Level::Error, message, span)
         );
+    }
+
+    #[test]
+    fn diagnostic_into() {
+        let sid = Sources::new().add_source("test".to_string());
+        let span = Span::new(0, 1, sid);
+        let message = "Test message".to_string();
+
+        let diagnostic =
+            Diagnostic::build(Level::Warning, DiagnosticType::UnexpectedCharacter, span)
+                .annotation(Level::Error, message, span);
+
+        let diagnostics = Diagnostics(smallvec![diagnostic.clone()]);
+
+        assert_eq!(diagnostics, diagnostic.clone().into());
+        let expected_diagnostics: SmallVec<[Diagnostic; 1]> = smallvec![diagnostic.clone()];
+        assert_eq!(diagnostics.inner(), &expected_diagnostics);
+        assert_eq!(diagnostics.into_inner(), expected_diagnostics);
     }
 }
