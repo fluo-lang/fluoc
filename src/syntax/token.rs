@@ -1,9 +1,20 @@
-use smol_str::SmolStr;
-
-pub type Str = SmolStr;
+use crate::common::Str;
+use crate::diagnostics::Span;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum Token {
+pub struct Token {
+    pub kind: TokenKind,
+    pub span: Span,
+}
+
+impl Token {
+    pub fn new(kind: TokenKind, span: Span) -> Self {
+        Self { kind, span }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum TokenKind {
     /// E.g. `123`
     Integer(Str),
     /// E.g. `123.234`

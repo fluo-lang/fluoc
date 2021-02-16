@@ -1,8 +1,10 @@
 use std::iter::{Iterator, Peekable};
 use std::str::Chars;
 
-use super::token::{Str, Token};
-use crate::diagnostics::{ErrorPrelude::*, Failible, SourceId, Sources, Span, Spanned};
+use super::token::{Token, TokenKind};
+
+use crate::common::Str;
+use crate::diagnostics::{DiagnosticsPrelude::*, Failible, SourceId, Sources, Span};
 
 /// Lexer
 pub struct Lexer<'s> {
@@ -15,7 +17,7 @@ pub struct Lexer<'s> {
 const EOF: char = '\0';
 
 impl<'s> Iterator for Lexer<'s> {
-    type Item = Failible<Spanned<Token>>;
+    type Item = Failible<Token>;
 
     fn next(&mut self) -> Option<Self::Item> {
         Some(self.next_token())
@@ -48,26 +50,26 @@ impl<'s> Lexer<'s> {
 
     /// Get the next token in the input stream. Consumes
     /// the token, and moves onto the next.
-    fn next_token(&mut self) -> Failible<Spanned<Token>> {
+    fn next_token(&mut self) -> Failible<Token> {
         let s = self.position;
-        let tok = match self.eat() {
-            '{' => Token::LCurly,
-            '}' => Token::RCurly,
-            '[' => Token::LBracket,
-            ']' => Token::RBracket,
-            '(' => Token::LParen,
-            ')' => Token::RParen,
+        let kind = match self.eat() {
+            '{' => TokenKind::LCurly,
+            '}' => TokenKind::RCurly,
+            '[' => TokenKind::LBracket,
+            ']' => TokenKind::RBracket,
+            '(' => TokenKind::LParen,
+            ')' => TokenKind::RParen,
 
-            '_' if !Self::is_id_continue(self.peek()) => Token::Underscore,
+            '_' if !Self::is_id_continue(self.peek()) => TokenKind::Underscore,
             '"' => self.eat_string()?,
             '#' => {
                 self.eat_comment();
                 return self.next_token();
             }
-            c if c == EOF => Token::Eof,
+            c if c == EOF => TokenKind::Eof,
             c if Self::is_newline(c) => {
                 if self.emit_break {
-                    Token::Break
+                    TokenKind::Break
                 } else {
                     return self.next_token();
                 }
@@ -91,8 +93,11 @@ impl<'s> Lexer<'s> {
             }
         };
         let e = self.position;
-        self.emit_break = Self::should_emit_break(&tok);
-        Ok(Span::new(s, e, self.source_id).spanned(tok))
+        self.emit_break = Self::should_emit_break(&kind);
+        Ok(Token {
+            kind,
+            span: Span::new(s, e, self.source_id),
+        })
     }
 
     #[inline]
@@ -117,40 +122,40 @@ impl<'s> Lexer<'s> {
         self.consume_while(' ', |c| !Self::is_newline(c));
     }
 
-    fn eat_number(&mut self, first: char) -> Token {
+    fn eat_number(&mut self, first: char) -> TokenKind {
         let start = self.consume_while(first, |c| c.is_ascii_digit());
-        Token::Integer(Str::new(start))
+        TokenKind::Integer(Str::new(start))
     }
 
-    fn eat_operator(&mut self, first: char) -> Token {
+    fn eat_operator(&mut self, first: char) -> TokenKind {
         let acc = self.consume_while(first, Self::is_operator);
         match &acc[..] {
-            "..." => Token::DotDotDot,
-            "." => Token::Dot,
-            ":" => Token::Colon,
-            "->" => Token::Arrow,
-            "=" => Token::Equals,
-            "|" => Token::Pipe,
-            "=:" => Token::EqColon,
-            _ => Token::Symbol(Str::new(acc)),
+            "..." => TokenKind::DotDotDot,
+            "." => TokenKind::Dot,
+            ":" => TokenKind::Colon,
+            "->" => TokenKind::Arrow,
+            "=" => TokenKind::Equals,
+            "|" => TokenKind::Pipe,
+            "=:" => TokenKind::EqColon,
+            _ => TokenKind::Symbol(Str::new(acc)),
         }
     }
 
-    fn eat_ident(&mut self, first: char) -> Token {
+    fn eat_ident(&mut self, first: char) -> TokenKind {
         let acc = self.consume_while(first, Self::is_id_continue);
         match &acc[..] {
-            "let" => Token::Let,
-            "return" => Token::Return,
-            "import" => Token::Import,
-            "rec" => Token::Record,
-            "fun" => Token::Function,
-            "inst" => Token::Instance,
-            "class" => Token::Typeclass,
-            _ => Token::Ident(Str::new(acc)),
+            "let" => TokenKind::Let,
+            "return" => TokenKind::Return,
+            "import" => TokenKind::Import,
+            "rec" => TokenKind::Record,
+            "fun" => TokenKind::Function,
+            "inst" => TokenKind::Instance,
+            "class" => TokenKind::Typeclass,
+            _ => TokenKind::Ident(Str::new(acc)),
         }
     }
 
-    fn eat_string(&mut self) -> Result<Token, Diagnostic> {
+    fn eat_string(&mut self) -> Result<TokenKind, Diagnostic> {
         let mut acc = String::new();
         loop {
             let next = self.eat();
@@ -191,19 +196,19 @@ impl<'s> Lexer<'s> {
                 acc.push(next);
             }
         }
-        Ok(Token::String(Str::new(acc)))
+        Ok(TokenKind::String(Str::new(acc)))
     }
 
-    fn should_emit_break(tok: &Token) -> bool {
+    fn should_emit_break(tok: &TokenKind) -> bool {
         match tok {
-            Token::RParen
-            | Token::RCurly
-            | Token::RBracket
-            | Token::Integer(_)
-            | Token::Float(_)
-            | Token::String(_)
-            | Token::Ident(_)
-            | Token::Symbol(_) => true,
+            TokenKind::RParen
+            | TokenKind::RCurly
+            | TokenKind::RBracket
+            | TokenKind::Integer(_)
+            | TokenKind::Float(_)
+            | TokenKind::String(_)
+            | TokenKind::Ident(_)
+            | TokenKind::Symbol(_) => true,
             _ => false,
         }
     }
@@ -247,9 +252,7 @@ impl<'s> Lexer<'s> {
 #[cfg(test)]
 mod lexer_tests {
     use super::*;
-    use crate::diagnostics::Spanned;
     use paste::paste;
-    use std::ops::Deref;
 
     #[test]
     fn new_lexer() {
@@ -283,10 +286,8 @@ mod lexer_tests {
                     let mut lexer = Lexer::new(&sources, source_id);
                     let token = lexer.next().unwrap();
                     assert_eq!(
-                        token
-                            .as_ref()
-                            .map(|t| <Spanned<Token> as Deref>::deref(t)),
-                        Ok($token)
+                        token.as_ref().map(|t| &t.kind),
+                        Ok(&$token)
                     );
                 }
 
@@ -297,19 +298,15 @@ mod lexer_tests {
                     let mut lexer = Lexer::new(&sources, source_id).peekable();
                     let token = lexer.peek().unwrap();
                     assert_eq!(
-                        token
-                            .as_ref()
-                            .map(|t| <Spanned<Token> as Deref>::deref(t)),
-                        Ok($token)
+                        token.as_ref().map(|t| &t.kind),
+                        Ok(&$token)
                     );
 
                     // Should have the same value because peek
                     let token = lexer.peek().unwrap();
                     assert_eq!(
-                        token
-                            .as_ref()
-                            .map(|t| <Spanned<Token> as Deref>::deref(t)),
-                        Ok($token)
+                        token.as_ref().map(|t| &t.kind),
+                        Ok(&$token)
                     );
                 }
             }
@@ -327,7 +324,6 @@ mod lexer_tests {
                     let token = lexer.next().unwrap();
                     assert_eq!(
                         token
-                            .as_ref()
                             .map_err(|e| e.inner()[0].ty()),
                         Err($err)
                     );
@@ -353,7 +349,7 @@ mod lexer_tests {
                         token
                             .as_ref()
                             .map_err(|e| e.inner()[0].ty()),
-                        Err($err) as Result<&Spanned<Token>, DiagnosticType>
+                        Err($err) as Result<&Token, DiagnosticType>
                     );
                 }
             }
@@ -363,49 +359,49 @@ mod lexer_tests {
     token_error!(test "`".to_string(), DiagnosticType::UnexpectedCharacter, lexer_dot_dot_fail);
     token_error!(test r#""\@""#.to_string(), DiagnosticType::InvalidEscapeSequence, lexer_invalid_escape);
 
-    next_token!(test "\n".to_string(), &Token::Eof, lexer_newline_eof);
+    next_token!(test "\n".to_string(), TokenKind::Eof, lexer_newline_eof);
 
-    next_token!(test "10".to_string(), &Token::Integer(Str::new("10")), lexer_integer);
-    next_token!(test "0123456789".to_string(), &Token::Integer(Str::new("0123456789")), lexer_long_integer);
+    next_token!(test "10".to_string(), TokenKind::Integer(Str::new("10")), lexer_integer);
+    next_token!(test "0123456789".to_string(), TokenKind::Integer(Str::new("0123456789")), lexer_long_integer);
 
-    next_token!(test "# Comment test\n0123456789".to_string(), &Token::Integer(Str::new("0123456789")), lexer_comment);
+    next_token!(test "# Comment test\n0123456789".to_string(), TokenKind::Integer(Str::new("0123456789")), lexer_comment);
 
-    next_token!(test r#""awdsad""#.to_string(), &Token::String(Str::new("awdsad")), lexer_string);
-    next_token!(test r#""awd\"sad""#.to_string(), &Token::String(Str::new(r#"awd"sad"#)), lexer_string_escaped_qoute);
-    next_token!(test r#""awdsad\\""#.to_string(), &Token::String(Str::new(r#"awdsad\"#)), lexer_string_escaped_backslash);
-    next_token!(test r#""\n""#.to_string(), &Token::String(Str::new("\n")), lexer_string_escaped_newline);
+    next_token!(test r#""awdsad""#.to_string(), TokenKind::String(Str::new("awdsad")), lexer_string);
+    next_token!(test r#""awd\"sad""#.to_string(), TokenKind::String(Str::new(r#"awd"sad"#)), lexer_string_escaped_qoute);
+    next_token!(test r#""awdsad\\""#.to_string(), TokenKind::String(Str::new(r#"awdsad\"#)), lexer_string_escaped_backslash);
+    next_token!(test r#""\n""#.to_string(), TokenKind::String(Str::new("\n")), lexer_string_escaped_newline);
 
-    next_token!(test "{".to_string(), &Token::LCurly, lexer_lcurly);
-    next_token!(test "}".to_string(), &Token::RCurly, lexer_rcurly);
+    next_token!(test "{".to_string(), TokenKind::LCurly, lexer_lcurly);
+    next_token!(test "}".to_string(), TokenKind::RCurly, lexer_rcurly);
 
-    next_token!(test "[".to_string(), &Token::LBracket, lexer_lbracket);
-    next_token!(test "]".to_string(), &Token::RBracket, lexer_rbracket);
+    next_token!(test "[".to_string(), TokenKind::LBracket, lexer_lbracket);
+    next_token!(test "]".to_string(), TokenKind::RBracket, lexer_rbracket);
 
-    next_token!(test "(".to_string(), &Token::LParen, lexer_lparen);
-    next_token!(test ")".to_string(), &Token::RParen, lexer_rparen);
+    next_token!(test "(".to_string(), TokenKind::LParen, lexer_lparen);
+    next_token!(test ")".to_string(), TokenKind::RParen, lexer_rparen);
 
-    next_token!(test ":".to_string(), &Token::Colon, lexer_colon);
-    next_token!(test "=".to_string(), &Token::Equals, lexer_equals);
-    next_token!(test "=:".to_string(), &Token::EqColon, lexer_eq_colon);
-    next_token!(test ".".to_string(), &Token::Dot, lexer_dot);
-    next_token!(test "...".to_string(), &Token::DotDotDot, lexer_dot_dot_dot);
-    next_token!(test "->".to_string(), &Token::Arrow, lexer_arrow);
-    next_token!(test "_".to_string(), &Token::Underscore, lexer_underscore);
+    next_token!(test ":".to_string(), TokenKind::Colon, lexer_colon);
+    next_token!(test "=".to_string(), TokenKind::Equals, lexer_equals);
+    next_token!(test "=:".to_string(), TokenKind::EqColon, lexer_eq_colon);
+    next_token!(test ".".to_string(), TokenKind::Dot, lexer_dot);
+    next_token!(test "...".to_string(), TokenKind::DotDotDot, lexer_dot_dot_dot);
+    next_token!(test "->".to_string(), TokenKind::Arrow, lexer_arrow);
+    next_token!(test "_".to_string(), TokenKind::Underscore, lexer_underscore);
 
-    next_token!(test "!@!".to_string(), &Token::Symbol(Str::new("!@!")), lexer_custom_operator);
-    next_token!(test "+*-/<>|:$^^@!~%.&=".to_string(), &Token::Symbol(Str::new("+*-/<>|:$^^@!~%.&=")), lexer_long_operator);
+    next_token!(test "!@!".to_string(), TokenKind::Symbol(Str::new("!@!")), lexer_custom_operator);
+    next_token!(test "+*-/<>|:$^^@!~%.&=".to_string(), TokenKind::Symbol(Str::new("+*-/<>|:$^^@!~%.&=")), lexer_long_operator);
 
-    next_token!(test "_wad".to_string(), &Token::Ident(Str::new("_wad")), lexer_ident_underscore_start);
-    next_token!(test "awd_123".to_string(), &Token::Ident(Str::new("awd_123")), lexer_ident_number);
-    next_token!(test "awd".to_string(), &Token::Ident(Str::new("awd")), lexer_ident_alphabetic);
+    next_token!(test "_wad".to_string(), TokenKind::Ident(Str::new("_wad")), lexer_ident_underscore_start);
+    next_token!(test "awd_123".to_string(), TokenKind::Ident(Str::new("awd_123")), lexer_ident_number);
+    next_token!(test "awd".to_string(), TokenKind::Ident(Str::new("awd")), lexer_ident_alphabetic);
 
-    next_token!(test "let".to_string(), &Token::Let, lexer_let);
-    next_token!(test "return".to_string(), &Token::Return, lexer_return);
-    next_token!(test "import".to_string(), &Token::Import, lexer_import);
-    next_token!(test "rec".to_string(), &Token::Record, lexer_record);
-    next_token!(test "fun".to_string(), &Token::Function, lexer_function);
-    next_token!(test "inst".to_string(), &Token::Instance, lexer_instance);
-    next_token!(test "class".to_string(), &Token::Typeclass, lexer_typeclass);
+    next_token!(test "let".to_string(), TokenKind::Let, lexer_let);
+    next_token!(test "return".to_string(), TokenKind::Return, lexer_return);
+    next_token!(test "import".to_string(), TokenKind::Import, lexer_import);
+    next_token!(test "rec".to_string(), TokenKind::Record, lexer_record);
+    next_token!(test "fun".to_string(), TokenKind::Function, lexer_function);
+    next_token!(test "inst".to_string(), TokenKind::Instance, lexer_instance);
+    next_token!(test "class".to_string(), TokenKind::Typeclass, lexer_typeclass);
 
     macro_rules! nth_token {
         (test $source: expr, $n: expr, $token: expr, $name: ident) => {
@@ -415,23 +411,20 @@ mod lexer_tests {
                 let source_id = sources.add_source($source);
                 let mut lexer = Lexer::new(&sources, source_id);
                 let token = lexer.nth($n).unwrap();
-                assert_eq!(
-                    token.as_ref().map(|t| <Spanned<Token> as Deref>::deref(t)),
-                    Ok($token)
-                );
+                assert_eq!(token.map(|t| t.kind), Ok($token));
             }
         };
     }
 
-    nth_token!(test "test\n".to_string(), 1, &Token::Break, lexer_break_after_id);
-    nth_token!(test "10\n".to_string(), 1, &Token::Break, lexer_break_after_num);
-    nth_token!(test ")\n".to_string(), 1, &Token::Break, lexer_break_after_rparen);
-    nth_token!(test "]\n".to_string(), 1, &Token::Break, lexer_break_after_rbracket);
-    nth_token!(test "}\n".to_string(), 1, &Token::Break, lexer_break_after_rcurly);
-    nth_token!(test "!@!\n".to_string(), 1, &Token::Break, lexer_break_after_symbol);
-    nth_token!(test "\"test\"\n".to_string(), 1, &Token::Break, lexer_break_after_string);
+    nth_token!(test "test\n".to_string(), 1, TokenKind::Break, lexer_break_after_id);
+    nth_token!(test "10\n".to_string(), 1, TokenKind::Break, lexer_break_after_num);
+    nth_token!(test ")\n".to_string(), 1, TokenKind::Break, lexer_break_after_rparen);
+    nth_token!(test "]\n".to_string(), 1, TokenKind::Break, lexer_break_after_rbracket);
+    nth_token!(test "}\n".to_string(), 1, TokenKind::Break, lexer_break_after_rcurly);
+    nth_token!(test "!@!\n".to_string(), 1, TokenKind::Break, lexer_break_after_symbol);
+    nth_token!(test "\"test\"\n".to_string(), 1, TokenKind::Break, lexer_break_after_string);
 
-    nth_token!(test "(\n".to_string(), 1, &Token::Eof, lexer_no_break_after_lparen);
-    nth_token!(test "[\n".to_string(), 1, &Token::Eof, lexer_no_break_after_lbracket);
-    nth_token!(test "{\n".to_string(), 1, &Token::Eof, lexer_no_break_after_lcurly);
+    nth_token!(test "(\n".to_string(), 1, TokenKind::Eof, lexer_no_break_after_lparen);
+    nth_token!(test "[\n".to_string(), 1, TokenKind::Eof, lexer_no_break_after_lbracket);
+    nth_token!(test "{\n".to_string(), 1, TokenKind::Eof, lexer_no_break_after_lcurly);
 }

@@ -1,9 +1,7 @@
-use std::collections::HashMap;
-
 /// A general sourcemap, from `SourceId` to a `&str`.
 #[derive(Debug)]
 pub struct Sources {
-    sources: HashMap<SourceId, String>,
+    sources: Vec<String>,
     counter: usize,
 }
 
@@ -12,20 +10,20 @@ impl Sources {
     pub fn new() -> Self {
         Self {
             counter: 0,
-            sources: HashMap::new(),
+            sources: Vec::new(),
         }
     }
 
     /// Insert a source into the sourcemap and return a unique `SourceId`
     pub fn add_source(&mut self, source: String) -> SourceId {
         let source_id = SourceId(self.counter);
-        self.sources.insert(source_id, source);
+        self.sources.push(source);
         self.counter += 1;
         source_id
     }
 
     pub fn get_source<'a, 'b>(&'a self, source_id: &'b SourceId) -> Option<&'a str> {
-        self.sources.get(source_id).map(|s| &s[..])
+        self.sources.get(source_id.0).map(|s| &s[..])
     }
 }
 
