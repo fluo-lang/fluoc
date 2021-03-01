@@ -1,0 +1,40 @@
+name:                fluoc
+version:             0.1.0.0
+github:              "githubuser/fluoc"
+license:             AGPL3
+author:              "Jonathan Li"
+maintainer:          "30177086+MonliH@users.noreply.github.com"
+copyright:           "2021 Jonathan Li"
+
+extra-source-files:
+- readme.md
+
+description:         Please see the README on GitHub at <https://github.com/fluo-lang/fluoc>
+
+dependencies:
+- base >= 4.7 && < 5
+
+library:
+  source-dirs: src
+
+executables:
+  fluoc-exe:
+    main:                Main.hs
+    source-dirs:         app
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - fluoc
+
+tests:
+  fluoc-test:
+    main:                Spec.hs
+    source-dirs:         test
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - fluoc
