@@ -1,6 +1,6 @@
 module Main where
 
-import Lib
+import Pipeline (pipeline)
 
 main :: IO ()
-main = someFunc
+main = pipeline

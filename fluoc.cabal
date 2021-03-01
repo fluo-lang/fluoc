@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 796a84e89d49d9c99952c9edea1fa426d99728a883e6d062f346ddd6ffdd873c
+-- hash: ea0497fe55eb22be62eebfce91c629a667f5d3c64289870f72a7052caee65199
 
 name:           fluoc
 version:        0.1.0.0
@@ -25,13 +25,14 @@ source-repository head
 
 library
   exposed-modules:
-      Lib
+      Pipeline
   other-modules:
       Paths_fluoc
   hs-source-dirs:
       src
   build-depends:
       base >=4.7 && <5
+    , optparse-applicative
   default-language: Haskell2010
 
 executable fluoc-exe
@@ -44,6 +45,7 @@ executable fluoc-exe
   build-depends:
       base >=4.7 && <5
     , fluoc
+    , optparse-applicative
   default-language: Haskell2010
 
 test-suite fluoc-test
@@ -57,4 +59,5 @@ test-suite fluoc-test
   build-depends:
       base >=4.7 && <5
     , fluoc
+    , optparse-applicative
   default-language: Haskell2010
