@@ -1,4 +1,5 @@
 use smallvec::{smallvec, SmallVec};
+use std::borrow::Cow;
 
 use crate::diagnostics::Span;
 
@@ -8,6 +9,14 @@ pub type Failible<T> = Result<T, Diagnostics>;
 pub struct Diagnostics(SmallVec<[Diagnostic; 1]>);
 
 impl Diagnostics {
+    pub fn extend(&mut self, other: &mut Self) {
+        self.0.append(&mut other.0);
+    }
+
+    pub fn push(&mut self, other: Diagnostic) {
+        self.0.push(other);
+    }
+
     pub fn inner(&self) -> &SmallVec<[Diagnostic; 1]> {
         &self.0
     }
@@ -23,11 +32,18 @@ impl From<Diagnostic> for Diagnostics {
     }
 }
 
+impl From<SmallVec<[Diagnostic; 1]>> for Diagnostics {
+    fn from(diagnostics: SmallVec<[Diagnostic; 1]>) -> Self {
+        Self(diagnostics)
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 /// An error type
 pub enum DiagnosticType {
-    UnexpectedCharacter,
-    InvalidEscapeSequence,
+    UnexpectedCharacter = 1,
+    InvalidEscapeSequence = 2,
+    Syntax = 3,
 }
 
 impl DiagnosticType {
@@ -35,6 +51,7 @@ impl DiagnosticType {
         match self {
             DiagnosticType::UnexpectedCharacter => "unexpected character while lexing",
             DiagnosticType::InvalidEscapeSequence => "invalid escaped character",
+            DiagnosticType::Syntax => "syntax error",
         }
     }
 
@@ -42,6 +59,7 @@ impl DiagnosticType {
         match self {
             DiagnosticType::UnexpectedCharacter => "unexpected_character",
             DiagnosticType::InvalidEscapeSequence => "invalid_escape",
+            DiagnosticType::Syntax => "syntax",
         }
     }
 }
@@ -53,19 +71,19 @@ pub enum Level {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-struct Annotation {
-    level: Level,
-    message: String,
-    span: Span,
+pub struct Annotation {
+    pub level: Level,
+    pub message: Cow<'static, str>,
+    pub span: Span,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 /// A generic error
 pub struct Diagnostic {
-    span: Span,
-    ty: DiagnosticType,
-    level: Level,
-    annotations: SmallVec<[Annotation; 1]>,
+    pub span: Span,
+    pub ty: DiagnosticType,
+    pub level: Level,
+    pub annotations: SmallVec<[Annotation; 1]>,
 }
 
 impl Diagnostic {
@@ -78,17 +96,17 @@ impl Diagnostic {
         }
     }
 
-    pub fn annotation(mut self, level: Level, message: String, span: Span) -> Self {
+    pub fn into_diagnostics(self) -> Diagnostics {
+        Diagnostics(smallvec![self])
+    }
+
+    pub fn annotation(mut self, level: Level, message: Cow<'static, str>, span: Span) -> Self {
         self.annotations.push(Annotation {
             level,
             message,
             span,
         });
         self
-    }
-
-    pub fn ty(&self) -> DiagnosticType {
-        self.ty
     }
 }
 
@@ -118,14 +136,14 @@ mod error_tests {
     fn diagnostic_builder() {
         let sid = Sources::new().add_source("test".to_string());
         let span = Span::new(0, 1, sid);
-        let message = "Test message".to_string();
+        let message: Cow<'static, str> = Cow::Owned("Test message".to_string());
         assert_eq!(
             Diagnostic {
                 span,
                 level: Level::Warning,
                 ty: DiagnosticType::UnexpectedCharacter,
                 annotations: smallvec![Annotation {
-                    message: message.clone(),
+                    message: message.to_owned(),
                     level: Level::Error,
                     span
                 }],
@@ -139,7 +157,7 @@ mod error_tests {
     fn diagnostic_into() {
         let sid = Sources::new().add_source("test".to_string());
         let span = Span::new(0, 1, sid);
-        let message = "Test message".to_string();
+        let message = Cow::Owned("Test message".to_string());
 
         let diagnostic =
             Diagnostic::build(Level::Warning, DiagnosticType::UnexpectedCharacter, span)

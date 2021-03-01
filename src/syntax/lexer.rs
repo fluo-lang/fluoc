@@ -4,7 +4,7 @@ use std::str::Chars;
 use super::token::{Token, TokenKind};
 
 use crate::common::Str;
-use crate::diagnostics::{DiagnosticsPrelude::*, Failible, SourceId, Sources, Span};
+use crate::diagnostics::{prelude::*, Failible, SourceId, Sources, Span};
 
 /// Lexer
 pub struct Lexer<'s> {
@@ -26,13 +26,18 @@ impl<'s> Iterator for Lexer<'s> {
 
 impl<'s> Lexer<'s> {
     /// Create a new lexer
-    fn new(sources: &'s Sources, source_id: SourceId) -> Self {
+    pub fn new(sources: &'s Sources, source_id: SourceId) -> Self {
         Self {
             chars: sources.get_source(&source_id).unwrap().chars().peekable(),
             source_id,
             position: 0,
             emit_break: false,
         }
+    }
+
+    /// Get source_id of lexer
+    pub fn source_id(&self) -> SourceId {
+        self.source_id
     }
 
     #[inline]
@@ -88,7 +93,11 @@ impl<'s> Lexer<'s> {
                     DiagnosticType::UnexpectedCharacter,
                     span,
                 )
-                .annotation(Level::Error, format!("unexpected character `{}`", c), span)
+                .annotation(
+                    Level::Error,
+                    Cow::Owned(format!("unexpected character `{}`", c)),
+                    span,
+                )
                 .into());
             }
         };
@@ -133,6 +142,7 @@ impl<'s> Lexer<'s> {
             "..." => TokenKind::DotDotDot,
             "." => TokenKind::Dot,
             ":" => TokenKind::Colon,
+            "::" => TokenKind::ColonColon,
             "->" => TokenKind::Arrow,
             "=" => TokenKind::Equals,
             "|" => TokenKind::Pipe,
@@ -185,7 +195,7 @@ impl<'s> Lexer<'s> {
                         )
                         .annotation(
                             Level::Error,
-                            format!("invalid escape `\\{}`", c),
+                            Cow::Owned(format!("invalid escape `\\{}`", c)),
                             span,
                         ));
                     }
@@ -324,7 +334,7 @@ mod lexer_tests {
                     let token = lexer.next().unwrap();
                     assert_eq!(
                         token
-                            .map_err(|e| e.inner()[0].ty()),
+                            .map_err(|e| e.inner()[0].ty),
                         Err($err)
                     );
                 }
@@ -339,7 +349,7 @@ mod lexer_tests {
                     assert_eq!(
                         token
                             .as_ref()
-                            .map_err(|e| e.inner()[0].ty()),
+                            .map_err(|e| e.inner()[0].ty),
                         Err($err)
                     );
 
@@ -348,7 +358,7 @@ mod lexer_tests {
                     assert_eq!(
                         token
                             .as_ref()
-                            .map_err(|e| e.inner()[0].ty()),
+                            .map_err(|e| e.inner()[0].ty),
                         Err($err) as Result<&Token, DiagnosticType>
                     );
                 }

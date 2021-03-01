@@ -8,6 +8,22 @@ impl Span {
     pub fn new(s: usize, e: usize, source_id: SourceId) -> Self {
         Self(s, e, source_id)
     }
+
+    pub fn dummy() -> Self {
+        Self(0, 0, SourceId::dummy())
+    }
+
+    pub fn s(&self) -> usize {
+        self.0
+    }
+
+    pub fn e(&self) -> usize {
+        self.1
+    }
+
+    pub fn source_id(&self) -> SourceId {
+        self.2
+    }
 }
 
 #[cfg(test)]

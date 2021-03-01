@@ -1,3 +1,5 @@
+use std::fmt;
+
 use crate::common::Str;
 use crate::diagnostics::Span;
 
@@ -43,6 +45,8 @@ pub enum TokenKind {
 
     /// `:`
     Colon,
+    /// `::`
+    ColonColon,
     /// `=`
     Equals,
     /// `.`
@@ -76,4 +80,89 @@ pub enum TokenKind {
 
     /// End of file
     Eof,
+}
+
+macro_rules! get_token {
+    ($t: expr) => {
+        match $t {
+            Self::Integer(_) => "integer literal",
+            Self::Float(_) => "float literal",
+            Self::String(_) => "string literal",
+            Self::Ident(_) => "identifier",
+            Self::Symbol(_) => "operator",
+
+            Self::Let => "`let`",
+            Self::Return => "`return`",
+            Self::Import => "`import`",
+            Self::Record => "`rec`",
+            Self::Instance => "`inst`",
+            Self::Typeclass => "`class`",
+            Self::Function => "`fun`",
+
+            Self::Colon => "`:`",
+            Self::ColonColon => "`::`",
+            Self::Equals => "`=`",
+            Self::Dot => "`.`",
+            Self::Arrow => "`=>`",
+            Self::Pipe => "`|`",
+            Self::Underscore => "`_`",
+            Self::EqColon => "`=:`",
+            Self::DotDotDot => "`...`",
+            Self::LParen => "`(`",
+            Self::RParen => "`)`",
+            Self::LBracket => "`[`",
+            Self::RBracket => "`]`",
+            Self::LCurly => "`{`",
+            Self::RCurly => "`}`",
+
+            Self::Eof => "end of file",
+            Self::Break => "line break",
+        }
+    };
+}
+
+impl TokenKind {
+    pub fn display(&self) -> &'static str {
+        get_token!(self)
+    }
+
+    pub fn is_same_variant(&self, other: &Self) -> bool {
+        std::mem::discriminant(self) == std::mem::discriminant(other)
+    }
+}
+
+impl fmt::Display for TokenKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.display())
+    }
+}
+
+#[cfg(test)]
+mod token_tests {
+    use super::*;
+
+    #[test]
+    fn is_same_variant() {
+        assert!(TokenKind::Ident(Str::default()).is_same_variant(&TokenKind::Ident(Str::default())));
+        assert!(!TokenKind::Ident(Str::default()).is_same_variant(&TokenKind::ColonColon));
+    }
+
+    #[test]
+    fn token() {
+        assert_eq!(
+            Token::new(TokenKind::Let, Span::dummy()),
+            Token {
+                kind: TokenKind::Let,
+                span: Span::dummy()
+            }
+        );
+
+        assert_ne!(
+            Token::new(TokenKind::Let, Span::dummy()),
+            Token {
+                kind: TokenKind::Return,
+                span: Span::dummy()
+            }
+        );
+    }
 }

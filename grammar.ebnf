@@ -66,8 +66,8 @@ struct record = lcurly, {struct value, comma}, [struct value], rcurly ;
 struct value = ident, colon, expr ;
 
 (* Types *)
-type = ident | (ident, generic) | instance type | underscore ;
-instance type = inst, {ident, plus}, ident ;
+type = namespace | (namespace, generic) | instance type | underscore ;
+instance type = inst, {namespace, plus}, namespace ;
 generic = lbracket, {type, comma}, [type], rbracket ;
 
 (* Identifiers *)

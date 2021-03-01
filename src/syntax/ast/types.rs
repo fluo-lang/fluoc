@@ -1,13 +1,16 @@
 use super::{Expr, Name};
 
+#[derive(Debug)]
+#[cfg_attr(test, derive(PartialEq))]
 pub enum Type {
-    Primitive(Prim),
-    Ident(Name),
-    Tuple(Vec<Expr>),
+    Name(Name),
+    Tuple(Vec<Type>),
     Infer,
     Never,
 }
 
+#[derive(Debug)]
+#[cfg_attr(test, derive(PartialEq))]
 pub enum Prim {
     I64,
     I32,

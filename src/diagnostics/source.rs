@@ -31,6 +31,12 @@ impl Sources {
 #[derive(Hash, PartialEq, Eq, Debug, Clone, Copy)]
 pub struct SourceId(usize);
 
+impl SourceId {
+    pub fn dummy() -> Self {
+        Self(0)
+    }
+}
+
 #[cfg(test)]
 mod source_test {
     use super::*;
