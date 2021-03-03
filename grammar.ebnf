@@ -4,7 +4,7 @@ outer statement = record definition | function definition | import | typeclass d
 inner statement = return | expr statement ;
 
 (* Statements *)
-var def = let, ident, [colon, type], equals, expr, newline ;
+var def = let, expr, [colon, type], equals, expr, newline ;
 return statement = return, expr, newline ;
 expr statement = expr, newline ;
 import = import, namespace, newline ;

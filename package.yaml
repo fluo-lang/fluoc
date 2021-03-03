@@ -14,6 +14,9 @@ description:         Please see the README on GitHub at <https://github.com/fluo
 dependencies:
 - base >= 4.7 && < 5
 - optparse-applicative
+- text
+- containers
+- megaparsec
 
 library:
   source-dirs: src
@@ -39,3 +42,6 @@ tests:
     - -with-rtsopts=-N
     dependencies:
     - fluoc
+    - hspec
+    - hspec-discover
+    - QuickCheck

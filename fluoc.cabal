@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: ea0497fe55eb22be62eebfce91c629a667f5d3c64289870f72a7052caee65199
+-- hash: 0e6c07591785f30bee4a1506fda705d00a1578a20dac2c1dddea368725eccd85
 
 name:           fluoc
 version:        0.1.0.0
@@ -25,39 +25,56 @@ source-repository head
 
 library
   exposed-modules:
-      Pipeline
+      Diagnostics
+      Sources
+      Syntax.Ast
+      Syntax.Parser
   other-modules:
       Paths_fluoc
   hs-source-dirs:
       src
   build-depends:
       base >=4.7 && <5
+    , containers
+    , megaparsec
     , optparse-applicative
+    , text
   default-language: Haskell2010
 
 executable fluoc-exe
   main-is: Main.hs
   other-modules:
+      Pipeline
       Paths_fluoc
   hs-source-dirs:
       app
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
+    , containers
     , fluoc
+    , megaparsec
     , optparse-applicative
+    , text
   default-language: Haskell2010
 
 test-suite fluoc-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
+      Syntax.ParserSpec
       Paths_fluoc
   hs-source-dirs:
       test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      base >=4.7 && <5
+      QuickCheck
+    , base >=4.7 && <5
+    , containers
     , fluoc
+    , hspec
+    , hspec-discover
+    , megaparsec
     , optparse-applicative
+    , text
   default-language: Haskell2010

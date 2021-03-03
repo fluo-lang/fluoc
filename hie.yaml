@@ -1,2 +1,16 @@
 cradle:
   stack:
+    - path: "./src"
+      component: "fluoc:lib"
+
+    - path: "./app/Main.hs"
+      component: "fluoc:exe:fluoc-exe"
+
+    - path: "./app/Pipeline.hs"
+      component: "fluoc:lib"
+
+    - path: "./app/Paths_fluoc.hs"
+      component: "fluoc:exe:fluoc-exe"
+
+    - path: "./test"
+      component: "fluoc:test:fluoc-test"
