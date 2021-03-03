@@ -116,3 +116,27 @@ spec = do
       "test_keyword"
       (string "test_keyword")
       (("", mapSpan (+ 12) dummySpan), Right "test_keyword")
+
+  describe "Syntax.Parser.number" $ do
+    it "should parse the number"
+      $ testParser "123" number (("", mapSpan (+ 3) dummySpan), Right "123")
+    it "should fail if not a number" $ testParser
+      "abc"
+      number
+      ( ("abc", dummySpan)
+      , Left $ Diagnostics [syntaxErr dummySpan "unexpected character `a`"]
+      )
+
+  describe "Syntax.Parser.ident" $ do
+    it "should parse ident starting with `_`" $ testParser
+      "_a123"
+      ident
+      (("", mapSpan (+ 5) dummySpan), Right "_a123")
+    it "should parse ident starting with `a`"
+      $ testParser "a123" ident (("", mapSpan (+ 4) dummySpan), Right "a123")
+    it "should fail ident starting with `1`" $ testParser
+      "1a23"
+      ident
+      ( ("1a23", dummySpan)
+      , Left $ Diagnostics [syntaxErr dummySpan "unexpected character `1`"]
+      )

@@ -2,6 +2,7 @@
 module Syntax.Parser where
 
 import           Control.Applicative
+import           Data.Char
 
 import           Diagnostics
 import           Sources                        ( Span
@@ -100,6 +101,42 @@ oneOf cs = satisfy (`elem` cs)
 
 string :: String -> Parser String
 string = foldr (\c -> (<*>) ((:) <$> char c)) (pure [])
+
+asciiAlpha :: Parser Char
+asciiAlpha = satisfy (\a -> isAsciiUpper a || isAsciiLower a)
+
+asciiAlphaUnderscore :: Parser Char
+asciiAlphaUnderscore = asciiAlpha <|> char '_'
+
+asciiAlphaNumeric :: Parser Char
+asciiAlphaNumeric = asciiAlpha <|> satisfy isDigit
+
+number = someParser (satisfy isDigit)
+ident = (:) <$> asciiAlphaUnderscore <*> many asciiAlphaNumeric
+
+letTok = string "let"
+returnTok = string "return"
+importTok = string "import"
+recTok = string "rec"
+funTok = string "fun"
+instTok = string "inst"
+classTok = string "class"
+
+colon = char ':'
+equals = char '='
+dot = char '.'
+arrow = string "->"
+pipe = char '|'
+underscore = char '_'
+eqcolon = string "=:"
+dotdotdot = string "..."
+
+lbracket = char '['
+rbracket = char ']'
+lparen = char '('
+rparen = char ')'
+lcurly = char '{'
+rcurly = char '}'
 
 parse :: ()
 parse = ()
