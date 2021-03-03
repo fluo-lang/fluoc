@@ -5,18 +5,27 @@ import           Control.Applicative
 import           Data.Char
 
 import           Diagnostics
-import           Sources                        ( Span
-                                                , mapSpan
-                                                )
+import           Sources
 import           Syntax.Ast
 
+data SpanLimited = SpanLimited Int SourceId deriving (Show, Eq)
+
+toSpan :: SpanLimited -> Int -> Span
+toSpan (SpanLimited s id) len = Span s (s + len) id
+
+mapSpanLimited :: (Int -> Int) -> SpanLimited -> SpanLimited
+mapSpanLimited f (SpanLimited s id) = SpanLimited (f s) id
+
+dummySpanLimited :: SpanLimited
+dummySpanLimited = SpanLimited 0 (SourceId 0)
+
 -- The remaining string and span, not sure if "parser context" is the right word
-type ParserContext = (String, Span)
+type ParserContext = (String, SpanLimited)
 
 -- Return result of the parser
 type ParserReturn a = (ParserContext, Either Diagnostics a)
 
-type ParserFn a = String -> Span -> ParserReturn a
+type ParserFn a = String -> SpanLimited -> ParserReturn a
 
 -- A parser applicative and functor, "wrapper" around source stream, span, and result
 newtype Parser a = P { unP :: ParserFn a}
@@ -46,14 +55,14 @@ satisfy :: (Char -> Bool) -> Parser Char
 satisfy pred = P $ \stream span -> case stream of
   [] ->
     ( (stream, span)
-    , Left $ Diagnostics [syntaxErr span "unexpected end of file"]
+    , Left $ Diagnostics [syntaxErr (toSpan span 1) "unexpected end of file"]
     )
   x : xs -> if pred x
-    then ((xs, mapSpan (+ 1) span), Right x)
+    then ((xs, mapSpanLimited (+1) span), Right x)
     else
       ( (stream, span)
-      , Left
-        $ Diagnostics [syntaxErr span ("unexpected character `" ++ [x] ++ "`")]
+      , Left $ Diagnostics
+        [syntaxErr (toSpan span 1) ("unexpected character `" ++ [x] ++ "`")]
       )
 
 -- Try apply a parser, but backtrack if failed
@@ -96,17 +105,28 @@ instance Monad Parser where
   (>>=) (P a) fn = P $ \stream span -> case a stream span of
     (state           , Left e   ) -> (state, Left e)
     ((stream', span'), Right res) -> (dstrParser $ fn res) stream' span'
+  (>>) (P a) (P b) = P $ \stream span -> case a stream span of
+    (state           , Left e   ) -> (state, Left e)
+    ((stream', span'), Right res) -> b stream' span'
   return = pure
 
 instance Alternative Parser where
   empty = P $ \stream span ->
     ( (stream, span)
-    , Left $ Diagnostics [syntaxErr span "internal error: empty alternative"]
+    , Left $ Diagnostics
+      [syntaxErr (toSpan span 1) "internal error: empty alternative"]
     )
   (<|>) = orElse
 
   many  = manyParser
   some  = someParser
+
+getParserState :: Parser a -> Parser ParserContext
+getParserState (P fn) =
+  P $ \stream span -> let a = fst (fn stream span) in (a, Right a)
+
+getSpan :: Parser a -> Parser SpanLimited
+getSpan a = snd <$> getParserState a
 
 char :: Char -> Parser Char
 char c = satisfy (== c)
@@ -152,6 +172,11 @@ lparen = char '('
 rparen = char ')'
 lcurly = char '{'
 rcurly = char '}'
+
+-- parseFunc :: Parser Statement
+-- parseFunc = do
+--   funTok
+--   name <- ident
 
 parse :: ()
 parse = ()
