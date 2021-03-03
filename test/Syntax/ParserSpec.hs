@@ -10,6 +10,8 @@ import           Sources                        ( dummySpan
                                                 , mapSpan
                                                 )
 
+{-# ANN spec "HLint: ignore Use <$>" #-} 
+
 testParser
   :: (Show a, Eq a)
   => String
@@ -27,8 +29,28 @@ spec = do
       (("", mapSpan (+ 1) dummySpan), Right "ab")
     it "should apply properly" $ testParser
       "a"
-      (pure (\a -> a : ['b']) <*> (char 'a'))
+      (pure (\a -> a : ['b']) <*> char 'a')
       (("", mapSpan (+ 1) dummySpan), Right "ab")
+    it "should work monadically"
+      $ let combined = do
+              char <- many (oneOf ['a', 'b', 'c'])
+              num  <- number
+              return [char, num]
+        in  testParser "cabc10"
+                       combined
+                       (("", mapSpan (+ 6) dummySpan), Right ["cabc", "10"])
+    it "should all fail monadically if first bind fails"
+      $ let combined = do
+              char <- some (oneOf ['a', 'b', 'c'])
+              num  <- number
+              return [char, num]
+        in  testParser
+              "10cabc10"
+              combined
+              ( ("10cabc10", dummySpan)
+              , Left
+                $ Diagnostics [syntaxErr dummySpan "unexpected character `1`"]
+              )
 
   describe "Syntax.Parser.satisfy" $ do
     it "should give character on satisfy" $ testParser

@@ -13,8 +13,13 @@ import           Syntax.Ast
 -- The remaining string and span, not sure if "parser context" is the right word
 type ParserContext = (String, Span)
 
+-- Return result of the parser
+type ParserReturn a = (ParserContext, Either Diagnostics a)
+
+type ParserFn a = String -> Span -> ParserReturn a
+
 -- A parser applicative and functor, "wrapper" around source stream, span, and result
-newtype Parser a = P { unP :: String -> Span -> (ParserContext, Either Diagnostics a) }
+newtype Parser a = P { unP :: ParserFn a}
 
 -- Map value behind the parser
 instance Functor Parser where
@@ -82,6 +87,16 @@ someParser (P a) = P go where
       in  case manyP stream' span' of
             ((stream'', span''), Left e    ) -> ((stream, span), Left e)
             (state             , Right res') -> (state, Right (res : res'))
+
+-- Destructure a parser
+dstrParser :: Parser a -> ParserFn a
+dstrParser (P a) = a
+
+instance Monad Parser where
+  (>>=) (P a) fn = P $ \stream span -> case a stream span of
+    (state           , Left e   ) -> (state, Left e)
+    ((stream', span'), Right res) -> (dstrParser $ fn res) stream' span'
+  return = pure
 
 instance Alternative Parser where
   empty = P $ \stream span ->
