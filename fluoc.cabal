@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 0e6c07591785f30bee4a1506fda705d00a1578a20dac2c1dddea368725eccd85
+-- hash: ca14ce21a20bfc88d3f6b0f5f93bf6971cf8a4905391592f7318e40f4435d669
 
 name:           fluoc
 version:        0.1.0.0
@@ -36,7 +36,6 @@ library
   build-depends:
       base >=4.7 && <5
     , containers
-    , megaparsec
     , optparse-applicative
     , text
   default-language: Haskell2010
@@ -53,7 +52,6 @@ executable fluoc-exe
       base >=4.7 && <5
     , containers
     , fluoc
-    , megaparsec
     , optparse-applicative
     , text
   default-language: Haskell2010
@@ -74,7 +72,6 @@ test-suite fluoc-test
     , fluoc
     , hspec
     , hspec-discover
-    , megaparsec
     , optparse-applicative
     , text
   default-language: Haskell2010

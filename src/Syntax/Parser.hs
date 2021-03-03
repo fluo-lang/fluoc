@@ -25,7 +25,7 @@ instance Functor Parser where
 instance Applicative Parser where
   pure a = P $ \stream span -> ((stream, span), Right a)
   P fst <*> P snd = P $ \stream span -> case fst stream span of
-    (state, Left e ) -> (state, Left e)
+    (state           , Left e ) -> (state, Left e)
     ((stream', span'), Right f) -> case snd stream' span' of
       (state, Left e   ) -> (state, Left e)
       (state, Right res) -> (state, Right (f res))
@@ -39,11 +39,16 @@ syntaxErr span msg =
 satisfy :: (Char -> Bool) -> Parser Char
 satisfy pred = P $ \stream span -> case stream of
   [] ->
-    ((stream, span), Left $ Diagnostics [syntaxErr span "unexpected end of file"])
+    ( (stream, span)
+    , Left $ Diagnostics [syntaxErr span "unexpected end of file"]
+    )
   x : xs -> if pred x
     then ((xs, mapSpan (+ 1) span), Right x)
     else
-      ((stream, span), Left $ Diagnostics [syntaxErr span "unexpected character"])
+      ( (stream, span)
+      , Left
+        $ Diagnostics [syntaxErr span ("unexpected character `" ++ [x] ++ "`")]
+      )
 
 -- Try apply a parser, but backtrack if failed
 try :: Parser a -> Parser a
@@ -54,16 +59,16 @@ try (P a) = P $ \stream span -> case a stream span of
 -- Try to use `P a`, but if it fails return the result of `P b`
 orElse :: Parser a -> Parser a -> Parser a
 orElse (P a) (P b) = P $ \stream span -> case a stream span of
-  (_    , Left e   ) -> b stream span
-  (state, Right res) -> (state, Right res)
+  ((stream', span'), Left e   ) -> b stream' span'
+  (state           , Right res) -> (state, Right res)
 
 -- Parse 0 or more
 manyParser :: Parser a -> Parser [a]
 manyParser (P a) = P go where
   go stream span = case a stream span of
-    (_    , Left e   ) -> ((stream, span), Right [])
-    ((stream', span'), Right res) -> case go stream' span of
-      (_     , Left e    ) -> ((stream, span), Left e)
+    (_               , Left e   ) -> ((stream, span), Right [])
+    ((stream', span'), Right res) -> case go stream' span' of
+      (_    , Left e    ) -> ((stream, span), Left e)
       (state, Right res') -> (state, Right (res : res'))
 
 -- Parse 1 or more
@@ -74,14 +79,12 @@ someParser (P a) = P go where
     ((stream', span'), Right res) ->
       let (P manyP) = manyParser (P a)
       in  case manyP stream' span' of
-            ((stream'', span''), Left e) -> ((stream, span), Left e)
-            (state, Right res') ->
-              (state, Right (res : res'))
+            ((stream'', span''), Left e    ) -> ((stream, span), Left e)
+            (state             , Right res') -> (state, Right (res : res'))
 
 instance Alternative Parser where
   empty = P $ \stream span ->
-    ( (stream
-    , span)
+    ( (stream, span)
     , Left $ Diagnostics [syntaxErr span "internal error: empty alternative"]
     )
   (<|>) = orElse
@@ -95,8 +98,8 @@ char c = satisfy (== c)
 oneOf :: [Char] -> Parser Char
 oneOf cs = satisfy (`elem` cs)
 
-matchStr :: String -> Parser String
-matchStr = foldr (\ c -> (<*>) ((:) <$> char c)) (pure [])
+string :: String -> Parser String
+string = foldr (\c -> (<*>) ((:) <$> char c)) (pure [])
 
-parse :: Failable Block
+parse :: ()
 parse = ()
