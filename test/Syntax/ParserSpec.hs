@@ -166,13 +166,13 @@ spec = do
       "_a123"
       ident
       ( ("", mapSpanLimited (+ 5) dummySpanLimited)
-      , Right $ Ident ("_a123", Span 0 5 $ SourceId 0)
+      , Right $ Ident "_a123" (Span 0 5 $ SourceId 0)
       )
     it "should parse ident starting with `a`" $ testParser
       "a123"
       ident
       ( ("", mapSpanLimited (+ 4) dummySpanLimited)
-      , Right $ Ident ("a123", Span 0 4 $ SourceId 0)
+      , Right $ Ident "a123" (Span 0 4 $ SourceId 0)
       )
     it "should fail ident starting with `1`" $ testParser
       "1a23"

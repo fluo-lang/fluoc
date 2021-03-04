@@ -2,8 +2,8 @@ module Syntax.Ast where
 
 import           Sources
 
-newtype Ident = Ident (String, Span) deriving (Eq, Show)
-newtype Namespace = Namespace ([Ident], Span) deriving (Eq, Show)
+data Ident = Ident String Span deriving (Eq, Show)
+data Namespace = Namespace [Ident] Span deriving (Eq, Show)
 
 newtype Block = Block [Statement] deriving (Eq, Show)
 

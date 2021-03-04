@@ -125,6 +125,15 @@ instance Alternative Parser where
   many  = manyParser
   some  = someParser
 
+combine, (<||>) :: Parser a -> Parser b -> Parser b
+combine (P a) (P b) = P $ \stream span -> case a stream span of
+  (state           , Left e   ) -> (state, Left e)
+  ((stream', span'), Right res) -> case b stream' span' of
+    (state, Left e    ) -> (state, Left e)
+    (state, Right res') -> (state, Right res')
+
+(<||>) = combine
+
 getParserState :: Parser a -> Parser ParserContext
 getParserState (P fn) =
   P $ \stream span -> let a = fst (fn stream span) in (a, Right a)
@@ -134,6 +143,12 @@ getSpan = snd <$> getParserState (pure ())
 
 getSpan' :: Parser a -> Parser SpanLimited
 getSpan' a = snd <$> getParserState a
+
+withSpan :: Parser (Span -> a) -> Parser a
+withSpan p = do
+  span <- getSpan
+  val  <- p
+  val . toSpanSE span <$> getSpan
 
 char :: Char -> Parser Char
 char c = satisfy (== c)
@@ -156,28 +171,17 @@ asciiAlphaNumeric = asciiAlpha <|> satisfy isDigit
 number = someParser (satisfy isDigit)
 
 ident :: Parser Ident
-ident = do
+ident = withSpan $ do
   span   <- getSpan
   ident' <- (:) <$> asciiAlphaUnderscore <*> many asciiAlphaNumeric
   span'  <- getSpan
-  return $ Ident (ident', toSpanSE span span')
-
-combine, (<||>) :: Parser a -> Parser b -> Parser b
-combine (P a) (P b) = P $ \stream span -> case a stream span of
-  (state           , Left e   ) -> (state, Left e)
-  ((stream', span'), Right res) -> case b stream' span' of
-    (state, Left e    ) -> (state, Left e)
-    (state, Right res') -> (state, Right res')
-
-(<||>) = combine
+  return $ Ident ident'
 
 namespace :: Parser Namespace
-namespace = do
-  span   <- getSpan
+namespace = withSpan $ do
   ident' <- ident
   others <- many (dot <||> ident)
-  span'  <- getSpan
-  return $ Namespace (ident' : others, toSpanSE span span')
+  return $ Namespace (ident' : others)
 
 optional :: Parser a -> Parser (Maybe a)
 optional (P fn) = P $ \stream span ->
