@@ -5,6 +5,7 @@ import           Test.Hspec
 import           Test.QuickCheck
 import           Control.Exception              ( evaluate )
 import           Syntax.Parser
+import           Syntax.Ast
 import           Diagnostics
 import           Sources
 
@@ -56,7 +57,7 @@ spec = do
   describe "Syntax.Parser.getSpan" $ do
     it "should return the span" $ testParser
       "abc1"
-      (getSpan ident)
+      (getSpan' ident)
       ( ("", mapSpanLimited (+ 4) dummySpanLimited)
       , Right $ SpanLimited 4 (SourceId 0)
       )
@@ -164,11 +165,15 @@ spec = do
     it "should parse ident starting with `_`" $ testParser
       "_a123"
       ident
-      (("", mapSpanLimited (+ 5) dummySpanLimited), Right "_a123")
+      ( ("", mapSpanLimited (+ 5) dummySpanLimited)
+      , Right $ Ident ("_a123", Span 0 5 $ SourceId 0)
+      )
     it "should parse ident starting with `a`" $ testParser
       "a123"
       ident
-      (("", mapSpanLimited (+ 4) dummySpanLimited), Right "a123")
+      ( ("", mapSpanLimited (+ 4) dummySpanLimited)
+      , Right $ Ident ("a123", Span 0 4 $ SourceId 0)
+      )
     it "should fail ident starting with `1`" $ testParser
       "1a23"
       ident

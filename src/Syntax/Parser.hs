@@ -8,10 +8,14 @@ import           Diagnostics
 import           Sources
 import           Syntax.Ast
 
-data SpanLimited = SpanLimited Int SourceId deriving (Show, Eq)
+data SpanLimited = SpanLimited Int SourceId
+  deriving (Show, Eq)
 
 toSpan :: SpanLimited -> Int -> Span
 toSpan (SpanLimited s id) len = Span s (s + len) id
+
+toSpanSE :: SpanLimited -> SpanLimited -> Span
+toSpanSE (SpanLimited s _) (SpanLimited e id) = Span s e id
 
 mapSpanLimited :: (Int -> Int) -> SpanLimited -> SpanLimited
 mapSpanLimited f (SpanLimited s id) = SpanLimited (f s) id
@@ -58,7 +62,7 @@ satisfy pred = P $ \stream span -> case stream of
     , Left $ Diagnostics [syntaxErr (toSpan span 1) "unexpected end of file"]
     )
   x : xs -> if pred x
-    then ((xs, mapSpanLimited (+1) span), Right x)
+    then ((xs, mapSpanLimited (+ 1) span), Right x)
     else
       ( (stream, span)
       , Left $ Diagnostics
@@ -125,8 +129,11 @@ getParserState :: Parser a -> Parser ParserContext
 getParserState (P fn) =
   P $ \stream span -> let a = fst (fn stream span) in (a, Right a)
 
-getSpan :: Parser a -> Parser SpanLimited
-getSpan a = snd <$> getParserState a
+getSpan :: Parser SpanLimited
+getSpan = snd <$> getParserState (pure ())
+
+getSpan' :: Parser a -> Parser SpanLimited
+getSpan' a = snd <$> getParserState a
 
 char :: Char -> Parser Char
 char c = satisfy (== c)
@@ -147,7 +154,37 @@ asciiAlphaNumeric :: Parser Char
 asciiAlphaNumeric = asciiAlpha <|> satisfy isDigit
 
 number = someParser (satisfy isDigit)
-ident = (:) <$> asciiAlphaUnderscore <*> many asciiAlphaNumeric
+
+ident :: Parser Ident
+ident = do
+  span   <- getSpan
+  ident' <- (:) <$> asciiAlphaUnderscore <*> many asciiAlphaNumeric
+  span'  <- getSpan
+  return $ Ident (ident', toSpanSE span span')
+
+combine, (<||>) :: Parser a -> Parser b -> Parser b
+combine (P a) (P b) = P $ \stream span -> case a stream span of
+  (state           , Left e   ) -> (state, Left e)
+  ((stream', span'), Right res) -> case b stream' span' of
+    (state, Left e    ) -> (state, Left e)
+    (state, Right res') -> (state, Right res')
+
+(<||>) = combine
+
+namespace :: Parser Namespace
+namespace = do
+  span   <- getSpan
+  ident' <- ident
+  others <- many (dot <||> ident)
+  span'  <- getSpan
+  return $ Namespace (ident' : others, toSpanSE span span')
+
+optional :: Parser a -> Parser (Maybe a)
+optional (P fn) = P $ \stream span ->
+  let (state, res) = fn stream span
+      right (Right a) = Just a
+      right (Left  _) = Nothing
+  in  (state, Right (right res))
 
 letTok = string "let"
 returnTok = string "return"
@@ -173,10 +210,24 @@ rparen = char ')'
 lcurly = char '{'
 rcurly = char '}'
 
--- parseFunc :: Parser Statement
--- parseFunc = do
---   funTok
---   name <- ident
+parseInfer :: Parser Type
+parseInfer = Infer <$ underscore
+
+parseNamespaceType :: Parser Type
+parseNamespaceType = NamespaceType <$> namespace
+
+parseType :: Parser Type
+parseType = parseInfer <|> parseNamespaceType
+
+parseFunc :: Parser Statement
+parseFunc = do
+  name  <- ident
+  type' <- parseType
+  return $ FunDecl name
+                   (Arguments (([], []), dummySpan))
+                   type'
+                   (Block [])
+                   dummySpan
 
 parse :: ()
 parse = ()
