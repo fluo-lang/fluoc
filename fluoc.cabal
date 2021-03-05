@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: ca14ce21a20bfc88d3f6b0f5f93bf6971cf8a4905391592f7318e40f4435d669
+-- hash: 5633fee760aba4e01833ae52903f88077e82a588e2058da896777a2b7288c0aa
 
 name:           fluoc
 version:        0.1.0.0
@@ -14,7 +14,7 @@ bug-reports:    https://github.com/githubuser/fluoc/issues
 author:         Jonathan Li
 maintainer:     30177086+MonliH@users.noreply.github.com
 copyright:      2021 Jonathan Li
-license:        AGPL3
+license:        AGPL-3
 build-type:     Simple
 extra-source-files:
     readme.md

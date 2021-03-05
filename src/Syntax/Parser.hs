@@ -1,12 +1,26 @@
 {-# LANGUAGE TupleSections #-}
 module Syntax.Parser where
 
-import           Control.Applicative
-import           Data.Char
+import Control.Applicative ( Alternative(..), optional )
+import Data.Char ( isDigit, isAsciiLower, isAsciiUpper )
+import           Data.Maybe                     ( fromMaybe )
+import           Data.Tuple                     ( swap )
 
-import           Diagnostics
-import           Sources
-import           Syntax.Ast
+import Diagnostics
+    ( Diagnostics(..),
+      Diagnostic(Diagnostic),
+      Annotation(Annotation),
+      DiagnosticKind(SyntaxError),
+      DiagnosticType(Error) )
+import Sources ( SourceId(..), Span(..), dummySpan )
+import Syntax.Ast
+    ( Expr(Number),
+      Type(Infer, NamespaceType),
+      Arguments(..),
+      Statement(FunDecl),
+      Block(Block),
+      Namespace(..),
+      Ident(..) )
 
 data SpanLimited = SpanLimited Int SourceId
   deriving (Show, Eq)
@@ -138,6 +152,14 @@ getParserState :: Parser a -> Parser ParserContext
 getParserState (P fn) =
   P $ \stream span -> let a = fst (fn stream span) in (a, Right a)
 
+maybeAnd :: Parser (Maybe a) -> Parser [a] -> Parser [a]
+maybeAnd (P a) (P b) = P $ \stream span -> case a stream span of
+  (state           , Left e        ) -> (state, Left e)
+  (state           , Right Nothing ) -> (state, Right [])
+  ((stream', span'), Right (Just x)) -> case b stream' span' of
+    (state, Left e  ) -> (state, Left e)
+    (state, Right xs) -> (state, Right (x : xs))
+
 getSpan :: Parser SpanLimited
 getSpan = snd <$> getParserState (pure ())
 
@@ -183,13 +205,6 @@ namespace = withSpan $ do
   others <- many (dot <||> ident)
   return $ Namespace (ident' : others)
 
-optional :: Parser a -> Parser (Maybe a)
-optional (P fn) = P $ \stream span ->
-  let (state, res) = fn stream span
-      right (Right a) = Just a
-      right (Left  _) = Nothing
-  in  (state, Right (right res))
-
 letTok = string "let"
 returnTok = string "return"
 importTok = string "import"
@@ -199,6 +214,7 @@ instTok = string "inst"
 classTok = string "class"
 
 colon = char ':'
+comma = char ','
 equals = char '='
 dot = char '.'
 arrow = string "->"
@@ -214,24 +230,56 @@ rparen = char ')'
 lcurly = char '{'
 rcurly = char '}'
 
-parseInfer :: Parser Type
-parseInfer = Infer <$ underscore
+infer :: Parser Type
+infer = Infer <$ underscore
 
-parseNamespaceType :: Parser Type
-parseNamespaceType = NamespaceType <$> namespace
+namespaceTy :: Parser Type
+namespaceTy = NamespaceType <$> namespace
 
-parseType :: Parser Type
-parseType = parseInfer <|> parseNamespaceType
+ty :: Parser Type
+ty = infer <|> namespaceTy
+
+positionalArgument :: Parser (Ident, Type)
+positionalArgument =
+  (,) <$> ident <*> (fromMaybe Infer <$> optional (colon <||> ty))
+
+positionalArguments :: Parser [(Ident, Type)]
+positionalArguments =
+  maybeAnd (optional positionalArgument) (many (comma <||> positionalArgument))
+
+mergeTuples :: a -> (b, c) -> (a, b, c)
+mergeTuples a (b, c) = (a, b, c)
+
+expr :: Parser Expr
+expr = pure $ Number "10" dummySpan
+
+keywordArguments :: Parser [(Ident, Type, Maybe Expr)]
+keywordArguments =
+  many
+    $   mergeTuples
+    <$> ident
+    <*> (   ((, Nothing) <$> (eqcolon <||> ty))
+        <|> ((Infer, ) <$> (Just <$> equals <||> expr))
+        <|> (   swap
+            <$> ((,) <$> (Just <$> (equals <||> expr)) <*> (colon <||> ty))
+            )
+        )
+
+varargs :: Parser (Ident, Type)
+varargs = dotdotdot <||> ((,) <$> ident <*> (colon <||> ty))
+
+arguments :: Parser Arguments
+arguments =
+  withSpan $ Arguments <$> positionalArguments <*> keywordArguments <*> varargs
 
 parseFunc :: Parser Statement
 parseFunc = do
-  name  <- ident
-  type' <- parseType
-  return $ FunDecl name
-                   (Arguments (([], []), dummySpan))
-                   type'
-                   (Block [])
-                   dummySpan
+  name <- ident
+  lparen
+  args <- arguments
+  rparen
+  type' <- ty
+  return $ FunDecl name args type' (Block []) dummySpan
 
 parse :: ()
 parse = ()

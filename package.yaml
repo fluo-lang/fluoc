@@ -1,7 +1,7 @@
 name:                fluoc
 version:             0.1.0.0
 github:              "githubuser/fluoc"
-license:             AGPL3
+license:             AGPL-3
 author:              "Jonathan Li"
 maintainer:          "30177086+MonliH@users.noreply.github.com"
 copyright:           "2021 Jonathan Li"

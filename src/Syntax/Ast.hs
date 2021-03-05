@@ -2,20 +2,21 @@ module Syntax.Ast where
 
 import           Sources
 
-data Ident = Ident String Span deriving (Eq, Show)
-data Namespace = Namespace [Ident] Span deriving (Eq, Show)
+data Ident = Ident String Span
+  deriving (Eq, Show)
+data Namespace = Namespace [Ident] Span
+  deriving (Eq, Show)
 
 newtype Block = Block [Statement] deriving (Eq, Show)
 
 data Statement = FunDecl Ident Arguments Type Block Span
                | VarDecl Expr Expr Type Span deriving (Eq, Show)
 
-newtype Arguments = Arguments
-                      (
-                        ([(Ident, Type)],
-                        [(Ident, Type, Maybe Expr)]),
-                        Span
-                      ) deriving (Eq, Show)
+data Arguments = Arguments [(Ident, Type)]
+                           [(Ident, Type, Maybe Expr)]
+                           (Ident, Type)
+                           Span
+  deriving (Eq, Show)
 
 data Type = Infer | Never | NamespaceType Namespace deriving (Eq, Show)
 
