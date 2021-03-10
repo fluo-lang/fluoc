@@ -1,7 +1,0 @@
-# STDOUT == 10\n
-# DESCRIPTION == Print stored variables
-
-fun entry () {
-    let value = 10
-    print(value)?
-}

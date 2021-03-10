@@ -1,6 +1,0 @@
-# ERROR == COMPILER_ERROR
-# DESCRIPTION == Called function does not exist
-
-fun entry () {
-    print(non_exsistent_function_lalalala())
-}

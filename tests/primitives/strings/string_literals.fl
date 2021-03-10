@@ -1,8 +1,0 @@
-# STDOUT == hello\nhello \n
-# DESCRIPTION == String literals
-
-fun entry() {
-    print("hello");
-    print(@"hello 
-"@);
-}
