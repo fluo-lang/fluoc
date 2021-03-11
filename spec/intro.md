@@ -55,5 +55,42 @@ let uhOh: val = match val {
 
 Sum data types (i.e., algebraic data types):
 ```python
-rec Option a = Some a | None;
+rec Option : a = Some a | None
+
+# The type is `Point`, but to init it would be `Point2D 0 0`
+rec Point = Point2D {
+  dec x : Int
+  dec y : Int
+}
+```
+
+Traits:
+```python
+# Value "stored" in partially applied function
+dec const : a -> b -> a
+let const : a _ = a
+
+# Haskell-like Functors example
+trait Functor : f {
+  dec fmap : (a -> b) -> f a -> f b
+  dec (<$) : b -> f a -> f b
+
+  # Defualt implementation
+  let (<$) : d v = fmap (const d) v
+}
+
+# Implement for option
+impl Functor (Option t) {
+  let fmap : f (Some a) = Some (f a)
+  let fmap : _ None = None
+
+  # Override the default implementation (equivalent)
+  let (<$) : b _ = Some b
+}
+
+# Implement for list
+impl Functor (List t) {
+  let fmap : f [x:xs] = [(f x): (fmap f xs)]
+  let fmap : _ [] = []
+}
 ```
