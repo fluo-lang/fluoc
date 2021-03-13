@@ -17,10 +17,10 @@ Functions can do pattern matches (must be exaustive):
 
 ```python
 # Define our own map function
-dec map: (a -> b) -> List a -> List b
+dec map : (a -> b) -> List a -> List b
 
-let map: f [] = []
-let map: f [x:xs] = [(f x) : (map f xs)]
+let map : f [] = []
+let map : f [x:xs] = [(f x) : (map f xs)]
 
 # Define a "default" if None function
 dec default: a -> Option a -> a
@@ -67,6 +67,7 @@ rec Point = Point2D {
 Traits:
 ```python
 # Value "stored" in partially applied function
+# note, const is just the name of the function, not a special keyword
 dec const : a -> b -> a
 let const : a _ = a
 
@@ -103,4 +104,23 @@ let add : x y = x + y
 let add5 : other = add 5
 # Has signature `Int`
 let seven = add5 2
+```
+
+Conditionals:
+```python
+dec greaterThan5 : Int -> Int
+let greaterThan5 : x = if x > 5 {
+                           10
+                       } else if x > 3 {
+                           5
+                       } else {
+                           x
+                       }
+```
+
+Let-in (local binding):
+```python
+let complicatedFunction : x = let z = 10
+                                  y = x * 2
+                              in z + y
 ```
