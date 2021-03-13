@@ -94,3 +94,13 @@ impl Functor (List t) {
   let fmap : _ [] = []
 }
 ```
+
+Currying:
+```python
+# Has signature `Int -> Int -> Int`
+let add : x y = x + y
+# Has signature `Int -> Int`
+let add5 : other = add 5
+# Has signature `Int`
+let seven = add5 2
+```
