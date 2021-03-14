@@ -25,35 +25,35 @@ spec = do
       )
     it "should parse a namespace with more than one item" $ testParser
       [ T.Token (T.Ident "a123") (Span (SourceId 0) 0 4)
-      , T.Token T.Dot (Span (SourceId 0) 4 5)
-      , T.Token (T.Ident "ba") (Span (SourceId 0) 5 7)
+      , T.Token (T.Operator "::") (Span (SourceId 0) 4 6)
+      , T.Token (T.Ident "ba") (Span (SourceId 0) 6 8)
       ]
       namespace
-      ( ([], mapSpanLimited (+ 7) dummySpanLimited)
+      ( ([], mapSpanLimited (+ 8) dummySpanLimited)
       , Right $ Namespace
         [ Ident "a123" (Span (SourceId 0) 0 4)
-        , Ident "ba"   (Span (SourceId 0) 5 7)
+        , Ident "ba"   (Span (SourceId 0) 6 8)
         ]
-        (Span (SourceId 0) 0 7)
+        (Span (SourceId 0) 0 8)
       )
-    it "should error if starting with dot" $ testParser
-      [ T.Token T.Dot (Span (SourceId 0) 0 1)
-      , T.Token (T.Ident "ba") (Span (SourceId 0) 1 2)
+    it "should error if starting with colon colon" $ testParser
+      [ T.Token (T.Operator "::") (Span (SourceId 0) 0 2)
+      , T.Token (T.Ident "ba") (Span (SourceId 0) 2 4)
       ]
       namespace
-      ( ( [ T.Token T.Dot (Span (SourceId 0) 0 1)
-          , T.Token (T.Ident "ba") (Span (SourceId 0) 1 2)
+      ( ( [ T.Token (T.Operator "::") (Span (SourceId 0) 0 2)
+          , T.Token (T.Ident "ba") (Span (SourceId 0) 2 4)
           ]
         , dummySpanLimited
         )
-      , Left $ Diagnostics [syntaxErr dummySpan "unexpected token `.`"]
+      , Left $ Diagnostics [syntaxErr dummySpan "unexpected operator `::`"]
       )
-    it "shouldn't error if ending with dot" $ testParser
+    it "shouldn't error if ending with colon colon" $ testParser
       [ T.Token (T.Ident "ba") (Span (SourceId 0) 0 2)
-      , T.Token T.Dot (Span (SourceId 0) 2 3)
+      , T.Token (T.Operator "::") (Span (SourceId 0) 2 4)
       ]
       namespace
-      ( ( [T.Token T.Dot (Span (SourceId 0) 2 3)]
+      ( ( [T.Token (T.Operator "::") (Span (SourceId 0) 2 4)]
         , mapSpanLimited (+ 2) dummySpanLimited
         )
       , Right

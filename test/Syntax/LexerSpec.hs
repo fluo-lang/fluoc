@@ -9,7 +9,6 @@ import           Test.Hspec                     ( describe
 import           Syntax.Lexer
 import           Syntax.ParserGeneric
 import           Syntax.Token
-import           Syntax.ParserGenericSpec
 import           Sources
 import           Diagnostics
 import           TestUtil
@@ -34,4 +33,31 @@ spec = do
       ident
       ( ("1a23", dummySpanLimited)
       , Left $ Diagnostics [syntaxErr dummySpan "unexpected character `1`"]
+      )
+  describe "Syntax.Lexer.number" $ do
+    it "should lex the number" $ testParser
+      "123"
+      number
+      ( ("", mapSpanLimited (+ 3) dummySpanLimited)
+      , Right (Token (Number "123") (Span (SourceId 0) 0 3))
+      )
+    it "should fail if not a number" $ testParser
+      "abc"
+      number
+      ( ("abc", dummySpanLimited)
+      , Left $ Diagnostics [syntaxErr dummySpan "unexpected character `a`"]
+      )
+  describe "Syntax.Lexer.singeLineComment" $ do
+    it "should eat up the comment" $ testParser
+      "# test asd128e9qdjad\n10"
+      singeLineComment
+      ( ("10", mapSpanLimited (+ 21) dummySpanLimited)
+      , Right " test asd128e9qdjad"
+      )
+  describe "Syntax.Lexer.multiLineComment" $ do
+    it "should eat up the comment" $ testParser
+      "/#\nhello\nworld\nhuh123! \n\n#/10"
+      multiLineComment
+      ( ("10", mapSpanLimited (+ 27) dummySpanLimited)
+      , Right "\nhello\nworld\nhuh123! \n\n"
       )

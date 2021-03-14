@@ -28,16 +28,13 @@ data TokenRaw = Ident String
            | Impl
            | Trait
            | Dec
+           | In
+           | If
+           | Else
+           | Match
 
-           | Colon
-           | Comma
-           | Equals
-           | Dot
-           | Arrow
-           | Pipe
-           | Underscore
-           | EqColon
-           | DotDotDot
+           | DoubleQoute
+           | SingleQoute
 
            | LBracket
            | RBracket
@@ -52,38 +49,35 @@ instance Display TokenRaw where
 
 instance Show TokenRaw where
   show tok = case tok of
-    Ident    _ -> "identifier"
-    Str      _ -> "string"
-    Number   _ -> "number"
-    Operator _ -> "operator"
+    Ident    val -> "identifier `" ++ val ++ "`"
+    Str      val -> "string `" ++ val ++ "`"
+    Number   val -> "number `" ++ val ++ "`"
+    Operator val -> "operator `" ++ val ++ "`"
 
     _ ->
       "token `"
         ++ (case tok of
-             Let        -> "let"
-             Return     -> "return"
-             Import     -> "import"
-             Rec        -> "rec"
-             Impl       -> "impl"
-             Trait      -> "trait"
-             Dec        -> "dec"
+             Let         -> "let"
+             Return      -> "return"
+             Import      -> "import"
+             Rec         -> "rec"
+             Impl        -> "impl"
+             Trait       -> "trait"
+             Dec         -> "dec"
+             In          -> "in"
+             If          -> "if"
+             Else        -> "else"
+             Match       -> "match"
 
-             Colon      -> ":"
-             Comma      -> ","
-             Equals     -> "="
-             Dot        -> "."
-             Arrow      -> "->"
-             Pipe       -> "|"
-             Underscore -> "_"
-             EqColon    -> "=:"
-             DotDotDot  -> "..."
+             DoubleQoute -> "\""
+             SingleQoute -> "'"
 
-             LBracket   -> "["
-             RBracket   -> "]"
-             LParen     -> "("
-             RParen     -> ")"
-             LCurly     -> "{"
-             RCurly     -> "}"
+             LBracket    -> "["
+             RBracket    -> "]"
+             LParen      -> "("
+             RParen      -> ")"
+             LCurly      -> "{"
+             RCurly      -> "}"
            )
         ++ "`"
 

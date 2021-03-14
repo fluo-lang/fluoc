@@ -8,8 +8,13 @@ For now, this document will mostly be for examples, though later I will expand i
 # Create an identity function
 let ident: a = a
 
+/# 
+    A multiline comment
+#/
+
 # or more explicitly,
-dec ident: a -> a
+# 'type is a polymorphic type
+dec ident: 'a -> 'a
 let ident: a = a
 ```
 
@@ -17,13 +22,13 @@ Functions can do pattern matches (must be exaustive):
 
 ```python
 # Define our own map function
-dec map : (a -> b) -> List a -> List b
+dec map : ('a -> 'b) -> List 'a -> List 'b
 
 let map : f [] = []
 let map : f [x:xs] = [(f x) : (map f xs)]
 
 # Define a "default" if None function
-dec default: a -> Option a -> a
+dec default: 'a -> Option 'a -> 'a
 
 # an `_` throws away the value
 let default: _ (Some val) = val  # use value in `Some`
@@ -39,7 +44,7 @@ Pattern matching:
 
 ```python
 # Equivalent to the example above, but with pattern matching in the function body
-dec default: a -> Option a -> a
+dec default: 'a -> Option 'a -> 'a
 let default: d val = match val {
   Some v -> v
   None -> d
@@ -68,13 +73,13 @@ Traits:
 ```python
 # Value "stored" in partially applied function
 # note, const is just the name of the function, not a special keyword
-dec const : a -> b -> a
+dec const : 'a -> 'b -> 'a
 let const : a _ = a
 
 # Haskell-like Functors example
 trait Functor : f {
-  dec fmap : (a -> b) -> f a -> f b
-  dec (<$) : b -> f a -> f b
+  dec fmap : ('a -> 'b) -> f 'a -> f 'b
+  dec (<$) : b -> f 'a -> f 'b
 
   # Defualt implementation
   let (<$) : d v = fmap (const d) v

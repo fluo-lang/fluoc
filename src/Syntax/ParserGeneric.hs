@@ -84,7 +84,7 @@ satisfy :: (SatisfyParser s) => (s -> Bool) -> Parser s s
 satisfy pred = P $ \stream span -> case stream of
   [] ->
     ( (stream, span)
-    , Left $ Diagnostics [syntaxErr (toSpan span 1) "unexpected end of file (EOF)"]
+    , Left $ Diagnostics [syntaxErr (toSpan span 1) "unexpected end of file"]
     )
   x : xs -> if pred x
     then ((xs, changeSpan span x), Right x)
@@ -114,6 +114,19 @@ manyParser (P a) = P go where
     ((stream', span'), Right res) -> case go stream' span' of
       (_    , Left e    ) -> ((stream, span), Left e)
       (state, Right res') -> (state, Right (res : res'))
+
+-- Parse 0 or more untill something
+manyUntil :: (Display s) => Parser s a -> Parser s b -> Parser s [a]
+manyUntil p end = scan
+ where
+  scan =
+    do
+      _ <- end
+      return []
+    <|> do
+          x <- p
+          xs <- scan
+          return (x:xs)
 
 -- Parse 1 or more
 someParser :: (Display s) => Parser s a -> Parser s [a]

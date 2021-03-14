@@ -1,7 +1,7 @@
 program = { statement } ;
 
 (* Statements *)
-statement = declaration | definition | implementation | trait def | record ;
+statement = declaration | definition | implementation | trait def | record | import ;
 
 record = "rec", ident, [colon, {ident, space}, [ident]], {record item, "|"}, [record item] ;
 record item = ident, "{", {declaration}, "}" | type;
@@ -15,7 +15,7 @@ trait def = "trait", ident, ":", {ident, space}, [ident], "{", { declaration | d
 implementation = "impl", ident, type, "{", { definition }, "}";
 
 (* Expressions *)
-expr = literal | tuple | macro | match | if | let in | namespace | function application ;
+expr = literal | tuple | macro | match | if | let in | namespace | function application | expr, operator, expr;
 
 function application = expr, {expr, space}, [expr];
 
@@ -35,20 +35,21 @@ pattern = tuple match | ident | "(", ident, [{ident}], ")" | "_" | literal | "["
 tuple match = "(", { pattern, "," }, [pattern], ")" ;
 
 (* Types *)
-type = "_" | namespace | namespace {type, space}, [type] | "(", type, ")";
+type = "_" | namespace | namespace {type, space}, [type] | "(", type, ")" | "'", ident;
 
 (* Identifiers *)
 name = ident | "(", symbol, ")" ;
 ident = (letter | underscore), {digit | letter | special} ;
 special = "'" | "_" | "?" ;
-namespace = ident, [{dot ident}] ;
+namespace = ident, [{"::", ident}] ;
 
 (* Literals *)
 literal = float | number | string | "[", "]";
 number = { digit }- ;
 float = { digit }-, dot, { digit }- ;
 op = { symbol }- ;
-string = '"', all characters, '"';
+string = '"', {all characters}, '"';
+cha = "'", all characters, "'";
 all characters = ? all characters ? ;
 
 break = newline | ";" ;

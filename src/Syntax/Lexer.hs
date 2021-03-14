@@ -9,6 +9,8 @@ import           Data.Char                      ( isDigit
                                                 , isAsciiLower
                                                 , isAsciiUpper
                                                 )
+import           Diagnostics                    ( Diagnostics )
+
 asciiAlpha :: StringParser Char
 asciiAlpha = satisfy (\a -> isAsciiUpper a || isAsciiLower a)
 
@@ -18,14 +20,19 @@ asciiAlphaUnderscore = asciiAlpha <|> match '_'
 asciiAlphaNumeric :: StringParser Char
 asciiAlphaNumeric = asciiAlpha <|> satisfy isDigit
 
-number = someParser (satisfy isDigit)
+number :: StringParser Token
+number = withSpan $ Token . Number <$> someParser (satisfy isDigit)
+
+operator :: StringParser Token
+operator =
+  withSpan $ Token . Operator <$> someParser (oneOf "+*-/<>|:$^@!~%&.,:=")
 
 ident :: StringParser Token
-ident = withSpan $ do
-  span   <- getSpan
-  ident' <- (:) <$> asciiAlphaUnderscore <*> many asciiAlphaNumeric
-  span'  <- getSpan
-  return $ Token $ Ident ident'
+ident =
+  withSpan
+    $   Token
+    .   Ident
+    <$> ((:) <$> asciiAlphaUnderscore <*> many asciiAlphaNumeric)
 
 spannedConst :: StringParser a -> (Span -> Token) -> StringParser Token
 spannedConst s t = withSpan $ do
@@ -39,16 +46,12 @@ importTok = spannedConst (string "import") (Token Import)
 recTok = spannedConst (string "rec") (Token Return)
 traitTok = spannedConst (string "trait") (Token Trait)
 implTok = spannedConst (string "impl") (Token Impl)
+ifTok = spannedConst (string "if") (Token If)
+elseTok = spannedConst (string "else") (Token Else)
+matchTok = spannedConst (string "match") (Token Match)
 
-colon = spannedConst (match ':') (Token Colon)
-comma = spannedConst (match ',') (Token Comma)
-equals = spannedConst (match '=') (Token Equals)
-dot = spannedConst (match '.') (Token Dot)
-arrow = spannedConst (string "->") (Token Arrow)
-pipe = spannedConst (match '|') (Token Pipe)
-underscore = spannedConst (match '_') (Token Underscore)
-eqcolon = spannedConst (string "=:") (Token EqColon)
-dotdotdot = spannedConst (string "...") (Token DotDotDot)
+doubleQoute = spannedConst (match '"') (Token DoubleQoute)
+singleQoute = spannedConst (match '\'') (Token SingleQoute)
 
 lbracket = spannedConst (match '[') (Token LBracket)
 rbracket = spannedConst (match ']') (Token RBracket)
@@ -56,3 +59,46 @@ lparen = spannedConst (match '(') (Token LParen)
 rparen = spannedConst (match ')') (Token RParen)
 lcurly = spannedConst (match '{') (Token LCurly)
 rcurly = spannedConst (match '}') (Token RCurly)
+
+anyToken :: StringParser Token
+anyToken =
+  letTok
+    <|> decTok
+    <|> returnTok
+    <|> importTok
+    <|> recTok
+    <|> traitTok
+    <|> implTok
+    <|> ifTok
+    <|> elseTok
+    <|> matchTok
+    <|> doubleQoute
+    <|> singleQoute
+    <|> lbracket
+    <|> rbracket
+    <|> lparen
+    <|> rparen
+    <|> lcurly
+    <|> rcurly
+    <|> number
+    <|> operator
+    <|> ident
+
+singeLineComment :: StringParser String
+singeLineComment = do
+  match '#'
+  str <- many $ satisfy (/= '\n')
+  match '\n'
+  return str
+
+multiLineComment :: StringParser String
+multiLineComment = string "/#" <||> manyUntil (satisfy (const True)) (string "#/")
+
+ignored :: StringParser ()
+ignored = () <$ (singeLineComment <|> multiLineComment)
+
+multiple :: StringParser [Token]
+multiple = many (many ignored <||> anyToken)
+
+getTokens :: String -> Either Diagnostics [Token]
+getTokens s = undefined

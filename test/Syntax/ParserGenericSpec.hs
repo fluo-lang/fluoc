@@ -3,6 +3,7 @@ module Syntax.ParserGenericSpec where
 import           Control.Applicative            ( Alternative((<|>), many, some)
                                                 , optional
                                                 )
+import           Data.Char                      ( isDigit )
 import           Test.Hspec                     ( describe
                                                 , it
                                                 , shouldBe
@@ -38,12 +39,12 @@ spec = do
       (("", mapSpanLimited (+ 1) dummySpanLimited), Right "ab")
     it "should combine properly" $ testParser
       "aba123"
-      (many (oneOf "ab") <||> number)
+      (many (oneOf "ab") <||> many (satisfy isDigit))
       (("", mapSpanLimited (+ 6) dummySpanLimited), Right "123")
     it "should work monadically"
       $ let combined = do
               char <- many (oneOf ['a', 'b', 'c'])
-              num  <- number
+              num  <- many (satisfy isDigit)
               return [char, num]
         in  testParser
               "cabc10"
@@ -54,7 +55,7 @@ spec = do
     it "should all fail monadically if first bind fails"
       $ let combined = do
               char <- some (oneOf ['a', 'b', 'c'])
-              num  <- number
+              num  <- many (satisfy isDigit)
               return [char, num]
         in  testParser
               "10cabc10"
@@ -81,7 +82,7 @@ spec = do
       ""
       (satisfy (== 'n'))
       ( ("", dummySpanLimited)
-      , Left $ Diagnostics [syntaxErr dummySpan "unexpected end of file (EOF)"]
+      , Left $ Diagnostics [syntaxErr dummySpan "unexpected end of file"]
       )
     it "should give error if not satisfied" $ testParser
       "e"
@@ -169,14 +170,3 @@ spec = do
       (string "test_keyword")
       (("", mapSpanLimited (+ 12) dummySpanLimited), Right "test_keyword")
 
-  describe "Syntax.ParserGeneric.number" $ do
-    it "should parse the number" $ testParser
-      "123"
-      number
-      (("", mapSpanLimited (+ 3) dummySpanLimited), Right "123")
-    it "should fail if not a number" $ testParser
-      "abc"
-      number
-      ( ("abc", dummySpanLimited)
-      , Left $ Diagnostics [syntaxErr dummySpan "unexpected character `a`"]
-      )
