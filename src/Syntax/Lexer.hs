@@ -14,11 +14,11 @@ import           Diagnostics                    ( Diagnostics )
 asciiAlpha :: StringParser Char
 asciiAlpha = satisfy (\a -> isAsciiUpper a || isAsciiLower a)
 
-asciiAlphaUnderscore :: StringParser Char
-asciiAlphaUnderscore = asciiAlpha <|> match '_'
+idStart :: StringParser Char
+idStart = asciiAlpha <|> match '_'
 
-asciiAlphaNumeric :: StringParser Char
-asciiAlphaNumeric = asciiAlpha <|> satisfy isDigit
+idContinue :: StringParser Char
+idContinue = asciiAlpha <|> satisfy isDigit <|> oneOf "'?"
 
 number :: StringParser Token
 number = withSpan $ Token . Number <$> someParser (satisfy isDigit)
@@ -32,7 +32,7 @@ ident =
   withSpan
     $   Token
     .   Ident
-    <$> ((:) <$> asciiAlphaUnderscore <*> many asciiAlphaNumeric)
+    <$> ((:) <$> idStart <*> many idContinue)
 
 spannedConst :: StringParser a -> (Span -> Token) -> StringParser Token
 spannedConst s t = withSpan $ do

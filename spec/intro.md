@@ -4,7 +4,7 @@ This is the specification for the fluo programming language. The spec is not 100
 
 For now, this document will mostly be for examples, though later I will expand it.
 
-```python
+```rust
 # Create an identity function
 let ident: a = a
 
@@ -77,8 +77,8 @@ dec const : 'a -> 'b -> 'a
 let const : a _ = a
 
 # Haskell-like Functors example
-trait Functor : f {
-  dec fmap : ('a -> 'b) -> f 'a -> f 'b
+trait Functor : 'f {
+  dec fmap : ('a -> 'b) -> 'f 'a -> f 'b
   dec (<$) : b -> f 'a -> f 'b
 
   # Defualt implementation
@@ -86,7 +86,7 @@ trait Functor : f {
 }
 
 # Implement for option
-impl Functor (Option t) {
+impl Functor (Option 't) {
   let fmap : f (Some a) = Some (f a)
   let fmap : _ None = None
 
@@ -95,8 +95,8 @@ impl Functor (Option t) {
 }
 
 # Implement for list
-impl Functor (List t) {
-  let fmap : f [x:xs] = [(f x): (fmap f xs)]
+impl Functor (List 't) {
+  let fmap : f (x:xs) = [(f x): (fmap f xs)]
   let fmap : _ [] = []
 }
 ```

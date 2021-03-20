@@ -18,7 +18,10 @@ data Arguments = Arguments [(Ident, Type)]
                            Span
   deriving (Eq, Show)
 
-data Type = Infer | Never | NamespaceType Namespace deriving (Eq, Show)
+data Type = Infer Span
+          | Never Span
+          | NamespaceType Namespace Span
+          | TypeApplication Namespace [Type] Span deriving (Eq, Show)
 
 data Expr = Number String Span
           | Float String Span

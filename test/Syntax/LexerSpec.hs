@@ -11,7 +11,18 @@ import           Syntax.ParserGeneric
 import           Syntax.Token
 import           Sources
 import           Diagnostics
-import           TestUtil
+import           Display
+
+testParser
+  :: (Show a, Show b, Eq a, Eq b, Display b)
+  => [b]
+  -> Parser b a
+  -> ParserReturn b a
+  -> Expectation
+testParser source (P fn) x = realRes `shouldBe` expectedRes
+ where
+  realRes     = fn source dummySpanLimited
+  expectedRes = x
 
 spec :: Spec
 spec = do
@@ -21,6 +32,18 @@ spec = do
       ident
       ( ("", mapSpanLimited (+ 5) dummySpanLimited)
       , Right $ Token (Ident "_a123") (Span (SourceId 0) 0 5)
+      )
+    it "should parse ident ending with with `'`" $ testParser
+      "a123''"
+      ident
+      ( ("", mapSpanLimited (+ 6) dummySpanLimited)
+      , Right $ Token (Ident "a123''") (Span (SourceId 0) 0 6)
+      )
+    it "should parse ident ending with with `?`" $ testParser
+      "a123??"
+      ident
+      ( ("", mapSpanLimited (+ 6) dummySpanLimited)
+      , Right $ Token (Ident "a123??") (Span (SourceId 0) 0 6)
       )
     it "should parse ident starting with `a`" $ testParser
       "a123"

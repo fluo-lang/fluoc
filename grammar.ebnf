@@ -10,9 +10,9 @@ declaration = "dec", name, colon, type, break ;
 definition = "let", binding;
 binding = name, [colon, {pattern, space}, [pattern]], "=", expr, break ;
 
-trait def = "trait", ident, ":", {ident, space}, [ident], "{", { declaration | definition }, "}" ;
+trait def = "trait", ident, ":", {"'", ident, space}, ["'", ident], "{", { declaration | definition }, "}" ;
 
-implementation = "impl", ident, type, "{", { definition }, "}";
+implementation = "impl", ident, ":", type, "{", { definition }, "}";
 
 (* Expressions *)
 expr = literal | tuple | macro | match | if | let in | namespace | function application | expr, operator, expr;

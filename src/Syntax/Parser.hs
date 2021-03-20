@@ -9,7 +9,7 @@ import           Data.Tuple                     ( swap )
 
 import           Syntax.ParserGeneric
 import           Syntax.Ast                     ( Expr(Number)
-                                                , Type(Infer, NamespaceType)
+                                                , Type(..)
                                                 , Arguments(..)
                                                 , Statement(FunDecl)
                                                 , Block(Block)
@@ -54,14 +54,20 @@ namespace = withSpan $ do
   others <- many (colonColon <||> ident)
   return $ Namespace (ident' : others)
 
-namespaceTy :: TokenParser Type
+namespaceTy :: TokenParser (Span -> Type)
 namespaceTy = NamespaceType <$> namespace
 
-infer :: TokenParser Type
+typeApplication :: TokenParser (Span -> Type)
+typeApplication = do
+  namespace <- namespace 
+  tys <- some ty
+  return $ TypeApplication namespace tys
+
+infer :: TokenParser (Span -> Type)
 infer = Infer <$ underscore 
 
 ty :: TokenParser Type
-ty = infer <|> namespaceTy
+ty = withSpan $ infer <|> try typeApplication <|> namespaceTy
 
 parse :: ()
 parse = ()

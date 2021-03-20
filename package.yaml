@@ -39,8 +39,6 @@ tests:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
-    other-modules:
-    - TestUtil
     dependencies:
     - fluoc
     - hspec

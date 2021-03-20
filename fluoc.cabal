@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 2232d907d1c278f1c23866b4dccb380113e82d0f85249ea1de88ba380a68ed14
+-- hash: dae9847e168c6963d7f8c069b2a551b63817678192340ba0017a9ef5d1f82d34
 
 name:           fluoc
 version:        0.1.0.0
@@ -64,7 +64,10 @@ test-suite fluoc-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
-      TestUtil
+      Syntax.LexerSpec
+      Syntax.ParserGenericSpec
+      Syntax.ParserSpec
+      Paths_fluoc
   hs-source-dirs:
       test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
