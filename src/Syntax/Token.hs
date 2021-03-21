@@ -19,6 +19,7 @@ instance Display Token where
 data TokenRaw = Ident String
            | Str String
            | Number String
+           | Real String
            | Operator String
 
            | Let

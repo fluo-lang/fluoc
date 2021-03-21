@@ -25,6 +25,8 @@ testParser source (P fn) x = realRes `shouldBe` expectedRes
   realRes     = fn source dummySpanLimited
   expectedRes = x
 
+ns = Span (SourceId 0)
+
 spec :: Spec
 spec = do
   describe "Syntax.Lexer.ignored" $ do
@@ -34,33 +36,33 @@ spec = do
       (("", mapSpanLimited (+ 6) dummySpanLimited), Right ())
   describe "Syntax.Lexer.getTokens" $ do
     it "should ignore whitespace" $ getTokens "a   b" `shouldBe` Right
-      [ Token (Ident "a") (Span (SourceId 0) 0 1)
-      , Token (Ident "b") (Span (SourceId 0) 4 5)
+      [ Token (Ident "a") (ns 0 1)
+      , Token (Ident "b") (ns 4 5)
       ]
   describe "Syntax.Lexer.ident" $ do
     it "should parse ident starting with `_`" $ testParser
       "_a123"
       ident
       ( ("", mapSpanLimited (+ 5) dummySpanLimited)
-      , Right $ Token (Ident "_a123") (Span (SourceId 0) 0 5)
+      , Right $ Token (Ident "_a123") (ns 0 5)
       )
     it "should parse ident ending with with `'`" $ testParser
       "a123''"
       ident
       ( ("", mapSpanLimited (+ 6) dummySpanLimited)
-      , Right $ Token (Ident "a123''") (Span (SourceId 0) 0 6)
+      , Right $ Token (Ident "a123''") (ns 0 6)
       )
     it "should parse ident ending with with `?`" $ testParser
       "a123??"
       ident
       ( ("", mapSpanLimited (+ 6) dummySpanLimited)
-      , Right $ Token (Ident "a123??") (Span (SourceId 0) 0 6)
+      , Right $ Token (Ident "a123??") (ns 0 6)
       )
     it "should parse ident starting with `a`" $ testParser
       "a123"
       ident
       ( ("", mapSpanLimited (+ 4) dummySpanLimited)
-      , Right $ Token (Ident "a123") (Span (SourceId 0) 0 4)
+      , Right $ Token (Ident "a123") (ns 0 4)
       )
     it "should fail ident starting with `1`" $ testParser
       "1a23"
@@ -68,12 +70,25 @@ spec = do
       ( ("1a23", dummySpanLimited)
       , Left $ Diagnostics [syntaxErr dummySpan "unexpected character `1`"]
       )
+  describe "Syntax.Lexer.float" $ do
+    it "should lex the float" $ testParser
+      "123.123"
+      float
+      ( ("", mapSpanLimited (+ 7) dummySpanLimited)
+      , Right (Token (Real "123.123") (ns 0 7))
+      )
+    it "should fail if dot is not there" $ testParser
+      "123"
+      float
+      ( ("", mapSpanLimited (+ 3) dummySpanLimited)
+      , Left $ Diagnostics [syntaxErr (ns 3 4) "unexpected end of file"]
+      )
   describe "Syntax.Lexer.number" $ do
     it "should lex the number" $ testParser
       "123"
       number
       ( ("", mapSpanLimited (+ 3) dummySpanLimited)
-      , Right (Token (Number "123") (Span (SourceId 0) 0 3))
+      , Right (Token (Number "123") (ns 0 3))
       )
     it "should fail if not a number" $ testParser
       "abc"

@@ -25,6 +25,18 @@ idContinue = asciiAlpha <|> satisfy isDigit <|> oneOf "'?"
 number :: StringParser Token
 number = withSpan $ Token . Number <$> someParser (satisfy isDigit)
 
+float :: StringParser Token
+float =
+  withSpan
+    $   Token
+    .   Real
+    <$> (do
+          first <- someParser (satisfy isDigit)
+          dot   <- match '.'
+          last  <- someParser (satisfy isDigit)
+          return $ first ++ (dot : last)
+        )
+
 operator :: StringParser Token
 operator =
   withSpan $ Token . Operator <$> someParser (oneOf "+*-/<>|:$^@!~%&.,:=")
@@ -78,6 +90,7 @@ anyToken =
     <|> rparen
     <|> lcurly
     <|> rcurly
+    <|> try float
     <|> number
     <|> operator
     <|> ident
@@ -94,7 +107,8 @@ multiLineComment =
   string "/#" <||> manyUntil (satisfy (const True)) (string "#/")
 
 ignored :: StringParser ()
-ignored = (() <$ oneOf " \t") <|> (() <$ (singeLineComment <|> multiLineComment))
+ignored =
+  (() <$ oneOf " \t") <|> (() <$ (singeLineComment <|> multiLineComment))
 
 multiple :: StringParser [Token]
 multiple = many (many ignored <||> anyToken)

@@ -21,8 +21,8 @@ ident = do
   return $ case tok of
     T.Token (T.Ident val) span -> Ident val span
 
-token :: T.TokenRaw -> TokenParser ()
-token tok = () <$ matchVariant (T.Token tok undefined)
+token :: T.TokenRaw -> TokenParser T.Token
+token tok = matchVariant (T.Token tok undefined)
 
 matchIdent :: String -> TokenParser ()
 matchIdent s = () <$ satisfy
@@ -69,22 +69,22 @@ expr = undefined
 pattern :: TokenParser Pattern
 pattern = undefined
 
-declaration :: TokenParser (Span -> Statement)
-declaration = do
+declaration :: TokenParser Declaration
+declaration = withSpan $ do
   token T.Dec
   ident' <- ident
   colon
-  DeclarationS ident' <$> ty
+  Declaration ident' <$> ty
 
-definition :: TokenParser (Span -> Statement)
-definition = do
+binding :: TokenParser Binding
+binding = withSpan $ do
   token T.Let
   ident' <- ident
   patterns <- fromMaybe [] <$> optional (colon <||> some pattern)
-  BindingS ident' patterns <$> expr
+  Binding ident' patterns <$> expr
 
 statement :: TokenParser Statement
-statement = withSpan $ declaration <|> definition
+statement = (DeclarationS <$> declaration) <|> (BindingS <$> binding)
 
 parse :: ()
 parse = ()

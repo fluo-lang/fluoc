@@ -34,9 +34,9 @@ spec = do
   describe "Syntax.Parser.declaration" $ do
     it "should parse a basic declaration" $ testParser
       "dec unwrap : Int"
-      (withSpan declaration)
+      declaration
       ( ([], mapSpanLimited (+ 16) dummySpanLimited)
-      , Right $ DeclarationS
+      , Right $ Declaration
         (Ident "unwrap" (ns 4 10))
         (NamespaceType $ Namespace [Ident "Int" (ns 13 16)] (ns 13 16))
         (ns 0 16)

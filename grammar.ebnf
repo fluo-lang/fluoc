@@ -3,53 +3,56 @@ program = { statement } ;
 (* Statements *)
 statement = declaration | definition | implementation | trait def | record | import ;
 
-record = "rec", ident, [colon, {ident, space}, [ident]], {record item, "|"}, [record item] ;
-record item = ident, "{", {declaration}, "}" | type;
+import = ("import", namespace, ['as', ident]) 
+       | "from", namespace, "import", ((ident, { ",", ident }) | "*") ;
+
+record = "rec", ident, [colon, { "'", ident, space }, ["'", ident]], "=", { record item, "|" }, [record item] ;
+record item = ident, ("{", { declaration }, "}" | { type });
 
 declaration = "dec", name, colon, type, break ;
 definition = "let", binding;
-binding = name, [colon, {pattern, space}, [pattern]], "=", expr, break ;
+binding = name, [colon, { pattern, space }, [pattern]], "=", expr, break ;
 
-trait def = "trait", ident, ":", {"'", ident, space}, ["'", ident], "{", { declaration | definition }, "}" ;
+trait def = "trait", ident, ":", { "'", ident, space }, ["'", ident], "{", { declaration | definition }, "}" ;
 
 implementation = "impl", ident, ":", type, "{", { definition }, "}";
 
 (* Expressions *)
 expr = literal | tuple | macro | match | if | let in | namespace | function application | expr, operator, expr;
 
-function application = expr, {expr, space}, [expr];
+function application = expr, { expr, space }, [expr];
 
 tuple = "(", {expr, ","}, [expr], ")" ;
 
-match = "match", expr, "{", {single match, break}, [single match]"}" ;
+match = "match", expr, "{", { single match, break }, [single match]"}" ;
 single match = pattern, "->", expr ;
 
-if = "if", expr, "{", expr, "}", {"else", "if", expr, "{", expr, "}"}, "else", "{", expr, "}";
+if = "if", expr, "{", expr, "}", { "else", "if", expr, "{", expr, "}" }, "else", "{", expr, "}";
 
-let in = "let", {binding}-, "in", expr;
+let in = "let", { binding }-, "in", expr;
 
 macro = ident, "!", "[", valid tokens, "]" ;
 valid tokens = ? valid tokens, with proper closed parens ?;
 
-pattern = tuple match | ident | "(", ident, [{ident}], ")" | "_" | literal | "[" pattern, operator, pattern, "]" | "(", pattern, ")" ;
+pattern = tuple match | ident | "(", ident, [{ ident }], ")" | "_" | literal | "[" pattern, operator, pattern, "]" | "(", pattern, ")" ;
 tuple match = "(", { pattern, "," }, [pattern], ")" ;
 
 (* Types *)
-type = "_" | namespace | namespace {type, space}, [type] | "(", type, ")" | "'", ident;
+type = "_" | namespace | namespace { type, space }, [type] | "(", type, ")" | "'", ident;
 
 (* Identifiers *)
 name = ident | "(", symbol, ")" ;
-ident = (letter | underscore), {digit | letter | special} ;
+ident = (letter | underscore), { digit | letter | special } ;
 special = "'" | "_" | "?" ;
-namespace = ident, [{"::", ident}] ;
+namespace = ident, [{ "::", ident }] ;
 
 (* Literals *)
 literal = float | number | string | "[", "]";
 number = { digit }- ;
 float = { digit }-, dot, { digit }- ;
 op = { symbol }- ;
-string = '"', {all characters}, '"';
-cha = "'", all characters, "'";
+string = '"', { all characters }, '"';
+char = "'", all characters, "'";
 all characters = ? all characters ? ;
 
 break = newline | ";" ;
