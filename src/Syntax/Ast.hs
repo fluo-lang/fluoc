@@ -15,7 +15,7 @@ data Statement = DeclarationS Ident Type Span
                | BindingS Ident [Pattern] Expr Span deriving (Eq, Show)
 
 data Pattern = TupleP [Pattern] Span
-             | BindP Ident Span
+             | BindP Ident
              | VariantP Namespace [Ident] Span
              | DropP Span
              | LiteralP Literal Span
@@ -26,7 +26,7 @@ data Literal = IntegerL Int
 
 data Type = Infer Span
           | Never Span
-          | NamespaceType Namespace Span
+          | NamespaceType Namespace
           | TypeApplication Namespace [Type] Span deriving (Eq, Show)
 
 data Expr = LiteralE Span

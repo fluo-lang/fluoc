@@ -49,7 +49,7 @@ namespace = withSpan $ do
   return $ Namespace (ident' : others)
 
 namespaceTy :: TokenParser (Span -> Type)
-namespaceTy = NamespaceType <$> namespace
+namespaceTy = const . NamespaceType <$> namespace
 
 typeApplication :: TokenParser (Span -> Type)
 typeApplication = do
