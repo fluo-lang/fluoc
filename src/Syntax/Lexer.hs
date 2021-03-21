@@ -1,3 +1,5 @@
+{-# LANGUAGE FlexibleContexts, MonoLocalBinds #-}
+
 module Syntax.Lexer where
 
 import           Control.Applicative            ( Alternative(..) )
@@ -28,15 +30,11 @@ operator =
   withSpan $ Token . Operator <$> someParser (oneOf "+*-/<>|:$^@!~%&.,:=")
 
 ident :: StringParser Token
-ident =
-  withSpan
-    $   Token
-    .   Ident
-    <$> ((:) <$> idStart <*> many idContinue)
+ident = withSpan $ Token . Ident <$> ((:) <$> idStart <*> many idContinue)
 
 spannedConst :: StringParser a -> (Span -> Token) -> StringParser Token
 spannedConst s t = withSpan $ do
-  s
+  try s
   return t
 
 letTok = spannedConst (string "let") (Token Let)
@@ -92,13 +90,14 @@ singeLineComment = do
   return str
 
 multiLineComment :: StringParser String
-multiLineComment = string "/#" <||> manyUntil (satisfy (const True)) (string "#/")
+multiLineComment =
+  string "/#" <||> manyUntil (satisfy (const True)) (string "#/")
 
 ignored :: StringParser ()
-ignored = () <$ (singeLineComment <|> multiLineComment)
+ignored = (() <$ oneOf " \t") <|> (() <$ (singeLineComment <|> multiLineComment))
 
 multiple :: StringParser [Token]
 multiple = many (many ignored <||> anyToken)
 
 getTokens :: String -> Either Diagnostics [Token]
-getTokens s = undefined
+getTokens s = snd $ lex s dummySpanLimited where P lex = multiple

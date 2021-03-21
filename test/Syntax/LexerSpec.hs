@@ -6,6 +6,7 @@ import           Test.Hspec                     ( describe
                                                 , Spec
                                                 , Expectation
                                                 )
+import           Control.Applicative            ( Alternative(many) )
 import           Syntax.Lexer
 import           Syntax.ParserGeneric
 import           Syntax.Token
@@ -26,6 +27,16 @@ testParser source (P fn) x = realRes `shouldBe` expectedRes
 
 spec :: Spec
 spec = do
+  describe "Syntax.Lexer.ignored" $ do
+    it "should ignore whitespace" $ testParser
+      "\t    \t"
+      (() <$ many ignored)
+      (("", mapSpanLimited (+ 6) dummySpanLimited), Right ())
+  describe "Syntax.Lexer.getTokens" $ do
+    it "should ignore whitespace" $ getTokens "a   b" `shouldBe` Right
+      [ Token (Ident "a") (Span (SourceId 0) 0 1)
+      , Token (Ident "b") (Span (SourceId 0) 4 5)
+      ]
   describe "Syntax.Lexer.ident" $ do
     it "should parse ident starting with `_`" $ testParser
       "_a123"

@@ -8,14 +8,7 @@ import           Data.Maybe                     ( fromMaybe )
 import           Data.Tuple                     ( swap )
 
 import           Syntax.ParserGeneric
-import           Syntax.Ast                     ( Expr(Number)
-                                                , Type(..)
-                                                , Arguments(..)
-                                                , Statement(FunDecl)
-                                                , Block(Block)
-                                                , Namespace(..)
-                                                , Ident(..)
-                                                )
+import           Syntax.Ast
 import           Sources                        ( SourceId(..)
                                                 , Span(..)
                                                 , dummySpan
@@ -35,17 +28,18 @@ matchIdent :: String -> TokenParser ()
 matchIdent s = () <$ satisfy
   (\case
     (T.Token (T.Ident s') _) -> s' == s
-    _                         -> False
+    _                        -> False
   )
 
 matchOperator :: String -> TokenParser ()
 matchOperator s = () <$ satisfy
   (\case
     (T.Token (T.Operator s') _) -> s' == s
-    _                         -> False
+    _                           -> False
   )
 
 colonColon = matchOperator "::"
+colon = matchOperator ":"
 underscore = matchIdent "_"
 
 namespace :: TokenParser Namespace
@@ -59,15 +53,38 @@ namespaceTy = NamespaceType <$> namespace
 
 typeApplication :: TokenParser (Span -> Type)
 typeApplication = do
-  namespace <- namespace 
-  tys <- some ty
+  namespace <- namespace
+  tys       <- some ty
   return $ TypeApplication namespace tys
 
 infer :: TokenParser (Span -> Type)
-infer = Infer <$ underscore 
+infer = Infer <$ underscore
 
 ty :: TokenParser Type
 ty = withSpan $ infer <|> try typeApplication <|> namespaceTy
+
+expr :: TokenParser Expr
+expr = undefined
+
+pattern :: TokenParser Pattern
+pattern = undefined
+
+declaration :: TokenParser (Span -> Statement)
+declaration = do
+  token T.Dec
+  ident' <- ident
+  colon
+  DeclarationS ident' <$> ty
+
+definition :: TokenParser (Span -> Statement)
+definition = do
+  token T.Let
+  ident' <- ident
+  patterns <- fromMaybe [] <$> optional (colon <||> some pattern)
+  BindingS ident' patterns <$> expr
+
+statement :: TokenParser Statement
+statement = withSpan $ declaration <|> definition
 
 parse :: ()
 parse = ()

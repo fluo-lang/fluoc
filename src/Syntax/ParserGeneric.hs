@@ -4,6 +4,7 @@ module Syntax.ParserGeneric where
 import           Control.Applicative            ( Alternative(..)
                                                 , optional
                                                 )
+import           Data.Maybe                     ( fromMaybe )
 
 import           Diagnostics                    ( Diagnostics(..)
                                                 , Diagnostic(Diagnostic)
@@ -72,12 +73,15 @@ syntaxErr span msg =
 
 class SatisfyParser a where
   changeSpan :: SpanLimited -> a -> SpanLimited
+  innerSpan :: a -> Maybe SpanLimited
 
 instance SatisfyParser Char where
   changeSpan span _ = mapSpanLimited (+ 1) span
+  innerSpan _ = Nothing
 
 instance SatisfyParser Token where
   changeSpan _ (Token _ (Span id _ e)) = SpanLimited id e
+  innerSpan (Token _ (Span id s _)) = Just $ SpanLimited id s
 
 -- Satisfy a certian function, otherwise error
 satisfy :: (SatisfyParser s) => (s -> Bool) -> Parser s s
@@ -124,9 +128,9 @@ manyUntil p end = scan
       _ <- end
       return []
     <|> do
-          x <- p
+          x  <- p
           xs <- scan
-          return (x:xs)
+          return (x : xs)
 
 -- Parse 1 or more
 someParser :: (Display s) => Parser s a -> Parser s [a]
@@ -190,11 +194,16 @@ getSpan = snd <$> getParserState (pure ())
 getSpan' :: Parser s a -> Parser s SpanLimited
 getSpan' a = snd <$> getParserState a
 
-withSpan :: Parser s (Span -> a) -> Parser s a
+safeHead :: [a] -> Maybe a
+safeHead []       = Nothing
+safeHead (a : as) = Just a
+
+withSpan :: (SatisfyParser s, Eq s) => Parser s (Span -> a) -> Parser s a
 withSpan p = do
-  span <- getSpan
-  val  <- p
-  val . toSpanSE span <$> getSpan
+  (stream, span) <- getParserState $ pure ()
+  let span' = fromMaybe span (safeHead stream >>= innerSpan)
+  val <- p
+  val . toSpanSE span' <$> getSpan
 
 match :: (SatisfyParser s, Eq s) => s -> Parser s s
 match c = satisfy (== c)
