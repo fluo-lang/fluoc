@@ -16,9 +16,14 @@ dependencies:
 - optparse-applicative
 - text
 - containers
+- array
+- mtl
 
 library:
   source-dirs: src
+  build-tools:
+    - happy
+    - alex
 
 executables:
   fluoc-exe:

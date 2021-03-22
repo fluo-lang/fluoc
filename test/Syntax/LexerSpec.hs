@@ -4,109 +4,102 @@ import           Test.Hspec                     ( describe
                                                 , it
                                                 , shouldBe
                                                 , Spec
-                                                , Expectation
                                                 )
-import           Control.Applicative            ( Alternative(many) )
-import           Syntax.Lexer
-import           Syntax.ParserGeneric
-import           Syntax.Token
+
+import           Control.Monad.Except
+
 import           Sources
+import           Syntax.Token
+import           Syntax.Lexer
 import           Diagnostics
-import           Display
 
-testParser
-  :: (Show a, Show b, Eq a, Eq b, Display b)
-  => [b]
-  -> Parser b a
-  -> ParserReturn b a
-  -> Expectation
-testParser source (P fn) x = realRes `shouldBe` expectedRes
- where
-  realRes     = fn source dummySpanLimited
-  expectedRes = x
+sid = SourceId 0
+sn = Span sid
 
-ns = Span (SourceId 0)
+lexErr :: Int -> Char -> Diagnostic
+lexErr c char = Diagnostic
+  Error
+  UnexpectedCharacterError
+  [ Annotation (fromPos sid c)
+               (Just $ "unexpected character `" ++ [char] ++ "`")
+               Error
+  ]
+  (fromPos sid c)
+  Nothing
 
 spec :: Spec
 spec = do
-  describe "Syntax.Lexer.ignored" $ do
-    it "should ignore whitespace" $ testParser
-      "\t    \t"
-      (() <$ many ignored)
-      (("", mapSpanLimited (+ 6) dummySpanLimited), Right ())
-  describe "Syntax.Lexer.getTokens" $ do
-    it "should ignore whitespace" $ getTokens "a   b" `shouldBe` Right
-      [ Token (Ident "a") (ns 0 1)
-      , Token (Ident "b") (ns 4 5)
-      ]
-  describe "Syntax.Lexer.ident" $ do
-    it "should parse ident starting with `_`" $ testParser
-      "_a123"
-      ident
-      ( ("", mapSpanLimited (+ 5) dummySpanLimited)
-      , Right $ Token (Ident "_a123") (ns 0 5)
-      )
-    it "should parse ident ending with with `'`" $ testParser
-      "a123''"
-      ident
-      ( ("", mapSpanLimited (+ 6) dummySpanLimited)
-      , Right $ Token (Ident "a123''") (ns 0 6)
-      )
-    it "should parse ident ending with with `?`" $ testParser
-      "a123??"
-      ident
-      ( ("", mapSpanLimited (+ 6) dummySpanLimited)
-      , Right $ Token (Ident "a123??") (ns 0 6)
-      )
-    it "should parse ident starting with `a`" $ testParser
-      "a123"
-      ident
-      ( ("", mapSpanLimited (+ 4) dummySpanLimited)
-      , Right $ Token (Ident "a123") (ns 0 4)
-      )
-    it "should fail ident starting with `1`" $ testParser
-      "1a23"
-      ident
-      ( ("1a23", dummySpanLimited)
-      , Left $ Diagnostics [syntaxErr dummySpan "unexpected character `1`"]
-      )
-  describe "Syntax.Lexer.float" $ do
-    it "should lex the float" $ testParser
-      "123.123"
-      float
-      ( ("", mapSpanLimited (+ 7) dummySpanLimited)
-      , Right (Token (Real "123.123") (ns 0 7))
-      )
-    it "should fail if dot is not there" $ testParser
-      "123"
-      float
-      ( ("", mapSpanLimited (+ 3) dummySpanLimited)
-      , Left $ Diagnostics [syntaxErr (ns 3 4) "unexpected end of file"]
-      )
-  describe "Syntax.Lexer.number" $ do
-    it "should lex the number" $ testParser
-      "123"
-      number
-      ( ("", mapSpanLimited (+ 3) dummySpanLimited)
-      , Right (Token (Number "123") (ns 0 3))
-      )
-    it "should fail if not a number" $ testParser
-      "abc"
-      number
-      ( ("abc", dummySpanLimited)
-      , Left $ Diagnostics [syntaxErr dummySpan "unexpected character `a`"]
-      )
-  describe "Syntax.Lexer.singeLineComment" $ do
-    it "should eat up the comment" $ testParser
-      "# test asd128e9qdjad\n10"
-      singeLineComment
-      ( ("10", mapSpanLimited (+ 21) dummySpanLimited)
-      , Right " test asd128e9qdjad"
-      )
-  describe "Syntax.Lexer.multiLineComment" $ do
-    it "should eat up the comment" $ testParser
-      "/#\nhello\nworld\nhuh123! \n\n#/10"
-      multiLineComment
-      ( ("10", mapSpanLimited (+ 27) dummySpanLimited)
-      , Right "\nhello\nworld\nhuh123! \n\n"
-      )
+  it "should lex keywords"
+    $          runExcept
+                 (scanTokens sid "let import rec impl trait dec in if else match")
+    `shouldBe` Right
+                 [ MkToken (sn 0 3)   LetTok
+                 , MkToken (sn 4 10)  ImportTok
+                 , MkToken (sn 11 14) RecTok
+                 , MkToken (sn 15 19) ImplTok
+                 , MkToken (sn 20 25) TraitTok
+                 , MkToken (sn 26 29) DecTok
+                 , MkToken (sn 30 32) InTok
+                 , MkToken (sn 33 35) IfTok
+                 , MkToken (sn 36 40) ElseTok
+                 , MkToken (sn 41 46) MatchTok
+                 ]
+  it "should lex symbols"
+    $          runExcept (scanTokens sid "()\n[]\n{}")
+    `shouldBe` Right
+                 [ MkToken (sn 0 1) LParenTok
+                 , MkToken (sn 1 2) RParenTok
+                 , MkToken (sn 3 4) LBracketTok
+                 , MkToken (sn 4 5) RBracketTok
+                 , MkToken (sn 6 7) LCurlyTok
+                 , MkToken (sn 7 8) RCurlyTok
+                 ]
+  it "should lex identifiers"
+    $          runExcept (scanTokens sid "_123'? ahello? fold'")
+    `shouldBe` Right
+                 [ MkToken (sn 0 6) $ IdentTok "_123'?"
+                 , MkToken (sn 7 14) $ IdentTok "ahello?"
+                 , MkToken (sn 15 20) $ IdentTok "fold'"
+                 ]
+  it "should lex values regardless of whitespace"
+    $          runExcept (scanTokens sid "1a23")
+    `shouldBe` Right
+                 [ MkToken (sn 0 1) $ IntegerTok 1
+                 , MkToken (sn 1 4) $ IdentTok "a23"
+                 ]
+  it "should lex operators"
+    $          runExcept (scanTokens sid "<$>+*-/|:$^@!~%&.")
+    `shouldBe` Right [MkToken (sn 0 17) $ OperatorTok "<$>+*-/|:$^@!~%&."]
+  it "should lex integers"
+    $          runExcept (scanTokens sid "1234567809")
+    `shouldBe` Right [MkToken (sn 0 10) $ IntegerTok 1234567809]
+  it "should lex floats"
+    $          runExcept (scanTokens sid "1234567809.1234567809")
+    `shouldBe` Right [MkToken (sn 0 21) $ FloatTok 1234567809.1234567809]
+  it "should ignore comments"
+    $          runExcept (scanTokens sid "# test test\n10\n/#\nmulti\n\n#/10")
+    `shouldBe` Right
+                 [ MkToken (sn 12 14) $ IntegerTok 10
+                 , MkToken (sn 27 29) $ IntegerTok 10
+                 ]
+  it "should parse multiline comments properly"
+    $          runExcept (scanTokens sid "/#\n  hello\n#/\n10\n/# bye #/")
+    `shouldBe` Right [MkToken (sn 14 16) $ IntegerTok 10]
+  it "should parse multiline comments properly"
+    $          runExcept (scanTokens sid "/##/10/##/")
+    `shouldBe` Right [MkToken (sn 4 6) $ IntegerTok 10]
+  it "should parse an empty string"
+    $          runExcept (scanTokens sid "\"\"")
+    `shouldBe` Right [MkToken (sn 0 2) $ StrTok ""]
+  it "should parse a string with spaces"
+    $          runExcept (scanTokens sid "\"hello, world! fobar\"")
+    `shouldBe` Right [MkToken (sn 0 21) $ StrTok "hello, world! fobar"]
+  it "should parse a string with escapes"
+    $          runExcept (scanTokens sid "\"\\n\\t\\DEL\\^C\"")
+    `shouldBe` Right [MkToken (sn 0 13) $ StrTok "\n\t\DEL\^C"]
+  it "should parse a string with escaped qoutes"
+    $          runExcept (scanTokens sid "\"\\\"\"")
+    `shouldBe` Right [MkToken (sn 0 4) $ StrTok "\""]
+  it "should fail on bad escape code"
+    $          runExcept (scanTokens sid "\"\\^c\"")
+    `shouldBe` Left (lexErr 3 'c')

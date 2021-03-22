@@ -3,7 +3,7 @@ module Diagnostics where
 import           Sources                        ( Span )
 
 data DiagnosticType = Error | Warning | Info deriving (Show, Eq)
-data DiagnosticKind = SyntaxError
+data DiagnosticKind = UnexpectedCharacterError | SyntaxError
   deriving (Show, Eq)
 
 data Annotation = Annotation
@@ -18,6 +18,7 @@ data Diagnostic = Diagnostic
   , dKind        :: DiagnosticKind
   , dAnnotations :: [Annotation]
   , dSpan        :: Span
+  , note         :: Maybe String
   }
   deriving (Show, Eq)
 

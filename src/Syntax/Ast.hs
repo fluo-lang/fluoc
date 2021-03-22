@@ -26,21 +26,21 @@ data RecordItem = Union [Type]
                 | Sum [Declaration]
                 deriving (Eq, Show)
 
-data Statement = BindingS Binding
-               | DeclarationS Declaration
+data Statement = BindingS Binding Span
+               | DeclarationS Declaration Span
                | ImplS Ident Type [BindingOrDec] Span
                | TraitS Ident [Ident] [BindingOrDec] Span
                | RecordS Ident [Ident] [RecordItem] Span
                | ImportS Namespace (Maybe Ident) Span
-               | FromImportS Namespace (Maybe [Ident])
+               | FromImportS Namespace (Maybe [Ident]) Span
                deriving (Eq, Show)
 
 data Pattern = TupleP [Pattern] Span
-             | BindP Ident
+             | BindP Ident Span
              | VariantP Namespace [Ident] Span
              | DropP Span
              | LiteralP Literal Span
-             | CustomP Pattern Operator Pattern
+             | CustomP Pattern Operator Pattern Span
              deriving (Eq, Show)
 
 data Literal = IntegerL Int
@@ -49,18 +49,16 @@ data Literal = IntegerL Int
 
 data Type = Infer Span
           | Never Span
-          | NamespaceType Namespace
+          | NamespaceType Namespace Span
           | TypeApplication Namespace [Type] Span
           deriving (Eq, Show)
 
 data Expr = LiteralE Literal Span
-          | BinOpE Expr  Expr Span
+          | BinOpE Expr Operator Expr Span
           | TupleE [Expr] Span
-          | CondE (Expr, Expr) [(Expr, Expr)] (Expr, Expr)
+          | CondE (Expr, Expr) [(Expr, Expr)] (Expr, Expr) Span
           | LetInE Binding Expr Span
-          | VariableE Namespace
-          | FunctionAppE Expr Expr
+          | VariableE Namespace Span
+          | FunctionAppE Expr Expr Span
+          | LambdaE [Ident] Expr Span
           deriving (Eq, Show)
-
-newtype Op = Op (String, Span)
-  deriving (Eq, Show)

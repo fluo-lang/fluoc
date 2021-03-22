@@ -18,11 +18,23 @@ trait def = "trait", ident, ":", { "'", ident, space }, ["'", ident], "{", { dec
 implementation = "impl", ident, ":", type, "{", { definition }, "}";
 
 (* Expressions *)
-expr = literal | tuple | macro | match | if | let in | namespace | function application | expr, operator, expr;
+expr = literal
+     | tuple
+     | macro
+     | match
+     | if
+     | let in
+     | namespace
+     | function application
+     | expr, operator, expr
+     | lambda
+     | "(", expr, ")" ;
+
+lambda = "\", { ident }, "->", expr ;
 
 function application = expr, { expr, space }, [expr];
 
-tuple = "(", {expr, ","}, [expr], ")" ;
+tuple = "(", { expr, "," }, [expr], ")" ;
 
 match = "match", expr, "{", { single match, break }, [single match]"}" ;
 single match = pattern, "->", expr ;

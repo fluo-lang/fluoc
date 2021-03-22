@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: dae9847e168c6963d7f8c069b2a551b63817678192340ba0017a9ef5d1f82d34
+-- hash: c830402b09d2ecd373eeee0de7fcf62c2ce536f60be7f0e49486bf0f1c71f6fd
 
 name:           fluoc
 version:        0.1.0.0
@@ -31,15 +31,19 @@ library
       Syntax.Ast
       Syntax.Lexer
       Syntax.Parser
-      Syntax.ParserGeneric
       Syntax.Token
   other-modules:
       Paths_fluoc
   hs-source-dirs:
       src
+  build-tools:
+      alex
+    , happy
   build-depends:
-      base >=4.7 && <5
+      array
+    , base >=4.7 && <5
     , containers
+    , mtl
     , optparse-applicative
     , text
   default-language: Haskell2010
@@ -53,9 +57,11 @@ executable fluoc-exe
       app
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      base >=4.7 && <5
+      array
+    , base >=4.7 && <5
     , containers
     , fluoc
+    , mtl
     , optparse-applicative
     , text
   default-language: Haskell2010
@@ -65,19 +71,19 @@ test-suite fluoc-test
   main-is: Spec.hs
   other-modules:
       Syntax.LexerSpec
-      Syntax.ParserGenericSpec
-      Syntax.ParserSpec
       Paths_fluoc
   hs-source-dirs:
       test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       QuickCheck
+    , array
     , base >=4.7 && <5
     , containers
     , fluoc
     , hspec
     , hspec-discover
+    , mtl
     , optparse-applicative
     , text
   default-language: Haskell2010
