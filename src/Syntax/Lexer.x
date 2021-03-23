@@ -2,11 +2,16 @@
 {-# LANGUAGE FlexibleContexts #-}
 module Syntax.Lexer where
 
-import Control.Monad.Except
-import Data.Char (chr)
-import Sources                  (Span(..), SourceId(..), fromPos)
-import Syntax.Token
-import Diagnostics
+import           Control.Monad.Except
+import           Data.Char                      ( chr )
+import           Sources                        ( Span(..)
+                                                , SourceId(..)
+                                                , fromPos
+                                                , btwn
+                                                , Spanned(..)
+                                                )
+import           Syntax.Token
+import           Diagnostics
 }
 
 %wrapper "posn"
@@ -15,7 +20,7 @@ $digit    = 0-9
 $alpha    = [a-zA-Z]
 $large    = [A-Z \xc0-\xd6 \xd8-\xde]
 $small    = [a-z \xdf-\xf6 \xf8-\xff \_]
-$operator = [\+\*\-\/\<\>\|\:\$\^\@\!\~\%\&\.]
+$operator = [\+\*\-\/\<\>\|\:\$\^\@\!\~\%\&\.\,]
 $special  = [\(\)\,\;\[\]\`\{\}]
 
 $octit	   = 0-7
@@ -91,19 +96,23 @@ makeTokCmplx
 makeTokCmplx cons f (AlexPn c _ _) s =
   MkToken (Span (SourceId 0) c $ c + (length s)) (cons (f s))
 
-data Token = MkToken Span TokenKind deriving (Eq, Show)
+data Token = MkToken Span TokenKind
+  deriving (Eq, Show)
 instance Display Token where
   display (MkToken _ t) = display t
+instance Spanned Token where
+  getSpan (MkToken s _) = s
+  setSpan newSp (MkToken _ t) = MkToken newSp t
 
 fstIdx :: String -> String
-fstIdx [x] = [x]
-fstIdx (x:_) = [x]
-fstIdx _ = "EOF"
+fstIdx [x    ] = [x]
+fstIdx (x : _) = [x]
+fstIdx _       = "EOF"
 
 scanTokens :: SourceId -> String -> Except Diagnostic [Token]
 scanTokens sourceId str = go (alexStartPos, '\n', [], str) where
   go inp@(pos, _, _bs, str) = case alexScan inp 0 of
-    AlexEOF                               -> return []
+    AlexEOF -> return []
     AlexError ((AlexPn c _ _), _, _, stream) -> throwError $ Diagnostic
       Error
       UnexpectedCharacterError

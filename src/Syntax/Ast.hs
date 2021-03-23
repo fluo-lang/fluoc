@@ -4,27 +4,51 @@ import           Sources
 
 data Ident = Ident String Span
   deriving (Eq, Show)
+instance Spanned Ident where
+  getSpan (Ident _ s) = s
+  setSpan newSp (Ident s _) = Ident s newSp
+  
 data Operator = Operator String Span
   deriving (Eq, Show)
+instance Spanned Operator where
+  getSpan (Operator _ s) = s
+  setSpan newSp (Operator s _) = Operator s newSp
+
 data Namespace = Namespace [Ident] Span
   deriving (Eq, Show)
-
-newtype Block = Block [Statement]
-  deriving (Eq, Show)
+instance Spanned Namespace where
+  getSpan (Namespace _ s) = s
+  setSpan newSp (Namespace s _) = Namespace s newSp
 
 data Declaration = Declaration Ident Type Span
   deriving (Eq, Show)
+instance Spanned Declaration where
+  getSpan (Declaration _ _ s) = s
+  setSpan newSp (Declaration i t _) = Declaration i t newSp
 
 data Binding = Binding Ident [Pattern] Expr Span
   deriving (Eq, Show)
+instance Spanned Binding where
+  getSpan (Binding _ _ _ s) = s
+  setSpan newSp (Binding i ps e _) = Binding i ps e newSp
 
 data BindingOrDec = BindingBOD Binding
                   | DeclarationBOD Declaration
                   deriving (Eq, Show)
+instance Spanned BindingOrDec where
+  getSpan (BindingBOD b) = getSpan b
+  getSpan (DeclarationBOD d) = getSpan d
+  setSpan newSp (BindingBOD b) = BindingBOD (setSpan newSp b)
+  setSpan newSp (DeclarationBOD d) = DeclarationBOD (setSpan newSp d)
 
-data RecordItem = Union [Type]
-                | Sum [Declaration]
+data RecordItem = Union [Type] Span
+                | Sum [Declaration] Span
                 deriving (Eq, Show)
+instance Spanned RecordItem where
+  getSpan (Union _ s) = s
+  getSpan (Sum _ s) = s
+  setSpan newSp (Union ts _) = Union ts newSp
+  setSpan newSp (Sum ds _) = Sum ds newSp
 
 data Statement = BindingS Binding Span
                | DeclarationS Declaration Span
@@ -34,6 +58,21 @@ data Statement = BindingS Binding Span
                | ImportS Namespace (Maybe Ident) Span
                | FromImportS Namespace (Maybe [Ident]) Span
                deriving (Eq, Show)
+instance Spanned Statement where
+  getSpan (BindingS _ s) = s
+  getSpan (DeclarationS _ s) = s
+  getSpan (ImplS _ _ _ s) = s
+  getSpan (TraitS _ _ _ s) = s
+  getSpan (RecordS _ _ _ s) = s
+  getSpan (ImportS _ _ s) = s
+  getSpan (FromImportS _ _ s) = s
+  setSpan newSp (BindingS b _) = BindingS b newSp
+  setSpan newSp (DeclarationS d _) = DeclarationS d newSp
+  setSpan newSp (ImplS i t bs _) = ImplS i t bs newSp
+  setSpan newSp (TraitS i is bs _) = TraitS i is bs newSp
+  setSpan newSp (RecordS i is ris _) = RecordS i is ris newSp
+  setSpan newSp (ImportS n mi _) = ImportS n mi newSp
+  setSpan newSp (FromImportS n mis _) = FromImportS n mis newSp
 
 data Pattern = TupleP [Pattern] Span
              | BindP Ident Span
@@ -42,16 +81,52 @@ data Pattern = TupleP [Pattern] Span
              | LiteralP Literal Span
              | CustomP Pattern Operator Pattern Span
              deriving (Eq, Show)
+instance Spanned Pattern where
+  getSpan (TupleP _ s) = s
+  getSpan (BindP _ s) = s
+  getSpan (VariantP _ _ s) = s
+  getSpan (DropP s) = s
+  getSpan (LiteralP _ s) = s
+  getSpan (CustomP _ _ _ s) = s
+  setSpan newSp (LiteralP a _) = LiteralP a newSp
+  setSpan newSp (TupleP a _) = TupleP a newSp
+  setSpan newSp (BindP a _) = BindP a newSp
+  setSpan newSp (VariantP n is _) = VariantP n is newSp
+  setSpan newSp (DropP _) = DropP newSp
+  setSpan newSp (CustomP p o p' _) = CustomP p o p' newSp
 
-data Literal = IntegerL Int
-             | FloatL Float
+data Literal = IntegerL Integer Span
+             | FloatL Double Span
+             | StringL String Span
              deriving (Eq, Show)
+instance Spanned Literal where
+  getSpan (IntegerL _ s) = s
+  getSpan (FloatL _ s) = s
+  getSpan (StringL _ s) = s
+  setSpan newSp (IntegerL i _) = IntegerL i newSp
+  setSpan newSp (FloatL f _) = FloatL f newSp
+  setSpan newSp (StringL s _) = StringL s newSp
 
 data Type = Infer Span
           | Never Span
           | NamespaceType Namespace Span
-          | TypeApplication Namespace [Type] Span
+          | TypeApplication Type Type Span
+          | FunctionType Type Type Span
+          | TupleType [Type] Span
           deriving (Eq, Show)
+instance Spanned Type where
+  getSpan (Infer s) = s
+  getSpan (Never s) = s
+  getSpan (NamespaceType _ s) = s
+  getSpan (TypeApplication _ _ s) = s
+  getSpan (TupleType _ s) = s
+  getSpan (FunctionType _ _ s) = s
+  setSpan newSp (Infer _) = Infer newSp
+  setSpan newSp (Never _) = Never newSp
+  setSpan newSp (NamespaceType n _) = NamespaceType n newSp
+  setSpan newSp (TypeApplication t t' _) = TypeApplication t t' newSp
+  setSpan newSp (TupleType ts _) = TupleType ts newSp
+  setSpan newSp (FunctionType t t' _) = FunctionType t t' newSp
 
 data Expr = LiteralE Literal Span
           | BinOpE Expr Operator Expr Span
@@ -62,3 +137,21 @@ data Expr = LiteralE Literal Span
           | FunctionAppE Expr Expr Span
           | LambdaE [Ident] Expr Span
           deriving (Eq, Show)
+instance Spanned Expr where
+  getSpan (LiteralE _ s) = s
+  getSpan (BinOpE _ _ _ s) = s
+  getSpan (TupleE _ s) = s
+  getSpan (CondE _ _ _ s) = s
+  getSpan (LetInE _ _ s) = s
+  getSpan (VariableE _ s) = s
+  getSpan (FunctionAppE _ _ s) = s
+  getSpan (LambdaE _ _ s) = s
+
+  setSpan newSp (LiteralE l _) = LiteralE l newSp
+  setSpan newSp (BinOpE l o r _) = BinOpE l o r newSp
+  setSpan newSp (TupleE es _) = TupleE es newSp
+  setSpan newSp (CondE i ei e _) = CondE i ei e newSp
+  setSpan newSp (LetInE e e' _) = LetInE e e' newSp
+  setSpan newSp (VariableE n _) = VariableE n newSp
+  setSpan newSp (FunctionAppE e e' _) = FunctionAppE e e' newSp
+  setSpan newSp (LambdaE is e _) = LambdaE is e newSp
