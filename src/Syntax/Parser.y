@@ -58,6 +58,7 @@ import           Data.List                      ( intercalate )
 
 %nonassoc string float integer '(' '_' identifier
 %left operator
+%nonassoc OPEXPR
 %nonassoc FUNAPP
 %left '->'
 %nonassoc TYPEAPP
@@ -72,9 +73,23 @@ StatementsInner : Statements Statement  { $2 : $1 }
 Statement : dec Ident ':' Type { let pos = bt $1 $4
                                   in DeclarationS (Declaration $2 $4 pos) pos}
 
-Expr : Literal                { LiteralE $1 (getSpan $1)}
-     | Expr Operator Expr     { BinOpE $1 $2 $3 (bt $1 $3) }
-     | Expr Expr %prec FUNAPP { FunctionAppE $1 $2 (bt $1 $2) }
+Expr : Literal                         { LiteralE $1 (getSpan $1)}
+     | Expr Operator Expr %prec OPEXPR { BinOpE $1 $2 $3 (bt $1 $3) }
+     | Tuple                           { $1 }
+     | Expr Expr %prec FUNAPP          { BinOpE $1 
+                                           (Operator "application" $
+                                               gap (getSpan $1) (getSpan $2))
+                                           $2
+                                           (bt $1 $2) }
+
+Tuple     : '(' ')'               { TupleE [] (bt $1 $2) }
+          | '(' ',' ')'           { TupleE [] (bt $1 $3) }
+          | '(' Expr ',' ')'      { TupleE [$2] (bt $1 $4)}
+          | '(' TupleExpr ',' ')' { let reved = reverse $2 in TupleE reved (bt $1 $4)}
+          | '(' TupleExpr ')'     { let reved = reverse $2 in TupleE reved (bt $1 $3)}
+          | '(' Expr ')'          { GroupedE $2 (bt $1 $3) }
+TupleExpr : TupleExpr ',' Expr    { ($3:$1) }
+          | Expr ',' Expr         { [$3, $1] }
 
 Operator : operator {case $1 of (MkToken span (OperatorTok o)) -> Operator o span}
 

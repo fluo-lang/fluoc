@@ -18,6 +18,7 @@ dependencies:
 - containers
 - array
 - mtl
+- pretty-show
 
 library:
   source-dirs: src

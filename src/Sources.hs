@@ -7,6 +7,7 @@ data Span = Span SourceId Int Int | Eof deriving (Show, Eq)
 fromPos sourceId pos = Span sourceId pos (pos+1)
 
 btwn (Span sid s _) (Span _ _ e) = Span sid s e
+gap (Span sid _ e) (Span _ s _) = Span sid e s
 
 bt :: (Spanned a, Spanned b) => a -> b -> Span
 bt t1 t2 = btwn (getSpan t1) (getSpan t2)
