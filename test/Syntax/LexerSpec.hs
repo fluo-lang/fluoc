@@ -31,7 +31,7 @@ spec :: Spec
 spec = do
   it "should lex keywords"
     $          runExcept
-                 (scanTokens sid "let import rec impl trait dec in if else match")
+                 (scanTokens sid "let import rec impl trait dec in if else match elif")
     `shouldBe` Right
                  [ MkToken (sn 0 3)   LetTok
                  , MkToken (sn 4 10)  ImportTok
@@ -43,6 +43,7 @@ spec = do
                  , MkToken (sn 33 35) IfTok
                  , MkToken (sn 36 40) ElseTok
                  , MkToken (sn 41 46) MatchTok
+                 , MkToken (sn 47 51) ElifTok
                  ]
   it "should lex symbols"
     $          runExcept (scanTokens sid "()\n[]\n{}")

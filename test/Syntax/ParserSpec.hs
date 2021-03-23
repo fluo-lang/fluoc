@@ -347,3 +347,45 @@ spec = do
                        (LiteralE (IntegerL 30 (sn 11 13)) (sn 11 13))
                    $ sn 0 13
                    )
+    it "should parse an if statement"
+      $          parseExpr sid "if 30 { 10 } else { 20 }"
+      `shouldBe` Right
+                   (CondE
+                     ( LiteralE (IntegerL 30 (sn 3 5))  (sn 3 5)
+                     , LiteralE (IntegerL 10 (sn 8 10)) (sn 8 10)
+                     )
+                     []
+                     (LiteralE (IntegerL 20 (sn 20 22)) (sn 20 22))
+                     (sn 0 24)
+                   )
+    it "should parse an if statement with `elif` clause"
+      $          parseExpr sid "if 30 { 10 } elif 40 { 50 } else { 20 }"
+      `shouldBe` Right
+                   (CondE
+                     ( LiteralE (IntegerL 30 (sn 3 5))  (sn 3 5)
+                     , LiteralE (IntegerL 10 (sn 8 10)) (sn 8 10)
+                     )
+                     [ ( LiteralE (IntegerL 40 (sn 18 20)) (sn 18 20)
+                       , LiteralE (IntegerL 50 (sn 23 25)) (sn 23 25)
+                       )
+                     ]
+                     (LiteralE (IntegerL 20 (sn 35 37)) (sn 35 37))
+                     (sn 0 39)
+                   )
+    it "should parse an if statement with multiple `elif` clauses"
+      $ parseExpr sid "if 30 { 10 } elif 40 { 50 } elif 60 { 70 } else { 20 }"
+      `shouldBe` Right
+                   (CondE
+                     ( LiteralE (IntegerL 30 (sn 3 5))  (sn 3 5)
+                     , LiteralE (IntegerL 10 (sn 8 10)) (sn 8 10)
+                     )
+                     [ ( LiteralE (IntegerL 40 (sn 18 20)) (sn 18 20)
+                       , LiteralE (IntegerL 50 (sn 23 25)) (sn 23 25)
+                       )
+                     , ( LiteralE (IntegerL 60 (sn 33 35)) (sn 33 35)
+                       , LiteralE (IntegerL 70 (sn 38 40)) (sn 38 40)
+                       )
+                     ]
+                     (LiteralE (IntegerL 20 (sn 50 52)) (sn 50 52))
+                     (sn 0 54)
+                   )

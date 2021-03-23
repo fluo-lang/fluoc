@@ -15,6 +15,7 @@ data TokenKind = IdentTok String
                | InTok
                | IfTok
                | ElseTok
+               | ElifTok
                | MatchTok
 
                | DoubleQouteTok
@@ -40,6 +41,7 @@ getStaticTok tok = case tok of
   InTok          -> "in"
   IfTok          -> "if"
   ElseTok        -> "else"
+  ElifTok        -> "elif"
   MatchTok       -> "match"
 
   DoubleQouteTok -> "\""

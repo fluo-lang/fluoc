@@ -73,6 +73,7 @@ tokens :-
   if                                    { makeTok IfTok }
   else                                  { makeTok ElseTok }
   match                                 { makeTok MatchTok }
+  elif                                  { makeTok ElifTok }
   $digit+ \. $digit+                    { makeTokCmplx FloatTok read }
   $digit+                               { makeTokCmplx IntegerTok read }
   $operator+                            { makeTokCmplx OperatorTok id }

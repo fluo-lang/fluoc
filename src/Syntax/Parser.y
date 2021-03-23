@@ -35,6 +35,7 @@ import           Data.List                      ( intercalate )
     in           { MkToken _ InTok }
     if           { MkToken _ IfTok }
     else         { MkToken _ ElseTok }
+    elif         { MkToken _ ElifTok }
     match        { MkToken _ MatchTok }
     '"'          { MkToken _ DoubleQouteTok }
     "'"          { MkToken _ SingleQouteTok }
@@ -73,14 +74,21 @@ StatementsInner : Statements Statement  { $2 : $1 }
 Statement : dec Ident ':' Type { let pos = bt $1 $4
                                   in DeclarationS (Declaration $2 $4 pos) pos}
 
-Expr : Literal                         { LiteralE $1 (getSpan $1)}
-     | Expr Operator Expr %prec OPEXPR { BinOpE $1 $2 $3 (bt $1 $3) }
-     | Tuple                           { $1 }
-     | Expr Expr %prec FUNAPP          { BinOpE $1 
-                                           (Operator "application" $
-                                               gap (getSpan $1) (getSpan $2))
-                                           $2
-                                           (bt $1 $2) }
+Expr : Literal                                           { LiteralE $1 (getSpan $1)}
+     | Expr Operator Expr %prec OPEXPR                   { BinOpE $1 $2 $3 (bt $1 $3) }
+     | Tuple                                             { $1 }
+     | Namespace                                         { VariableE $1 $ getSpan $1 }
+     | if Expr '{' Expr '}' else '{' Expr '}'            { CondE ($2, $4) [] $8 $ bt $1 $9}
+     | if Expr '{' Expr '}' ElseIfCond else '{' Expr '}' { CondE ($2, $4) (reverse $6) $9 $ bt $1 $10}
+     | Expr Expr %prec FUNAPP                            { BinOpE $1 
+                                                           (Operator "application" $
+                                                               gap (getSpan $1) (getSpan $2))
+                                                           $2
+                                                           (bt $1 $2) }
+
+ElseIfCond : ElseIfCond ElseIf         { ($2:$1) }
+           | ElseIf                    { [$1] }
+ElseIf     : elif Expr '{' Expr '}'    { ($2, $4) }
 
 Tuple     : '(' ')'               { TupleE [] (bt $1 $2) }
           | '(' ',' ')'           { TupleE [] (bt $1 $3) }
