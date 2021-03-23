@@ -171,3 +171,24 @@ spec = do
                      )
                      (sn 0 19)
                    )
+  describe "Syntax.Parser.parseExpr" $ do
+    it "should parse a literal" $ parseExpr sid "10" `shouldBe` Right
+      (LiteralE (IntegerL 10 (sn 0 2)) (sn 0 2))
+    it "should parse a function application"
+      $          parseExpr sid "1 2"
+      `shouldBe` Right
+                   (FunctionAppE (LiteralE (IntegerL 1 (sn 0 1)) (sn 0 1))
+                                 (LiteralE (IntegerL 2 (sn 2 3)) (sn 2 3))
+                                 (sn 0 3)
+                   )
+    it "should parse a function application with multiple"
+      $          parseExpr sid "1 2 3"
+      `shouldBe` Right
+                   (FunctionAppE
+                     (FunctionAppE (LiteralE (IntegerL 1 (sn 0 1)) (sn 0 1))
+                                   (LiteralE (IntegerL 2 (sn 2 3)) (sn 2 3))
+                                   (sn 0 3)
+                     )
+                     (LiteralE (IntegerL 3 (sn 4 5)) (sn 4 5))
+                     (sn 0 5)
+                   )

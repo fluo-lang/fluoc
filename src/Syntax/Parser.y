@@ -56,6 +56,12 @@ import           Data.List                      ( intercalate )
     '='          { MkToken _ (OperatorTok "=")}
     operator     { MkToken _ (OperatorTok _)}
 
+%nonassoc string float integer '(' '_' identifier
+%left operator
+%nonassoc FUNAPP
+%left '->'
+%nonassoc TYPEAPP
+
 %%
 
 Statements      : StatementsInner       { $1 }
@@ -66,18 +72,17 @@ StatementsInner : Statements Statement  { $2 : $1 }
 Statement : dec Ident ':' Type { let pos = bt $1 $4
                                   in DeclarationS (Declaration $2 $4 pos) pos}
 
-Expr : Literal     { LiteralE $1 (getSpan $1)}
+Expr : Literal                { LiteralE $1 (getSpan $1)}
+     | Expr Operator Expr     { BinOpE $1 $2 $3 (bt $1 $3) }
+     | Expr Expr %prec FUNAPP { FunctionAppE $1 $2 (bt $1 $2) }
+
+Operator : operator {case $1 of (MkToken span (OperatorTok o)) -> Operator o span}
 
 Literal : string   { case $1 of (MkToken span (StrTok s)) -> StringL s span}
         | float    { case $1 of (MkToken span (FloatTok f)) -> FloatL f span}
         | integer  { case $1 of (MkToken span (IntegerTok i)) -> IntegerL i span}
 
-Type          : Type '->' TypeApp          { FunctionType $1 $3 (bt $1 $3) }
-              | TypeApp                    { $1 }
-TypeApp       : TypeApp TypeAtom           { TypeApplication $1 $2 (bt $1 $2)}
-              | TypeAtom                   { $1 }
-
-TypeAtom      : '_'                        { Infer $ getSpan $1 }
+Type          : '_'                        { Infer $ getSpan $1 }
               | Namespace                  { NamespaceType $1 (getSpan $1) }
               | '(' TupleType ')'          { let reved = reverse $2 in TupleType reved (bt $1 $3)}
               | '(' ')'                    { TupleType [] (bt $1 $2)}
@@ -85,6 +90,8 @@ TypeAtom      : '_'                        { Infer $ getSpan $1 }
               | '(' Type ',' ')'           { TupleType [$2] (bt $1 $4)}
               | '(' TupleType ',' ')'      { let reved = reverse $2 in TupleType reved (bt $1 $4)}
               | '(' Type ')'               { setSpan (bt $1 $3) $2 }
+              | Type Type  %prec TYPEAPP   { TypeApplication $1 $2 (bt $1 $2)}
+              | Type '->' Type             { FunctionType $1 $3 (bt $1 $3) }
 TupleType     : TupleType ',' Type         { ($3:$1) }
               | Type ',' Type              { [$3, $1] }
 
