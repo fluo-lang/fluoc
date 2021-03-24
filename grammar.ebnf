@@ -41,7 +41,7 @@ single match = pattern, "->", expr ;
 
 if = "if", expr, "{", expr, "}", { "else", "if", expr, "{", expr, "}" }, "else", "{", expr, "}";
 
-let in = "let", { binding }-, "in", expr;
+let in = "let", binding, { "," binding }, "in", "{", expr, "}";
 
 macro = ident, "!", "[", valid tokens, "]" ;
 valid tokens = ? valid tokens, with proper closed parens ?;
