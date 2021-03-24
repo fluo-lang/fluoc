@@ -58,6 +58,8 @@ import           Data.List                      ( intercalate )
 
 %right in let if
 %nonassoc string float integer '(' '_' identifier
+%nonassoc VARIANT
+%nonassoc OPPAT
 %left operator
 %nonassoc OPEXPR
 %nonassoc FUNAPP
@@ -99,7 +101,8 @@ PatternsInner : PatternsInner PatternBinding { ($2:$1) }
 PatternBinding        : Ident                           { BindP $1 (getSpan $1) }
                       | '(' Pattern ')'                 { setSpan (bt $1 $3) $2 }
 Pattern               : Ident                           { BindP $1 (getSpan $1) }
-                      | Namespace Pattern               { VariantP $1 $2 (bt $1 $2) }
+                      | Namespace Pattern %prec VARIANT { VariantP $1 $2 (bt $1 $2) }
+                      | Pattern Operator Pattern %prec OPPAT { CustomP $1 $2 $3 (bt $1 $3) }
                       | '(' Pattern ')'                 { setSpan (bt $1 $3) $2 }
 
 ElifCond      : ElifCondInner          { reverse $1 }

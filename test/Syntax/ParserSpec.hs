@@ -474,3 +474,34 @@ spec = do
                      )
                      (Span (SourceId 0) 0 24)
                    )
+    it "should parse multiple values with operator"
+      $          parseExpr sid "let (Some x~xs) = 10 in { 30 }"
+      `shouldBe` Right
+                   (LetInE
+                     [ Binding
+                         [ VariantP
+                             (Namespace [Ident "Some" (Span (SourceId 0) 5 9)]
+                                        (Span (SourceId 0) 5 9)
+                             )
+                             (CustomP
+                               (BindP (Ident "x" (Span (SourceId 0) 10 11))
+                                      (Span (SourceId 0) 10 11)
+                               )
+                               (Operator "~" (Span (SourceId 0) 11 12))
+                               (BindP (Ident "xs" (Span (SourceId 0) 12 14))
+                                      (Span (SourceId 0) 12 14)
+                               )
+                               (Span (SourceId 0) 10 14)
+                             )
+                             (Span (SourceId 0) 4 15)
+                         ]
+                         (LiteralE (IntegerL 10 (Span (SourceId 0) 18 20))
+                                   (Span (SourceId 0) 18 20)
+                         )
+                         (Span (SourceId 0) 4 20)
+                     ]
+                     (LiteralE (IntegerL 30 (Span (SourceId 0) 26 28))
+                               (Span (SourceId 0) 26 28)
+                     )
+                     (Span (SourceId 0) 0 30)
+                   )
