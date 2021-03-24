@@ -31,7 +31,7 @@ data Statement = BindingS Ident Binding Span
 
 data Pattern = TupleP [Pattern] Span
              | BindP Ident Span
-             | VariantP Namespace [Pattern] Span
+             | VariantP Namespace Pattern Span
              | DropP Span
              | LiteralP Literal Span
              | CustomP Pattern Operator Pattern Span

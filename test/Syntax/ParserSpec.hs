@@ -255,7 +255,7 @@ spec = do
                        )
                        (Span (SourceId 0) 0 49)
                      )
-                    (Operator "->" $ sn 50 52)
+                     (Operator "->" $ sn 50 52)
                      (NamespaceType
                        (Namespace [Ident "Int" (Span (SourceId 0) 53 56)]
                                   (Span (SourceId 0) 53 56)
@@ -405,47 +405,72 @@ spec = do
                      (sn 0 54)
                    )
     it "should parse a basic let in binding"
-      $          parseExpr sid "let x = 10 in 30"
+      $          parseExpr sid "let x = 10 in { 30 }"
       `shouldBe` Right
                    (LetInE
-                     [ Binding [BindP (Ident "x" (sn 4 5)) (sn 4 5)]
-                               (LiteralE (IntegerL 10 (sn 8 10)) (sn 8 10))
-                               (sn 4 10)
+                     [ Binding
+                         [ BindP (Ident "x" (Span (SourceId 0) 4 5))
+                                 (Span (SourceId 0) 4 5)
+                         ]
+                         (LiteralE (IntegerL 10 (Span (SourceId 0) 8 10))
+                                   (Span (SourceId 0) 8 10)
+                         )
+                         (Span (SourceId 0) 4 10)
                      ]
-                     (LiteralE (IntegerL 30 (sn 14 16)) (sn 14 16))
-                     (sn 0 16)
+                     (LiteralE (IntegerL 30 (Span (SourceId 0) 16 18))
+                               (Span (SourceId 0) 16 18)
+                     )
+                     (Span (SourceId 0) 0 20)
                    )
     it "should parse multiple patterns"
-      $          parseExpr sid "let x y = 10 in 30 40"
+      $          parseExpr sid "let x y = 10 in { 30 40 }"
       `shouldBe` Right
                    (LetInE
                      [ Binding
-                           [ BindP (Ident "x" (sn 4 5)) (sn 4 5)
-                           , BindP (Ident "y" (sn 6 7)) (sn 6 7)
-                           ]
-                           (LiteralE (IntegerL 10 $ sn 10 12) $ sn 10 12)
-                         $ sn 4 12
+                         [ BindP (Ident "x" (Span (SourceId 0) 4 5))
+                                 (Span (SourceId 0) 4 5)
+                         , BindP (Ident "y" (Span (SourceId 0) 6 7))
+                                 (Span (SourceId 0) 6 7)
+                         ]
+                         (LiteralE (IntegerL 10 (Span (SourceId 0) 10 12))
+                                   (Span (SourceId 0) 10 12)
+                         )
+                         (Span (SourceId 0) 4 12)
                      ]
-                     ( BinOpE (LiteralE (IntegerL 30 $ sn 16 18) $ sn 16 18)
-                              (Operator "application" $ sn 18 19)
-                              (LiteralE (IntegerL 40 $ sn 19 21) $ sn 19 21)
-                     $ sn 16 21
+                     (BinOpE
+                       (LiteralE (IntegerL 30 (Span (SourceId 0) 18 20))
+                                 (Span (SourceId 0) 18 20)
+                       )
+                       (Operator "application" (Span (SourceId 0) 20 21))
+                       (LiteralE (IntegerL 40 (Span (SourceId 0) 21 23))
+                                 (Span (SourceId 0) 21 23)
+                       )
+                       (Span (SourceId 0) 18 23)
                      )
-                     (sn 0 21)
+                     (Span (SourceId 0) 0 25)
                    )
+
     it "should parse a single pattern with parens"
-      $          parseExpr sid "let (x y) = 10 in 30"
+      $          parseExpr sid "let (x y) = 10 in { 30 }"
       `shouldBe` Right
                    (LetInE
                      [ Binding
-                           [ VariantP
-                               (Namespace [Ident "x" (sn 5 6)] (sn 5 6))
-                               [BindP (Ident "y" (sn 7 8)) (sn 7 8)]
-                               (sn 4 9)
-                           ]
-                           (LiteralE (IntegerL 10 $ sn 12 14) $ sn 12 14)
-                         $ sn 4 14
+                         [ VariantP
+                             (Namespace [Ident "x" (Span (SourceId 0) 5 6)]
+                                        (Span (SourceId 0) 5 6)
+                             )
+                             (BindP (Ident "y" (Span (SourceId 0) 7 8))
+                                    (Span (SourceId 0) 7 8)
+                             )
+                             (Span (SourceId 0) 4 9)
+                         ]
+                         (LiteralE (IntegerL 10 (Span (SourceId 0) 12 14))
+                                   (Span (SourceId 0) 12 14)
+                         )
+                         (Span (SourceId 0) 4 14)
                      ]
-                     (LiteralE (IntegerL 30 $ sn 18 20) $ sn 18 20)
-                     (sn 0 20)
+                     (LiteralE (IntegerL 30 (Span (SourceId 0) 20 22))
+                               (Span (SourceId 0) 20 22)
+                     )
+                     (Span (SourceId 0) 0 24)
                    )

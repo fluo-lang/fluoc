@@ -56,7 +56,7 @@ import           Data.List                      ( intercalate )
     '='          { MkToken _ (OperatorTok "=")}
     operator     { MkToken _ (OperatorTok _)}
 
-%right in
+%right in let if
 %nonassoc string float integer '(' '_' identifier
 %left operator
 %nonassoc OPEXPR
@@ -78,7 +78,7 @@ Expr : Literal                                         { LiteralE $1 (getSpan $1
      | Expr Operator Expr %prec OPEXPR                 { BinOpE $1 $2 $3 (bt $1 $3) }
      | Tuple                                           { $1 }
      | Namespace                                       { VariableE $1 $ getSpan $1 }
-     | let Bindings in Expr                            { LetInE $2 $4 $ bt $1 $4 }
+     | let Bindings in '{' Expr '}'                    { LetInE $2 $5 $ bt $1 $6 }
      | if Expr '{' Expr '}' else '{' Expr '}'          { CondE ($2, $4) [] $8 $ bt $1 $9}
      | if Expr '{' Expr '}' ElifCond else '{' Expr '}' { CondE ($2, $4) $6 $9 $ bt $1 $10}
      | Expr Expr %prec FUNAPP                          { BinOpE $1 
@@ -87,10 +87,10 @@ Expr : Literal                                         { LiteralE $1 (getSpan $1
                                                            $2
                                                            (bt $1 $2) }
 
-Bindings      : BindingsInner         { reverse $1 }
-BindingsInner : BindingsInner Binding { ($2:$1) }
-              | Binding               { [$1] }
-Binding       : Patterns '=' Expr     { Binding $1 $3 (bt (head $1) $3)}
+Bindings      : BindingsInner             { reverse $1 }
+BindingsInner : BindingsInner ',' Binding { ($3:$1) }
+              | Binding                   { [$1] }
+Binding       : Patterns '=' Expr         { Binding $1 $3 (bt (head $1) $3)}
 
 Patterns      : PatternsInner                { reverse $1 }
 PatternsInner : PatternsInner PatternBinding { ($2:$1) }
@@ -98,10 +98,8 @@ PatternsInner : PatternsInner PatternBinding { ($2:$1) }
 
 PatternBinding        : Ident                           { BindP $1 (getSpan $1) }
                       | '(' Pattern ')'                 { setSpan (bt $1 $3) $2 }
-PatternsUnconstrained : PatternsUnconstrained Pattern   { ($2:$1) }
-                      | Pattern                         { [$1] }
 Pattern               : Ident                           { BindP $1 (getSpan $1) }
-                      | Namespace PatternsUnconstrained { VariantP $1 (reverse $2) (bt $1 (head $2)) }
+                      | Namespace Pattern               { VariantP $1 $2 (bt $1 $2) }
                       | '(' Pattern ')'                 { setSpan (bt $1 $3) $2 }
 
 ElifCond      : ElifCondInner          { reverse $1 }

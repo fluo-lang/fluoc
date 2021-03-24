@@ -125,7 +125,7 @@ let greaterThan5 : x = if x > 5 {
 
 Let-in (local binding):
 ```python
-let complicatedFunction : x = let z = 10
+let complicatedFunction : x = let z = 10,
                                   y = x * 2
-                              in z + y
+                              in { z + y }
 ```
