@@ -11,7 +11,7 @@ data Namespace = Namespace [Ident] Span
 
 data Declaration = Declaration Ident Type Span
   deriving (Eq, Show)
-data Binding = Binding Ident [Pattern] Expr Span
+data Binding = Binding [Pattern] Expr Span
   deriving (Eq, Show)
 data BindingOrDec = BindingBOD Binding
                   | DeclarationBOD Declaration
@@ -20,7 +20,7 @@ data RecordItem = Union [Type] Span
                 | Sum [Declaration] Span
                 deriving (Eq, Show)
 
-data Statement = BindingS Binding Span
+data Statement = BindingS Ident Binding Span
                | DeclarationS Declaration Span
                | ImplS Ident Type [BindingOrDec] Span
                | TraitS Ident [Ident] [BindingOrDec] Span
@@ -31,7 +31,7 @@ data Statement = BindingS Binding Span
 
 data Pattern = TupleP [Pattern] Span
              | BindP Ident Span
-             | VariantP Namespace [Ident] Span
+             | VariantP Namespace [Pattern] Span
              | DropP Span
              | LiteralP Literal Span
              | CustomP Pattern Operator Pattern Span
@@ -45,8 +45,7 @@ data Literal = IntegerL Integer Span
 data Type = Infer Span
           | Never Span
           | NamespaceType Namespace Span
-          | TypeApplication Type Type Span
-          | FunctionType Type Type Span
+          | BinOpType Type Operator Type Span
           | TupleType [Type] Span
           deriving (Eq, Show)
 
@@ -54,7 +53,7 @@ data Expr = LiteralE Literal Span
           | BinOpE Expr Operator Expr Span
           | TupleE [Expr] Span
           | CondE (Expr, Expr) [(Expr, Expr)] Expr Span
-          | LetInE Binding Expr Span
+          | LetInE [Binding] Expr Span
           | VariableE Namespace Span
           | LambdaE [Ident] Expr Span
           | GroupedE Expr Span
@@ -77,8 +76,8 @@ instance Spanned Declaration where
   setSpan newSp (Declaration i t _) = Declaration i t newSp
 
 instance Spanned Binding where
-  getSpan (Binding _ _ _ s) = s
-  setSpan newSp (Binding i ps e _) = Binding i ps e newSp
+  getSpan (Binding _ _ s) = s
+  setSpan newSp (Binding ps e _) = Binding ps e newSp
 
 instance Spanned BindingOrDec where
   getSpan (BindingBOD b) = getSpan b
@@ -93,14 +92,14 @@ instance Spanned RecordItem where
   setSpan newSp (Sum ds _) = Sum ds newSp
 
 instance Spanned Statement where
-  getSpan (BindingS _ s) = s
+  getSpan (BindingS _ _ s) = s
   getSpan (DeclarationS _ s) = s
   getSpan (ImplS _ _ _ s) = s
   getSpan (TraitS _ _ _ s) = s
   getSpan (RecordS _ _ _ s) = s
   getSpan (ImportS _ _ s) = s
   getSpan (FromImportS _ _ s) = s
-  setSpan newSp (BindingS b _) = BindingS b newSp
+  setSpan newSp (BindingS i b _) = BindingS i b newSp
   setSpan newSp (DeclarationS d _) = DeclarationS d newSp
   setSpan newSp (ImplS i t bs _) = ImplS i t bs newSp
   setSpan newSp (TraitS i is bs _) = TraitS i is bs newSp
@@ -134,15 +133,13 @@ instance Spanned Type where
   getSpan (Infer s) = s
   getSpan (Never s) = s
   getSpan (NamespaceType _ s) = s
-  getSpan (TypeApplication _ _ s) = s
+  getSpan (BinOpType _ _ _ s) = s
   getSpan (TupleType _ s) = s
-  getSpan (FunctionType _ _ s) = s
   setSpan newSp (Infer _) = Infer newSp
   setSpan newSp (Never _) = Never newSp
   setSpan newSp (NamespaceType n _) = NamespaceType n newSp
-  setSpan newSp (TypeApplication t t' _) = TypeApplication t t' newSp
+  setSpan newSp (BinOpType t o t' _) = BinOpType t o t' newSp
   setSpan newSp (TupleType ts _) = TupleType ts newSp
-  setSpan newSp (FunctionType t t' _) = FunctionType t t' newSp
 
 instance Spanned Expr where
   getSpan (LiteralE _ s) = s

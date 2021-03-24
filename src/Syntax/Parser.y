@@ -50,18 +50,18 @@ import           Data.List                      ( intercalate )
     string       { MkToken _ (StrTok _)}
     integer      { MkToken _ (IntegerTok _)}
     float        { MkToken _ (FloatTok _)}
-    '->'         { MkToken _ (OperatorTok "->")}
     ','          { MkToken _ (OperatorTok ",")}
     '::'         { MkToken _ (OperatorTok "::")}
     ':'          { MkToken _ (OperatorTok ":")}
     '='          { MkToken _ (OperatorTok "=")}
     operator     { MkToken _ (OperatorTok _)}
 
+%right in
 %nonassoc string float integer '(' '_' identifier
 %left operator
 %nonassoc OPEXPR
 %nonassoc FUNAPP
-%left '->'
+%left '->' TYPEOP
 %nonassoc TYPEAPP
 
 %%
@@ -74,21 +74,40 @@ StatementsInner : Statements Statement  { $2 : $1 }
 Statement : dec Ident ':' Type { let pos = bt $1 $4
                                   in DeclarationS (Declaration $2 $4 pos) pos}
 
-Expr : Literal                                           { LiteralE $1 (getSpan $1)}
-     | Expr Operator Expr %prec OPEXPR                   { BinOpE $1 $2 $3 (bt $1 $3) }
-     | Tuple                                             { $1 }
-     | Namespace                                         { VariableE $1 $ getSpan $1 }
-     | if Expr '{' Expr '}' else '{' Expr '}'            { CondE ($2, $4) [] $8 $ bt $1 $9}
-     | if Expr '{' Expr '}' ElseIfCond else '{' Expr '}' { CondE ($2, $4) (reverse $6) $9 $ bt $1 $10}
-     | Expr Expr %prec FUNAPP                            { BinOpE $1 
+Expr : Literal                                         { LiteralE $1 (getSpan $1)}
+     | Expr Operator Expr %prec OPEXPR                 { BinOpE $1 $2 $3 (bt $1 $3) }
+     | Tuple                                           { $1 }
+     | Namespace                                       { VariableE $1 $ getSpan $1 }
+     | let Bindings in Expr                            { LetInE $2 $4 $ bt $1 $4 }
+     | if Expr '{' Expr '}' else '{' Expr '}'          { CondE ($2, $4) [] $8 $ bt $1 $9}
+     | if Expr '{' Expr '}' ElifCond else '{' Expr '}' { CondE ($2, $4) $6 $9 $ bt $1 $10}
+     | Expr Expr %prec FUNAPP                          { BinOpE $1 
                                                            (Operator "application" $
                                                                gap (getSpan $1) (getSpan $2))
                                                            $2
                                                            (bt $1 $2) }
 
-ElseIfCond : ElseIfCond ElseIf         { ($2:$1) }
-           | ElseIf                    { [$1] }
-ElseIf     : elif Expr '{' Expr '}'    { ($2, $4) }
+Bindings      : BindingsInner         { reverse $1 }
+BindingsInner : BindingsInner Binding { ($2:$1) }
+              | Binding               { [$1] }
+Binding       : Patterns '=' Expr     { Binding $1 $3 (bt (head $1) $3)}
+
+Patterns      : PatternsInner                { reverse $1 }
+PatternsInner : PatternsInner PatternBinding { ($2:$1) }
+              | PatternBinding               { [$1] }
+
+PatternBinding        : Ident                           { BindP $1 (getSpan $1) }
+                      | '(' Pattern ')'                 { setSpan (bt $1 $3) $2 }
+PatternsUnconstrained : PatternsUnconstrained Pattern   { ($2:$1) }
+                      | Pattern                         { [$1] }
+Pattern               : Ident                           { BindP $1 (getSpan $1) }
+                      | Namespace PatternsUnconstrained { VariantP $1 (reverse $2) (bt $1 (head $2)) }
+                      | '(' Pattern ')'                 { setSpan (bt $1 $3) $2 }
+
+ElifCond      : ElifCondInner          { reverse $1 }
+ElifCondInner : ElifCondInner Elif     { ($2:$1) }
+              | Elif                   { [$1] }
+Elif          : elif Expr '{' Expr '}' { ($2, $4) }
 
 Tuple     : '(' ')'               { TupleE [] (bt $1 $2) }
           | '(' ',' ')'           { TupleE [] (bt $1 $3) }
@@ -113,14 +132,14 @@ Type          : '_'                        { Infer $ getSpan $1 }
               | '(' Type ',' ')'           { TupleType [$2] (bt $1 $4)}
               | '(' TupleType ',' ')'      { let reved = reverse $2 in TupleType reved (bt $1 $4)}
               | '(' Type ')'               { setSpan (bt $1 $3) $2 }
-              | Type Type  %prec TYPEAPP   { TypeApplication $1 $2 (bt $1 $2)}
-              | Type '->' Type             { FunctionType $1 $3 (bt $1 $3) }
+              | Type Type  %prec TYPEAPP   { BinOpType $1 (Operator "application" $ gap (getSpan $1) (getSpan $2)) $2 (bt $1 $2)}
+              | Type Operator Type %prec TYPEOP { BinOpType $1 $2 $3 (bt $1 $3) }
 TupleType     : TupleType ',' Type         { ($3:$1) }
               | Type ',' Type              { [$3, $1] }
 
 Ident          : identifier                { case $1 of (MkToken span (IdentTok s)) -> Ident s span}
 Namespace      : NamespaceInner            { let reved = reverse $1 
-                                              in Namespace reved (bt (head reved) (last reved)) }
+                                              in Namespace reved (bt (head reved) (head $1)) }
 NamespaceInner : Ident                     { [$1] }
                | NamespaceInner '::' Ident { ($3:$1) }
 
@@ -135,7 +154,10 @@ syntaxErr expects str span = Diagnostic
   SyntaxError
   [Annotation span (Just $ "Unexpected " ++ str) Error]
   span
-  (Just $ "expected one of: " ++ (intercalate " " expects))
+  (case expects of
+    [] -> Nothing
+    [x] -> Just $ "expected " ++ x
+    _ -> (Just $ "expected " ++ (intercalate ", " (init expects)) ++ ", or " ++ (last expects)))
 
 parseError :: ([Token], [String]) -> Except Diagnostic a
 parseError (((MkToken span t) : ts), expects) =

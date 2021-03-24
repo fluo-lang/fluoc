@@ -20,7 +20,7 @@ $digit    = 0-9
 $alpha    = [a-zA-Z]
 $large    = [A-Z \xc0-\xd6 \xd8-\xde]
 $small    = [a-z \xdf-\xf6 \xf8-\xff \_]
-$operator = [\+\*\-\/\<\>\|\:\$\^\@\!\~\%\&\.\,]
+$operator = [\+\*\-\/\<\>\|\:\$\^\@\!\~\%\&\.\,\=]
 $special  = [\(\)\,\;\[\]\`\{\}]
 
 $octit	   = 0-7

@@ -116,7 +116,7 @@ Conditionals:
 dec greaterThan5 : Int -> Int
 let greaterThan5 : x = if x > 5 {
                            10
-                       } else if x > 3 {
+                       } elif x > 3 {
                            5
                        } else {
                            x
