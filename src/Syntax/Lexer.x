@@ -48,21 +48,22 @@ $cntrl     = [$large \@\[\\\]\^\_]
 @string   = $graphic # [\"\\] | " " | @escape | @gap
 
 -- Sorcery taken from https://stackoverflow.com/a/36328890/9470078 
-$notHashTag = [\x00-\x10ffff] # \#
-$notComment = [\x00-\x10ffff] # [\#\/]
-@commentStart = $notHashTag* (\#+)
+$notHashTag    = [\x00-\x10ffff] # \#
+$notComment    = [\x00-\x10ffff] # [\#\/]
+@commentStart  = $notHashTag* (\#+)
 @commentMiddle = $notComment $notHashTag* (\#+)
-@commentMulti = "/#" @commentStart "/"
+@commentMulti  = "/#" @commentStart "/"
 
 tokens :-
   -- Whitespace insensitive
-  $white+                       ;
+  $white+ ;
 
   -- Comments
-  @commentMulti                 ;
-  "#".*                         ;
+  @commentMulti ;
+  "#".*\n       ;
 
   -- Syntax
+  \;                                    { makeTok BreakTok }
   let                                   { makeTok LetTok }
   import                                { makeTok ImportTok }
   rec                                   { makeTok RecTok }

@@ -28,6 +28,7 @@ data TokenKind = IdentTok String
                | LCurlyTok
                | RCurlyTok
 
+               | BreakTok
                | EofTok
                deriving (Eq, Show)
 
@@ -65,5 +66,6 @@ instance Display TokenKind where
     FloatTok    val -> "float `" ++ show val ++ "`"
     OperatorTok val -> "operator `" ++ val ++ "`"
     EofTok          -> "end of file"
+    BreakTok        -> "line break"
 
     _               -> "token `" ++ getStaticTok tok ++ "`"

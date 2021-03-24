@@ -45,16 +45,17 @@ import           Data.List                      ( intercalate )
     ']'          { MkToken _ RBracketTok }
     '{'          { MkToken _ LCurlyTok }
     '}'          { MkToken _ RCurlyTok }
-    '_'          { MkToken _ (IdentTok "_")}
-    identifier   { MkToken _ (IdentTok _)}
-    string       { MkToken _ (StrTok _)}
-    integer      { MkToken _ (IntegerTok _)}
-    float        { MkToken _ (FloatTok _)}
-    ','          { MkToken _ (OperatorTok ",")}
-    '::'         { MkToken _ (OperatorTok "::")}
-    ':'          { MkToken _ (OperatorTok ":")}
-    '='          { MkToken _ (OperatorTok "=")}
-    operator     { MkToken _ (OperatorTok _)}
+    '_'          { MkToken _ (IdentTok "_") }
+    break        { MkToken _ BreakTok }
+    identifier   { MkToken _ (IdentTok _) }
+    string       { MkToken _ (StrTok _) }
+    integer      { MkToken _ (IntegerTok _) }
+    float        { MkToken _ (FloatTok _) }
+    ','          { MkToken _ (OperatorTok ",") }
+    '::'         { MkToken _ (OperatorTok "::") }
+    ':'          { MkToken _ (OperatorTok ":") }
+    '='          { MkToken _ (OperatorTok "=") }
+    operator     { MkToken _ (OperatorTok _) }
 
 %right in let if
 %nonassoc string float integer '(' '_' identifier
@@ -68,13 +69,18 @@ import           Data.List                      ( intercalate )
 
 %%
 
-Statements      : StatementsInner       { $1 }
-                | {- empty -}           { [] }
-StatementsInner : Statements Statement  { $2 : $1 }
-                | Statement             { [$1] }
+Statements      : StatementsInner            { $1 }
+                | {- empty -}                { [] }
+StatementsInner : Statements break Statement { $3 : $1 }
+                | Statement                  { [$1] }
 
-Statement : dec Ident ':' Type { let pos = bt $1 $4
-                                  in DeclarationS (Declaration $2 $4 pos) pos}
+Statement : DecStatement { $1 }
+          | LetStatement { $1 }
+
+LetStatement : let Ident ':' Patterns '=' Expr { let pos = bt $1 $6
+                                               in BindingS $2 (Binding $4 $6 pos) pos}
+DecStatement : dec Ident ':' Type              { let pos = bt $1 $4
+                                               in DeclarationS (Declaration $2 $4 pos) pos}
 
 Expr : Literal                                         { LiteralE $1 (getSpan $1)}
      | Expr Operator Expr %prec OPEXPR                 { BinOpE $1 $2 $3 (bt $1 $3) }

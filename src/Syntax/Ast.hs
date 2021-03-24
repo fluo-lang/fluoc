@@ -15,15 +15,14 @@ data Binding = Binding [Pattern] Expr Span
   deriving (Eq, Show)
 data BindingOrDec = BindingBOD Binding
                   | DeclarationBOD Declaration
-                  deriving (Eq, Show)
 data RecordItem = Union [Type] Span
                 | Sum [Declaration] Span
                 deriving (Eq, Show)
 
 data Statement = BindingS Ident Binding Span
                | DeclarationS Declaration Span
-               | ImplS Ident Type [BindingOrDec] Span
-               | TraitS Ident [Ident] [BindingOrDec] Span
+               | ImplS Ident Type [Statement] Span
+               | TraitS Ident [Ident] [Statement] Span
                | RecordS Ident [Ident] [RecordItem] Span
                | ImportS Namespace (Maybe Ident) Span
                | FromImportS Namespace (Maybe [Ident]) Span
