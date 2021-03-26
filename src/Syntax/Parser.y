@@ -58,13 +58,13 @@ import           Data.List                      ( intercalate )
     operator     { MkToken _ (OperatorTok _) }
 
 %right in let if
+%left '->' TYPEOP
 %nonassoc string float integer '(' '_' identifier
 %nonassoc VARIANT
 %nonassoc OPPAT
 %left operator
 %nonassoc OPEXPR
 %nonassoc FUNAPP
-%left '->' TYPEOP
 %nonassoc TYPEAPP
 
 %%

@@ -87,6 +87,35 @@ spec = do
                      ]
                      (sn 0 11)
                    )
+    it "should parse a function type with multiple"
+      $          parseType sid "String -> Int -> Bool"
+      `shouldBe` Right
+                   (BinOpType
+                     (NamespaceType
+                       (Namespace [Ident "String" (Span (SourceId 0) 0 6)]
+                                  (Span (SourceId 0) 0 6)
+                       )
+                       (Span (SourceId 0) 0 6)
+                     )
+                     (Operator "->" (Span (SourceId 0) 7 9))
+                     (BinOpType
+                       (NamespaceType
+                         (Namespace [Ident "Int" (Span (SourceId 0) 10 13)]
+                                    (Span (SourceId 0) 10 13)
+                         )
+                         (Span (SourceId 0) 10 13)
+                       )
+                       (Operator "->" (Span (SourceId 0) 14 16))
+                       (NamespaceType
+                         (Namespace [Ident "Bool" (Span (SourceId 0) 17 21)]
+                                    (Span (SourceId 0) 17 21)
+                         )
+                         (Span (SourceId 0) 17 21)
+                       )
+                       (Span (SourceId 0) 10 21)
+                     )
+                     (Span (SourceId 0) 0 21)
+                   )
     it "should parse a type application"
       $          parseType sid "Option Int Float"
       `shouldBe` Right
@@ -184,83 +213,79 @@ spec = do
       `shouldBe` Right
                    (BinOpType
                      (BinOpType
+                       (NamespaceType
+                         (Namespace [Ident "Option" (Span (SourceId 0) 0 6)]
+                                    (Span (SourceId 0) 0 6)
+                         )
+                         (Span (SourceId 0) 0 6)
+                       )
+                       (Operator "application" (Span (SourceId 0) 6 7))
+                       (BinOpType
+                         (NamespaceType
+                           (Namespace [Ident "Int" (Span (SourceId 0) 8 11)]
+                                      (Span (SourceId 0) 8 11)
+                           )
+                           (Span (SourceId 0) 8 11)
+                         )
+                         (Operator "->" (Span (SourceId 0) 12 14))
+                         (NamespaceType
+                           (Namespace [Ident "Int" (Span (SourceId 0) 15 18)]
+                                      (Span (SourceId 0) 15 18)
+                           )
+                           (Span (SourceId 0) 15 18)
+                         )
+                         (Span (SourceId 0) 7 19)
+                       )
+                       (Span (SourceId 0) 0 19)
+                     )
+                     (Operator "->" (Span (SourceId 0) 20 22))
+                     (BinOpType
                        (BinOpType
                          (BinOpType
                            (NamespaceType
                              (Namespace
-                               [Ident "Option" (Span (SourceId 0) 0 6)]
-                               (Span (SourceId 0) 0 6)
-                             )
-                             (Span (SourceId 0) 0 6)
-                           )
-                           (Operator "application" $ sn 6 7)
-                           (BinOpType
-                             (NamespaceType
-                               (Namespace
-                                 [Ident "Int" (Span (SourceId 0) 8 11)]
-                                 (Span (SourceId 0) 8 11)
-                               )
-                               (Span (SourceId 0) 8 11)
-                             )
-                             (Operator "->" $ sn 12 14)
-                             (NamespaceType
-                               (Namespace
-                                 [Ident "Int" (Span (SourceId 0) 15 18)]
-                                 (Span (SourceId 0) 15 18)
-                               )
-                               (Span (SourceId 0) 15 18)
-                             )
-                             (Span (SourceId 0) 7 19)
-                           )
-                           (Span (SourceId 0) 0 19)
-                         )
-                         (Operator "->" $ sn 20 22)
-                         (BinOpType
-                           (BinOpType
-                             (NamespaceType
-                               (Namespace
-                                 [Ident "Option" (Span (SourceId 0) 24 30)]
-                                 (Span (SourceId 0) 24 30)
-                               )
+                               [Ident "Option" (Span (SourceId 0) 24 30)]
                                (Span (SourceId 0) 24 30)
                              )
-                             (Operator "application" $ sn 30 31)
-                             (NamespaceType
-                               (Namespace
-                                 [Ident "Int" (Span (SourceId 0) 31 34)]
-                                 (Span (SourceId 0) 31 34)
-                               )
-                               (Span (SourceId 0) 31 34)
-                             )
-                             (Span (SourceId 0) 24 34)
+                             (Span (SourceId 0) 24 30)
                            )
-                           (Operator "->" $ sn 35 37)
+                           (Operator "application" (Span (SourceId 0) 30 31))
                            (NamespaceType
                              (Namespace
-                               [Ident "Int" (Span (SourceId 0) 38 41)]
-                               (Span (SourceId 0) 38 41)
+                               [Ident "Int" (Span (SourceId 0) 31 34)]
+                               (Span (SourceId 0) 31 34)
                              )
-                             (Span (SourceId 0) 38 41)
+                             (Span (SourceId 0) 31 34)
                            )
-                           (Span (SourceId 0) 23 42)
+                           (Span (SourceId 0) 24 34)
                          )
-                         (Span (SourceId 0) 0 42)
-                       )
-                       (Operator "->" $ sn 43 45)
-                       (NamespaceType
-                         (Namespace [Ident "Int" (Span (SourceId 0) 46 49)]
-                                    (Span (SourceId 0) 46 49)
+                         (Operator "->" (Span (SourceId 0) 35 37))
+                         (NamespaceType
+                           (Namespace [Ident "Int" (Span (SourceId 0) 38 41)]
+                                      (Span (SourceId 0) 38 41)
+                           )
+                           (Span (SourceId 0) 38 41)
                          )
-                         (Span (SourceId 0) 46 49)
+                         (Span (SourceId 0) 23 42)
                        )
-                       (Span (SourceId 0) 0 49)
-                     )
-                     (Operator "->" $ sn 50 52)
-                     (NamespaceType
-                       (Namespace [Ident "Int" (Span (SourceId 0) 53 56)]
-                                  (Span (SourceId 0) 53 56)
+                       (Operator "->" (Span (SourceId 0) 43 45))
+                       (BinOpType
+                         (NamespaceType
+                           (Namespace [Ident "Int" (Span (SourceId 0) 46 49)]
+                                      (Span (SourceId 0) 46 49)
+                           )
+                           (Span (SourceId 0) 46 49)
+                         )
+                         (Operator "->" (Span (SourceId 0) 50 52))
+                         (NamespaceType
+                           (Namespace [Ident "Int" (Span (SourceId 0) 53 56)]
+                                      (Span (SourceId 0) 53 56)
+                           )
+                           (Span (SourceId 0) 53 56)
+                         )
+                         (Span (SourceId 0) 46 56)
                        )
-                       (Span (SourceId 0) 53 56)
+                       (Span (SourceId 0) 23 56)
                      )
                      (Span (SourceId 0) 0 56)
                    )
