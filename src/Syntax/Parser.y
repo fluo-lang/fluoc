@@ -50,6 +50,7 @@ import           Data.List                      ( intercalate )
     integer               { MkToken _ (IntegerTok _) }
     float                 { MkToken _ (FloatTok _) }
     ','                   { MkToken _ (OperatorTok ",") }
+    backslash             { MkToken _ (OperatorTok "\\") }
     '::'                  { MkToken _ (OperatorTok "::") }
     ':'                   { MkToken _ (OperatorTok ":") }
     '='                   { MkToken _ (OperatorTok "=") }
@@ -57,7 +58,7 @@ import           Data.List                      ( intercalate )
     operator              { MkToken _ (OperatorTok _) }
     polymorphicIdentifier { MkToken _ (PolyTok _) }
 
-%right "in" "let" "if" "assign" "match"
+%right "in" "let" "if" "assign" "match" backslash
 %nonassoc PREOP POSTOP
 %left '=>' TYPEOP
 %nonassoc string float integer '(' '_' identifier polymorphicIdentifier
@@ -78,21 +79,22 @@ StatementsInner : Statements Statement { $2 : $1 }
 Statement : DecStatement { $1 }
           | LetStatement { $1 }
 
-LetStatement : "let" Bindings                    { BindingS $2 (bt $1 (last $2)) }
+LetStatement : "let" Bindings                    { BindingS $2 (bt $1 $ last $2) }
 
 DecStatement : "dec" Ident ':' Type              { let pos = bt $1 $4
                                                     in DeclarationS (Declaration $2 $4 pos) pos}
 
-Expr : Literal                                             { LiteralE $1 (getSpan $1)}
-     | Expr Operator Expr %prec OPEXPR                     { OperatorE (BinOp $2 $1 $3) (bt $1 $3) }
-     | Operator Expr %prec PREOP                           { OperatorE (PreOp $1 $2) (bt $1 $2) }
-     | Expr Operator %prec POSTOP                          { OperatorE (PostOp $2 $1) (bt $1 $2) }
+Expr : Literal                                             { LiteralE $1 $ getSpan $1}
+     | Expr Operator Expr %prec OPEXPR                     { OperatorE (BinOp $2 $1 $3) $ bt $1 $3 }
+     | Operator Expr %prec PREOP                           { OperatorE (PreOp $1 $2) $ bt $1 $2 }
+     | Expr Operator %prec POSTOP                          { OperatorE (PostOp $2 $1) $ bt $1 $2 }
      | Tuple                                               { $1 }
      | Namespace                                           { VariableE $1 $ getSpan $1 }
      | "assign" Bindings "in" '{' Expr '}'                 { LetInE $2 $5 $ bt $1 $6 }
      | "match" Expr '{' MatchBranches '}'                  { MatchE $2 $4 $ bt $1 $5 }
-     | "if" Expr '{' Expr '}' "else" '{' Expr '}'          { CondE ($2, $4) [] $8 $ bt $1 $9}
-     | "if" Expr '{' Expr '}' ElifCond "else" '{' Expr '}' { CondE ($2, $4) $6 $9 $ bt $1 $10}
+     | "if" Expr '{' Expr '}' "else" '{' Expr '}'          { CondE ($2, $4) [] $8 $ bt $1 $9 }
+     | "if" Expr '{' Expr '}' ElifCond "else" '{' Expr '}' { CondE ($2, $4) $6 $9 $ bt $1 $10 }
+     | backslash Patterns '=>' Expr                        { LambdaE $2 $4 $ bt $1 $4 }
      | Expr Expr %prec FUNAPP                              { OperatorE (
                                                                  BinOp
                                                                  (Operator "application" $

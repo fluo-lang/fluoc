@@ -22,42 +22,27 @@ spec = do
     it "should return empty list on empty input"
       $          parseBlock sid ""
       `shouldBe` Right []
-    it "should parse multiple lets properly"
+    it "should parse multiple lets"
       $          parseBlock sid "let a = 10, b = 20 let c = 10"
       `shouldBe` Right
                    [ BindingS
-                     [ Binding
-                       Nothing
-                       [ BindP (Ident "a" (Span (SourceId 0) 4 5))
-                               (Span (SourceId 0) 4 5)
-                       ]
-                       (LiteralE (IntegerL 10 (Span (SourceId 0) 8 10))
-                                 (Span (SourceId 0) 8 10)
-                       )
-                       (Span (SourceId 0) 4 10)
-                     , Binding
-                       Nothing
-                       [ BindP (Ident "b" (Span (SourceId 0) 12 13))
-                               (Span (SourceId 0) 12 13)
-                       ]
-                       (LiteralE (IntegerL 20 (Span (SourceId 0) 16 18))
-                                 (Span (SourceId 0) 16 18)
-                       )
-                       (Span (SourceId 0) 12 18)
+                     [ Binding Nothing
+                               [BindP (Ident "a" (sn 4 5)) (sn 4 5)]
+                               (LiteralE (IntegerL 10 (sn 8 10)) (sn 8 10))
+                               (sn 4 10)
+                     , Binding Nothing
+                               [BindP (Ident "b" (sn 12 13)) (sn 12 13)]
+                               (LiteralE (IntegerL 20 (sn 16 18)) (sn 16 18))
+                               (sn 12 18)
                      ]
-                     (Span (SourceId 0) 0 18)
+                     (sn 0 18)
                    , BindingS
-                     [ Binding
-                         Nothing
-                         [ BindP (Ident "c" (Span (SourceId 0) 23 24))
-                                 (Span (SourceId 0) 23 24)
-                         ]
-                         (LiteralE (IntegerL 10 (Span (SourceId 0) 27 29))
-                                   (Span (SourceId 0) 27 29)
-                         )
-                         (Span (SourceId 0) 23 29)
+                     [ Binding Nothing
+                               [BindP (Ident "c" (sn 23 24)) (sn 23 24)]
+                               (LiteralE (IntegerL 10 (sn 27 29)) (sn 27 29))
+                               (sn 23 29)
                      ]
-                     (Span (SourceId 0) 19 29)
+                     (sn 19 29)
                    ]
     it "should parse a unary operator"
       $          parseBlock sid "dec (?) : Int -> Int"
@@ -363,7 +348,7 @@ spec = do
                      )
                      (sn 0 17)
                    )
-    it "should parse a function type with parens properly"
+    it "should parse a function type with parens"
       $          parseType sid "Option (Int -> Int)"
       `shouldBe` Right
                    (OperatorType
@@ -653,20 +638,13 @@ spec = do
       $          parseExpr sid "assign x = 10 in { 30 }"
       `shouldBe` Right
                    (LetInE
-                     [ Binding
-                         Nothing
-                         [ BindP (Ident "x" (Span (SourceId 0) 7 8))
-                                 (Span (SourceId 0) 7 8)
-                         ]
-                         (LiteralE (IntegerL 10 (Span (SourceId 0) 11 13))
-                                   (Span (SourceId 0) 11 13)
-                         )
-                         (Span (SourceId 0) 7 13)
+                     [ Binding Nothing
+                               [BindP (Ident "x" (sn 7 8)) (sn 7 8)]
+                               (LiteralE (IntegerL 10 (sn 11 13)) (sn 11 13))
+                               (sn 7 13)
                      ]
-                     (LiteralE (IntegerL 30 (Span (SourceId 0) 19 21))
-                               (Span (SourceId 0) 19 21)
-                     )
-                     (Span (SourceId 0) 0 23)
+                     (LiteralE (IntegerL 30 (sn 19 21)) (sn 19 21))
+                     (sn 0 23)
                    )
     it "should parse a pattern destructure"
       $          parseExpr sid "assign x y = 10 in { 30 40 }"
@@ -674,33 +652,21 @@ spec = do
                    (LetInE
                      [ Binding
                          Nothing
-                         [ VariantP
-                             (Namespace [Ident "x" (Span (SourceId 0) 7 8)]
-                                        (Span (SourceId 0) 7 8)
-                             )
-                             (BindP (Ident "y" (Span (SourceId 0) 9 10))
-                                    (Span (SourceId 0) 9 10)
-                             )
-                             (Span (SourceId 0) 7 10)
+                         [ VariantP (Namespace [Ident "x" (sn 7 8)] (sn 7 8))
+                                    (BindP (Ident "y" (sn 9 10)) (sn 9 10))
+                                    (sn 7 10)
                          ]
-                         (LiteralE (IntegerL 10 (Span (SourceId 0) 13 15))
-                                   (Span (SourceId 0) 13 15)
-                         )
-                         (Span (SourceId 0) 7 15)
+                         (LiteralE (IntegerL 10 (sn 13 15)) (sn 13 15))
+                         (sn 7 15)
                      ]
                      (OperatorE
-                       (BinOp
-                         (Operator "application" (Span (SourceId 0) 23 24))
-                         (LiteralE (IntegerL 30 (Span (SourceId 0) 21 23))
-                                   (Span (SourceId 0) 21 23)
-                         )
-                         (LiteralE (IntegerL 40 (Span (SourceId 0) 24 26))
-                                   (Span (SourceId 0) 24 26)
-                         )
+                       (BinOp (Operator "application" (sn 23 24))
+                              (LiteralE (IntegerL 30 (sn 21 23)) (sn 21 23))
+                              (LiteralE (IntegerL 40 (sn 24 26)) (sn 24 26))
                        )
-                       (Span (SourceId 0) 21 26)
+                       (sn 21 26)
                      )
-                     (Span (SourceId 0) 0 28)
+                     (sn 0 28)
                    )
     it "should parse a single pattern with parens"
       $          parseExpr sid "assign (x y) = 10 in { 30 }"
@@ -711,27 +677,18 @@ spec = do
                          [ OperatorP
                              (Grouped
                                (VariantP
-                                 (Namespace
-                                   [Ident "x" (Span (SourceId 0) 8 9)]
-                                   (Span (SourceId 0) 8 9)
-                                 )
-                                 (BindP (Ident "y" (Span (SourceId 0) 10 11))
-                                        (Span (SourceId 0) 10 11)
-                                 )
-                                 (Span (SourceId 0) 8 11)
+                                 (Namespace [Ident "x" (sn 8 9)] (sn 8 9))
+                                 (BindP (Ident "y" (sn 10 11)) (sn 10 11))
+                                 (sn 8 11)
                                )
                              )
-                             (Span (SourceId 0) 7 12)
+                             (sn 7 12)
                          ]
-                         (LiteralE (IntegerL 10 (Span (SourceId 0) 15 17))
-                                   (Span (SourceId 0) 15 17)
-                         )
-                         (Span (SourceId 0) 7 17)
+                         (LiteralE (IntegerL 10 (sn 15 17)) (sn 15 17))
+                         (sn 7 17)
                      ]
-                     (LiteralE (IntegerL 30 (Span (SourceId 0) 23 25))
-                               (Span (SourceId 0) 23 25)
-                     )
-                     (Span (SourceId 0) 0 27)
+                     (LiteralE (IntegerL 30 (sn 23 25)) (sn 23 25))
+                     (sn 0 27)
                    )
     it "should parse multiple values with operator"
       $          parseExpr sid "assign (Some x~xs) = 10 in { 30 }"
@@ -742,162 +699,136 @@ spec = do
                          [ OperatorP
                              (Grouped
                                (VariantP
-                                 (Namespace
-                                   [Ident "Some" (Span (SourceId 0) 8 12)]
-                                   (Span (SourceId 0) 8 12)
-                                 )
+                                 (Namespace [Ident "Some" (sn 8 12)] (sn 8 12))
                                  (VariantP
-                                   (Namespace
-                                     [Ident "x" (Span (SourceId 0) 13 14)]
-                                     (Span (SourceId 0) 13 14)
-                                   )
+                                   (Namespace [Ident "x" (sn 13 14)] (sn 13 14))
                                    (OperatorP
                                      (PreOp
-                                       (Operator "~" (Span (SourceId 0) 14 15))
-                                       (BindP
-                                         (Ident "xs" (Span (SourceId 0) 15 17))
-                                         (Span (SourceId 0) 15 17)
+                                       (Operator "~" (sn 14 15))
+                                       (BindP (Ident "xs" (sn 15 17)) (sn 15 17)
                                        )
                                      )
-                                     (Span (SourceId 0) 14 17)
+                                     (sn 14 17)
                                    )
-                                   (Span (SourceId 0) 13 17)
+                                   (sn 13 17)
                                  )
-                                 (Span (SourceId 0) 8 17)
+                                 (sn 8 17)
                                )
                              )
-                             (Span (SourceId 0) 7 18)
+                             (sn 7 18)
                          ]
-                         (LiteralE (IntegerL 10 (Span (SourceId 0) 21 23))
-                                   (Span (SourceId 0) 21 23)
-                         )
-                         (Span (SourceId 0) 7 23)
+                         (LiteralE (IntegerL 10 (sn 21 23)) (sn 21 23))
+                         (sn 7 23)
                      ]
-                     (LiteralE (IntegerL 30 (Span (SourceId 0) 29 31))
-                               (Span (SourceId 0) 29 31)
-                     )
-                     (Span (SourceId 0) 0 33)
+                     (LiteralE (IntegerL 30 (sn 29 31)) (sn 29 31))
+                     (sn 0 33)
                    )
-    it "should parse a function properly"
+    it "should parse a function"
       $          parseExpr sid "assign myfn : (Some x~xs) a = x+a in { 30 }"
       `shouldBe` Right
                    (LetInE
                      [ Binding
-                         (Just (Ident "myfn" (Span (SourceId 0) 7 11)))
+                         (Just (Ident "myfn" (sn 7 11)))
                          [ OperatorP
                            (Grouped
                              (VariantP
-                               (Namespace
-                                 [Ident "Some" (Span (SourceId 0) 15 19)]
-                                 (Span (SourceId 0) 15 19)
-                               )
+                               (Namespace [Ident "Some" (sn 15 19)] (sn 15 19))
                                (VariantP
-                                 (Namespace
-                                   [Ident "x" (Span (SourceId 0) 20 21)]
-                                   (Span (SourceId 0) 20 21)
-                                 )
+                                 (Namespace [Ident "x" (sn 20 21)] (sn 20 21))
                                  (OperatorP
                                    (PreOp
-                                     (Operator "~" (Span (SourceId 0) 21 22))
-                                     (BindP
-                                       (Ident "xs" (Span (SourceId 0) 22 24))
-                                       (Span (SourceId 0) 22 24)
-                                     )
+                                     (Operator "~" (sn 21 22))
+                                     (BindP (Ident "xs" (sn 22 24)) (sn 22 24))
                                    )
-                                   (Span (SourceId 0) 21 24)
+                                   (sn 21 24)
                                  )
-                                 (Span (SourceId 0) 20 24)
+                                 (sn 20 24)
                                )
-                               (Span (SourceId 0) 15 24)
+                               (sn 15 24)
                              )
                            )
-                           (Span (SourceId 0) 14 25)
-                         , BindP (Ident "a" (Span (SourceId 0) 26 27))
-                                 (Span (SourceId 0) 26 27)
+                           (sn 14 25)
+                         , BindP (Ident "a" (sn 26 27)) (sn 26 27)
                          ]
                          (OperatorE
                            (BinOp
-                             (Operator "+" (Span (SourceId 0) 31 32))
+                             (Operator "+" (sn 31 32))
                              (VariableE
-                               (Namespace
-                                 [Ident "x" (Span (SourceId 0) 30 31)]
-                                 (Span (SourceId 0) 30 31)
-                               )
-                               (Span (SourceId 0) 30 31)
+                               (Namespace [Ident "x" (sn 30 31)] (sn 30 31))
+                               (sn 30 31)
                              )
                              (VariableE
-                               (Namespace
-                                 [Ident "a" (Span (SourceId 0) 32 33)]
-                                 (Span (SourceId 0) 32 33)
-                               )
-                               (Span (SourceId 0) 32 33)
+                               (Namespace [Ident "a" (sn 32 33)] (sn 32 33))
+                               (sn 32 33)
                              )
                            )
-                           (Span (SourceId 0) 30 33)
+                           (sn 30 33)
                          )
-                         (Span (SourceId 0) 7 33)
+                         (sn 7 33)
                      ]
-                     (LiteralE (IntegerL 30 (Span (SourceId 0) 39 41))
-                               (Span (SourceId 0) 39 41)
-                     )
-                     (Span (SourceId 0) 0 43)
+                     (LiteralE (IntegerL 30 (sn 39 41)) (sn 39 41))
+                     (sn 0 43)
                    )
-    it "should parse match statement propely"
+    it "should parse match statement"
       $          parseExpr sid "match 10 { 10 => x }"
       `shouldBe` Right
                    (MatchE
-                     (LiteralE (IntegerL 10 (Span (SourceId 0) 6 8))
-                               (Span (SourceId 0) 6 8)
-                     )
+                     (LiteralE (IntegerL 10 (sn 6 8)) (sn 6 8))
                      [ MatchBranch
-                         (LiteralP (IntegerL 10 (Span (SourceId 0) 11 13))
-                                   (Span (SourceId 0) 11 13)
-                         )
+                         (LiteralP (IntegerL 10 (sn 11 13)) (sn 11 13))
                          (VariableE
-                           (Namespace [Ident "x" (Span (SourceId 0) 17 18)]
-                                      (Span (SourceId 0) 17 18)
-                           )
-                           (Span (SourceId 0) 17 18)
+                           (Namespace [Ident "x" (sn 17 18)] (sn 17 18))
+                           (sn 17 18)
                          )
-                         (Span (SourceId 0) 11 18)
+                         (sn 11 18)
                      ]
-                     (Span (SourceId 0) 0 20)
+                     (sn 0 20)
                    )
     it "should parse multiple clauses in match statement"
       $          parseExpr sid "match 10 { 10 => x, 20 => y, _ => 30 }"
       `shouldBe` Right
                    (MatchE
-                     (LiteralE (IntegerL 10 (Span (SourceId 0) 6 8))
-                               (Span (SourceId 0) 6 8)
-                     )
+                     (LiteralE (IntegerL 10 (sn 6 8)) (sn 6 8))
                      [ MatchBranch
-                       (LiteralP (IntegerL 10 (Span (SourceId 0) 11 13))
-                                 (Span (SourceId 0) 11 13)
-                       )
+                       (LiteralP (IntegerL 10 (sn 11 13)) (sn 11 13))
                        (VariableE
-                         (Namespace [Ident "x" (Span (SourceId 0) 17 18)]
-                                    (Span (SourceId 0) 17 18)
-                         )
-                         (Span (SourceId 0) 17 18)
+                         (Namespace [Ident "x" (sn 17 18)] (sn 17 18))
+                         (sn 17 18)
                        )
-                       (Span (SourceId 0) 11 18)
+                       (sn 11 18)
                      , MatchBranch
-                       (LiteralP (IntegerL 20 (Span (SourceId 0) 20 22))
-                                 (Span (SourceId 0) 20 22)
-                       )
+                       (LiteralP (IntegerL 20 (sn 20 22)) (sn 20 22))
                        (VariableE
-                         (Namespace [Ident "y" (Span (SourceId 0) 26 27)]
-                                    (Span (SourceId 0) 26 27)
-                         )
-                         (Span (SourceId 0) 26 27)
+                         (Namespace [Ident "y" (sn 26 27)] (sn 26 27))
+                         (sn 26 27)
                        )
-                       (Span (SourceId 0) 20 27)
+                       (sn 20 27)
                      , MatchBranch
-                       (DropP (Span (SourceId 0) 29 30))
-                       (LiteralE (IntegerL 30 (Span (SourceId 0) 34 36))
-                                 (Span (SourceId 0) 34 36)
-                       )
-                       (Span (SourceId 0) 29 36)
+                       (DropP (sn 29 30))
+                       (LiteralE (IntegerL 30 (sn 34 36)) (sn 34 36))
+                       (sn 29 36)
                      ]
-                     (Span (SourceId 0) 0 38)
+                     (sn 0 38)
+                   )
+    it "should parse lambda expressions"
+      $          parseExpr sid "\\a b => a + b"
+      `shouldBe` Right
+                   (LambdaE
+                     [ BindP (Ident "a" (sn 1 2)) (sn 1 2)
+                     , BindP (Ident "b" (sn 3 4)) (sn 3 4)
+                     ]
+                     (OperatorE
+                       (BinOp
+                         (Operator "+" (sn 10 11))
+                         (VariableE (Namespace [Ident "a" (sn 8 9)] (sn 8 9))
+                                    (sn 8 9)
+                         )
+                         (VariableE
+                           (Namespace [Ident "b" (sn 12 13)] (sn 12 13))
+                           (sn 12 13)
+                         )
+                       )
+                       (sn 8 13)
+                     )
+                     (sn 0 13)
                    )

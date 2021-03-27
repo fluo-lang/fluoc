@@ -56,7 +56,7 @@ data Expr = LiteralE Literal Span
           | CondE (Expr, Expr) [(Expr, Expr)] Expr Span
           | LetInE [Binding] Expr Span
           | VariableE Namespace Span
-          | LambdaE [Ident] Expr Span
+          | LambdaE [Pattern] Expr Span
           | GroupedE Expr Span
           | MatchE Expr [MatchBranch] Span
           deriving (Eq, Show)

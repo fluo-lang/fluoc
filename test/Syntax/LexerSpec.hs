@@ -80,8 +80,8 @@ spec = do
                  , MkToken (sn 1 4) $ IdentTok "a23"
                  ]
   it "should lex operators"
-    $          runExcept (scanTokens sid "<$>+*-/|:$^@!~%&.=?")
-    `shouldBe` Right [MkToken (sn 0 19) $ OperatorTok "<$>+*-/|:$^@!~%&.=?"]
+    $          runExcept (scanTokens sid "<$>+*-/|:$^@!~%&.=?\\")
+    `shouldBe` Right [MkToken (sn 0 20) $ OperatorTok "<$>+*-/|:$^@!~%&.=?\\"]
   it "should lex integers"
     $          runExcept (scanTokens sid "1234567809")
     `shouldBe` Right [MkToken (sn 0 10) $ IntegerTok 1234567809]
