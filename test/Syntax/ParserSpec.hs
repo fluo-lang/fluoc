@@ -832,3 +832,55 @@ spec = do
                      )
                      (sn 0 13)
                    )
+    it "should parse nested lambda expressions"
+      $          parseExpr sid "\\a b c => \\d => a + b + c + d"
+      `shouldBe` Right
+                   (LambdaE
+                     [ BindP (Ident "a" (sn 1 2)) (sn 1 2)
+                     , BindP (Ident "b" (sn 3 4)) (sn 3 4)
+                     , BindP (Ident "c" (sn 5 6)) (sn 5 6)
+                     ]
+                     (LambdaE
+                       [BindP (Ident "d" (sn 11 12)) (sn 11 12)]
+                       (OperatorE
+                         (BinOp
+                           (Operator "+" (sn 26 27))
+                           (OperatorE
+                             (BinOp
+                               (Operator "+" (sn 22 23))
+                               (OperatorE
+                                 (BinOp
+                                   (Operator "+" (sn 18 19))
+                                   (VariableE
+                                     (Namespace [Ident "a" (sn 16 17)]
+                                                (sn 16 17)
+                                     )
+                                     (sn 16 17)
+                                   )
+                                   (VariableE
+                                     (Namespace [Ident "b" (sn 20 21)]
+                                                (sn 20 21)
+                                     )
+                                     (sn 20 21)
+                                   )
+                                 )
+                                 (sn 16 21)
+                               )
+                               (VariableE
+                                 (Namespace [Ident "c" (sn 24 25)] (sn 24 25))
+                                 (sn 24 25)
+                               )
+                             )
+                             (sn 16 25)
+                           )
+                           (VariableE
+                             (Namespace [Ident "d" (sn 28 29)] (sn 28 29))
+                             (sn 28 29)
+                           )
+                         )
+                         (sn 16 29)
+                       )
+                       (sn 10 29)
+                     )
+                     (sn 0 29)
+                   )
