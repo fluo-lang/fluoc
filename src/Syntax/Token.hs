@@ -5,6 +5,7 @@ data TokenKind = IdentTok String
                | IntegerTok Integer
                | FloatTok Double
                | OperatorTok String
+               | PolyTok String
 
                | LetTok
                | ImportTok
@@ -62,6 +63,7 @@ class Display a where
 instance Display TokenKind where
   display tok = case tok of
     IdentTok    val -> "identifier `" ++ val ++ "`"
+    PolyTok     val -> "polymorphic identifier `" ++ val ++ "`"
     StrTok      val -> "string `" ++ val ++ "`"
     IntegerTok  val -> "integer `" ++ show val ++ "`"
     FloatTok    val -> "float `" ++ show val ++ "`"

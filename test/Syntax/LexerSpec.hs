@@ -31,7 +31,10 @@ spec :: Spec
 spec = do
   it "should lex keywords"
     $          runExcept
-                 (scanTokens sid "let import rec impl trait dec in if else match elif assign")
+                 (scanTokens
+                   sid
+                   "let import rec impl trait dec in if else match elif assign"
+                 )
     `shouldBe` Right
                  [ MkToken (sn 0 3)   LetTok
                  , MkToken (sn 4 10)  ImportTok
@@ -49,12 +52,12 @@ spec = do
   it "should lex symbols"
     $          runExcept (scanTokens sid "()\n[]\n{}\n")
     `shouldBe` Right
-                 [ MkToken (sn 0 1)  LParenTok
-                 , MkToken (sn 1 2)  RParenTok
-                 , MkToken (sn 3 4)  LBracketTok
-                 , MkToken (sn 4 5)  RBracketTok
-                 , MkToken (sn 6 7)  LCurlyTok
-                 , MkToken (sn 7 8)  RCurlyTok
+                 [ MkToken (sn 0 1) LParenTok
+                 , MkToken (sn 1 2) RParenTok
+                 , MkToken (sn 3 4) LBracketTok
+                 , MkToken (sn 4 5) RBracketTok
+                 , MkToken (sn 6 7) LCurlyTok
+                 , MkToken (sn 7 8) RCurlyTok
                  ]
   it "should lex identifiers"
     $          runExcept (scanTokens sid "_123'? ahello? fold'")
@@ -62,6 +65,13 @@ spec = do
                  [ MkToken (sn 0 6) $ IdentTok "_123'?"
                  , MkToken (sn 7 14) $ IdentTok "ahello?"
                  , MkToken (sn 15 20) $ IdentTok "fold'"
+                 ]
+  it "should lex polymorphic types"
+    $          runExcept (scanTokens sid "'_123? 'ahelo? 'fold")
+    `shouldBe` Right
+                 [ MkToken (sn 0 6) $ PolyTok "'_123?"
+                 , MkToken (sn 7 14) $ PolyTok "'ahelo?"
+                 , MkToken (sn 15 20) $ PolyTok "'fold"
                  ]
   it "should lex values regardless of whitespace"
     $          runExcept (scanTokens sid "1a23")

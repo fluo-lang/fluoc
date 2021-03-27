@@ -47,6 +47,7 @@ data Type = Infer Span
           | NamespaceType Namespace Span
           | OperatorType (Oped Type) Span
           | TupleType [Type] Span
+          | PolyType String Span
           deriving (Eq, Show)
 
 data Expr = LiteralE Literal Span

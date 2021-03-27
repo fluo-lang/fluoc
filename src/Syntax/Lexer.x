@@ -85,7 +85,8 @@ tokens :-
   \{                                    { makeTok LCurlyTok }
   \}                                    { makeTok RCurlyTok }
   [$alpha \_] [$alpha $digit \_ \' \?]* { makeTokCmplx IdentTok id }
-  \" @string* \"		                    { makeTokCmplx StrTok read }
+  \' [$alpha \_] [$alpha $digit \_ \?]* { makeTokCmplx PolyTok id }
+  \" @string* \"		                { makeTokCmplx StrTok read }
 
 {
 

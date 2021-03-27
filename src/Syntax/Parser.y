@@ -27,40 +27,41 @@ import           Data.List                      ( intercalate )
 
 -- Token Names
 %token
-    "let"        { MkToken _ LetTok }
-    "rec"        { MkToken _ RecTok }
-    "impl"       { MkToken _ ImplTok }
-    "trait"      { MkToken _ TraitTok }
-    "dec"        { MkToken _ DecTok }
-    "in"         { MkToken _ InTok }
-    "if"         { MkToken _ IfTok }
-    "else"       { MkToken _ ElseTok }
-    "elif"       { MkToken _ ElifTok }
-    "match"      { MkToken _ MatchTok }
-    "assign"     { MkToken _ AssignTok }
-    '"'          { MkToken _ DoubleQouteTok }
-    "'"          { MkToken _ SingleQouteTok }
-    '('          { MkToken _ LParenTok }
-    ')'          { MkToken _ RParenTok }
-    '['          { MkToken _ LBracketTok }
-    ']'          { MkToken _ RBracketTok }
-    '{'          { MkToken _ LCurlyTok }
-    '}'          { MkToken _ RCurlyTok }
-    '_'          { MkToken _ (IdentTok "_") }
-    identifier   { MkToken _ (IdentTok _) }
-    string       { MkToken _ (StrTok _) }
-    integer      { MkToken _ (IntegerTok _) }
-    float        { MkToken _ (FloatTok _) }
-    ','          { MkToken _ (OperatorTok ",") }
-    '::'         { MkToken _ (OperatorTok "::") }
-    ':'          { MkToken _ (OperatorTok ":") }
-    '='          { MkToken _ (OperatorTok "=") }
-    operator     { MkToken _ (OperatorTok _) }
+    "let"                 { MkToken _ LetTok }
+    "rec"                 { MkToken _ RecTok }
+    "impl"                { MkToken _ ImplTok }
+    "trait"               { MkToken _ TraitTok }
+    "dec"                 { MkToken _ DecTok }
+    "in"                  { MkToken _ InTok }
+    "if"                  { MkToken _ IfTok }
+    "else"                { MkToken _ ElseTok }
+    "elif"                { MkToken _ ElifTok }
+    "match"               { MkToken _ MatchTok }
+    "assign"              { MkToken _ AssignTok }
+    '"'                   { MkToken _ DoubleQouteTok }
+    "'"                   { MkToken _ SingleQouteTok }
+    '('                   { MkToken _ LParenTok }
+    ')'                   { MkToken _ RParenTok }
+    '['                   { MkToken _ LBracketTok }
+    ']'                   { MkToken _ RBracketTok }
+    '{'                   { MkToken _ LCurlyTok }
+    '}'                   { MkToken _ RCurlyTok }
+    '_'                   { MkToken _ (IdentTok "_") }
+    identifier            { MkToken _ (IdentTok _) }
+    string                { MkToken _ (StrTok _) }
+    integer               { MkToken _ (IntegerTok _) }
+    float                 { MkToken _ (FloatTok _) }
+    ','                   { MkToken _ (OperatorTok ",") }
+    '::'                  { MkToken _ (OperatorTok "::") }
+    ':'                   { MkToken _ (OperatorTok ":") }
+    '='                   { MkToken _ (OperatorTok "=") }
+    operator              { MkToken _ (OperatorTok _) }
+    polymorphicIdentifier { MkToken _ (PolyTok _) }
 
 %right "in" "let" "if" "assign"
 %nonassoc PREOP POSTOP
 %left '->' TYPEOP
-%nonassoc string float integer '(' '_' identifier
+%nonassoc string float integer '(' '_' identifier polymorphicIdentifier
 %nonassoc VARIANT
 %nonassoc OPPAT
 %left operator
@@ -153,6 +154,7 @@ Type          : '_'                             { Infer $ getSpan $1 }
               | Type Operator Type %prec TYPEOP { OperatorType (BinOp $2 $1 $3) (bt $1 $3) }
               | Operator Type %prec PREOP       { OperatorType (PreOp $1 $2) (bt $1 $2) }
               | Type Operator %prec POSTOP      { OperatorType (PostOp $2 $1) (bt $1 $2) }
+              | polymorphicIdentifier           { case $1 of (MkToken span (PolyTok s)) -> PolyType s span }
 TupleType     : TupleType ',' Type              { ($3:$1) }
               | Type ',' Type                   { [$3, $1] }
 
