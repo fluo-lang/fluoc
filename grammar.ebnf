@@ -30,7 +30,7 @@ expr = literal
      | lambda
      | "(", expr, ")" ;
 
-lambda = "\", { ident }, "->", expr ;
+lambda = "\", { pattern }-, "->", expr ;
 
 function application = expr, { expr, space }, [expr];
 

@@ -27,16 +27,16 @@ import           Data.List                      ( intercalate )
 
 -- Token Names
 %token
-    let          { MkToken _ LetTok }
-    rec          { MkToken _ RecTok }
-    impl         { MkToken _ ImplTok }
-    trait        { MkToken _ TraitTok }
-    dec          { MkToken _ DecTok }
-    in           { MkToken _ InTok }
-    if           { MkToken _ IfTok }
-    else         { MkToken _ ElseTok }
-    elif         { MkToken _ ElifTok }
-    match        { MkToken _ MatchTok }
+    "let"          { MkToken _ LetTok }
+    "rec"          { MkToken _ RecTok }
+    "impl"         { MkToken _ ImplTok }
+    "trait"        { MkToken _ TraitTok }
+    "dec"          { MkToken _ DecTok }
+    "in"           { MkToken _ InTok }
+    "if"           { MkToken _ IfTok }
+    "else"         { MkToken _ ElseTok }
+    "elif"         { MkToken _ ElifTok }
+    "match"        { MkToken _ MatchTok }
     '"'          { MkToken _ DoubleQouteTok }
     "'"          { MkToken _ SingleQouteTok }
     '('          { MkToken _ LParenTok }
@@ -46,7 +46,6 @@ import           Data.List                      ( intercalate )
     '{'          { MkToken _ LCurlyTok }
     '}'          { MkToken _ RCurlyTok }
     '_'          { MkToken _ (IdentTok "_") }
-    break        { MkToken _ BreakTok }
     identifier   { MkToken _ (IdentTok _) }
     string       { MkToken _ (StrTok _) }
     integer      { MkToken _ (IntegerTok _) }
@@ -57,7 +56,7 @@ import           Data.List                      ( intercalate )
     '='          { MkToken _ (OperatorTok "=") }
     operator     { MkToken _ (OperatorTok _) }
 
-%right in let if
+%right "in" "let" "if"
 %left '->' TYPEOP
 %nonassoc string float integer '(' '_' identifier
 %nonassoc VARIANT
@@ -69,36 +68,37 @@ import           Data.List                      ( intercalate )
 
 %%
 
-Statements      : StatementsInner            { $1 }
-                | {- empty -}                { [] }
-StatementsInner : Statements break Statement { $3 : $1 }
-                | Statement                  { [$1] }
+Statements      : StatementsInner      { $1 }
+                | {- empty -}          { [] }
+StatementsInner : Statements Statement { $2 : $1 }
+                | Statement            { [$1] }
 
 Statement : DecStatement { $1 }
           | LetStatement { $1 }
 
-LetStatement : let Ident ':' Patterns '=' Expr { let pos = bt $1 $6
-                                               in BindingS $2 (Binding $4 $6 pos) pos}
-DecStatement : dec Ident ':' Type              { let pos = bt $1 $4
-                                               in DeclarationS (Declaration $2 $4 pos) pos}
+LetStatement : "let" Bindings                    { BindingS $2 (bt $1 (last $2)) }
+
+DecStatement : "dec" Ident ':' Type              { let pos = bt $1 $4
+                                                  in DeclarationS (Declaration $2 $4 pos) pos}
 
 Expr : Literal                                         { LiteralE $1 (getSpan $1)}
      | Expr Operator Expr %prec OPEXPR                 { BinOpE $1 $2 $3 (bt $1 $3) }
      | Tuple                                           { $1 }
      | Namespace                                       { VariableE $1 $ getSpan $1 }
-     | let Bindings in '{' Expr '}'                    { LetInE $2 $5 $ bt $1 $6 }
-     | if Expr '{' Expr '}' else '{' Expr '}'          { CondE ($2, $4) [] $8 $ bt $1 $9}
-     | if Expr '{' Expr '}' ElifCond else '{' Expr '}' { CondE ($2, $4) $6 $9 $ bt $1 $10}
+     | "let" Bindings "in" '{' Expr '}'                    { LetInE $2 $5 $ bt $1 $6 }
+     | "if" Expr '{' Expr '}' "else" '{' Expr '}'          { CondE ($2, $4) [] $8 $ bt $1 $9}
+     | "if" Expr '{' Expr '}' ElifCond "else" '{' Expr '}' { CondE ($2, $4) $6 $9 $ bt $1 $10}
      | Expr Expr %prec FUNAPP                          { BinOpE $1 
                                                            (Operator "application" $
                                                                gap (getSpan $1) (getSpan $2))
                                                            $2
                                                            (bt $1 $2) }
 
-Bindings      : BindingsInner             { reverse $1 }
-BindingsInner : BindingsInner ',' Binding { ($3:$1) }
-              | Binding                   { [$1] }
-Binding       : Patterns '=' Expr         { Binding $1 $3 (bt (head $1) $3)}
+Bindings      : BindingsInner               { reverse $1 }
+BindingsInner : BindingsInner ',' Binding   { ($3:$1) }
+              | Binding                     { [$1] }
+Binding       : Ident ':' Patterns '=' Expr { Binding (Just $1) $3 $5 (bt $1 $5) }
+              | Pattern '=' Expr            { Binding Nothing [$1] $3 (bt $1 $3) }
 
 Patterns      : PatternsInner                { reverse $1 }
 PatternsInner : PatternsInner PatternBinding { ($2:$1) }
@@ -114,7 +114,7 @@ Pattern               : Ident                           { BindP $1 (getSpan $1) 
 ElifCond      : ElifCondInner          { reverse $1 }
 ElifCondInner : ElifCondInner Elif     { ($2:$1) }
               | Elif                   { [$1] }
-Elif          : elif Expr '{' Expr '}' { ($2, $4) }
+Elif          : "elif" Expr '{' Expr '}' { ($2, $4) }
 
 Tuple     : '(' ')'               { TupleE [] (bt $1 $2) }
           | '(' ',' ')'           { TupleE [] (bt $1 $3) }

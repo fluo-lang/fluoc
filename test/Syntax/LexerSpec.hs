@@ -46,7 +46,7 @@ spec = do
                  , MkToken (sn 47 51) ElifTok
                  ]
   it "should lex symbols"
-    $          runExcept (scanTokens sid "()\n[]\n{}\n;")
+    $          runExcept (scanTokens sid "()\n[]\n{}\n")
     `shouldBe` Right
                  [ MkToken (sn 0 1)  LParenTok
                  , MkToken (sn 1 2)  RParenTok
@@ -54,7 +54,6 @@ spec = do
                  , MkToken (sn 4 5)  RBracketTok
                  , MkToken (sn 6 7)  LCurlyTok
                  , MkToken (sn 7 8)  RCurlyTok
-                 , MkToken (sn 9 10) BreakTok
                  ]
   it "should lex identifiers"
     $          runExcept (scanTokens sid "_123'? ahello? fold'")

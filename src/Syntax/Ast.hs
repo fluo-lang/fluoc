@@ -11,7 +11,7 @@ data Namespace = Namespace [Ident] Span
 
 data Declaration = Declaration Ident Type Span
   deriving (Eq, Show)
-data Binding = Binding [Pattern] Expr Span
+data Binding = Binding (Maybe Ident) [Pattern] Expr Span
   deriving (Eq, Show)
 data BindingOrDec = BindingBOD Binding
                   | DeclarationBOD Declaration
@@ -19,7 +19,7 @@ data RecordItem = Union [Type] Span
                 | Sum [Declaration] Span
                 deriving (Eq, Show)
 
-data Statement = BindingS Ident Binding Span
+data Statement = BindingS [Binding] Span
                | DeclarationS Declaration Span
                | ImplS Ident Type [Statement] Span
                | TraitS Ident [Ident] [Statement] Span
@@ -75,8 +75,8 @@ instance Spanned Declaration where
   setSpan newSp (Declaration i t _) = Declaration i t newSp
 
 instance Spanned Binding where
-  getSpan (Binding _ _ s) = s
-  setSpan newSp (Binding ps e _) = Binding ps e newSp
+  getSpan (Binding _ _ _ s) = s
+  setSpan newSp (Binding i ps e _) = Binding i ps e newSp
 
 instance Spanned BindingOrDec where
   getSpan (BindingBOD b) = getSpan b
@@ -91,14 +91,14 @@ instance Spanned RecordItem where
   setSpan newSp (Sum ds _) = Sum ds newSp
 
 instance Spanned Statement where
-  getSpan (BindingS _ _ s) = s
+  getSpan (BindingS _ s) = s
   getSpan (DeclarationS _ s) = s
   getSpan (ImplS _ _ _ s) = s
   getSpan (TraitS _ _ _ s) = s
   getSpan (RecordS _ _ _ s) = s
   getSpan (ImportS _ _ s) = s
   getSpan (FromImportS _ _ s) = s
-  setSpan newSp (BindingS i b _) = BindingS i b newSp
+  setSpan newSp (BindingS b _) = BindingS b newSp
   setSpan newSp (DeclarationS d _) = DeclarationS d newSp
   setSpan newSp (ImplS i t bs _) = ImplS i t bs newSp
   setSpan newSp (TraitS i is bs _) = TraitS i is bs newSp

@@ -63,7 +63,6 @@ tokens :-
   "#".*\n       ;
 
   -- Syntax
-  \;                                    { makeTok BreakTok }
   let                                   { makeTok LetTok }
   import                                { makeTok ImportTok }
   rec                                   { makeTok RecTok }

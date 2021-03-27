@@ -92,29 +92,23 @@ spec = do
       `shouldBe` Right
                    (BinOpType
                      (NamespaceType
-                       (Namespace [Ident "String" (Span (SourceId 0) 0 6)]
-                                  (Span (SourceId 0) 0 6)
-                       )
-                       (Span (SourceId 0) 0 6)
+                       (Namespace [Ident "String" (sn 0 6)] (sn 0 6))
+                       (sn 0 6)
                      )
-                     (Operator "->" (Span (SourceId 0) 7 9))
+                     (Operator "->" (sn 7 9))
                      (BinOpType
                        (NamespaceType
-                         (Namespace [Ident "Int" (Span (SourceId 0) 10 13)]
-                                    (Span (SourceId 0) 10 13)
-                         )
-                         (Span (SourceId 0) 10 13)
+                         (Namespace [Ident "Int" (sn 10 13)] (sn 10 13))
+                         (sn 10 13)
                        )
-                       (Operator "->" (Span (SourceId 0) 14 16))
+                       (Operator "->" (sn 14 16))
                        (NamespaceType
-                         (Namespace [Ident "Bool" (Span (SourceId 0) 17 21)]
-                                    (Span (SourceId 0) 17 21)
-                         )
-                         (Span (SourceId 0) 17 21)
+                         (Namespace [Ident "Bool" (sn 17 21)] (sn 17 21))
+                         (sn 17 21)
                        )
-                       (Span (SourceId 0) 10 21)
+                       (sn 10 21)
                      )
-                     (Span (SourceId 0) 0 21)
+                     (sn 0 21)
                    )
     it "should parse a type application"
       $          parseType sid "Option Int Float"
@@ -214,80 +208,62 @@ spec = do
                    (BinOpType
                      (BinOpType
                        (NamespaceType
-                         (Namespace [Ident "Option" (Span (SourceId 0) 0 6)]
-                                    (Span (SourceId 0) 0 6)
-                         )
-                         (Span (SourceId 0) 0 6)
+                         (Namespace [Ident "Option" (sn 0 6)] (sn 0 6))
+                         (sn 0 6)
                        )
-                       (Operator "application" (Span (SourceId 0) 6 7))
+                       (Operator "application" (sn 6 7))
                        (BinOpType
                          (NamespaceType
-                           (Namespace [Ident "Int" (Span (SourceId 0) 8 11)]
-                                      (Span (SourceId 0) 8 11)
-                           )
-                           (Span (SourceId 0) 8 11)
+                           (Namespace [Ident "Int" (sn 8 11)] (sn 8 11))
+                           (sn 8 11)
                          )
-                         (Operator "->" (Span (SourceId 0) 12 14))
+                         (Operator "->" (sn 12 14))
                          (NamespaceType
-                           (Namespace [Ident "Int" (Span (SourceId 0) 15 18)]
-                                      (Span (SourceId 0) 15 18)
-                           )
-                           (Span (SourceId 0) 15 18)
+                           (Namespace [Ident "Int" (sn 15 18)] (sn 15 18))
+                           (sn 15 18)
                          )
-                         (Span (SourceId 0) 7 19)
+                         (sn 7 19)
                        )
-                       (Span (SourceId 0) 0 19)
+                       (sn 0 19)
                      )
-                     (Operator "->" (Span (SourceId 0) 20 22))
+                     (Operator "->" (sn 20 22))
                      (BinOpType
                        (BinOpType
                          (BinOpType
                            (NamespaceType
-                             (Namespace
-                               [Ident "Option" (Span (SourceId 0) 24 30)]
-                               (Span (SourceId 0) 24 30)
-                             )
-                             (Span (SourceId 0) 24 30)
+                             (Namespace [Ident "Option" (sn 24 30)] (sn 24 30))
+                             (sn 24 30)
                            )
-                           (Operator "application" (Span (SourceId 0) 30 31))
+                           (Operator "application" (sn 30 31))
                            (NamespaceType
-                             (Namespace
-                               [Ident "Int" (Span (SourceId 0) 31 34)]
-                               (Span (SourceId 0) 31 34)
-                             )
-                             (Span (SourceId 0) 31 34)
+                             (Namespace [Ident "Int" (sn 31 34)] (sn 31 34))
+                             (sn 31 34)
                            )
-                           (Span (SourceId 0) 24 34)
+                           (sn 24 34)
                          )
-                         (Operator "->" (Span (SourceId 0) 35 37))
+                         (Operator "->" (sn 35 37))
                          (NamespaceType
-                           (Namespace [Ident "Int" (Span (SourceId 0) 38 41)]
-                                      (Span (SourceId 0) 38 41)
-                           )
-                           (Span (SourceId 0) 38 41)
+                           (Namespace [Ident "Int" (sn 38 41)] (sn 38 41))
+                           (sn 38 41)
                          )
-                         (Span (SourceId 0) 23 42)
+                         (sn 23 42)
                        )
-                       (Operator "->" (Span (SourceId 0) 43 45))
+                       (Operator "->" (sn 43 45))
                        (BinOpType
                          (NamespaceType
-                           (Namespace [Ident "Int" (Span (SourceId 0) 46 49)]
-                                      (Span (SourceId 0) 46 49)
-                           )
-                           (Span (SourceId 0) 46 49)
+                           (Namespace [Ident "Int" (sn 46 49)] (sn 46 49))
+                           (sn 46 49)
                          )
-                         (Operator "->" (Span (SourceId 0) 50 52))
+                         (Operator "->" (sn 50 52))
                          (NamespaceType
-                           (Namespace [Ident "Int" (Span (SourceId 0) 53 56)]
-                                      (Span (SourceId 0) 53 56)
-                           )
-                           (Span (SourceId 0) 53 56)
+                           (Namespace [Ident "Int" (sn 53 56)] (sn 53 56))
+                           (sn 53 56)
                          )
-                         (Span (SourceId 0) 46 56)
+                         (sn 46 56)
                        )
-                       (Span (SourceId 0) 23 56)
+                       (sn 23 56)
                      )
-                     (Span (SourceId 0) 0 56)
+                     (sn 0 56)
                    )
   describe "Syntax.Parser.parseExpr" $ do
     it "should parse a literal" $ parseExpr sid "10" `shouldBe` Right
@@ -433,46 +409,33 @@ spec = do
       $          parseExpr sid "let x = 10 in { 30 }"
       `shouldBe` Right
                    (LetInE
-                     [ Binding
-                         [ BindP (Ident "x" (Span (SourceId 0) 4 5))
-                                 (Span (SourceId 0) 4 5)
-                         ]
-                         (LiteralE (IntegerL 10 (Span (SourceId 0) 8 10))
-                                   (Span (SourceId 0) 8 10)
-                         )
-                         (Span (SourceId 0) 4 10)
+                     [ Binding Nothing
+                               [BindP (Ident "x" (sn 4 5)) (sn 4 5)]
+                               (LiteralE (IntegerL 10 (sn 8 10)) (sn 8 10))
+                               (sn 4 10)
                      ]
-                     (LiteralE (IntegerL 30 (Span (SourceId 0) 16 18))
-                               (Span (SourceId 0) 16 18)
-                     )
-                     (Span (SourceId 0) 0 20)
+                     (LiteralE (IntegerL 30 (sn 16 18)) (sn 16 18))
+                     (sn 0 20)
                    )
-    it "should parse multiple patterns"
+    it "should parse a pattern destructure"
       $          parseExpr sid "let x y = 10 in { 30 40 }"
       `shouldBe` Right
                    (LetInE
                      [ Binding
-                         [ BindP (Ident "x" (Span (SourceId 0) 4 5))
-                                 (Span (SourceId 0) 4 5)
-                         , BindP (Ident "y" (Span (SourceId 0) 6 7))
-                                 (Span (SourceId 0) 6 7)
+                         Nothing
+                         [ VariantP (Namespace [Ident "x" (sn 4 5)] (sn 4 5))
+                                    (BindP (Ident "y" (sn 6 7)) (sn 6 7))
+                                    (sn 4 7)
                          ]
-                         (LiteralE (IntegerL 10 (Span (SourceId 0) 10 12))
-                                   (Span (SourceId 0) 10 12)
-                         )
-                         (Span (SourceId 0) 4 12)
+                         (LiteralE (IntegerL 10 (sn 10 12)) (sn 10 12))
+                         (sn 4 12)
                      ]
-                     (BinOpE
-                       (LiteralE (IntegerL 30 (Span (SourceId 0) 18 20))
-                                 (Span (SourceId 0) 18 20)
-                       )
-                       (Operator "application" (Span (SourceId 0) 20 21))
-                       (LiteralE (IntegerL 40 (Span (SourceId 0) 21 23))
-                                 (Span (SourceId 0) 21 23)
-                       )
-                       (Span (SourceId 0) 18 23)
+                     (BinOpE (LiteralE (IntegerL 30 (sn 18 20)) (sn 18 20))
+                             (Operator "application" (sn 20 21))
+                             (LiteralE (IntegerL 40 (sn 21 23)) (sn 21 23))
+                             (sn 18 23)
                      )
-                     (Span (SourceId 0) 0 25)
+                     (sn 0 25)
                    )
 
     it "should parse a single pattern with parens"
@@ -480,53 +443,167 @@ spec = do
       `shouldBe` Right
                    (LetInE
                      [ Binding
-                         [ VariantP
-                             (Namespace [Ident "x" (Span (SourceId 0) 5 6)]
-                                        (Span (SourceId 0) 5 6)
-                             )
-                             (BindP (Ident "y" (Span (SourceId 0) 7 8))
-                                    (Span (SourceId 0) 7 8)
-                             )
-                             (Span (SourceId 0) 4 9)
+                         Nothing
+                         [ VariantP (Namespace [Ident "x" (sn 5 6)] (sn 5 6))
+                                    (BindP (Ident "y" (sn 7 8)) (sn 7 8))
+                                    (sn 4 9)
                          ]
-                         (LiteralE (IntegerL 10 (Span (SourceId 0) 12 14))
-                                   (Span (SourceId 0) 12 14)
-                         )
-                         (Span (SourceId 0) 4 14)
+                         (LiteralE (IntegerL 10 (sn 12 14)) (sn 12 14))
+                         (sn 4 14)
                      ]
-                     (LiteralE (IntegerL 30 (Span (SourceId 0) 20 22))
-                               (Span (SourceId 0) 20 22)
-                     )
-                     (Span (SourceId 0) 0 24)
+                     (LiteralE (IntegerL 30 (sn 20 22)) (sn 20 22))
+                     (sn 0 24)
                    )
     it "should parse multiple values with operator"
       $          parseExpr sid "let (Some x~xs) = 10 in { 30 }"
       `shouldBe` Right
                    (LetInE
                      [ Binding
+                         Nothing
                          [ VariantP
-                             (Namespace [Ident "Some" (Span (SourceId 0) 5 9)]
-                                        (Span (SourceId 0) 5 9)
-                             )
+                             (Namespace [Ident "Some" (sn 5 9)] (sn 5 9))
                              (CustomP
-                               (BindP (Ident "x" (Span (SourceId 0) 10 11))
-                                      (Span (SourceId 0) 10 11)
-                               )
-                               (Operator "~" (Span (SourceId 0) 11 12))
-                               (BindP (Ident "xs" (Span (SourceId 0) 12 14))
-                                      (Span (SourceId 0) 12 14)
-                               )
-                               (Span (SourceId 0) 10 14)
+                               (BindP (Ident "x" (sn 10 11)) (sn 10 11))
+                               (Operator "~" (sn 11 12))
+                               (BindP (Ident "xs" (sn 12 14)) (sn 12 14))
+                               (sn 10 14)
                              )
-                             (Span (SourceId 0) 4 15)
+                             (sn 4 15)
                          ]
-                         (LiteralE (IntegerL 10 (Span (SourceId 0) 18 20))
-                                   (Span (SourceId 0) 18 20)
-                         )
-                         (Span (SourceId 0) 4 20)
+                         (LiteralE (IntegerL 10 (sn 18 20)) (sn 18 20))
+                         (sn 4 20)
                      ]
-                     (LiteralE (IntegerL 30 (Span (SourceId 0) 26 28))
-                               (Span (SourceId 0) 26 28)
-                     )
-                     (Span (SourceId 0) 0 30)
+                     (LiteralE (IntegerL 30 (sn 26 28)) (sn 26 28))
+                     (sn 0 30)
+                   )
+    it "should parse a function properly"
+      $          parseExpr sid "let myfn : (Some x~xs) a = x+a in { 30 }"
+      `shouldBe` Right
+                   (LetInE
+                     [ Binding
+                         (Just (Ident "myfn" (sn 4 8)))
+                         [ VariantP
+                           (Namespace [Ident "Some" (sn 12 16)] (sn 12 16))
+                           (CustomP (BindP (Ident "x" (sn 17 18)) (sn 17 18))
+                                    (Operator "~" (sn 18 19))
+                                    (BindP (Ident "xs" (sn 19 21)) (sn 19 21))
+                                    (sn 17 21)
+                           )
+                           (sn 11 22)
+                         , BindP (Ident "a" (sn 23 24)) (sn 23 24)
+                         ]
+                         (BinOpE
+                           (VariableE
+                             (Namespace [Ident "x" (sn 27 28)] (sn 27 28))
+                             (sn 27 28)
+                           )
+                           (Operator "+" (sn 28 29))
+                           (VariableE
+                             (Namespace [Ident "a" (sn 29 30)] (sn 29 30))
+                             (sn 29 30)
+                           )
+                           (sn 27 30)
+                         )
+                         (sn 4 30)
+                     ]
+                     (LiteralE (IntegerL 30 (sn 36 38)) (sn 36 38))
+                     (sn 0 40)
+                   )
+    it "should parse a let with multiple clauses"
+      $          (head <$> parseBlock
+                   sid
+                   "let map : f a = a,\n\
+                     \    map : f (x~xs) = (f x) ~ (map f xs)"
+                 )
+      `shouldBe` Right
+                   (BindingS
+                     [ Binding
+                       (Just (Ident "map" (Span (SourceId 0) 4 7)))
+                       [ BindP (Ident "f" (Span (SourceId 0) 10 11))
+                               (Span (SourceId 0) 10 11)
+                       , BindP (Ident "a" (Span (SourceId 0) 12 13))
+                               (Span (SourceId 0) 12 13)
+                       ]
+                       (VariableE
+                         (Namespace [Ident "a" (Span (SourceId 0) 16 17)]
+                                    (Span (SourceId 0) 16 17)
+                         )
+                         (Span (SourceId 0) 16 17)
+                       )
+                       (Span (SourceId 0) 4 17)
+                     , Binding
+                       (Just (Ident "map" (Span (SourceId 0) 23 26)))
+                       [ BindP (Ident "f" (Span (SourceId 0) 29 30))
+                               (Span (SourceId 0) 29 30)
+                       , CustomP
+                         (BindP (Ident "x" (Span (SourceId 0) 32 33))
+                                (Span (SourceId 0) 32 33)
+                         )
+                         (Operator "~" (Span (SourceId 0) 33 34))
+                         (BindP (Ident "xs" (Span (SourceId 0) 34 36))
+                                (Span (SourceId 0) 34 36)
+                         )
+                         (Span (SourceId 0) 31 37)
+                       ]
+                       (BinOpE
+                         (GroupedE
+                           (BinOpE
+                             (VariableE
+                               (Namespace
+                                 [Ident "f" (Span (SourceId 0) 41 42)]
+                                 (Span (SourceId 0) 41 42)
+                               )
+                               (Span (SourceId 0) 41 42)
+                             )
+                             (Operator "application" (Span (SourceId 0) 42 43))
+                             (VariableE
+                               (Namespace
+                                 [Ident "x" (Span (SourceId 0) 43 44)]
+                                 (Span (SourceId 0) 43 44)
+                               )
+                               (Span (SourceId 0) 43 44)
+                             )
+                             (Span (SourceId 0) 41 44)
+                           )
+                           (Span (SourceId 0) 40 45)
+                         )
+                         (Operator "~" (Span (SourceId 0) 46 47))
+                         (GroupedE
+                           (BinOpE
+                             (BinOpE
+                               (VariableE
+                                 (Namespace
+                                   [Ident "map" (Span (SourceId 0) 49 52)]
+                                   (Span (SourceId 0) 49 52)
+                                 )
+                                 (Span (SourceId 0) 49 52)
+                               )
+                               (Operator "application" (Span (SourceId 0) 52 53)
+                               )
+                               (VariableE
+                                 (Namespace
+                                   [Ident "f" (Span (SourceId 0) 53 54)]
+                                   (Span (SourceId 0) 53 54)
+                                 )
+                                 (Span (SourceId 0) 53 54)
+                               )
+                               (Span (SourceId 0) 49 54)
+                             )
+                             (Operator "application" (Span (SourceId 0) 54 55))
+                             (VariableE
+                               (Namespace
+                                 [Ident "xs" (Span (SourceId 0) 55 57)]
+                                 (Span (SourceId 0) 55 57)
+                               )
+                               (Span (SourceId 0) 55 57)
+                             )
+                             (Span (SourceId 0) 49 57)
+                           )
+                           (Span (SourceId 0) 48 58)
+                         )
+                         (Span (SourceId 0) 40 58)
+                       )
+                       (Span (SourceId 0) 23 58)
+                     ]
+                     (Span (SourceId 0) 0 58)
                    )
