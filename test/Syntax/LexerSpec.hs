@@ -31,7 +31,7 @@ spec :: Spec
 spec = do
   it "should lex keywords"
     $          runExcept
-                 (scanTokens sid "let import rec impl trait dec in if else match elif")
+                 (scanTokens sid "let import rec impl trait dec in if else match elif assign")
     `shouldBe` Right
                  [ MkToken (sn 0 3)   LetTok
                  , MkToken (sn 4 10)  ImportTok
@@ -44,6 +44,7 @@ spec = do
                  , MkToken (sn 36 40) ElseTok
                  , MkToken (sn 41 46) MatchTok
                  , MkToken (sn 47 51) ElifTok
+                 , MkToken (sn 52 58) AssignTok
                  ]
   it "should lex symbols"
     $          runExcept (scanTokens sid "()\n[]\n{}\n")
@@ -69,8 +70,8 @@ spec = do
                  , MkToken (sn 1 4) $ IdentTok "a23"
                  ]
   it "should lex operators"
-    $          runExcept (scanTokens sid "<$>+*-/|:$^@!~%&.=")
-    `shouldBe` Right [MkToken (sn 0 18) $ OperatorTok "<$>+*-/|:$^@!~%&.="]
+    $          runExcept (scanTokens sid "<$>+*-/|:$^@!~%&.=?")
+    `shouldBe` Right [MkToken (sn 0 19) $ OperatorTok "<$>+*-/|:$^@!~%&.=?"]
   it "should lex integers"
     $          runExcept (scanTokens sid "1234567809")
     `shouldBe` Right [MkToken (sn 0 10) $ IntegerTok 1234567809]

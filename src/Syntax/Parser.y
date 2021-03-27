@@ -27,16 +27,17 @@ import           Data.List                      ( intercalate )
 
 -- Token Names
 %token
-    "let"          { MkToken _ LetTok }
-    "rec"          { MkToken _ RecTok }
-    "impl"         { MkToken _ ImplTok }
-    "trait"        { MkToken _ TraitTok }
-    "dec"          { MkToken _ DecTok }
-    "in"           { MkToken _ InTok }
-    "if"           { MkToken _ IfTok }
-    "else"         { MkToken _ ElseTok }
-    "elif"         { MkToken _ ElifTok }
-    "match"        { MkToken _ MatchTok }
+    "let"        { MkToken _ LetTok }
+    "rec"        { MkToken _ RecTok }
+    "impl"       { MkToken _ ImplTok }
+    "trait"      { MkToken _ TraitTok }
+    "dec"        { MkToken _ DecTok }
+    "in"         { MkToken _ InTok }
+    "if"         { MkToken _ IfTok }
+    "else"       { MkToken _ ElseTok }
+    "elif"       { MkToken _ ElifTok }
+    "match"      { MkToken _ MatchTok }
+    "assign"     { MkToken _ AssignTok }
     '"'          { MkToken _ DoubleQouteTok }
     "'"          { MkToken _ SingleQouteTok }
     '('          { MkToken _ LParenTok }
@@ -56,7 +57,8 @@ import           Data.List                      ( intercalate )
     '='          { MkToken _ (OperatorTok "=") }
     operator     { MkToken _ (OperatorTok _) }
 
-%right "in" "let" "if"
+%right "in" "let" "if" "assign"
+%nonassoc PREOP POSTOP
 %left '->' TYPEOP
 %nonassoc string float integer '(' '_' identifier
 %nonassoc VARIANT
@@ -79,20 +81,26 @@ Statement : DecStatement { $1 }
 LetStatement : "let" Bindings                    { BindingS $2 (bt $1 (last $2)) }
 
 DecStatement : "dec" Ident ':' Type              { let pos = bt $1 $4
-                                                  in DeclarationS (Declaration $2 $4 pos) pos}
+                                                    in DeclarationS (Declaration $2 $4 pos) pos}
 
-Expr : Literal                                         { LiteralE $1 (getSpan $1)}
-     | Expr Operator Expr %prec OPEXPR                 { BinOpE $1 $2 $3 (bt $1 $3) }
-     | Tuple                                           { $1 }
-     | Namespace                                       { VariableE $1 $ getSpan $1 }
-     | "let" Bindings "in" '{' Expr '}'                    { LetInE $2 $5 $ bt $1 $6 }
+Expr : Literal                                             { LiteralE $1 (getSpan $1)}
+     | Expr Operator Expr %prec OPEXPR                     { OperatorE (BinOp $2 $1 $3) (bt $1 $3) }
+     | Operator Expr %prec PREOP                           { OperatorE (PreOp $1 $2) (bt $1 $2) }
+     | Expr Operator %prec POSTOP                          { OperatorE (PostOp $2 $1) (bt $1 $2) }
+     | Tuple                                               { $1 }
+     | Namespace                                           { VariableE $1 $ getSpan $1 }
+     | "assign" Bindings "in" '{' Expr '}'                    { LetInE $2 $5 $ bt $1 $6 }
      | "if" Expr '{' Expr '}' "else" '{' Expr '}'          { CondE ($2, $4) [] $8 $ bt $1 $9}
      | "if" Expr '{' Expr '}' ElifCond "else" '{' Expr '}' { CondE ($2, $4) $6 $9 $ bt $1 $10}
-     | Expr Expr %prec FUNAPP                          { BinOpE $1 
-                                                           (Operator "application" $
-                                                               gap (getSpan $1) (getSpan $2))
-                                                           $2
-                                                           (bt $1 $2) }
+     | Expr Expr %prec FUNAPP                              { OperatorE (
+                                                                 BinOp
+                                                                 (Operator "application" $
+                                                                   gap (getSpan $1) (getSpan $2))
+                                                                 $1
+                                                                 $2
+                                                               )
+                                                               (bt $1 $2) }
+
 
 Bindings      : BindingsInner               { reverse $1 }
 BindingsInner : BindingsInner ',' Binding   { ($3:$1) }
@@ -104,12 +112,14 @@ Patterns      : PatternsInner                { reverse $1 }
 PatternsInner : PatternsInner PatternBinding { ($2:$1) }
               | PatternBinding               { [$1] }
 
-PatternBinding        : Ident                           { BindP $1 (getSpan $1) }
-                      | '(' Pattern ')'                 { setSpan (bt $1 $3) $2 }
-Pattern               : Ident                           { BindP $1 (getSpan $1) }
-                      | Namespace Pattern %prec VARIANT { VariantP $1 $2 (bt $1 $2) }
-                      | Pattern Operator Pattern %prec OPPAT { CustomP $1 $2 $3 (bt $1 $3) }
-                      | '(' Pattern ')'                 { setSpan (bt $1 $3) $2 }
+PatternBinding        : Ident                                { BindP $1 (getSpan $1) }
+                      | '(' Pattern ')'                      { OperatorP (Grouped $2) (bt $1 $3) }
+Pattern               : Ident                                { BindP $1 (getSpan $1) }
+                      | Namespace Pattern %prec VARIANT      { VariantP $1 $2 (bt $1 $2) }
+                      | Pattern Operator Pattern %prec OPPAT { OperatorP (BinOp $2 $1 $3) (bt $1 $3) }
+                      | Operator Pattern %prec PREOP         { OperatorP (PreOp $1 $2) (bt $1 $2) }
+                      | Pattern Operator %prec POSTOP        { OperatorP (PostOp $2 $1) (bt $1 $2) }
+                      | '(' Pattern ')'                      { OperatorP (Grouped $2) (bt $1 $3) }
 
 ElifCond      : ElifCondInner          { reverse $1 }
 ElifCondInner : ElifCondInner Elif     { ($2:$1) }
@@ -131,20 +141,24 @@ Literal : string   { case $1 of (MkToken span (StrTok s)) -> StringL s span}
         | float    { case $1 of (MkToken span (FloatTok f)) -> FloatL f span}
         | integer  { case $1 of (MkToken span (IntegerTok i)) -> IntegerL i span}
 
-Type          : '_'                        { Infer $ getSpan $1 }
-              | Namespace                  { NamespaceType $1 (getSpan $1) }
-              | '(' TupleType ')'          { let reved = reverse $2 in TupleType reved (bt $1 $3)}
-              | '(' ')'                    { TupleType [] (bt $1 $2)}
-              | '(' ',' ')'                { TupleType [] (bt $1 $3)}
-              | '(' Type ',' ')'           { TupleType [$2] (bt $1 $4)}
-              | '(' TupleType ',' ')'      { let reved = reverse $2 in TupleType reved (bt $1 $4)}
-              | '(' Type ')'               { setSpan (bt $1 $3) $2 }
-              | Type Type  %prec TYPEAPP   { BinOpType $1 (Operator "application" $ gap (getSpan $1) (getSpan $2)) $2 (bt $1 $2)}
-              | Type Operator Type %prec TYPEOP { BinOpType $1 $2 $3 (bt $1 $3) }
-TupleType     : TupleType ',' Type         { ($3:$1) }
-              | Type ',' Type              { [$3, $1] }
+Type          : '_'                             { Infer $ getSpan $1 }
+              | Namespace                       { NamespaceType $1 (getSpan $1) }
+              | '(' TupleType ')'               { let reved = reverse $2 in TupleType reved (bt $1 $3)}
+              | '(' ')'                         { TupleType [] (bt $1 $2)}
+              | '(' ',' ')'                     { TupleType [] (bt $1 $3)}
+              | '(' Type ',' ')'                { TupleType [$2] (bt $1 $4)}
+              | '(' TupleType ',' ')'           { let reved = reverse $2 in TupleType reved (bt $1 $4)}
+              | '(' Type ')'                    { OperatorType (Grouped $2) (bt $1 $3) }
+              | Type Type  %prec TYPEAPP        { OperatorType (BinOp (Operator "application" $ gap (getSpan $1) (getSpan $2)) $1 $2) (bt $1 $2)}
+              | Type Operator Type %prec TYPEOP { OperatorType (BinOp $2 $1 $3) (bt $1 $3) }
+              | Operator Type %prec PREOP       { OperatorType (PreOp $1 $2) (bt $1 $2) }
+              | Type Operator %prec POSTOP      { OperatorType (PostOp $2 $1) (bt $1 $2) }
+TupleType     : TupleType ',' Type              { ($3:$1) }
+              | Type ',' Type                   { [$3, $1] }
 
 Ident          : identifier                { case $1 of (MkToken span (IdentTok s)) -> Ident s span}
+               | '(' Operator ')'          { OpId $2 }
+
 Namespace      : NamespaceInner            { let reved = reverse $1 
                                               in Namespace reved (bt (head reved) (head $1)) }
 NamespaceInner : Ident                     { [$1] }
@@ -168,7 +182,7 @@ syntaxErr expects str span = Diagnostic
 
 parseError :: ([Token], [String]) -> Except Diagnostic a
 parseError (((MkToken span t) : ts), expects) =
-  throwError $ syntaxErr expects (show t) span
+  throwError $ syntaxErr expects (display t) span
 parseError ([], expects) =
   throwError $ syntaxErr expects "end of file" Eof
 

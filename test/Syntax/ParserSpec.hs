@@ -22,6 +22,67 @@ spec = do
     it "should return empty list on empty input"
       $          parseBlock sid ""
       `shouldBe` Right []
+    it "should parse multiple lets properly"
+      $          parseBlock sid "let a = 10, b = 20 let c = 10"
+      `shouldBe` Right
+                   [ BindingS
+                     [ Binding
+                       Nothing
+                       [ BindP (Ident "a" (Span (SourceId 0) 4 5))
+                               (Span (SourceId 0) 4 5)
+                       ]
+                       (LiteralE (IntegerL 10 (Span (SourceId 0) 8 10))
+                                 (Span (SourceId 0) 8 10)
+                       )
+                       (Span (SourceId 0) 4 10)
+                     , Binding
+                       Nothing
+                       [ BindP (Ident "b" (Span (SourceId 0) 12 13))
+                               (Span (SourceId 0) 12 13)
+                       ]
+                       (LiteralE (IntegerL 20 (Span (SourceId 0) 16 18))
+                                 (Span (SourceId 0) 16 18)
+                       )
+                       (Span (SourceId 0) 12 18)
+                     ]
+                     (Span (SourceId 0) 0 18)
+                   , BindingS
+                     [ Binding
+                         Nothing
+                         [ BindP (Ident "c" (Span (SourceId 0) 23 24))
+                                 (Span (SourceId 0) 23 24)
+                         ]
+                         (LiteralE (IntegerL 10 (Span (SourceId 0) 27 29))
+                                   (Span (SourceId 0) 27 29)
+                         )
+                         (Span (SourceId 0) 23 29)
+                     ]
+                     (Span (SourceId 0) 19 29)
+                   ]
+    it "should parse a unary operator"
+      $          parseBlock sid "dec (?) : Int -> Int"
+      `shouldBe` Right
+                   [ DeclarationS
+                       (Declaration
+                         (OpId (Operator "?" (sn 5 6)))
+                         (OperatorType
+                           (BinOp
+                             (Operator "->" (sn 14 16))
+                             (NamespaceType
+                               (Namespace [Ident "Int" (sn 10 13)] (sn 10 13))
+                               (sn 10 13)
+                             )
+                             (NamespaceType
+                               (Namespace [Ident "Int" (sn 17 20)] (sn 17 20))
+                               (sn 17 20)
+                             )
+                           )
+                           (sn 10 20)
+                         )
+                         (sn 0 20)
+                       )
+                       (sn 0 20)
+                   ]
     it "should parse a simple declaration"
       $          parseBlock sid "dec fold' : Int"
       `shouldBe` Right
@@ -35,6 +96,106 @@ spec = do
                        $ sn 0 15
                        )
                        (sn 0 15)
+                   ]
+    it "should parse a let with multiple clauses"
+      $          parseBlock
+                   sid
+                   "let map : f a = a,\n\
+                   \    map : f (x~xs) = (f x) ~ (map f xs)"
+      `shouldBe` Right
+                   [ BindingS
+                       [ Binding
+                         (Just (Ident "map" (sn 4 7)))
+                         [ BindP (Ident "f" (sn 10 11)) (sn 10 11)
+                         , BindP (Ident "a" (sn 12 13)) (sn 12 13)
+                         ]
+                         (VariableE
+                           (Namespace [Ident "a" (sn 16 17)] (sn 16 17))
+                           (sn 16 17)
+                         )
+                         (sn 4 17)
+                       , Binding
+                         (Just (Ident "map" (sn 23 26)))
+                         [ BindP (Ident "f" (sn 29 30)) (sn 29 30)
+                         , OperatorP
+                           (Grouped
+                             (VariantP
+                               (Namespace [Ident "x" (sn 32 33)] (sn 32 33))
+                               (OperatorP
+                                 (PreOp
+                                   (Operator "~" (sn 33 34))
+                                   (BindP (Ident "xs" (sn 34 36)) (sn 34 36))
+                                 )
+                                 (sn 33 36)
+                               )
+                               (sn 32 36)
+                             )
+                           )
+                           (sn 31 37)
+                         ]
+                         (OperatorE
+                           (BinOp
+                             (Operator "~" (sn 46 47))
+                             (GroupedE
+                               (OperatorE
+                                 (BinOp
+                                   (Operator "application" (sn 42 43))
+                                   (VariableE
+                                     (Namespace [Ident "f" (sn 41 42)]
+                                                (sn 41 42)
+                                     )
+                                     (sn 41 42)
+                                   )
+                                   (VariableE
+                                     (Namespace [Ident "x" (sn 43 44)]
+                                                (sn 43 44)
+                                     )
+                                     (sn 43 44)
+                                   )
+                                 )
+                                 (sn 41 44)
+                               )
+                               (sn 40 45)
+                             )
+                             (GroupedE
+                               (OperatorE
+                                 (BinOp
+                                   (Operator "application" (sn 54 55))
+                                   (OperatorE
+                                     (BinOp
+                                       (Operator "application" (sn 52 53))
+                                       (VariableE
+                                         (Namespace [Ident "map" (sn 49 52)]
+                                                    (sn 49 52)
+                                         )
+                                         (sn 49 52)
+                                       )
+                                       (VariableE
+                                         (Namespace [Ident "f" (sn 53 54)]
+                                                    (sn 53 54)
+                                         )
+                                         (sn 53 54)
+                                       )
+                                     )
+                                     (sn 49 54)
+                                   )
+                                   (VariableE
+                                     (Namespace [Ident "xs" (sn 55 57)]
+                                                (sn 55 57)
+                                     )
+                                     (sn 55 57)
+                                   )
+                                 )
+                                 (sn 49 57)
+                               )
+                               (sn 48 58)
+                             )
+                           )
+                           (sn 40 58)
+                         )
+                         (sn 23 58)
+                       ]
+                       (sn 0 58)
                    ]
   describe "Syntax.Parser.parseType" $ do
     it "should parse an empty tuple" $ parseType sid "()" `shouldBe` Right
@@ -90,178 +251,245 @@ spec = do
     it "should parse a function type with multiple"
       $          parseType sid "String -> Int -> Bool"
       `shouldBe` Right
-                   (BinOpType
-                     (NamespaceType
-                       (Namespace [Ident "String" (sn 0 6)] (sn 0 6))
-                       (sn 0 6)
-                     )
-                     (Operator "->" (sn 7 9))
-                     (BinOpType
+                   (OperatorType
+                     (BinOp
+                       (Operator "->" (sn 7 9))
                        (NamespaceType
-                         (Namespace [Ident "Int" (sn 10 13)] (sn 10 13))
-                         (sn 10 13)
+                         (Namespace [Ident "String" (sn 0 6)] (sn 0 6))
+                         (sn 0 6)
                        )
-                       (Operator "->" (sn 14 16))
-                       (NamespaceType
-                         (Namespace [Ident "Bool" (sn 17 21)] (sn 17 21))
-                         (sn 17 21)
+                       (OperatorType
+                         (BinOp
+                           (Operator "->" (sn 14 16))
+                           (NamespaceType
+                             (Namespace [Ident "Int" (sn 10 13)] (sn 10 13))
+                             (sn 10 13)
+                           )
+                           (NamespaceType
+                             (Namespace [Ident "Bool" (sn 17 21)] (sn 17 21))
+                             (sn 17 21)
+                           )
+                         )
+                         (sn 10 21)
                        )
-                       (sn 10 21)
                      )
                      (sn 0 21)
                    )
     it "should parse a type application"
       $          parseType sid "Option Int Float"
       `shouldBe` Right
-                   (BinOpType
-                     (BinOpType
-                       (NamespaceType
-                         (Namespace [Ident "Option" $ sn 0 6] $ sn 0 6)
-                         (sn 0 6)
+                   (OperatorType
+                     (BinOp
+                       (Operator "application" (sn 10 11))
+                       (OperatorType
+                         (BinOp
+                           (Operator "application" (sn 6 7))
+                           (NamespaceType
+                             (Namespace [Ident "Option" (sn 0 6)] (sn 0 6))
+                             (sn 0 6)
+                           )
+                           (NamespaceType
+                             (Namespace [Ident "Int" (sn 7 10)] (sn 7 10))
+                             (sn 7 10)
+                           )
+                         )
+                         (sn 0 10)
                        )
-                       (Operator "application" $ sn 6 7)
                        (NamespaceType
-                         (Namespace [Ident "Int" $ sn 7 10] $ sn 7 10)
-                         (sn 7 10)
+                         (Namespace [Ident "Float" (sn 11 16)] (sn 11 16))
+                         (sn 11 16)
                        )
-                       (sn 0 10)
-                     )
-                     (Operator "application" $ sn 10 11)
-                     (NamespaceType
-                       (Namespace [Ident "Float" $ sn 11 16] $ sn 11 16)
-                       (sn 11 16)
                      )
                      (sn 0 16)
                    )
     it "should parse a type application with parens"
       $          parseType sid "Option (Int Float)"
       `shouldBe` Right
-                   (BinOpType
-                     (NamespaceType
-                       (Namespace [Ident "Option" $ sn 0 6] $ sn 0 6)
-                       (sn 0 6)
-                     )
-                     (Operator "application" $ sn 6 7)
-                     (BinOpType
+                   (OperatorType
+                     (BinOp
+                       (Operator "application" (sn 6 7))
                        (NamespaceType
-                         (Namespace [Ident "Int" $ sn 8 11] $ sn 8 11)
-                         (sn 8 11)
+                         (Namespace [Ident "Option" (sn 0 6)] (sn 0 6))
+                         (sn 0 6)
                        )
-                       (Operator "application" $ sn 11 12)
-                       (NamespaceType
-                         (Namespace [Ident "Float" $ sn 12 17] $ sn 12 17)
-                         (sn 12 17)
+                       (OperatorType
+                         (Grouped
+                           (OperatorType
+                             (BinOp
+                               (Operator "application" (sn 11 12))
+                               (NamespaceType
+                                 (Namespace [Ident "Int" (sn 8 11)] (sn 8 11))
+                                 (sn 8 11)
+                               )
+                               (NamespaceType
+                                 (Namespace [Ident "Float" (sn 12 17)]
+                                            (sn 12 17)
+                                 )
+                                 (sn 12 17)
+                               )
+                             )
+                             (sn 8 17)
+                           )
+                         )
+                         (sn 7 18)
                        )
-                       (sn 7 18)
                      )
                      (sn 0 18)
                    )
     it "should parse a function type with applications"
       $          parseType sid "Option Int -> Int"
       `shouldBe` Right
-                   (BinOpType
-                     (BinOpType
-                       (NamespaceType
-                         (Namespace [Ident "Option" $ sn 0 6] $ sn 0 6)
-                         (sn 0 6)
+                   (OperatorType
+                     (BinOp
+                       (Operator "->" (sn 11 13))
+                       (OperatorType
+                         (BinOp
+                           (Operator "application" (sn 6 7))
+                           (NamespaceType
+                             (Namespace [Ident "Option" (sn 0 6)] (sn 0 6))
+                             (sn 0 6)
+                           )
+                           (NamespaceType
+                             (Namespace [Ident "Int" (sn 7 10)] (sn 7 10))
+                             (sn 7 10)
+                           )
+                         )
+                         (sn 0 10)
                        )
-                       (Operator "application" $ sn 6 7)
                        (NamespaceType
-                         (Namespace [Ident "Int" $ sn 7 10] $ sn 7 10)
-                         (sn 7 10)
+                         (Namespace [Ident "Int" (sn 14 17)] (sn 14 17))
+                         (sn 14 17)
                        )
-                       (sn 0 10)
-                     )
-                     (Operator "->" $ sn 11 13)
-                     (NamespaceType
-                       (Namespace [Ident "Int" $ sn 14 17] $ sn 14 17)
-                       (sn 14 17)
                      )
                      (sn 0 17)
                    )
     it "should parse a function type with parens properly"
       $          parseType sid "Option (Int -> Int)"
       `shouldBe` Right
-                   (BinOpType
-                     (NamespaceType
-                       (Namespace [Ident "Option" $ sn 0 6] $ sn 0 6)
-                       (sn 0 6)
-                     )
-                     (Operator "application" $ sn 6 7)
-                     (BinOpType
+                   (OperatorType
+                     (BinOp
+                       (Operator "application" (sn 6 7))
                        (NamespaceType
-                         (Namespace [Ident "Int" $ sn 8 11] $ sn 8 11)
-                         (sn 8 11)
+                         (Namespace [Ident "Option" (sn 0 6)] (sn 0 6))
+                         (sn 0 6)
                        )
-                       (Operator "->" $ sn 12 14)
-                       (NamespaceType
-                         (Namespace [Ident "Int" $ sn 15 18] $ sn 15 18)
-                         (sn 15 18)
+                       (OperatorType
+                         (Grouped
+                           (OperatorType
+                             (BinOp
+                               (Operator "->" (sn 12 14))
+                               (NamespaceType
+                                 (Namespace [Ident "Int" (sn 8 11)] (sn 8 11))
+                                 (sn 8 11)
+                               )
+                               (NamespaceType
+                                 (Namespace [Ident "Int" (sn 15 18)] (sn 15 18))
+                                 (sn 15 18)
+                               )
+                             )
+                             (sn 8 18)
+                           )
+                         )
+                         (sn 7 19)
                        )
-                       (sn 7 19)
                      )
                      (sn 0 19)
                    )
     it "should parse a more complex type"
       $ parseType sid "Option (Int -> Int) -> (Option Int -> Int) -> Int -> Int"
       `shouldBe` Right
-                   (BinOpType
-                     (BinOpType
-                       (NamespaceType
-                         (Namespace [Ident "Option" (sn 0 6)] (sn 0 6))
-                         (sn 0 6)
-                       )
-                       (Operator "application" (sn 6 7))
-                       (BinOpType
-                         (NamespaceType
-                           (Namespace [Ident "Int" (sn 8 11)] (sn 8 11))
-                           (sn 8 11)
-                         )
-                         (Operator "->" (sn 12 14))
-                         (NamespaceType
-                           (Namespace [Ident "Int" (sn 15 18)] (sn 15 18))
-                           (sn 15 18)
-                         )
-                         (sn 7 19)
-                       )
-                       (sn 0 19)
-                     )
-                     (Operator "->" (sn 20 22))
-                     (BinOpType
-                       (BinOpType
-                         (BinOpType
+                   (OperatorType
+                     (BinOp
+                       (Operator "->" (sn 20 22))
+                       (OperatorType
+                         (BinOp
+                           (Operator "application" (sn 6 7))
                            (NamespaceType
-                             (Namespace [Ident "Option" (sn 24 30)] (sn 24 30))
-                             (sn 24 30)
+                             (Namespace [Ident "Option" (sn 0 6)] (sn 0 6))
+                             (sn 0 6)
                            )
-                           (Operator "application" (sn 30 31))
-                           (NamespaceType
-                             (Namespace [Ident "Int" (sn 31 34)] (sn 31 34))
-                             (sn 31 34)
+                           (OperatorType
+                             (Grouped
+                               (OperatorType
+                                 (BinOp
+                                   (Operator "->" (sn 12 14))
+                                   (NamespaceType
+                                     (Namespace [Ident "Int" (sn 8 11)]
+                                                (sn 8 11)
+                                     )
+                                     (sn 8 11)
+                                   )
+                                   (NamespaceType
+                                     (Namespace [Ident "Int" (sn 15 18)]
+                                                (sn 15 18)
+                                     )
+                                     (sn 15 18)
+                                   )
+                                 )
+                                 (sn 8 18)
+                               )
+                             )
+                             (sn 7 19)
                            )
-                           (sn 24 34)
                          )
-                         (Operator "->" (sn 35 37))
-                         (NamespaceType
-                           (Namespace [Ident "Int" (sn 38 41)] (sn 38 41))
-                           (sn 38 41)
-                         )
-                         (sn 23 42)
+                         (sn 0 19)
                        )
-                       (Operator "->" (sn 43 45))
-                       (BinOpType
-                         (NamespaceType
-                           (Namespace [Ident "Int" (sn 46 49)] (sn 46 49))
-                           (sn 46 49)
+                       (OperatorType
+                         (BinOp
+                           (Operator "->" (sn 43 45))
+                           (OperatorType
+                             (Grouped
+                               (OperatorType
+                                 (BinOp
+                                   (Operator "->" (sn 35 37))
+                                   (OperatorType
+                                     (BinOp
+                                       (Operator "application" (sn 30 31))
+                                       (NamespaceType
+                                         (Namespace
+                                           [Ident "Option" (sn 24 30)]
+                                           (sn 24 30)
+                                         )
+                                         (sn 24 30)
+                                       )
+                                       (NamespaceType
+                                         (Namespace [Ident "Int" (sn 31 34)]
+                                                    (sn 31 34)
+                                         )
+                                         (sn 31 34)
+                                       )
+                                     )
+                                     (sn 24 34)
+                                   )
+                                   (NamespaceType
+                                     (Namespace [Ident "Int" (sn 38 41)]
+                                                (sn 38 41)
+                                     )
+                                     (sn 38 41)
+                                   )
+                                 )
+                                 (sn 24 41)
+                               )
+                             )
+                             (sn 23 42)
+                           )
+                           (OperatorType
+                             (BinOp
+                               (Operator "->" (sn 50 52))
+                               (NamespaceType
+                                 (Namespace [Ident "Int" (sn 46 49)] (sn 46 49))
+                                 (sn 46 49)
+                               )
+                               (NamespaceType
+                                 (Namespace [Ident "Int" (sn 53 56)] (sn 53 56))
+                                 (sn 53 56)
+                               )
+                             )
+                             (sn 46 56)
+                           )
                          )
-                         (Operator "->" (sn 50 52))
-                         (NamespaceType
-                           (Namespace [Ident "Int" (sn 53 56)] (sn 53 56))
-                           (sn 53 56)
-                         )
-                         (sn 46 56)
+                         (sn 23 56)
                        )
-                       (sn 23 56)
                      )
                      (sn 0 56)
                    )
@@ -271,37 +499,47 @@ spec = do
     it "should parse a function application"
       $          parseExpr sid "1 2"
       `shouldBe` Right
-                   (BinOpE (LiteralE (IntegerL 1 (sn 0 1)) (sn 0 1))
-                           (Operator "application" $ sn 1 2)
-                           (LiteralE (IntegerL 2 (sn 2 3)) (sn 2 3))
-                           (sn 0 3)
+                   (OperatorE
+                     (BinOp (Operator "application" (sn 1 2))
+                            (LiteralE (IntegerL 1 (sn 0 1)) (sn 0 1))
+                            (LiteralE (IntegerL 2 (sn 2 3)) (sn 2 3))
+                     )
+                     (sn 0 3)
                    )
     it "should parse a function application with multiple"
       $          parseExpr sid "1 2 3"
       `shouldBe` Right
-                   (BinOpE
-                     (BinOpE (LiteralE (IntegerL 1 (sn 0 1)) (sn 0 1))
-                             (Operator "application" $ sn 1 2)
-                             (LiteralE (IntegerL 2 (sn 2 3)) (sn 2 3))
-                             (sn 0 3)
+                   (OperatorE
+                     (BinOp
+                       (Operator "application" (sn 3 4))
+                       (OperatorE
+                         (BinOp (Operator "application" (sn 1 2))
+                                (LiteralE (IntegerL 1 (sn 0 1)) (sn 0 1))
+                                (LiteralE (IntegerL 2 (sn 2 3)) (sn 2 3))
+                         )
+                         (sn 0 3)
+                       )
+                       (LiteralE (IntegerL 3 (sn 4 5)) (sn 4 5))
                      )
-                     (Operator "application" $ sn 3 4)
-                     (LiteralE (IntegerL 3 (sn 4 5)) (sn 4 5))
                      (sn 0 5)
                    )
     it "should parse a function application with multiple and grouping"
       $          parseExpr sid "1 (2 3)"
       `shouldBe` Right
-                   (BinOpE
-                     (LiteralE (IntegerL 1 (sn 0 1)) (sn 0 1))
-                     (Operator "application" $ sn 1 2)
-                     (GroupedE
-                       (BinOpE (LiteralE (IntegerL 2 (sn 3 4)) (sn 3 4))
-                               (Operator "application" $ sn 4 5)
-                               (LiteralE (IntegerL 3 (sn 5 6)) (sn 5 6))
-                               (sn 3 6)
+                   (OperatorE
+                     (BinOp
+                       (Operator "application" (sn 1 2))
+                       (LiteralE (IntegerL 1 (sn 0 1)) (sn 0 1))
+                       (GroupedE
+                         (OperatorE
+                           (BinOp (Operator "application" (sn 4 5))
+                                  (LiteralE (IntegerL 2 (sn 3 4)) (sn 3 4))
+                                  (LiteralE (IntegerL 3 (sn 5 6)) (sn 5 6))
+                           )
+                           (sn 3 6)
+                         )
+                         (sn 2 7)
                        )
-                       (sn 2 7)
                      )
                      (sn 0 7)
                    )
@@ -345,23 +583,29 @@ spec = do
                    $ sn 0 16
                    )
     it "should parse an operator" $ parseExpr sid "10 + 20" `shouldBe` Right
-      ( BinOpE (LiteralE (IntegerL 10 (sn 0 2)) (sn 0 2))
-               (Operator "+" $ sn 3 4)
+      (OperatorE
+        (BinOp (Operator "+" (sn 3 4))
+               (LiteralE (IntegerL 10 (sn 0 2)) (sn 0 2))
                (LiteralE (IntegerL 20 (sn 5 7)) (sn 5 7))
-      $ sn 0 7
+        )
+        (sn 0 7)
       )
     it "should parse multiple operators"
       $          parseExpr sid "10 + 20 ++ 30"
       `shouldBe` Right
-                   ( BinOpE
-                       ( BinOpE (LiteralE (IntegerL 10 (sn 0 2)) (sn 0 2))
-                                (Operator "+" $ sn 3 4)
+                   (OperatorE
+                     (BinOp
+                       (Operator "++" (sn 8 10))
+                       (OperatorE
+                         (BinOp (Operator "+" (sn 3 4))
+                                (LiteralE (IntegerL 10 (sn 0 2)) (sn 0 2))
                                 (LiteralE (IntegerL 20 (sn 5 7)) (sn 5 7))
-                       $ sn 0 7
+                         )
+                         (sn 0 7)
                        )
-                       (Operator "++" $ sn 8 10)
                        (LiteralE (IntegerL 30 (sn 11 13)) (sn 11 13))
-                   $ sn 0 13
+                     )
+                     (sn 0 13)
                    )
     it "should parse an if statement"
       $          parseExpr sid "if 30 { 10 } else { 20 }"
@@ -405,205 +649,196 @@ spec = do
                      (LiteralE (IntegerL 20 (sn 50 52)) (sn 50 52))
                      (sn 0 54)
                    )
-    it "should parse a basic let in binding"
-      $          parseExpr sid "let x = 10 in { 30 }"
+    it "should parse a basic assign in binding"
+      $          parseExpr sid "assign x = 10 in { 30 }"
       `shouldBe` Right
                    (LetInE
-                     [ Binding Nothing
-                               [BindP (Ident "x" (sn 4 5)) (sn 4 5)]
-                               (LiteralE (IntegerL 10 (sn 8 10)) (sn 8 10))
-                               (sn 4 10)
+                     [ Binding
+                         Nothing
+                         [ BindP (Ident "x" (Span (SourceId 0) 7 8))
+                                 (Span (SourceId 0) 7 8)
+                         ]
+                         (LiteralE (IntegerL 10 (Span (SourceId 0) 11 13))
+                                   (Span (SourceId 0) 11 13)
+                         )
+                         (Span (SourceId 0) 7 13)
                      ]
-                     (LiteralE (IntegerL 30 (sn 16 18)) (sn 16 18))
-                     (sn 0 20)
+                     (LiteralE (IntegerL 30 (Span (SourceId 0) 19 21))
+                               (Span (SourceId 0) 19 21)
+                     )
+                     (Span (SourceId 0) 0 23)
                    )
     it "should parse a pattern destructure"
-      $          parseExpr sid "let x y = 10 in { 30 40 }"
+      $          parseExpr sid "assign x y = 10 in { 30 40 }"
       `shouldBe` Right
                    (LetInE
                      [ Binding
                          Nothing
-                         [ VariantP (Namespace [Ident "x" (sn 4 5)] (sn 4 5))
-                                    (BindP (Ident "y" (sn 6 7)) (sn 6 7))
-                                    (sn 4 7)
+                         [ VariantP
+                             (Namespace [Ident "x" (Span (SourceId 0) 7 8)]
+                                        (Span (SourceId 0) 7 8)
+                             )
+                             (BindP (Ident "y" (Span (SourceId 0) 9 10))
+                                    (Span (SourceId 0) 9 10)
+                             )
+                             (Span (SourceId 0) 7 10)
                          ]
-                         (LiteralE (IntegerL 10 (sn 10 12)) (sn 10 12))
-                         (sn 4 12)
+                         (LiteralE (IntegerL 10 (Span (SourceId 0) 13 15))
+                                   (Span (SourceId 0) 13 15)
+                         )
+                         (Span (SourceId 0) 7 15)
                      ]
-                     (BinOpE (LiteralE (IntegerL 30 (sn 18 20)) (sn 18 20))
-                             (Operator "application" (sn 20 21))
-                             (LiteralE (IntegerL 40 (sn 21 23)) (sn 21 23))
-                             (sn 18 23)
+                     (OperatorE
+                       (BinOp
+                         (Operator "application" (Span (SourceId 0) 23 24))
+                         (LiteralE (IntegerL 30 (Span (SourceId 0) 21 23))
+                                   (Span (SourceId 0) 21 23)
+                         )
+                         (LiteralE (IntegerL 40 (Span (SourceId 0) 24 26))
+                                   (Span (SourceId 0) 24 26)
+                         )
+                       )
+                       (Span (SourceId 0) 21 26)
                      )
-                     (sn 0 25)
+                     (Span (SourceId 0) 0 28)
                    )
-
     it "should parse a single pattern with parens"
-      $          parseExpr sid "let (x y) = 10 in { 30 }"
+      $          parseExpr sid "assign (x y) = 10 in { 30 }"
       `shouldBe` Right
                    (LetInE
                      [ Binding
                          Nothing
-                         [ VariantP (Namespace [Ident "x" (sn 5 6)] (sn 5 6))
-                                    (BindP (Ident "y" (sn 7 8)) (sn 7 8))
-                                    (sn 4 9)
+                         [ OperatorP
+                             (Grouped
+                               (VariantP
+                                 (Namespace
+                                   [Ident "x" (Span (SourceId 0) 8 9)]
+                                   (Span (SourceId 0) 8 9)
+                                 )
+                                 (BindP (Ident "y" (Span (SourceId 0) 10 11))
+                                        (Span (SourceId 0) 10 11)
+                                 )
+                                 (Span (SourceId 0) 8 11)
+                               )
+                             )
+                             (Span (SourceId 0) 7 12)
                          ]
-                         (LiteralE (IntegerL 10 (sn 12 14)) (sn 12 14))
-                         (sn 4 14)
+                         (LiteralE (IntegerL 10 (Span (SourceId 0) 15 17))
+                                   (Span (SourceId 0) 15 17)
+                         )
+                         (Span (SourceId 0) 7 17)
                      ]
-                     (LiteralE (IntegerL 30 (sn 20 22)) (sn 20 22))
-                     (sn 0 24)
+                     (LiteralE (IntegerL 30 (Span (SourceId 0) 23 25))
+                               (Span (SourceId 0) 23 25)
+                     )
+                     (Span (SourceId 0) 0 27)
                    )
     it "should parse multiple values with operator"
-      $          parseExpr sid "let (Some x~xs) = 10 in { 30 }"
+      $          parseExpr sid "assign (Some x~xs) = 10 in { 30 }"
       `shouldBe` Right
                    (LetInE
                      [ Binding
                          Nothing
-                         [ VariantP
-                             (Namespace [Ident "Some" (sn 5 9)] (sn 5 9))
-                             (CustomP
-                               (BindP (Ident "x" (sn 10 11)) (sn 10 11))
-                               (Operator "~" (sn 11 12))
-                               (BindP (Ident "xs" (sn 12 14)) (sn 12 14))
-                               (sn 10 14)
+                         [ OperatorP
+                             (Grouped
+                               (VariantP
+                                 (Namespace
+                                   [Ident "Some" (Span (SourceId 0) 8 12)]
+                                   (Span (SourceId 0) 8 12)
+                                 )
+                                 (VariantP
+                                   (Namespace
+                                     [Ident "x" (Span (SourceId 0) 13 14)]
+                                     (Span (SourceId 0) 13 14)
+                                   )
+                                   (OperatorP
+                                     (PreOp
+                                       (Operator "~" (Span (SourceId 0) 14 15))
+                                       (BindP
+                                         (Ident "xs" (Span (SourceId 0) 15 17))
+                                         (Span (SourceId 0) 15 17)
+                                       )
+                                     )
+                                     (Span (SourceId 0) 14 17)
+                                   )
+                                   (Span (SourceId 0) 13 17)
+                                 )
+                                 (Span (SourceId 0) 8 17)
+                               )
                              )
-                             (sn 4 15)
+                             (Span (SourceId 0) 7 18)
                          ]
-                         (LiteralE (IntegerL 10 (sn 18 20)) (sn 18 20))
-                         (sn 4 20)
+                         (LiteralE (IntegerL 10 (Span (SourceId 0) 21 23))
+                                   (Span (SourceId 0) 21 23)
+                         )
+                         (Span (SourceId 0) 7 23)
                      ]
-                     (LiteralE (IntegerL 30 (sn 26 28)) (sn 26 28))
-                     (sn 0 30)
+                     (LiteralE (IntegerL 30 (Span (SourceId 0) 29 31))
+                               (Span (SourceId 0) 29 31)
+                     )
+                     (Span (SourceId 0) 0 33)
                    )
     it "should parse a function properly"
-      $          parseExpr sid "let myfn : (Some x~xs) a = x+a in { 30 }"
+      $          parseExpr sid "assign myfn : (Some x~xs) a = x+a in { 30 }"
       `shouldBe` Right
                    (LetInE
                      [ Binding
-                         (Just (Ident "myfn" (sn 4 8)))
-                         [ VariantP
-                           (Namespace [Ident "Some" (sn 12 16)] (sn 12 16))
-                           (CustomP (BindP (Ident "x" (sn 17 18)) (sn 17 18))
-                                    (Operator "~" (sn 18 19))
-                                    (BindP (Ident "xs" (sn 19 21)) (sn 19 21))
-                                    (sn 17 21)
+                         (Just (Ident "myfn" (Span (SourceId 0) 7 11)))
+                         [ OperatorP
+                           (Grouped
+                             (VariantP
+                               (Namespace
+                                 [Ident "Some" (Span (SourceId 0) 15 19)]
+                                 (Span (SourceId 0) 15 19)
+                               )
+                               (VariantP
+                                 (Namespace
+                                   [Ident "x" (Span (SourceId 0) 20 21)]
+                                   (Span (SourceId 0) 20 21)
+                                 )
+                                 (OperatorP
+                                   (PreOp
+                                     (Operator "~" (Span (SourceId 0) 21 22))
+                                     (BindP
+                                       (Ident "xs" (Span (SourceId 0) 22 24))
+                                       (Span (SourceId 0) 22 24)
+                                     )
+                                   )
+                                   (Span (SourceId 0) 21 24)
+                                 )
+                                 (Span (SourceId 0) 20 24)
+                               )
+                               (Span (SourceId 0) 15 24)
+                             )
                            )
-                           (sn 11 22)
-                         , BindP (Ident "a" (sn 23 24)) (sn 23 24)
+                           (Span (SourceId 0) 14 25)
+                         , BindP (Ident "a" (Span (SourceId 0) 26 27))
+                                 (Span (SourceId 0) 26 27)
                          ]
-                         (BinOpE
-                           (VariableE
-                             (Namespace [Ident "x" (sn 27 28)] (sn 27 28))
-                             (sn 27 28)
+                         (OperatorE
+                           (BinOp
+                             (Operator "+" (Span (SourceId 0) 31 32))
+                             (VariableE
+                               (Namespace
+                                 [Ident "x" (Span (SourceId 0) 30 31)]
+                                 (Span (SourceId 0) 30 31)
+                               )
+                               (Span (SourceId 0) 30 31)
+                             )
+                             (VariableE
+                               (Namespace
+                                 [Ident "a" (Span (SourceId 0) 32 33)]
+                                 (Span (SourceId 0) 32 33)
+                               )
+                               (Span (SourceId 0) 32 33)
+                             )
                            )
-                           (Operator "+" (sn 28 29))
-                           (VariableE
-                             (Namespace [Ident "a" (sn 29 30)] (sn 29 30))
-                             (sn 29 30)
-                           )
-                           (sn 27 30)
+                           (Span (SourceId 0) 30 33)
                          )
-                         (sn 4 30)
+                         (Span (SourceId 0) 7 33)
                      ]
-                     (LiteralE (IntegerL 30 (sn 36 38)) (sn 36 38))
-                     (sn 0 40)
-                   )
-    it "should parse a let with multiple clauses"
-      $          (head <$> parseBlock
-                   sid
-                   "let map : f a = a,\n\
-                     \    map : f (x~xs) = (f x) ~ (map f xs)"
-                 )
-      `shouldBe` Right
-                   (BindingS
-                     [ Binding
-                       (Just (Ident "map" (Span (SourceId 0) 4 7)))
-                       [ BindP (Ident "f" (Span (SourceId 0) 10 11))
-                               (Span (SourceId 0) 10 11)
-                       , BindP (Ident "a" (Span (SourceId 0) 12 13))
-                               (Span (SourceId 0) 12 13)
-                       ]
-                       (VariableE
-                         (Namespace [Ident "a" (Span (SourceId 0) 16 17)]
-                                    (Span (SourceId 0) 16 17)
-                         )
-                         (Span (SourceId 0) 16 17)
-                       )
-                       (Span (SourceId 0) 4 17)
-                     , Binding
-                       (Just (Ident "map" (Span (SourceId 0) 23 26)))
-                       [ BindP (Ident "f" (Span (SourceId 0) 29 30))
-                               (Span (SourceId 0) 29 30)
-                       , CustomP
-                         (BindP (Ident "x" (Span (SourceId 0) 32 33))
-                                (Span (SourceId 0) 32 33)
-                         )
-                         (Operator "~" (Span (SourceId 0) 33 34))
-                         (BindP (Ident "xs" (Span (SourceId 0) 34 36))
-                                (Span (SourceId 0) 34 36)
-                         )
-                         (Span (SourceId 0) 31 37)
-                       ]
-                       (BinOpE
-                         (GroupedE
-                           (BinOpE
-                             (VariableE
-                               (Namespace
-                                 [Ident "f" (Span (SourceId 0) 41 42)]
-                                 (Span (SourceId 0) 41 42)
-                               )
-                               (Span (SourceId 0) 41 42)
-                             )
-                             (Operator "application" (Span (SourceId 0) 42 43))
-                             (VariableE
-                               (Namespace
-                                 [Ident "x" (Span (SourceId 0) 43 44)]
-                                 (Span (SourceId 0) 43 44)
-                               )
-                               (Span (SourceId 0) 43 44)
-                             )
-                             (Span (SourceId 0) 41 44)
-                           )
-                           (Span (SourceId 0) 40 45)
-                         )
-                         (Operator "~" (Span (SourceId 0) 46 47))
-                         (GroupedE
-                           (BinOpE
-                             (BinOpE
-                               (VariableE
-                                 (Namespace
-                                   [Ident "map" (Span (SourceId 0) 49 52)]
-                                   (Span (SourceId 0) 49 52)
-                                 )
-                                 (Span (SourceId 0) 49 52)
-                               )
-                               (Operator "application" (Span (SourceId 0) 52 53)
-                               )
-                               (VariableE
-                                 (Namespace
-                                   [Ident "f" (Span (SourceId 0) 53 54)]
-                                   (Span (SourceId 0) 53 54)
-                                 )
-                                 (Span (SourceId 0) 53 54)
-                               )
-                               (Span (SourceId 0) 49 54)
-                             )
-                             (Operator "application" (Span (SourceId 0) 54 55))
-                             (VariableE
-                               (Namespace
-                                 [Ident "xs" (Span (SourceId 0) 55 57)]
-                                 (Span (SourceId 0) 55 57)
-                               )
-                               (Span (SourceId 0) 55 57)
-                             )
-                             (Span (SourceId 0) 49 57)
-                           )
-                           (Span (SourceId 0) 48 58)
-                         )
-                         (Span (SourceId 0) 40 58)
-                       )
-                       (Span (SourceId 0) 23 58)
-                     ]
-                     (Span (SourceId 0) 0 58)
+                     (LiteralE (IntegerL 30 (Span (SourceId 0) 39 41))
+                               (Span (SourceId 0) 39 41)
+                     )
+                     (Span (SourceId 0) 0 43)
                    )

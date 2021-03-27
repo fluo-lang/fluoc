@@ -3,7 +3,8 @@ module Syntax.Ast where
 import           Sources
 
 data Ident = Ident String Span
-  deriving (Eq, Show)
+           | OpId Operator
+           deriving (Eq, Show)
 data Operator = Operator String Span
   deriving (Eq, Show)
 data Namespace = Namespace [Ident] Span
@@ -33,7 +34,7 @@ data Pattern = TupleP [Pattern] Span
              | VariantP Namespace Pattern Span
              | DropP Span
              | LiteralP Literal Span
-             | CustomP Pattern Operator Pattern Span
+             | OperatorP (Oped Pattern) Span
              deriving (Eq, Show)
 
 data Literal = IntegerL Integer Span
@@ -44,12 +45,12 @@ data Literal = IntegerL Integer Span
 data Type = Infer Span
           | Never Span
           | NamespaceType Namespace Span
-          | BinOpType Type Operator Type Span
+          | OperatorType (Oped Type) Span
           | TupleType [Type] Span
           deriving (Eq, Show)
 
 data Expr = LiteralE Literal Span
-          | BinOpE Expr Operator Expr Span
+          | OperatorE (Oped Expr) Span
           | TupleE [Expr] Span
           | CondE (Expr, Expr) [(Expr, Expr)] Expr Span
           | LetInE [Binding] Expr Span
@@ -58,8 +59,16 @@ data Expr = LiteralE Literal Span
           | GroupedE Expr Span
           deriving (Eq, Show)
 
+data Oped a = BinOp Operator a a
+            | PreOp Operator a
+            | PostOp Operator a
+            | Grouped a
+            deriving (Eq, Show)
+
 instance Spanned Ident where
   getSpan (Ident _ s) = s
+  getSpan (OpId op) = getSpan op
+  setSpan newSp (OpId op) = OpId $ setSpan newSp op 
   setSpan newSp (Ident s _) = Ident s newSp
   
 instance Spanned Operator where
@@ -112,13 +121,13 @@ instance Spanned Pattern where
   getSpan (VariantP _ _ s) = s
   getSpan (DropP s) = s
   getSpan (LiteralP _ s) = s
-  getSpan (CustomP _ _ _ s) = s
+  getSpan (OperatorP _ s) = s
   setSpan newSp (LiteralP a _) = LiteralP a newSp
   setSpan newSp (TupleP a _) = TupleP a newSp
   setSpan newSp (BindP a _) = BindP a newSp
   setSpan newSp (VariantP n is _) = VariantP n is newSp
   setSpan newSp (DropP _) = DropP newSp
-  setSpan newSp (CustomP p o p' _) = CustomP p o p' newSp
+  setSpan newSp (OperatorP o _) = OperatorP o newSp
 
 instance Spanned Literal where
   getSpan (IntegerL _ s) = s
@@ -132,17 +141,17 @@ instance Spanned Type where
   getSpan (Infer s) = s
   getSpan (Never s) = s
   getSpan (NamespaceType _ s) = s
-  getSpan (BinOpType _ _ _ s) = s
+  getSpan (OperatorType _ s) = s
   getSpan (TupleType _ s) = s
   setSpan newSp (Infer _) = Infer newSp
   setSpan newSp (Never _) = Never newSp
   setSpan newSp (NamespaceType n _) = NamespaceType n newSp
-  setSpan newSp (BinOpType t o t' _) = BinOpType t o t' newSp
+  setSpan newSp (OperatorType o _) = OperatorType o newSp
   setSpan newSp (TupleType ts _) = TupleType ts newSp
 
 instance Spanned Expr where
   getSpan (LiteralE _ s) = s
-  getSpan (BinOpE _ _ _ s) = s
+  getSpan (OperatorE _ s) = s
   getSpan (TupleE _ s) = s
   getSpan (CondE _ _ _ s) = s
   getSpan (LetInE _ _ s) = s
@@ -151,7 +160,7 @@ instance Spanned Expr where
   getSpan (GroupedE _ s) = s
 
   setSpan newSp (LiteralE l _) = LiteralE l newSp
-  setSpan newSp (BinOpE l o r _) = BinOpE l o r newSp
+  setSpan newSp (OperatorE o _) = OperatorE o newSp
   setSpan newSp (TupleE es _) = TupleE es newSp
   setSpan newSp (CondE i ei e _) = CondE i ei e newSp
   setSpan newSp (LetInE e e' _) = LetInE e e' newSp
