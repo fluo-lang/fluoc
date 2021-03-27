@@ -59,7 +59,7 @@ import           Data.List                      ( intercalate )
     operator              { MkToken _ (OperatorTok _) }
     polymorphicIdentifier { MkToken _ (PolyTok _) }
 
-%right "in" "let" "if" "assign" "match" backslash
+%right "in" "let" "if" "assign" "match" backslash "impl" "trait" "rec"
 %nonassoc PREOP POSTOP
 %left '=>' TYPEOP
 %nonassoc string float integer '(' '_' identifier polymorphicIdentifier
@@ -69,17 +69,23 @@ import           Data.List                      ( intercalate )
 %nonassoc OPEXPR
 %nonassoc FUNAPP
 %nonassoc TYPEAPP
+%nonassoc EOF
 
 %%
 
-Statements      : StatementsInner      { $1 }
-                | {- empty -}          { [] }
-StatementsInner : Statements Statement { $2 : $1 }
-                | Statement            { [$1] }
+Statements      : StatementsInner       { reverse $1 }
+                | {- empty -} %prec EOF { [] }
+StatementsInner : Statements Statement  { $2 : $1 }
+                | Statement             { [$1] }
 
-Statement : DecStatement { $1 }
-          | LetStatement { $1 }
-          | RecordDec    { $1 }
+Statement : DecStatement  { $1 }
+          | LetStatement  { $1 }
+          | RecordDec     { $1 }
+          | TraitDec      { $1 }
+          | ImplStatement { $1 }
+
+ImplStatement : "impl" Namespace ':' Type '{' Statements '}' { ImplS $2 $4 $6 $ bt $1 $7 }
+TraitDec      : "trait" Ident ':' PolyIdents '{' Statements '}' { TraitS $2 $4 $6 $ bt $1 $7 }
 
 RecordDec         : "rec" Ident ':' PolyIdents '=' RecordItems { RecordS $2 $4 $6 $ bt $1 $ last $6 }
                   | "rec" Ident '=' RecordItems                { RecordS $2 [] $4 $ bt $1 $ last $4 }
@@ -222,7 +228,7 @@ parseError ([], expects) =
 parseBlock :: SourceId -> String -> Either Diagnostic [Statement]
 parseBlock sourceId input = runExcept $ do
   tokenStream <- scanTokens sourceId input
-  reverse <$> statements tokenStream
+  statements tokenStream
 
 parseExpr :: SourceId -> String -> Either Diagnostic Expr
 parseExpr sourceId input = runExcept $ do

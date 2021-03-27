@@ -6,14 +6,13 @@ import           Test.Hspec                     ( describe
                                                 , Spec
                                                 )
 
-import           Control.Monad.Except
-
 import           Sources
 import           Syntax.Ast
 import           Syntax.Parser
-import           Diagnostics
 
+sid :: SourceId
 sid = SourceId 0
+sn :: Int -> Int -> Span
 sn = Span sid
 
 spec :: Spec

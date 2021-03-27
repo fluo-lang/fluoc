@@ -22,8 +22,8 @@ data RecordItem = Product Ident [Type] Span
 
 data Statement = BindingS [Binding] Span
                | DeclarationS Declaration Span
-               | ImplS Ident Type [Statement] Span
-               | TraitS Ident [Ident] [Statement] Span
+               | ImplS Namespace Type [Statement] Span
+               | TraitS Ident [PolyIdent] [Statement] Span
                | RecordS Ident [PolyIdent] [RecordItem] Span
                | ImportS Namespace (Maybe Ident) Span
                | FromImportS Namespace (Maybe [Ident]) Span
@@ -128,6 +128,7 @@ instance Spanned Type where
   getSpan (NamespaceType _ s) = s
   getSpan (OperatorType  _ s) = s
   getSpan (TupleType     _ s) = s
+  getSpan (PolyType      _ s) = s
 
 instance Spanned Expr where
   getSpan (LiteralE  _ s) = s
@@ -138,3 +139,4 @@ instance Spanned Expr where
   getSpan (VariableE _ s) = s
   getSpan (LambdaE _ _ s) = s
   getSpan (GroupedE _ s ) = s
+  getSpan (MatchE _ _ s ) = s

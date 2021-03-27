@@ -1,7 +1,7 @@
 module Syntax.LexerSpec where
 
-import           Test.Hspec                     ( describe
-                                                , it
+import           Test.Hspec                     ( 
+                                                it
                                                 , shouldBe
                                                 , Spec
                                                 )
@@ -13,7 +13,10 @@ import           Syntax.Token
 import           Syntax.Lexer
 import           Diagnostics
 
+sid :: SourceId
 sid = SourceId 0
+
+sn :: Int -> Int -> Span
 sn = Span sid
 
 lexErr :: Int -> Char -> Diagnostic

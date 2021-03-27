@@ -1,13 +1,12 @@
 {
 {-# LANGUAGE FlexibleContexts #-}
+{-# OPTIONS_GHC -fno-warn-name-shadowing -fno-warn-unused-matches #-}
 module Syntax.Lexer where
 
 import           Control.Monad.Except
-import           Data.Char                      ( chr )
 import           Sources                        ( Span(..)
                                                 , SourceId(..)
                                                 , fromPos
-                                                , btwn
                                                 , Spanned(..)
                                                 )
 import           Syntax.Token

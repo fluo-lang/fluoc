@@ -33,6 +33,7 @@ data TokenKind = IdentTok String
                | EofTok
                deriving (Eq, Show)
 
+getStaticTok :: TokenKind -> String
 getStaticTok tok = case tok of
   LetTok         -> "let"
   ImportTok      -> "import"
@@ -56,6 +57,7 @@ getStaticTok tok = case tok of
   RParenTok      -> ")"
   LCurlyTok      -> "{"
   RCurlyTok      -> "}"
+  _              -> error "Missing case, internal error. Token.hs: getStaticTok"
 
 class Display a where
   display :: a -> String
