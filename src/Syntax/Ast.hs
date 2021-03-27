@@ -16,15 +16,15 @@ data Binding = Binding (Maybe Ident) [Pattern] Expr Span
   deriving (Eq, Show)
 data BindingOrDec = BindingBOD Binding
                   | DeclarationBOD Declaration
-data RecordItem = Union [Type] Span
-                | Sum [Declaration] Span
+data RecordItem = Product Ident [Type] Span
+                | NamedProduct Ident [Declaration] Span
                 deriving (Eq, Show)
 
 data Statement = BindingS [Binding] Span
                | DeclarationS Declaration Span
                | ImplS Ident Type [Statement] Span
                | TraitS Ident [Ident] [Statement] Span
-               | RecordS Ident [Ident] [RecordItem] Span
+               | RecordS Ident [PolyIdent] [RecordItem] Span
                | ImportS Namespace (Maybe Ident) Span
                | FromImportS Namespace (Maybe [Ident]) Span
                deriving (Eq, Show)
@@ -47,8 +47,11 @@ data Type = Infer Span
           | NamespaceType Namespace Span
           | OperatorType (Oped Type) Span
           | TupleType [Type] Span
-          | PolyType String Span
+          | PolyType PolyIdent Span
           deriving (Eq, Show)
+
+data PolyIdent = PolyIdent String Span
+  deriving (Eq, Show)
 
 data Expr = LiteralE Literal Span
           | OperatorE (Oped Expr) Span
@@ -91,8 +94,11 @@ instance Spanned BindingOrDec where
   getSpan (DeclarationBOD d) = getSpan d
 
 instance Spanned RecordItem where
-  getSpan (Union _ s) = s
-  getSpan (Sum   _ s) = s
+  getSpan (Product      _ _ s) = s
+  getSpan (NamedProduct _ _ s) = s
+
+instance Spanned PolyIdent where
+  getSpan (PolyIdent _ s) = s
 
 instance Spanned Statement where
   getSpan (BindingS     _ s ) = s

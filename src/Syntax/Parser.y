@@ -52,6 +52,7 @@ import           Data.List                      ( intercalate )
     ','                   { MkToken _ (OperatorTok ",") }
     backslash             { MkToken _ (OperatorTok "\\") }
     '::'                  { MkToken _ (OperatorTok "::") }
+    '|'                   { MkToken _ (OperatorTok "|") }
     ':'                   { MkToken _ (OperatorTok ":") }
     '='                   { MkToken _ (OperatorTok "=") }
     '=>'                  { MkToken _ (OperatorTok "=>") }
@@ -78,11 +79,29 @@ StatementsInner : Statements Statement { $2 : $1 }
 
 Statement : DecStatement { $1 }
           | LetStatement { $1 }
+          | RecordDec    { $1 }
 
-LetStatement : "let" Bindings                    { BindingS $2 (bt $1 $ last $2) }
+RecordDec         : "rec" Ident ':' PolyIdents '=' RecordItems { RecordS $2 $4 $6 $ bt $1 $ last $6 }
+                  | "rec" Ident '=' RecordItems                { RecordS $2 [] $4 $ bt $1 $ last $4 }
+RecordItems       : RecordItemsInner                { reverse $1 }
+RecordItemsInner  : RecordItemsInner '|' RecordItem { ($3:$1) }
+                  | RecordItem                      { [$1] }
+RecordItem        : Ident Types                     { Product $1 $2 $ bt $1 $ last $2 }
+                  | Ident '{' Declarations '}'      { NamedProduct $1 $3 $ bt $1 $4 }
+PolyIdents        : PolyIdentsInner                 { reverse $1 }
+PolyIdentsInner   : PolyIdentsInner PolyIdent       { ($2:$1) }
+                  | PolyIdent                       { [$1] }
+Types             : TypesInner                      { reverse $1 }
+TypesInner        : TypesInner TypeLimited          { ($2:$1) }
+                  | TypeLimited                     { [$1] }
+Declarations      : DeclarationsInner               { reverse $1 }
+DeclarationsInner : DeclarationsInner Declaration   { ($2:$1) }
+                  | Declaration                     { [$1] }
 
-DecStatement : "dec" Ident ':' Type              { let pos = bt $1 $4
-                                                    in DeclarationS (Declaration $2 $4 pos) pos}
+LetStatement : "let" Bindings      { BindingS $2 $ bt $1 $ last $2 }
+
+DecStatement : Declaration         { DeclarationS $1 $ getSpan $1 }
+Declaration : "dec" Ident ':' Type { Declaration $2 $4 $ bt $1 $4 }
 
 Expr : Literal                                             { LiteralE $1 $ getSpan $1}
      | Expr Operator Expr %prec OPEXPR                     { OperatorE (BinOp $2 $1 $3) $ bt $1 $3 }
@@ -150,7 +169,9 @@ Literal : string   { case $1 of (MkToken span (StrTok s)) -> StringL s span}
         | float    { case $1 of (MkToken span (FloatTok f)) -> FloatL f span}
         | integer  { case $1 of (MkToken span (IntegerTok i)) -> IntegerL i span}
 
-Type          : '_'                             { Infer $ getSpan $1 }
+PolyIdent : polymorphicIdentifier {case $1 of (MkToken span (PolyTok p)) -> PolyIdent p span}
+
+TypeLimited   : '_'                             { Infer $ getSpan $1 }
               | Namespace                       { NamespaceType $1 $ getSpan $1 }
               | '(' TupleType ')'               { let reved = reverse $2 in TupleType reved (bt $1 $3)}
               | '(' ')'                         { TupleType [] $ bt $1 $2}
@@ -158,11 +179,13 @@ Type          : '_'                             { Infer $ getSpan $1 }
               | '(' Type ',' ')'                { TupleType [$2] $ bt $1 $4}
               | '(' TupleType ',' ')'           { let reved = reverse $2 in TupleType reved (bt $1 $4)}
               | '(' Type ')'                    { OperatorType (Grouped $2) $ bt $1 $3 }
-              | Type Type  %prec TYPEAPP        { OperatorType (BinOp (Operator "application" $ gap (getSpan $1) $ getSpan $2) $1 $2) $ bt $1 $2 }
+              | PolyIdent                       { PolyType $1 $ getSpan $1 }
+Type          : Type Type %prec TYPEAPP         { OperatorType (BinOp (Operator "application" $ gap (getSpan $1) $ getSpan $2) $1 $2) $ bt $1 $2 }
+              | TypeLimited                     { $1 }
               | Type Operator Type %prec TYPEOP { OperatorType (BinOp $2 $1 $3) $ bt $1 $3 }
               | Operator Type %prec PREOP       { OperatorType (PreOp $1 $2) $ bt $1 $2 }
               | Type Operator %prec POSTOP      { OperatorType (PostOp $2 $1) $ bt $1 $2 }
-              | polymorphicIdentifier           { case $1 of (MkToken span (PolyTok s)) -> PolyType s span }
+
 TupleType     : TupleType ',' Type              { ($3:$1) }
               | Type ',' Type                   { [$3, $1] }
 

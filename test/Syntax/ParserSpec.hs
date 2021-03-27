@@ -22,6 +22,129 @@ spec = do
     it "should return empty list on empty input"
       $          parseBlock sid ""
       `shouldBe` Right []
+    it "should parse a record with multiple sums"
+      $          parseBlock
+                   sid
+                   "rec Point = Point2D Int Int | Point3D Int Int Int | PointN { dec dims : Int dec values : List Int } "
+      `shouldBe` Right
+                   [ RecordS
+                       (Ident "Point" (sn 4 9))
+                       []
+                       [ Product
+                         (Ident "Point2D" (sn 12 19))
+                         [ NamespaceType
+                           (Namespace [Ident "Int" (sn 20 23)] (sn 20 23))
+                           (sn 20 23)
+                         , NamespaceType
+                           (Namespace [Ident "Int" (sn 24 27)] (sn 24 27))
+                           (sn 24 27)
+                         ]
+                         (sn 12 27)
+                       , Product
+                         (Ident "Point3D" (sn 30 37))
+                         [ NamespaceType
+                           (Namespace [Ident "Int" (sn 38 41)] (sn 38 41))
+                           (sn 38 41)
+                         , NamespaceType
+                           (Namespace [Ident "Int" (sn 42 45)] (sn 42 45))
+                           (sn 42 45)
+                         , NamespaceType
+                           (Namespace [Ident "Int" (sn 46 49)] (sn 46 49))
+                           (sn 46 49)
+                         ]
+                         (sn 30 49)
+                       , NamedProduct
+                         (Ident "PointN" (sn 52 58))
+                         [ Declaration
+                           (Ident "dims" (sn 65 69))
+                           (NamespaceType
+                             (Namespace [Ident "Int" (sn 72 75)] (sn 72 75))
+                             (sn 72 75)
+                           )
+                           (sn 61 75)
+                         , Declaration
+                           (Ident "values" (sn 80 86))
+                           (OperatorType
+                             (BinOp
+                               (Operator "application" (sn 93 94))
+                               (NamespaceType
+                                 (Namespace [Ident "List" (sn 89 93)] (sn 89 93)
+                                 )
+                                 (sn 89 93)
+                               )
+                               (NamespaceType
+                                 (Namespace [Ident "Int" (sn 94 97)] (sn 94 97))
+                                 (sn 94 97)
+                               )
+                             )
+                             (sn 89 97)
+                           )
+                           (sn 76 97)
+                         ]
+                         (sn 52 99)
+                       ]
+                       (sn 0 99)
+                   ]
+    it "should parse a record with multiple fields"
+      $          parseBlock sid "rec Point = Point Int Bool Int"
+      `shouldBe` Right
+                   [ RecordS
+                       (Ident "Point" (sn 4 9))
+                       []
+                       [ Product
+                           (Ident "Point" (sn 12 17))
+                           [ NamespaceType
+                             (Namespace [Ident "Int" (sn 18 21)] (sn 18 21))
+                             (sn 18 21)
+                           , NamespaceType
+                             (Namespace [Ident "Bool" (sn 22 26)] (sn 22 26))
+                             (sn 22 26)
+                           , NamespaceType
+                             (Namespace [Ident "Int" (sn 27 30)] (sn 27 30))
+                             (sn 27 30)
+                           ]
+                           (sn 12 30)
+                       ]
+                       (sn 0 30)
+                   ]
+    it "should parse a record with function"
+      $          parseBlock sid "rec Point = Point (Int -> Int) Int"
+      `shouldBe` Right
+                   [ RecordS
+                       (Ident "Point" (sn 4 9))
+                       []
+                       [ Product
+                           (Ident "Point" (sn 12 17))
+                           [ OperatorType
+                             (Grouped
+                               (OperatorType
+                                 (BinOp
+                                   (Operator "->" (sn 23 25))
+                                   (NamespaceType
+                                     (Namespace [Ident "Int" (sn 19 22)]
+                                                (sn 19 22)
+                                     )
+                                     (sn 19 22)
+                                   )
+                                   (NamespaceType
+                                     (Namespace [Ident "Int" (sn 26 29)]
+                                                (sn 26 29)
+                                     )
+                                     (sn 26 29)
+                                   )
+                                 )
+                                 (sn 19 29)
+                               )
+                             )
+                             (sn 18 30)
+                           , NamespaceType
+                             (Namespace [Ident "Int" (sn 31 34)] (sn 31 34))
+                             (sn 31 34)
+                           ]
+                           (sn 12 34)
+                       ]
+                       (sn 0 34)
+                   ]
     it "should parse multiple lets"
       $          parseBlock sid "let a = 10, b = 20 let c = 10"
       `shouldBe` Right
