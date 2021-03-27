@@ -1,7 +1,6 @@
 module Syntax.LexerSpec where
 
-import           Test.Hspec                     ( 
-                                                it
+import           Test.Hspec                     ( it
                                                 , shouldBe
                                                 , Spec
                                                 )
@@ -36,7 +35,7 @@ spec = do
     $          runExcept
                  (scanTokens
                    sid
-                   "let import rec impl trait dec in if else match elif assign"
+                   "let import rec impl trait dec in if else match elif assign opdef"
                  )
     `shouldBe` Right
                  [ MkToken (sn 0 3)   LetTok
@@ -51,6 +50,7 @@ spec = do
                  , MkToken (sn 41 46) MatchTok
                  , MkToken (sn 47 51) ElifTok
                  , MkToken (sn 52 58) AssignTok
+                 , MkToken (sn 59 64) OpDefTok
                  ]
   it "should lex symbols"
     $          runExcept (scanTokens sid "()\n[]\n{}\n")

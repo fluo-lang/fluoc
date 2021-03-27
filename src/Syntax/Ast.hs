@@ -20,6 +20,19 @@ data RecordItem = Product Ident [Type] Span
                 | NamedProduct Ident [Declaration] Span
                 deriving (Eq, Show)
 
+data Fixity = Binary
+            | Prefix
+            | Postfix
+            deriving (Eq, Show)
+
+data Associativity = LeftA
+                   | RightA
+                   | Nonassoc
+                   deriving (Eq, Show)
+
+data OpInfo = OpInfo Operator Associativity Fixity Integer
+  deriving (Eq, Show)
+
 data Statement = BindingS [Binding] Span
                | DeclarationS Declaration Span
                | ImplS Namespace Type [Statement] Span
@@ -27,6 +40,7 @@ data Statement = BindingS [Binding] Span
                | RecordS Ident [PolyIdent] [RecordItem] Span
                | ImportS Namespace (Maybe Ident) Span
                | FromImportS Namespace (Maybe [Ident]) Span
+               | OpDefS OpInfo Span
                deriving (Eq, Show)
 
 data Pattern = TupleP [Pattern] Span
@@ -108,14 +122,15 @@ instance Spanned Statement where
   getSpan (RecordS _ _ _ s  ) = s
   getSpan (ImportS     _ _ s) = s
   getSpan (FromImportS _ _ s) = s
+  getSpan (OpDefS _ s       ) = s
 
 instance Spanned Pattern where
   getSpan (TupleP _ s    ) = s
   getSpan (BindP  _ s    ) = s
   getSpan (DropP s       ) = s
-  getSpan (LiteralP  _ s ) = s
-  getSpan (OperatorP _ s ) = s
-  getSpan (NamespaceP _ s ) = s
+  getSpan (LiteralP   _ s) = s
+  getSpan (OperatorP  _ s) = s
+  getSpan (NamespaceP _ s) = s
 
 instance Spanned Literal where
   getSpan (IntegerL _ s) = s

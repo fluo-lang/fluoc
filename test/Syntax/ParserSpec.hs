@@ -21,6 +21,24 @@ spec = do
     it "should return empty list on empty input"
       $          parseBlock sid ""
       `shouldBe` Right []
+    it "should parse a opdef statement"
+      $          parseBlock
+                   sid
+                   "opdef (+) left binary 6\
+\opdef (-) right prefix 3\
+\opdef (--) left postfix 2\
+\opdef (/) left binary 5"
+      `shouldBe` Right
+                   [ OpDefS (OpInfo (Operator "+" (sn 7 8)) LeftA Binary 6)
+                            (sn 0 23)
+                   , OpDefS (OpInfo (Operator "-" (sn 30 31)) RightA Prefix 3)
+                            (sn 23 47)
+                   , OpDefS
+                     (OpInfo (Operator "--" (sn 54 56)) LeftA Postfix 2)
+                     (sn 47 72)
+                   , OpDefS (OpInfo (Operator "/" (sn 79 80)) LeftA Binary 5)
+                            (sn 72 95)
+                   ]
     it "should parse a record with multiple sums"
       $          parseBlock
                    sid
@@ -228,18 +246,9 @@ spec = do
                            (Grouped
                              (OperatorP
                                (BinOp
-                                 (Operator "application" (sn 33 33))
-                                 (NamespaceP
-                                   (Namespace [Ident "x" (sn 32 33)] (sn 32 33))
-                                   (sn 32 33)
-                                 )
-                                 (OperatorP
-                                   (PreOp
-                                     (Operator "~" (sn 33 34))
-                                     (BindP (Ident "xs" (sn 34 36)) (sn 34 36))
-                                   )
-                                   (sn 33 36)
-                                 )
+                                 (Operator "~" (sn 33 34))
+                                 (BindP (Ident "x" (sn 32 33)) (sn 32 33))
+                                 (BindP (Ident "xs" (sn 34 36)) (sn 34 36))
                                )
                                (sn 32 36)
                              )
@@ -703,6 +712,27 @@ spec = do
         )
         (sn 0 7)
       )
+    it "should parse infix and postfix operators"
+      $          parseExpr sid "(+10) (5!)"
+      `shouldBe` Right
+                   (OperatorE
+                     (BinOp
+                       (Operator "application" (sn 5 6))
+                       (OperatorE
+                         (PreOp (Operator "+" (sn 1 2))
+                                (LiteralE (IntegerL 10 (sn 2 4)) (sn 2 4))
+                         )
+                         (sn 0 5)
+                       )
+                       (OperatorE
+                         (PostOp (Operator "!" (sn 8 9))
+                                 (LiteralE (IntegerL 5 (sn 7 8)) (sn 7 8))
+                         )
+                         (sn 6 10)
+                       )
+                     )
+                     (sn 0 10)
+                   )
     it "should parse multiple operators"
       $          parseExpr sid "10 + 20 ++ 30"
       `shouldBe` Right
@@ -850,21 +880,9 @@ spec = do
                                    )
                                    (OperatorP
                                      (BinOp
-                                       (Operator "application" (sn 14 14))
-                                       (NamespaceP
-                                         (Namespace [Ident "x" (sn 13 14)]
-                                                    (sn 13 14)
-                                         )
-                                         (sn 13 14)
-                                       )
-                                       (OperatorP
-                                         (PreOp
-                                           (Operator "~" (sn 14 15))
-                                           (BindP (Ident "xs" (sn 15 17))
-                                                  (sn 15 17)
-                                           )
-                                         )
-                                         (sn 14 17)
+                                       (Operator "~" (sn 14 15))
+                                       (BindP (Ident "x" (sn 13 14)) (sn 13 14))
+                                       (BindP (Ident "xs" (sn 15 17)) (sn 15 17)
                                        )
                                      )
                                      (sn 13 17)
@@ -900,22 +918,9 @@ spec = do
                                  )
                                  (OperatorP
                                    (BinOp
-                                     (Operator "application" (sn 21 21))
-                                     (NamespaceP
-                                       (Namespace [Ident "x" (sn 20 21)]
-                                                  (sn 20 21)
-                                       )
-                                       (sn 20 21)
-                                     )
-                                     (OperatorP
-                                       (PreOp
-                                         (Operator "~" (sn 21 22))
-                                         (BindP (Ident "xs" (sn 22 24))
-                                                (sn 22 24)
-                                         )
-                                       )
-                                       (sn 21 24)
-                                     )
+                                     (Operator "~" (sn 21 22))
+                                     (BindP (Ident "x" (sn 20 21)) (sn 20 21))
+                                     (BindP (Ident "xs" (sn 22 24)) (sn 22 24))
                                    )
                                    (sn 20 24)
                                  )

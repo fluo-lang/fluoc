@@ -74,6 +74,8 @@ tokens :-
   match                                 { makeTok MatchTok }
   elif                                  { makeTok ElifTok }
   assign                                { makeTok AssignTok }
+  opdef                                 { makeTok OpDefTok }
+
   $digit+ \. $digit+                    { makeTokCmplx FloatTok read }
   $digit+                               { makeTokCmplx IntegerTok read }
   $operator+                            { makeTokCmplx OperatorTok id }

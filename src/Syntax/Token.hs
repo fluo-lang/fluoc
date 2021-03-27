@@ -19,6 +19,7 @@ data TokenKind = IdentTok String
                | ElifTok
                | MatchTok
                | AssignTok
+               | OpDefTok
 
                | DoubleQouteTok
                | SingleQouteTok
@@ -57,6 +58,9 @@ getStaticTok tok = case tok of
   RParenTok      -> ")"
   LCurlyTok      -> "{"
   RCurlyTok      -> "}"
+
+  OpDefTok       -> "opdef"
+
   _              -> error "Missing case, internal error. Token.hs: getStaticTok"
 
 class Display a where
