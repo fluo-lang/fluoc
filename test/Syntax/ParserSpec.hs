@@ -226,14 +226,20 @@ spec = do
                          [ BindP (Ident "f" (sn 29 30)) (sn 29 30)
                          , OperatorP
                            (Grouped
-                             (VariantP
-                               (Namespace [Ident "x" (sn 32 33)] (sn 32 33))
-                               (OperatorP
-                                 (PreOp
-                                   (Operator "~" (sn 33 34))
-                                   (BindP (Ident "xs" (sn 34 36)) (sn 34 36))
+                             (OperatorP
+                               (BinOp
+                                 (Operator "application" (sn 33 33))
+                                 (NamespaceP
+                                   (Namespace [Ident "x" (sn 32 33)] (sn 32 33))
+                                   (sn 32 33)
                                  )
-                                 (sn 33 36)
+                                 (OperatorP
+                                   (PreOp
+                                     (Operator "~" (sn 33 34))
+                                     (BindP (Ident "xs" (sn 34 36)) (sn 34 36))
+                                   )
+                                   (sn 33 36)
+                                 )
                                )
                                (sn 32 36)
                              )
@@ -774,9 +780,16 @@ spec = do
                    (LetInE
                      [ Binding
                          Nothing
-                         [ VariantP (Namespace [Ident "x" (sn 7 8)] (sn 7 8))
-                                    (BindP (Ident "y" (sn 9 10)) (sn 9 10))
-                                    (sn 7 10)
+                         [ OperatorP
+                             (BinOp
+                               (Operator "application" (sn 8 9))
+                               (NamespaceP
+                                 (Namespace [Ident "x" (sn 7 8)] (sn 7 8))
+                                 (sn 7 8)
+                               )
+                               (BindP (Ident "y" (sn 9 10)) (sn 9 10))
+                             )
+                             (sn 7 10)
                          ]
                          (LiteralE (IntegerL 10 (sn 13 15)) (sn 13 15))
                          (sn 7 15)
@@ -798,9 +811,15 @@ spec = do
                          Nothing
                          [ OperatorP
                              (Grouped
-                               (VariantP
-                                 (Namespace [Ident "x" (sn 8 9)] (sn 8 9))
-                                 (BindP (Ident "y" (sn 10 11)) (sn 10 11))
+                               (OperatorP
+                                 (BinOp
+                                   (Operator "application" (sn 9 10))
+                                   (NamespaceP
+                                     (Namespace [Ident "x" (sn 8 9)] (sn 8 9))
+                                     (sn 8 9)
+                                   )
+                                   (BindP (Ident "y" (sn 10 11)) (sn 10 11))
+                                 )
                                  (sn 8 11)
                                )
                              )
@@ -820,19 +839,36 @@ spec = do
                          Nothing
                          [ OperatorP
                              (Grouped
-                               (VariantP
-                                 (Namespace [Ident "Some" (sn 8 12)] (sn 8 12))
-                                 (VariantP
-                                   (Namespace [Ident "x" (sn 13 14)] (sn 13 14))
+                               (OperatorP
+                                 (BinOp
+                                   (Operator "application" (sn 12 13))
+                                   (NamespaceP
+                                     (Namespace [Ident "Some" (sn 8 12)]
+                                                (sn 8 12)
+                                     )
+                                     (sn 8 12)
+                                   )
                                    (OperatorP
-                                     (PreOp
-                                       (Operator "~" (sn 14 15))
-                                       (BindP (Ident "xs" (sn 15 17)) (sn 15 17)
+                                     (BinOp
+                                       (Operator "application" (sn 14 14))
+                                       (NamespaceP
+                                         (Namespace [Ident "x" (sn 13 14)]
+                                                    (sn 13 14)
+                                         )
+                                         (sn 13 14)
+                                       )
+                                       (OperatorP
+                                         (PreOp
+                                           (Operator "~" (sn 14 15))
+                                           (BindP (Ident "xs" (sn 15 17))
+                                                  (sn 15 17)
+                                           )
+                                         )
+                                         (sn 14 17)
                                        )
                                      )
-                                     (sn 14 17)
+                                     (sn 13 17)
                                    )
-                                   (sn 13 17)
                                  )
                                  (sn 8 17)
                                )
@@ -853,18 +889,36 @@ spec = do
                          (Just (Ident "myfn" (sn 7 11)))
                          [ OperatorP
                            (Grouped
-                             (VariantP
-                               (Namespace [Ident "Some" (sn 15 19)] (sn 15 19))
-                               (VariantP
-                                 (Namespace [Ident "x" (sn 20 21)] (sn 20 21))
-                                 (OperatorP
-                                   (PreOp
-                                     (Operator "~" (sn 21 22))
-                                     (BindP (Ident "xs" (sn 22 24)) (sn 22 24))
+                             (OperatorP
+                               (BinOp
+                                 (Operator "application" (sn 19 20))
+                                 (NamespaceP
+                                   (Namespace [Ident "Some" (sn 15 19)]
+                                              (sn 15 19)
                                    )
-                                   (sn 21 24)
+                                   (sn 15 19)
                                  )
-                                 (sn 20 24)
+                                 (OperatorP
+                                   (BinOp
+                                     (Operator "application" (sn 21 21))
+                                     (NamespaceP
+                                       (Namespace [Ident "x" (sn 20 21)]
+                                                  (sn 20 21)
+                                       )
+                                       (sn 20 21)
+                                     )
+                                     (OperatorP
+                                       (PreOp
+                                         (Operator "~" (sn 21 22))
+                                         (BindP (Ident "xs" (sn 22 24))
+                                                (sn 22 24)
+                                         )
+                                       )
+                                       (sn 21 24)
+                                     )
+                                   )
+                                   (sn 20 24)
+                                 )
                                )
                                (sn 15 24)
                              )

@@ -147,7 +147,9 @@ PatternsInner : PatternsInner PatternBinding { ($2:$1) }
 PatternBinding        : Ident                                { BindP $1 $ getSpan $1 }
                       | '(' Pattern ')'                      { OperatorP (Grouped $2) $ bt $1 $3 }
 Pattern               : Ident                                { BindP $1 $ getSpan $1 }
-                      | Namespace Pattern %prec VARIANT      { VariantP $1 $2 $ bt $1 $2 }
+                      | Namespace Pattern %prec VARIANT      { OperatorP
+                                                                (BinOp (Operator "application" $ gap (getSpan $1) $ getSpan $2)
+                                                                (NamespaceP $1 $ getSpan $1) $2) $ bt $1 $2 }
                       | Pattern Operator Pattern %prec OPPAT { OperatorP (BinOp $2 $1 $3) $ bt $1 $3 }
                       | Operator Pattern %prec PREOP         { OperatorP (PreOp $1 $2) $ bt $1 $2 }
                       | Pattern Operator %prec POSTOP        { OperatorP (PostOp $2 $1) $ bt $1 $2 }

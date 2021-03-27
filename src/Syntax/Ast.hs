@@ -31,9 +31,9 @@ data Statement = BindingS [Binding] Span
 
 data Pattern = TupleP [Pattern] Span
              | BindP Ident Span
-             | VariantP Namespace Pattern Span
              | DropP Span
              | LiteralP Literal Span
+             | NamespaceP Namespace Span
              | OperatorP (Oped Pattern) Span
              deriving (Eq, Show)
 
@@ -112,10 +112,10 @@ instance Spanned Statement where
 instance Spanned Pattern where
   getSpan (TupleP _ s    ) = s
   getSpan (BindP  _ s    ) = s
-  getSpan (VariantP _ _ s) = s
   getSpan (DropP s       ) = s
   getSpan (LiteralP  _ s ) = s
   getSpan (OperatorP _ s ) = s
+  getSpan (NamespaceP _ s ) = s
 
 instance Spanned Literal where
   getSpan (IntegerL _ s) = s
