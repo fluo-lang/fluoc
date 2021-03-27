@@ -13,7 +13,7 @@ let ident: a = a
 #/
 
 # or more explicitly,
-# 'type is a polymorphic type
+# 'a is a polymorphic type
 dec ident: 'a -> 'a
 let ident: a = a
 ```
@@ -113,7 +113,7 @@ let seven = add5 2
 ```
 
 Conditionals:
-```python
+```haskell
 dec greaterThan5 : Int -> Int
 let greaterThan5 : x = if x > 5 {
                            10
@@ -125,8 +125,8 @@ let greaterThan5 : x = if x > 5 {
 ```
 
 Let-in (local binding):
-```python
-let complicatedFunction : x = let z = 10,
-                                  y = x * 2
-                              in { z + y }
+```haskell
+let complicatedFunction : x = assign z = 10,
+                                     y = x * 2
+                                  in { z + y }
 ```
