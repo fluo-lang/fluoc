@@ -59,7 +59,7 @@ import           Data.List                      ( intercalate )
     operator              { MkToken _ (OperatorTok _) }
     polymorphicIdentifier { MkToken _ (PolyTok _) }
 
-%right "in" "let" "if" "assign" "match" backslash "impl" "trait" "rec"
+%right "in" "let" "if" "assign" "match" backslash "impl" "trait" "rec" "dec"
 %nonassoc PREOP POSTOP
 %left '=>' TYPEOP
 %nonassoc string float integer '(' '_' identifier polymorphicIdentifier
