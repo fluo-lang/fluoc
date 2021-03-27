@@ -14,7 +14,6 @@ bt t1 t2 = btwn (getSpan t1) (getSpan t2)
 
 class Spanned a where
   getSpan :: a -> Span
-  setSpan :: Span -> a -> a
 
 newtype SourceId = SourceId Int deriving (Show, Eq)
 newtype Sources = Sources (Map SourceId T.Text) deriving (Show, Eq)

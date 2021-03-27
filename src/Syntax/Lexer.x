@@ -105,7 +105,6 @@ instance Display Token where
   display (MkToken _ t) = display t
 instance Spanned Token where
   getSpan (MkToken s _) = s
-  setSpan newSp (MkToken _ t) = MkToken newSp t
 
 fstIdx :: String -> String
 fstIdx [x    ] = [x]

@@ -38,8 +38,6 @@ import           Data.List                      ( intercalate )
     "elif"                { MkToken _ ElifTok }
     "match"               { MkToken _ MatchTok }
     "assign"              { MkToken _ AssignTok }
-    '"'                   { MkToken _ DoubleQouteTok }
-    "'"                   { MkToken _ SingleQouteTok }
     '('                   { MkToken _ LParenTok }
     ')'                   { MkToken _ RParenTok }
     '['                   { MkToken _ LBracketTok }
@@ -55,12 +53,13 @@ import           Data.List                      ( intercalate )
     '::'                  { MkToken _ (OperatorTok "::") }
     ':'                   { MkToken _ (OperatorTok ":") }
     '='                   { MkToken _ (OperatorTok "=") }
+    '=>'                  { MkToken _ (OperatorTok "=>") }
     operator              { MkToken _ (OperatorTok _) }
     polymorphicIdentifier { MkToken _ (PolyTok _) }
 
-%right "in" "let" "if" "assign"
+%right "in" "let" "if" "assign" "match"
 %nonassoc PREOP POSTOP
-%left '->' TYPEOP
+%left '=>' TYPEOP
 %nonassoc string float integer '(' '_' identifier polymorphicIdentifier
 %nonassoc VARIANT
 %nonassoc OPPAT
@@ -90,7 +89,8 @@ Expr : Literal                                             { LiteralE $1 (getSpa
      | Expr Operator %prec POSTOP                          { OperatorE (PostOp $2 $1) (bt $1 $2) }
      | Tuple                                               { $1 }
      | Namespace                                           { VariableE $1 $ getSpan $1 }
-     | "assign" Bindings "in" '{' Expr '}'                    { LetInE $2 $5 $ bt $1 $6 }
+     | "assign" Bindings "in" '{' Expr '}'                 { LetInE $2 $5 $ bt $1 $6 }
+     | "match" Expr '{' MatchBranches '}'                  { MatchE $2 $4 $ bt $1 $5 }
      | "if" Expr '{' Expr '}' "else" '{' Expr '}'          { CondE ($2, $4) [] $8 $ bt $1 $9}
      | "if" Expr '{' Expr '}' ElifCond "else" '{' Expr '}' { CondE ($2, $4) $6 $9 $ bt $1 $10}
      | Expr Expr %prec FUNAPP                              { OperatorE (
@@ -102,25 +102,31 @@ Expr : Literal                                             { LiteralE $1 (getSpa
                                                                )
                                                                (bt $1 $2) }
 
+MatchBranches      : MatchBranchesInner                 { reverse $1 }
+MatchBranchesInner : MatchBranchesInner ',' MatchBranch { ($3:$1) }
+                   | MatchBranch                        { [$1] }
+MatchBranch        : Pattern '=>' Expr                  { MatchBranch $1 $3 $ bt $1 $3 }
 
 Bindings      : BindingsInner               { reverse $1 }
 BindingsInner : BindingsInner ',' Binding   { ($3:$1) }
               | Binding                     { [$1] }
-Binding       : Ident ':' Patterns '=' Expr { Binding (Just $1) $3 $5 (bt $1 $5) }
-              | Pattern '=' Expr            { Binding Nothing [$1] $3 (bt $1 $3) }
+Binding       : Ident ':' Patterns '=' Expr { Binding (Just $1) $3 $5 $ bt $1 $5 }
+              | Pattern '=' Expr            { Binding Nothing [$1] $3 $ bt $1 $3 }
 
 Patterns      : PatternsInner                { reverse $1 }
 PatternsInner : PatternsInner PatternBinding { ($2:$1) }
               | PatternBinding               { [$1] }
 
-PatternBinding        : Ident                                { BindP $1 (getSpan $1) }
-                      | '(' Pattern ')'                      { OperatorP (Grouped $2) (bt $1 $3) }
-Pattern               : Ident                                { BindP $1 (getSpan $1) }
-                      | Namespace Pattern %prec VARIANT      { VariantP $1 $2 (bt $1 $2) }
-                      | Pattern Operator Pattern %prec OPPAT { OperatorP (BinOp $2 $1 $3) (bt $1 $3) }
-                      | Operator Pattern %prec PREOP         { OperatorP (PreOp $1 $2) (bt $1 $2) }
-                      | Pattern Operator %prec POSTOP        { OperatorP (PostOp $2 $1) (bt $1 $2) }
-                      | '(' Pattern ')'                      { OperatorP (Grouped $2) (bt $1 $3) }
+PatternBinding        : Ident                                { BindP $1 $ getSpan $1 }
+                      | '(' Pattern ')'                      { OperatorP (Grouped $2) $ bt $1 $3 }
+Pattern               : Ident                                { BindP $1 $ getSpan $1 }
+                      | Namespace Pattern %prec VARIANT      { VariantP $1 $2 $ bt $1 $2 }
+                      | Pattern Operator Pattern %prec OPPAT { OperatorP (BinOp $2 $1 $3) $ bt $1 $3 }
+                      | Operator Pattern %prec PREOP         { OperatorP (PreOp $1 $2) $ bt $1 $2 }
+                      | Pattern Operator %prec POSTOP        { OperatorP (PostOp $2 $1) $ bt $1 $2 }
+                      | '(' Pattern ')'                      { OperatorP (Grouped $2) $ bt $1 $3 }
+                      | Literal                              { LiteralP $1 $ getSpan $1 }
+                      | '_'                                  { DropP $ getSpan $1 }
 
 ElifCond      : ElifCondInner          { reverse $1 }
 ElifCondInner : ElifCondInner Elif     { ($2:$1) }
@@ -143,17 +149,17 @@ Literal : string   { case $1 of (MkToken span (StrTok s)) -> StringL s span}
         | integer  { case $1 of (MkToken span (IntegerTok i)) -> IntegerL i span}
 
 Type          : '_'                             { Infer $ getSpan $1 }
-              | Namespace                       { NamespaceType $1 (getSpan $1) }
+              | Namespace                       { NamespaceType $1 $ getSpan $1 }
               | '(' TupleType ')'               { let reved = reverse $2 in TupleType reved (bt $1 $3)}
-              | '(' ')'                         { TupleType [] (bt $1 $2)}
-              | '(' ',' ')'                     { TupleType [] (bt $1 $3)}
-              | '(' Type ',' ')'                { TupleType [$2] (bt $1 $4)}
+              | '(' ')'                         { TupleType [] $ bt $1 $2}
+              | '(' ',' ')'                     { TupleType [] $ bt $1 $3}
+              | '(' Type ',' ')'                { TupleType [$2] $ bt $1 $4}
               | '(' TupleType ',' ')'           { let reved = reverse $2 in TupleType reved (bt $1 $4)}
-              | '(' Type ')'                    { OperatorType (Grouped $2) (bt $1 $3) }
-              | Type Type  %prec TYPEAPP        { OperatorType (BinOp (Operator "application" $ gap (getSpan $1) (getSpan $2)) $1 $2) (bt $1 $2)}
-              | Type Operator Type %prec TYPEOP { OperatorType (BinOp $2 $1 $3) (bt $1 $3) }
-              | Operator Type %prec PREOP       { OperatorType (PreOp $1 $2) (bt $1 $2) }
-              | Type Operator %prec POSTOP      { OperatorType (PostOp $2 $1) (bt $1 $2) }
+              | '(' Type ')'                    { OperatorType (Grouped $2) $ bt $1 $3 }
+              | Type Type  %prec TYPEAPP        { OperatorType (BinOp (Operator "application" $ gap (getSpan $1) $ getSpan $2) $1 $2) $ bt $1 $2 }
+              | Type Operator Type %prec TYPEOP { OperatorType (BinOp $2 $1 $3) $ bt $1 $3 }
+              | Operator Type %prec PREOP       { OperatorType (PreOp $1 $2) $ bt $1 $2 }
+              | Type Operator %prec POSTOP      { OperatorType (PostOp $2 $1) $ bt $1 $2 }
               | polymorphicIdentifier           { case $1 of (MkToken span (PolyTok s)) -> PolyType s span }
 TupleType     : TupleType ',' Type              { ($3:$1) }
               | Type ',' Type                   { [$3, $1] }

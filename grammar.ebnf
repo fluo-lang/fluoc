@@ -30,14 +30,14 @@ expr = literal
      | lambda
      | "(", expr, ")" ;
 
-lambda = "\", { pattern }-, "->", expr ;
+lambda = "\", { pattern }-, "=>", expr ;
 
 function application = expr, { expr, space }, [expr];
 
 tuple = "(", { expr, "," }, [expr], ")" ;
 
 match = "match", expr, "{", { single match, break }, [single match]"}" ;
-single match = pattern, "->", expr ;
+single match = pattern, "=>", expr ;
 
 if = "if", expr, "{", expr, "}", { "else", "if", expr, "{", expr, "}" }, "else", "{", expr, "}";
 

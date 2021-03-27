@@ -842,3 +842,62 @@ spec = do
                      )
                      (Span (SourceId 0) 0 43)
                    )
+    it "should parse match statement propely"
+      $          parseExpr sid "match 10 { 10 => x }"
+      `shouldBe` Right
+                   (MatchE
+                     (LiteralE (IntegerL 10 (Span (SourceId 0) 6 8))
+                               (Span (SourceId 0) 6 8)
+                     )
+                     [ MatchBranch
+                         (LiteralP (IntegerL 10 (Span (SourceId 0) 11 13))
+                                   (Span (SourceId 0) 11 13)
+                         )
+                         (VariableE
+                           (Namespace [Ident "x" (Span (SourceId 0) 17 18)]
+                                      (Span (SourceId 0) 17 18)
+                           )
+                           (Span (SourceId 0) 17 18)
+                         )
+                         (Span (SourceId 0) 11 18)
+                     ]
+                     (Span (SourceId 0) 0 20)
+                   )
+    it "should parse multiple clauses in match statement"
+      $          parseExpr sid "match 10 { 10 => x, 20 => y, _ => 30 }"
+      `shouldBe` Right
+                   (MatchE
+                     (LiteralE (IntegerL 10 (Span (SourceId 0) 6 8))
+                               (Span (SourceId 0) 6 8)
+                     )
+                     [ MatchBranch
+                       (LiteralP (IntegerL 10 (Span (SourceId 0) 11 13))
+                                 (Span (SourceId 0) 11 13)
+                       )
+                       (VariableE
+                         (Namespace [Ident "x" (Span (SourceId 0) 17 18)]
+                                    (Span (SourceId 0) 17 18)
+                         )
+                         (Span (SourceId 0) 17 18)
+                       )
+                       (Span (SourceId 0) 11 18)
+                     , MatchBranch
+                       (LiteralP (IntegerL 20 (Span (SourceId 0) 20 22))
+                                 (Span (SourceId 0) 20 22)
+                       )
+                       (VariableE
+                         (Namespace [Ident "y" (Span (SourceId 0) 26 27)]
+                                    (Span (SourceId 0) 26 27)
+                         )
+                         (Span (SourceId 0) 26 27)
+                       )
+                       (Span (SourceId 0) 20 27)
+                     , MatchBranch
+                       (DropP (Span (SourceId 0) 29 30))
+                       (LiteralE (IntegerL 30 (Span (SourceId 0) 34 36))
+                                 (Span (SourceId 0) 34 36)
+                       )
+                       (Span (SourceId 0) 29 36)
+                     ]
+                     (Span (SourceId 0) 0 38)
+                   )
