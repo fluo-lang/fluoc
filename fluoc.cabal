@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 6ea265a727ccfc12f4a3e7107f08144b8d513fc389e3e61a3a4e399ef7ae0af8
+-- hash: b9a5db44db06d0d48b02022573a2ed1563573e52f6a58ec68a4e05ac9a8e2c4e
 
 name:           fluoc
 version:        0.1.0.0
@@ -28,6 +28,9 @@ library
       Compiler
       Diagnostics
       Display
+      Errors.Diagnostics
+      Errors.Render
+      Errors.Views
       Sources
       Syntax.Ast
       Syntax.Lexer
@@ -44,7 +47,6 @@ library
       array
     , base >=4.7 && <5
     , containers
-    , errata
     , mtl
     , optparse-applicative
     , pretty-show
@@ -63,7 +65,6 @@ executable fluoc-exe
       array
     , base >=4.7 && <5
     , containers
-    , errata
     , fluoc
     , mtl
     , optparse-applicative
@@ -75,6 +76,8 @@ test-suite fluoc-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
+      Errors.DiagnosticsSpec
+      Errors.RenderSpec
       Syntax.LexerSpec
       Syntax.ParserSpec
       Paths_fluoc
@@ -86,7 +89,6 @@ test-suite fluoc-test
     , array
     , base >=4.7 && <5
     , containers
-    , errata
     , fluoc
     , hspec
     , hspec-discover

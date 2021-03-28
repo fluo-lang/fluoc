@@ -19,7 +19,6 @@ dependencies:
 - array
 - mtl
 - pretty-show
-- errata
 
 library:
   source-dirs: src

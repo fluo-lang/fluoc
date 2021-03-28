@@ -21,4 +21,4 @@ newtype Compiler a = Compiler {
 
 runCompiler :: Compiler a -> IO (a, CompilerState)
 runCompiler c = runStateT (runC c) state
-  where state = CST Data.Map.empty Data.Map.empty (SourceId (-1))
+  where state = CST Data.Map.empty Data.Map.empty (SourceId 0)

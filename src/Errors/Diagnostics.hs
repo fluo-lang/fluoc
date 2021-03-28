@@ -1,4 +1,4 @@
-module Diagnostics where
+module Errors.Diagnostics where
 
 import           Sources                        ( Span )
 import           Control.Monad.State            ( liftIO )

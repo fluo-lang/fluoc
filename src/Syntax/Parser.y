@@ -5,7 +5,7 @@ import           Syntax.Ast
 import           Syntax.Token
 import           Syntax.Lexer
 
-import           Diagnostics
+import           Errors.Diagnostics
 import           Sources
 
 import           Control.Monad.Except

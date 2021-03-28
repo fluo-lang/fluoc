@@ -10,7 +10,7 @@ import           Control.Monad.Except
 import           Sources
 import           Syntax.Token
 import           Syntax.Lexer
-import           Diagnostics
+import           Errors.Diagnostics
 
 sid :: SourceId
 sid = SourceId 0

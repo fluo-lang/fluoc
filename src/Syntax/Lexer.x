@@ -10,7 +10,7 @@ import           Sources                        ( Span(..)
                                                 , Spanned(..)
                                                 )
 import           Syntax.Token
-import           Diagnostics
+import           Errors.Diagnostics
 }
 
 %wrapper "posn"

@@ -19,7 +19,7 @@ import           Syntax.Ast                     ( Statement )
 import           Syntax.Parser
 import           Sources
 import           Compiler
-import           Diagnostics                    ( report
+import           Errors.Diagnostics             ( report
                                                 , Diagnostics(..)
                                                 , intoDiagnostics
                                                 )
