@@ -1,13 +1,28 @@
-module Pipeline where
+module Pipeline
+  ( runCompiler
+  , pipeline
+  ) where
 
 import           Data.Maybe                     ( fromJust )
+import           Data.Map                       ( insert )
 import           Options.Applicative
 import           System.IO
 import           Control.Monad                  ( when )
+import           Control.Monad.State            ( liftIO
+                                                , get
+                                                , put
+                                                )
+import           Control.Arrow                  ( left )
 import           Text.Show.Pretty
 
+import           Syntax.Ast                     ( Statement )
 import           Syntax.Parser
 import           Sources
+import           Compiler
+import           Diagnostics                    ( report
+                                                , Diagnostics(..)
+                                                , intoDiagnostics
+                                                )
 
 data Options = Options
   { filename :: String
@@ -36,19 +51,30 @@ options =
           (long "print-ast" <> help "Print the abstract syntax tree of the file"
           )
 
-pAst :: SourceId -> String -> IO ()
+pAst :: SourceId -> String -> Compiler ()
 pAst sid source = case parseBlock sid source of
-  Left e -> print e
+  Left e -> report $ intoDiagnostics e
   Right ast ->
-    putStrLn $ valToStr $ hideCon True (== "Span") $ fromJust $ reify ast
+    liftIO $ putStrLn $ valToStr $ hideCon True (== "Span") $ fromJust $ reify
+      ast
 
-pipeline :: IO ()
+insertFile :: String -> String -> Compiler SourceId
+insertFile f source = do
+  old <- get
+  let sid = (+ 1) `mapSid` currId old
+  put $ CST (insert sid source $ sourceMap old) (insert sid f $ fileMap old) sid
+  return sid
+
+pipeline :: Compiler ()
 pipeline = do
-  args     <- execParser opts
-  handle   <- openFile (filename args) ReadMode
-  contents <- hGetContents handle
-  when (printAst args) $ pAst (SourceId 0) contents
-  hClose handle
+  args     <- liftIO $ execParser opts
+  handle   <- liftIO $ openFile (filename args) ReadMode
+  contents <- liftIO $ hGetContents handle
+  sid      <- insertFile (filename args) contents
+  when (printAst args) $ pAst sid contents
+  let compiled = compileModule sid contents
+  liftIO $ print compiled
+  liftIO $ hClose handle
  where
   opts = info
     (options <**> helper)
@@ -57,3 +83,7 @@ pipeline = do
     <> header
          "fluoc - the official fluo compiler <https://github.com/fluo-lang/fluoc>"
     )
+
+compileModule :: SourceId -> String -> Either Diagnostics [Statement]
+compileModule sid source = do
+  intoDiagnostics `left` parseBlock sid source

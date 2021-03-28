@@ -7,7 +7,7 @@ cradle:
       component: "fluoc:exe:fluoc-exe"
 
     - path: "./app/Pipeline.hs"
-      component: "fluoc:lib"
+      component: "fluoc:exe:fluoc-exe"
 
     - path: "./app/Paths_fluoc.hs"
       component: "fluoc:exe:fluoc-exe"

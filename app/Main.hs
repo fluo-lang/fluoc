@@ -1,6 +1,6 @@
 module Main where
 
-import Pipeline (pipeline)
+import Pipeline (pipeline, runCompiler)
 
 main :: IO ()
-main = pipeline
+main = () <$ runCompiler pipeline

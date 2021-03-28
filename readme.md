@@ -9,3 +9,11 @@
 - Simple
 - Refinement Types
 - No garbage collector, but it feels like there is one (based off work from [Proust (ASAP)](https://www.cl.cam.ac.uk/techreports/UCAM-CL-TR-908.pdf) and [Corbyn (Practical Static Memory Management)](http://nathancorbyn.com/nc513.pdf))
+
+## Running
+1. Install [`stack`, a haskell tool stack](https://docs.haskellstack.org/en/stable/README/)
+2. Clone this repo, then:
+   ```bash
+   cd fluoc
+   stack build --exec fluoc-exe
+   ```

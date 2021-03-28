@@ -1,7 +1,6 @@
 module Sources where
 
 import           Data.Map
-import qualified Data.Text                     as T
 
 data Span = Span SourceId Int Int | Eof deriving (Show, Eq)
 fromPos :: SourceId -> Int -> Span  
@@ -21,5 +20,9 @@ bt t1 t2 = btwn (getSpan t1) (getSpan t2)
 class Spanned a where
   getSpan :: a -> Span
 
-newtype SourceId = SourceId Int deriving (Show, Eq)
-newtype Sources = Sources (Map SourceId T.Text) deriving (Show, Eq)
+newtype SourceId = SourceId Int deriving (Show, Eq, Ord)
+mapSid :: (Int -> Int) -> SourceId -> SourceId
+mapSid f (SourceId x) = SourceId $ f x
+
+type Sources = Map SourceId String
+type FileMap = Map SourceId String
