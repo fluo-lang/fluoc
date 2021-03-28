@@ -19,6 +19,7 @@ dependencies:
 - array
 - mtl
 - pretty-show
+- break
 
 library:
   source-dirs: src

@@ -12,6 +12,11 @@ getLineColStr (x : xs) i (l, c) = case x of
   _    -> getLineColStr xs (i - 1) (l, c + 1)
 
 data DiagnosticType = Error | Warning | Info deriving (Show, Eq)
+dTyPriority :: DiagnosticType -> Int
+dTyPriority Error   = 2
+dTyPriority Warning = 1
+dTyPriority Info    = 0
+
 data DiagnosticKind = UnexpectedCharacterError | SyntaxError
   deriving (Eq)
 

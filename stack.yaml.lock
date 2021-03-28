@@ -12,12 +12,12 @@ packages:
   original:
     hackage: optparse-applicative-0.16.1.0
 - completed:
-    hackage: errata-0.2.0.0@sha256:e198f9c27ab36a9e54d473ebc872ef3cf1057c74316f6c9cab14e00ac6627257,1632
+    hackage: break-1.0.2@sha256:dd0615d3abb228afd5c3d4e639fe2e212dfc1fd8819629c625f8b159e514e940,840
     pantry-tree:
-      size: 508
-      sha256: 6b699010137e62863d8c5880e991f91c79caed64ae5d557eb2af1aaa4b454712
+      size: 209
+      sha256: c55621b8a296b9025a39982a6b898e696bd20c1b779535b6f8aaff0b6ef403fd
   original:
-    hackage: errata-0.2.0.0
+    hackage: break-1.0.2
 snapshots:
 - completed:
     size: 563103
