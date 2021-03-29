@@ -27,51 +27,52 @@ import           Data.List                      ( intercalate )
 
 -- Token Names
 %token
-    "let"                 { MkToken _ LetTok }
-    "rec"                 { MkToken _ RecTok }
-    "impl"                { MkToken _ ImplTok }
-    "trait"               { MkToken _ TraitTok }
-    "dec"                 { MkToken _ DecTok }
-    "in"                  { MkToken _ InTok }
-    "if"                  { MkToken _ IfTok }
-    "else"                { MkToken _ ElseTok }
-    "elif"                { MkToken _ ElifTok }
-    "match"               { MkToken _ MatchTok }
-    "assign"              { MkToken _ AssignTok }
-    "opdef"               { MkToken _ OpDefTok }
+    "let"                  { MkToken _ LetTok }
+    "rec"                  { MkToken _ RecTok }
+    "impl"                 { MkToken _ ImplTok }
+    "trait"                { MkToken _ TraitTok }
+    "dec"                  { MkToken _ DecTok }
+    "in"                   { MkToken _ InTok }
+    "if"                   { MkToken _ IfTok }
+    "else"                 { MkToken _ ElseTok }
+    "elif"                 { MkToken _ ElifTok }
+    "match"                { MkToken _ MatchTok }
+    "assign"               { MkToken _ AssignTok }
+    "opdef"                { MkToken _ OpDefTok }
 
-    "left"                { MkToken _ (IdentTok "left") }
-    "right"               { MkToken _ (IdentTok "right") }
-    "nonassoc"            { MkToken _ (IdentTok "nonassoc") }
-    "prefix"              { MkToken _ (IdentTok "prefix") }
-    "postfix"             { MkToken _ (IdentTok "postfix") }
-    "binary"              { MkToken _ (IdentTok "binary") }
+    "left"                 { MkToken _ (IdentTok "left") }
+    "right"                { MkToken _ (IdentTok "right") }
+    "nonassoc"             { MkToken _ (IdentTok "nonassoc") }
+    "prefix"               { MkToken _ (IdentTok "prefix") }
+    "postfix"              { MkToken _ (IdentTok "postfix") }
+    "binary"               { MkToken _ (IdentTok "binary") }
 
-    '('                   { MkToken _ LParenTok }
-    ')'                   { MkToken _ RParenTok }
-    '['                   { MkToken _ LBracketTok }
-    ']'                   { MkToken _ RBracketTok }
-    '{'                   { MkToken _ LCurlyTok }
-    '}'                   { MkToken _ RCurlyTok }
-    '_'                   { MkToken _ (IdentTok "_") }
-    identifier            { MkToken _ (IdentTok _) }
-    string                { MkToken _ (StrTok _) }
-    integer               { MkToken _ (IntegerTok _) }
-    float                 { MkToken _ (FloatTok _) }
-    ','                   { MkToken _ (OperatorTok ",") }
-    backslash             { MkToken _ (OperatorTok "\\") }
-    '::'                  { MkToken _ (OperatorTok "::") }
-    '|'                   { MkToken _ (OperatorTok "|") }
-    ':'                   { MkToken _ (OperatorTok ":") }
-    '='                   { MkToken _ (OperatorTok "=") }
-    '=>'                  { MkToken _ (OperatorTok "=>") }
-    operator              { MkToken _ (OperatorTok _) }
-    polymorphicIdentifier { MkToken _ (PolyTok _) }
+    '('                    { MkToken _ LParenTok }
+    ')'                    { MkToken _ RParenTok }
+    '['                    { MkToken _ LBracketTok }
+    ']'                    { MkToken _ RBracketTok }
+    '{'                    { MkToken _ LCurlyTok }
+    '}'                    { MkToken _ RCurlyTok }
+    '_'                    { MkToken _ (IdentTok "_") }
+    identifier             { MkToken _ (IdentTok _) }
+    string                 { MkToken _ (StrTok _) }
+    integer                { MkToken _ (IntegerTok _) }
+    float                  { MkToken _ (FloatTok _) }
+    ','                    { MkToken _ (OperatorTok ",") }
+    backslash              { MkToken _ (OperatorTok "\\") }
+    '::'                   { MkToken _ (OperatorTok "::") }
+    '|'                    { MkToken _ (OperatorTok "|") }
+    ':'                    { MkToken _ (OperatorTok ":") }
+    '='                    { MkToken _ (OperatorTok "=") }
+    '=>'                   { MkToken _ (OperatorTok "=>") }
+    operator               { MkToken _ (OperatorTok _) }
+    polymorphic_identifier { MkToken _ (PolyTok _) }
+    end_of_file            { MkToken _ EofTok }
 
 %right "in" "let" "if" "assign" "match" backslash "impl" "trait" "rec" "dec" "opdef"
 %nonassoc PREOP POSTOP
 %left '=>' TYPEOP
-%nonassoc string float integer '(' '_' identifier polymorphicIdentifier "left" "right" "nonassoc" "prefix" "postfix" "binary"
+%nonassoc string float integer '(' '_' identifier polymorphic_identifier "left" "right" "nonassoc" "prefix" "postfix" "binary"
 %nonassoc VARIANT
 %nonassoc OPPAT
 %left operator
@@ -82,10 +83,10 @@ import           Data.List                      ( intercalate )
 
 %%
 
-Statements      : StatementsInner           { reverse $1 }
-                | {- empty -} %prec EOF     { [] }
-StatementsInner : StatementsInner Statement { $2 : $1 }
-                | Statement                 { [$1] }
+Statements      : StatementsInner end_of_file { reverse $1 }
+                | end_of_file %prec EOF       { [] }
+StatementsInner : StatementsInner Statement   { $2 : $1 }
+                | Statement                   { [$1] }
 
 Statement : DecStatement  { $1 }
           | LetStatement  { $1 }
@@ -199,7 +200,7 @@ Literal : string   { case $1 of (MkToken span (StrTok s)) -> StringL s span}
 
 Integer : integer  { case $1 of (MkToken span (IntegerTok i)) -> (i, span)}
 
-PolyIdent : polymorphicIdentifier {case $1 of (MkToken span (PolyTok p)) -> PolyIdent p span}
+PolyIdent : polymorphic_identifier {case $1 of (MkToken span (PolyTok p)) -> PolyIdent p span}
 
 TypeLimited   : '_'                                { Infer $ getSpan $1 }
               | Namespace                          { NamespaceType $1 $ getSpan $1 }
@@ -255,8 +256,7 @@ syntaxErr expects str span = Diagnostic
 parseError :: ([Token], [String]) -> Except Diagnostic a
 parseError (((MkToken span t) : ts), expects) =
   throwError $ syntaxErr expects (display t) span
-parseError ([], expects) =
-  throwError $ syntaxErr expects "end of file" Eof
+parseError ([], expects) = error "there should be at least an eof token"
 
 parseBlock :: SourceId -> String -> Either Diagnostic [Statement]
 parseBlock sourceId input = runExcept $ do
@@ -266,12 +266,12 @@ parseBlock sourceId input = runExcept $ do
 parseExpr :: SourceId -> String -> Either Diagnostic Expr
 parseExpr sourceId input = runExcept $ do
   tokenStream <- scanTokens sourceId input
-  expr tokenStream
+  expr $ init tokenStream
 
 parseType :: SourceId -> String -> Either Diagnostic Type
 parseType sourceId input = runExcept $ do
   tokenStream <- scanTokens sourceId input
-  ty tokenStream
+  ty $ init tokenStream
 
 parseTokens :: SourceId -> String -> Either Diagnostic [Token]
 parseTokens sourceId source = runExcept $ scanTokens sourceId source

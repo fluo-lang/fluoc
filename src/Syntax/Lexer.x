@@ -115,7 +115,7 @@ fstIdx _       = "EOF"
 scanTokens :: SourceId -> String -> Except Diagnostic [Token]
 scanTokens sourceId str = go (alexStartPos, '\n', [], str) where
   go inp@(pos, _, _bs, str) = case alexScan inp 0 of
-    AlexEOF -> return []
+    AlexEOF -> return [MkToken (Eof sourceId) EofTok]
     AlexError ((AlexPn c _ _), _, _, stream) -> throwError $ Diagnostic
       Error
       UnexpectedCharacterError

@@ -26,12 +26,9 @@ getId e = case e of
   SyntaxError              -> 1
 
 instance Show DiagnosticKind where
-  show e =
-    show (getId e)
-      ++ (case e of
-           UnexpectedCharacterError -> "unexpected character"
-           SyntaxError              -> "syntax error"
-         )
+  show e = case e of
+    UnexpectedCharacterError -> "unexpected character"
+    SyntaxError              -> "syntax error"
 
 data Annotation = Annotation
   { aSpan    :: Span
