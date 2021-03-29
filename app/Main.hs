@@ -12,12 +12,16 @@ import           Sources
 main :: IO ()
 main = do
   putStr $ snd $ runRender
-    (renderSnippetSource 2
-                         11
-                         "This is a cool test line"
-                         [SingleLabel Info 11 20 "Info! not bad, huh?"]
-                         0
-                         [(1, Error, BottomLabel 3 "Multiline")]
+    (do
+      renderSnippetSource
+        2
+        11
+        "This is a cool test line"
+        [SingleLabel Info 24 25 "Info! not bad, huh?"]
+        2
+        [(0, Error, TopMultiLabel 3), (1, Error, BottomLabel 3 "Multiline")]
+      renderLineBreak 2 1 [(0, Error, LeftLabel)]
+      renderEmptyLine 2 1 [(0, Error, LeftLabel)]
     )
     (RS defaultConfig
         (D.singleton (SourceId 0) "This is a cool test line")

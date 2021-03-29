@@ -16,31 +16,29 @@ trim = dropWhileEnd isSpace
 getS :: DiagnosticType -> String
 getS Error   = "^"
 getS Warning = "~"
-getS Info    = "-"
+getS Info    = "─"
 
 blue :: String
-blue = "\x1b[34;1m"
+blue = "\x1b[34m"
 red :: String
-red = "\x1b[31;1m"
+red = "\x1b[31m"
 yellow :: String
-yellow = "\x1b[33;1m"
-gray :: String
-gray = "\x1b[30;1m"
+yellow = "\x1b[33m"
 bold :: String
 bold = "\x1b[1m"
 reset :: String
 reset = "\x1b[0m"
 
 getC :: DiagnosticType -> String
-getC Error   = red
-getC Warning = yellow
-getC Info    = blue
+getC Error   = red ++ bold
+getC Warning = yellow ++ bold
+getC Info    = blue ++ bold
 
 defaultCharSet :: CharSet
-defaultCharSet = CharSet "┌─" '|' '.' '=' '/' '-' '|' '\\' '-' getS
+defaultCharSet = CharSet "┏━" '┃' '·' '=' '┌' '─' '│' '└' '─' getS
 
 defaultColorSet :: ColorSet
-defaultColorSet = ColorSet gray bold getC
+defaultColorSet = ColorSet blue blue "" getC
 
 defaultConfig :: Config
 defaultConfig = RenderC defaultCharSet defaultColorSet 4 3 "  "
@@ -64,6 +62,7 @@ data CharSet = CharSet
 data ColorSet = ColorSet
   { gutterColor :: String
   , lineNoColor :: String
+  , bulletColor :: String
   , color       :: DiagnosticType -> String
   }
 data Config = RenderC
@@ -132,6 +131,18 @@ renderSnippetState sid p = do
   leading  <- asks $ startS . charSet . config
   tell leading
   tell $ printf " %s:%d:%d\n" filename (l + 1) (c + 1)
+
+renderNote :: Int -> String -> RenderD ()
+renderNote outerPadding msg = () <$ mapM
+  (\line -> do
+    renderGutterOuterSpace outerPadding
+    renderColorSet bulletColor
+    renderCharSet noteBullet
+    spacingSpace
+    tell line
+    renderReset
+  )
+  (lines msg)
 
 hangingLabels :: Maybe (Int, SingleLabel) -> [SingleLabel] -> [SingleLabel]
 hangingLabels trailingLabel ls =
@@ -272,23 +283,25 @@ currentStatus f idx labels = maxByKey dTyPriority $ map singleDTy $ filter
   (\(SingleLabel _ s e _) -> f (s, e) (idx, idx + 1))
   labels
 
+last' :: [a] -> Maybe a
+last' [] = Nothing
+last' xs = Just $ last xs
+
 renderCarets :: Int -> [Int] -> [SingleLabel] -> RenderD ()
-renderCarets maxLabelEnd idxs labels =
-  ()
-    <$ mapM
-         (\idx ->
-           let currentStyle = currentStatus isOverlapping idx labels
-           in  do
-                 case currentStyle of
-                   Just d -> do
-                     renderDiagnosticC d
-                     renderCarretDiagnostic d
-                     renderReset
-                   Nothing | idx < maxLabelEnd -> tell " "
-                   Nothing                     -> do
-                     return ()
-         )
-         idxs
+renderCarets maxLabelEnd idxs labels = () <$ mapM
+  (\idx ->
+    let currentStyle = currentStatus isOverlapping idx labels
+    in  do
+          case currentStyle of
+            Just d -> do
+              renderDiagnosticC d
+              renderCarretDiagnostic d
+              renderReset
+            Nothing | idx < maxLabelEnd -> tell " "
+            Nothing                     -> do
+              return ()
+  )
+  (idxs ++ [maybe 0 (+ 1) (last' idxs)])
 
 renderSource :: Int -> String -> [SingleLabel] -> RenderD ()
 renderSource _   []       _      = return ()
@@ -525,6 +538,20 @@ renderSnippetSource outerPadding lineNo source' singles numMultis multis = do
     _ -> tl
   source        = trim source'
   leadingSpaces = length source - length (dropWhile isSpace source)
+
+renderEmptyLine :: Int -> Int -> MultiLabels -> RenderD ()
+renderEmptyLine outerPadding numMultis multis = do
+  renderGutterOuterSpace outerPadding
+  renderGutter
+  renderInnerGutter numMultis 0 multis
+  emptyLine
+
+renderLineBreak :: Int -> Int -> MultiLabels -> RenderD ()
+renderLineBreak outerPadding numMultis multis = do
+  renderGutterOuterSpace outerPadding
+  renderCharSet borderBreakS
+  renderInnerGutter numMultis 0 multis
+  emptyLine
 
 emptyLine :: RenderD ()
 emptyLine = tell "\n"
