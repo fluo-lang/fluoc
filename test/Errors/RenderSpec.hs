@@ -9,6 +9,7 @@ import qualified Data.Map                      as D
 
 import           Errors.Render
 import           Sources
+import           Errors.Diagnostics
 
 sid :: SourceId
 sid = SourceId 0
@@ -33,9 +34,19 @@ spec = do
       `shouldBe` ("value test test", "")
   describe "Errors.Render.renderHeader" $ do
     it "set a file header"
-      $          withFile "12345\n1230" (renderHeader "error" 1 "dummy message")
-      `shouldBe` ((), "error[E001]: dummy message\n")
+      $ withFile "12345\n1230" (renderHeader Error "error" 1 "dummy message")
+      `shouldBe` ( ()
+                 , (color defaultColorSet) Error
+                 ++ "error[E001]: dummy message\n"
+                 ++ reset
+                 )
   describe "Errors.Render.renderSnippetState" $ do
     it "set a file state"
       $          withFile "asdbc\n12ads\nasddawd" (renderSnippetState sid 9)
-      `shouldBe` ((), "┌─ test.fl:2:4\n")
+      `shouldBe` ( ()
+                 , (gutterColor defaultColorSet)
+                 ++ "┌─"
+                 ++ (filenameColor defaultColorSet)
+                 ++ " test.fl:2:4\n"
+                 ++ reset
+                 )

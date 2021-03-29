@@ -17,11 +17,12 @@ main = do
         2
         11
         "This is a cool test line"
-        [SingleLabel Info 24 25 "Info! not bad, huh?"]
+        [SingleLabel Warning 24 25 "Info! not bad, huh?"]
         2
         [(0, Error, TopMultiLabel 3), (1, Error, BottomLabel 3 "Multiline")]
       renderLineBreak 2 1 [(0, Error, LeftLabel)]
       renderEmptyLine 2 1 [(0, Error, LeftLabel)]
+      renderNote 2 "expected blahs blah blah blah\ntest"
     )
     (RS defaultConfig
         (D.singleton (SourceId 0) "This is a cool test line")

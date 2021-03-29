@@ -30,15 +30,15 @@ reset :: String
 reset = "\x1b[0m"
 
 getC :: DiagnosticType -> String
-getC Error   = red ++ bold
-getC Warning = yellow ++ bold
-getC Info    = blue ++ bold
+getC Error   = red
+getC Warning = yellow
+getC Info    = blue
 
 defaultCharSet :: CharSet
-defaultCharSet = CharSet "┏━" '┃' '·' '=' '┌' '─' '│' '└' '─' getS
+defaultCharSet = CharSet "┌─" '│' '·' '=' '┌' '─' '│' '└' '─' getS
 
 defaultColorSet :: ColorSet
-defaultColorSet = ColorSet blue blue "" getC
+defaultColorSet = ColorSet blue blue blue blue getC
 
 defaultConfig :: Config
 defaultConfig = RenderC defaultCharSet defaultColorSet 4 3 "  "
@@ -60,10 +60,11 @@ data CharSet = CharSet
   , getSeverityUnder :: DiagnosticType -> String
   }
 data ColorSet = ColorSet
-  { gutterColor :: String
-  , lineNoColor :: String
-  , bulletColor :: String
-  , color       :: DiagnosticType -> String
+  { gutterColor   :: String
+  , lineNoColor   :: String
+  , filenameColor :: String
+  , bulletColor   :: String
+  , color         :: DiagnosticType -> String
   }
 data Config = RenderC
   { charSet      :: CharSet
@@ -116,9 +117,11 @@ getLineCol sid p = do
 -- ```test
 -- error[E001]: message
 -- ```
-renderHeader :: String -> Int -> Message -> RenderD ()
-renderHeader prefix errId msg = do
+renderHeader :: DiagnosticType -> String -> Int -> Message -> RenderD ()
+renderHeader style prefix errId msg = do
+  renderDiagnosticC style
   tell $ printf "%s[E%03d]: %s\n" prefix errId msg
+  renderReset
 
 -- Top left border and span:
 -- ```test
@@ -129,8 +132,11 @@ renderSnippetState sid p = do
   filename <- getFilename sid
   (l, c)   <- getLineCol sid p
   leading  <- asks $ startS . charSet . config
+  renderColorSet gutterColor
   tell leading
+  renderColorSet filenameColor
   tell $ printf " %s:%d:%d\n" filename (l + 1) (c + 1)
+  renderReset
 
 renderNote :: Int -> String -> RenderD ()
 renderNote outerPadding msg = () <$ mapM
@@ -141,6 +147,7 @@ renderNote outerPadding msg = () <$ mapM
     spacingSpace
     tell line
     renderReset
+    emptyLine
   )
   (lines msg)
 
