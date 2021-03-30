@@ -1,6 +1,7 @@
 module Sources where
 
 import           Data.Map
+import           Data.Sequence                  ( Seq )
 
 data Span = Span SourceId Int Int | Eof SourceId deriving (Show, Eq)
 fromPos :: SourceId -> Int -> Span
@@ -31,4 +32,5 @@ mapSid :: (Int -> Int) -> SourceId -> SourceId
 mapSid f (SourceId x) = SourceId $ f x
 
 type Sources = Map SourceId String
+type SourceLines = Map SourceId (Seq String)
 type FileMap = Map SourceId FilePath

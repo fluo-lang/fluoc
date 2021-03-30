@@ -9,6 +9,7 @@ import qualified Data.Map                      as D
 import           Data.Maybe                     ( fromJust )
 import           Data.List                      ( dropWhileEnd )
 import           Data.Char                      ( isSpace )
+import           Data.Sequence                  ( Seq )
 
 trim :: String -> String
 trim = dropWhileEnd isSpace
@@ -74,9 +75,10 @@ data Config = RenderC
   , sidePadding  :: String
   }
 data RenderEnv = RS
-  { config  :: Config
-  , sources :: Sources
-  , filemap :: FileMap
+  { config      :: Config
+  , sources     :: Sources
+  , filemap     :: FileMap
+  , sourceLines :: SourceLines
   }
 
 -- Render driver
@@ -84,8 +86,9 @@ type RenderD = ReaderT RenderEnv (Writer String)
 
 type Message = String
 type DiagnosticStr = String
-data SingleLabel = SingleLabel DiagnosticType Int Int DiagnosticStr
-data MultiLabel = TopMultiLabel Int | LeftLabel | BottomLabel Int DiagnosticStr;
+data SingleLabel = SingleLabel DiagnosticType Int Int (Maybe DiagnosticStr)
+  deriving Show
+data MultiLabel = TopMultiLabel Int | LeftLabel | BottomLabel Int (Maybe DiagnosticStr) deriving (Show)
 type MultiLabels = [(Int, DiagnosticType, MultiLabel)]
 data VerticalBound = Top | Bottom
 type Underline = (DiagnosticType, VerticalBound)
@@ -102,11 +105,15 @@ getFilename sid = do
   flmap <- asks filemap
   return $ fromJust $ D.lookup sid flmap
 
+getFileLines :: SourceId -> RenderD (Seq String)
+getFileLines sid = do
+  sourceLinesMap <- asks sourceLines
+  return $ fromJust $ D.lookup sid sourceLinesMap
+
 getFile :: SourceId -> RenderD String
 getFile sid = do
   flmap <- asks sources
   return $ fromJust $ D.lookup sid flmap
-
 
 getLineCol :: SourceId -> Int -> RenderD (Int, Int)
 getLineCol sid p = do
@@ -127,35 +134,42 @@ renderHeader style prefix errId msg = do
 -- ```test
 -- ┌─ test.fl:2:4\n
 -- ```
-renderSnippetState :: SourceId -> Int -> RenderD ()
-renderSnippetState sid p = do
-  filename <- getFilename sid
-  (l, c)   <- getLineCol sid p
-  leading  <- asks $ startS . charSet . config
+renderSnippetState :: Int -> SourceId -> Int -> RenderD ()
+renderSnippetState padding sid p = do
+  renderGutterOuterSpace padding
+  leading <- asks $ startS . charSet . config
   renderColorSet gutterColor
   tell leading
   renderColorSet filenameColor
-  tell $ printf " %s:%d:%d\n" filename (l + 1) (c + 1)
+  renderSourcePos sid p
   renderReset
 
-renderNote :: Int -> String -> RenderD ()
-renderNote outerPadding msg = () <$ mapM
-  (\line -> do
-    renderGutterOuterSpace outerPadding
-    renderColorSet bulletColor
-    renderCharSet noteBullet
-    spacingSpace
-    tell line
-    renderReset
-    emptyLine
-  )
-  (lines msg)
+renderSourcePos :: SourceId -> Int -> RenderD ()
+renderSourcePos sid p = do
+  filename <- getFilename sid
+  (l, c)   <- getLineCol sid p
+  tell $ printf " %s:%d:%d\n" filename (l + 1) (c + 1)
+
+renderNote :: Int -> [String] -> RenderD ()
+renderNote outerPadding msg =
+  ()
+    <$ mapM
+         (\line -> do
+           renderGutterOuterSpace outerPadding
+           renderColorSet bulletColor
+           renderCharSet noteBullet
+           spacingSpace
+           tell line
+           renderReset
+           emptyLine
+         )
+         msg
 
 hangingLabels :: Maybe (Int, SingleLabel) -> [SingleLabel] -> [SingleLabel]
 hangingLabels trailingLabel ls =
   map snd
     $ filter (\(i, _) -> maybe True (\(j, _) -> i /= j) trailingLabel)
-    $ filter (\(_, SingleLabel _ _ _ m) -> not $ null m)
+    $ filter (\(_, SingleLabel _ _ _ m) -> maybe False (not . null) m)
     $ zip [0 ..] ls
 
 renderReset :: RenderD ()
@@ -295,7 +309,7 @@ last' [] = Nothing
 last' xs = Just $ last xs
 
 renderCarets :: Int -> [Int] -> [SingleLabel] -> RenderD ()
-renderCarets maxLabelEnd idxs labels = () <$ mapM
+renderCarets maxLabelEnd idxs labels = mapM_
   (\idx ->
     let currentStyle = currentStatus isOverlapping idx labels
     in  do
@@ -428,15 +442,18 @@ labelMultiTopCaret style start = do
   renderReset
   emptyLine
 
-labelMultiBottomCaret :: DiagnosticType -> Int -> String -> RenderD ()
+labelMultiBottomCaret :: DiagnosticType -> Int -> Maybe String -> RenderD ()
 labelMultiBottomCaret style start msg = do
   renderDiagnosticC style
   c <- asks $ multiTop . charSet . config
   tell $ replicate start c
   renderCarretDiagnostic style
-  unless (null msg) $ do
-    tell " "
-    tell msg
+  mapM_
+    (\msg' -> do
+      tell " "
+      tell msg'
+    )
+    msg
   renderReset
   emptyLine
 
@@ -471,7 +488,7 @@ renderSnippetSource outerPadding lineNo source' singles numMultis multis = do
       spacingSpace
       renderCarets maxEnd [0 .. length source - 1] singles
       case trailingLabel of
-        Just (_, SingleLabel style _ _ msg) -> do
+        Just (_, SingleLabel style _ _ (Just msg)) -> do
           spacingSpace
           renderDiagnosticC style
           tell msg
@@ -491,8 +508,8 @@ renderSnippetSource outerPadding lineNo source' singles numMultis multis = do
                           singles
                           trailingLabel
       emptyLine
-      () <$ mapM
-        (\(SingleLabel labelStyle s _ msg) ->
+      mapM_
+        (\(SingleLabel labelStyle s _ (Just msg)) ->
           (do
             renderGutterOuterSpace outerPadding
             renderGutter
@@ -507,7 +524,7 @@ renderSnippetSource outerPadding lineNo source' singles numMultis multis = do
         )
         (reverse $ hangingLabels trailingLabel singles)
     )
-  () <$ mapM
+  mapM_
     (\(multiLabelIndex, (_, style, label)) ->
       (do
         let labelValues =
@@ -517,9 +534,8 @@ renderSnippetSource outerPadding lineNo source' singles numMultis multis = do
                 TopMultiLabel r                      -> Just (r, Nothing)
                 BottomLabel r msg                    -> Just (r, Just msg)
               )
-        case labelValues of
-          Nothing                 -> return ()
-          Just (range, bottomMsg) -> do
+        mapM_
+          (\(range, bottomMsg) -> do
             renderGutterOuterSpace outerPadding
             renderGutter
             renderFinalLabels style
@@ -530,10 +546,11 @@ renderSnippetSource outerPadding lineNo source' singles numMultis multis = do
             case bottomMsg of
               Nothing  -> labelMultiTopCaret style range
               Just msg -> labelMultiBottomCaret style range msg
+          )
+          labelValues
       )
     )
     (zip [0 ..] multis)
-
  where
   (numMsgs, maxStart, maxEnd, tl) = getSinglesInfo singles 0 (0, 0, 0, Nothing)
   trailingLabel                   = case tl of

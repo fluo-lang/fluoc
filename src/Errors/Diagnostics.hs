@@ -11,7 +11,12 @@ getLineColStr (x : xs) i (l, c) = case x of
   '\n' -> getLineColStr xs (i - 1) (l + 1, 0)
   _    -> getLineColStr xs (i - 1) (l, c + 1)
 
-data DiagnosticType = Error | Warning | Info deriving (Show, Eq)
+data DiagnosticType = Error | Warning | Info deriving (Eq)
+instance Show DiagnosticType where
+  show Error   = "error"
+  show Warning = "warning"
+  show Info    = "info"
+
 dTyPriority :: DiagnosticType -> Int
 dTyPriority Error   = 2
 dTyPriority Warning = 1
@@ -42,7 +47,7 @@ data Diagnostic = Diagnostic
   , dKind        :: DiagnosticKind
   , dAnnotations :: [Annotation]
   , dSpan        :: Span
-  , note         :: Maybe String
+  , dNote        :: Maybe [String]
   }
   deriving (Show, Eq)
 
