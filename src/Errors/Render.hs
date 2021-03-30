@@ -17,14 +17,16 @@ trim = dropWhileEnd isSpace
 getS :: DiagnosticType -> String
 getS Error   = "^"
 getS Warning = "~"
-getS Info    = "─"
+getS Info    = "'"
 
 blue :: String
-blue = "\x1b[34m"
+blue = "\x1b[94m"
 red :: String
-red = "\x1b[31m"
+red = "\x1b[91m"
 yellow :: String
-yellow = "\x1b[33m"
+yellow = "\x1b[93m"
+green :: String
+green = "\x1b[32m"
 bold :: String
 bold = "\x1b[1m"
 reset :: String
@@ -39,10 +41,10 @@ defaultCharSet :: CharSet
 defaultCharSet = CharSet "┌─" '│' '·' '=' '┌' '─' '│' '└' '─' getS
 
 defaultColorSet :: ColorSet
-defaultColorSet = ColorSet blue blue blue blue getC
+defaultColorSet = ColorSet blue blue blue green bold getC
 
 defaultConfig :: Config
-defaultConfig = RenderC defaultCharSet defaultColorSet 4 3 "  "
+defaultConfig = RenderC defaultCharSet defaultColorSet 4 3 1
 
 countMaybe :: Maybe a -> Int
 countMaybe (Just _) = 1
@@ -65,6 +67,7 @@ data ColorSet = ColorSet
   , lineNoColor   :: String
   , filenameColor :: String
   , bulletColor   :: String
+  , errorStyle    :: String
   , color         :: DiagnosticType -> String
   }
 data Config = RenderC
@@ -72,7 +75,7 @@ data Config = RenderC
   , colorSet     :: ColorSet
   , tabWidth     :: Int
   , contextLines :: Int
-  , sidePadding  :: String
+  , sidePadding  :: Int
   }
 data RenderEnv = RS
   { config      :: Config
@@ -126,7 +129,10 @@ getLineCol sid p = do
 -- ```
 renderHeader :: DiagnosticType -> String -> Int -> Message -> RenderD ()
 renderHeader style prefix errId msg = do
+  indentation <- asks $ sidePadding . config
+  tell $ replicate indentation ' '
   renderDiagnosticC style
+  renderColorSet errorStyle
   tell $ printf "%s[E%03d]: %s\n" prefix errId msg
   renderReset
 
@@ -150,8 +156,8 @@ renderSourcePos sid p = do
   (l, c)   <- getLineCol sid p
   tell $ printf " %s:%d:%d\n" filename (l + 1) (c + 1)
 
-renderNote :: Int -> [String] -> RenderD ()
-renderNote outerPadding msg =
+renderNotes :: Int -> [String] -> RenderD ()
+renderNotes outerPadding msg =
   ()
     <$ mapM
          (\line -> do

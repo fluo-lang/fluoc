@@ -3,15 +3,17 @@ module Errors.Views where
 import           Errors.Diagnostics
 import           Errors.Render
 import           Control.Monad.Reader           ( asks )
+-- import           Control.Monad.Writer           ( tell )
+import           Control.Monad                  ( foldM_
+                                                , foldM
+                                                , when
+                                                )
 import           Sources
 import           Data.Foldable                  ( forM_
                                                 , maximumBy
                                                 )
 import           Data.Map                       ( Map )
 import qualified Data.Map                      as M
-import           Control.Monad                  ( foldM
-                                                , when
-                                                )
 import qualified Data.Sequence                 as S
 
 digitCount :: Int -> Int
@@ -98,7 +100,7 @@ batchAnnotations = foldM
         File sid' (M.unionWith mergeLabels ls' ls) (max pLeft pLeft') $ max n n'
       )
       sid
-      (File sid newAdditions (digitCount endL) $ multiId + 1)
+      (File sid newAdditions (digitCount (endL + 1)) $ multiId + 1)
       files
   )
   M.empty
@@ -118,20 +120,33 @@ mostSevere :: SourceId -> [Annotation] -> Annotation
 mostSevere sid =
   maximumBy (\a b -> getAnnValue sid a `compare` getAnnValue sid b)
 
-renderFile :: [Annotation] -> File -> RenderD ()
-renderFile anns (File sid lns pLeft maxMl) = do
+renderFile :: Int -> [Annotation] -> File -> RenderD ()
+renderFile pLeft anns (File sid lns _ maxMl) = do
   let (Annotation spn _ _) = mostSevere sid anns
   (_, s, _) <- absoluteSpan spn
   renderSnippetState pLeft sid s
-  forM_
-    (M.assocs lns)
-    (\(lineNo, Line singles multis mustRender' source') -> when mustRender' $ do
-      renderSnippetSource pLeft lineNo source' singles maxMl multis
+  renderEmptyLine pLeft maxMl []
+  foldM_
+    (\(prevLine, renderBreak) (lineNo, Line singles multis mustRender' source') ->
+      do
+        let renderedBreak =
+              maybe False (\a -> abs (lineNo - a) > 1) prevLine && renderBreak
+        when renderedBreak $ renderLineBreak pLeft maxMl multis
+        when mustRender' $ do
+          renderSnippetSource pLeft (lineNo + 1) source' singles maxMl multis
+        return $ if mustRender'
+          then (Just lineNo, True)
+          else (prevLine, renderBreak && not renderedBreak)
     )
+    (Nothing, True)
+    (M.assocs lns)
+  renderEmptyLine pLeft maxMl []
 
 renderDiagnostic :: Diagnostic -> RenderD ()
 renderDiagnostic (Diagnostic style kind annotations _ notes) = do
   renderHeader style (show style) (getId kind) (show kind)
-  batched <- M.elems <$> batchAnnotations annotations
-  forM_ batched (renderFile annotations)
-  forM_ notes   (renderNote 2)
+  batched     <- M.elems <$> batchAnnotations annotations
+  indentation <- asks $ sidePadding . config
+  let paddingLeft' = indentation + maximum (map paddingLeft batched)
+  forM_ batched (renderFile paddingLeft' annotations)
+  renderNotes paddingLeft' notes

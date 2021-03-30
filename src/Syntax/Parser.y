@@ -249,9 +249,9 @@ syntaxErr expects str span = Diagnostic
   [Annotation span (Just $ "Unexpected " ++ str) Error]
   span
   (case expects of
-    [] -> Nothing
-    [x] -> Just ["expected " ++ x]
-    _ -> Just ["expected " ++ (intercalate ", " (init expects)) ++ ", or " ++ (last expects)])
+    [] -> []
+    [x] -> ["expected " ++ x]
+    _ -> ["expected " ++ (intercalate ", " (init expects)) ++ ", or " ++ (last expects)])
 
 parseError :: ([Token], [String]) -> Except Diagnostic a
 parseError (((MkToken span t) : ts), expects) =

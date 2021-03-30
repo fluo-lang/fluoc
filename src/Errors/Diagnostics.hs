@@ -47,7 +47,7 @@ data Diagnostic = Diagnostic
   , dKind        :: DiagnosticKind
   , dAnnotations :: [Annotation]
   , dSpan        :: Span
-  , dNote        :: Maybe [String]
+  , dNote        :: [String]
   }
   deriving (Show, Eq)
 

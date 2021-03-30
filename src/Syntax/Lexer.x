@@ -124,7 +124,7 @@ scanTokens sourceId str = go (alexStartPos, '\n', [], str) where
                    Error
       ]
       (fromPos sourceId c)
-      Nothing
+      []
     AlexSkip inp' len      -> go inp'
     AlexToken inp' len act -> do
       res <- go inp'
