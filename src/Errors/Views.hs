@@ -150,3 +150,8 @@ renderDiagnostic (Diagnostic style kind annotations _ notes) = do
   let paddingLeft' = indentation + maximum (map paddingLeft batched)
   forM_ batched (renderFile paddingLeft' annotations)
   renderNotes paddingLeft' notes
+
+renderDiagnostics :: Diagnostics -> RenderD ()
+renderDiagnostics (Diagnostics ds) = do
+  forM_ ds renderDiagnostic
+  renderNumDiagnostics (map dTy ds)

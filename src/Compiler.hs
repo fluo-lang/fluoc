@@ -10,9 +10,10 @@ import           Sources
 import           Data.Map                       ( empty )
 
 data CompilerState = CST
-  { sourceMap :: Sources
-  , fileMap   :: FileMap
-  , currId    :: SourceId
+  { sourceMap   :: Sources
+  , fileMap     :: FileMap
+  , sourceLines :: SourceLines
+  , currId      :: SourceId
   }
 
 newtype Compiler a = Compiler {
@@ -21,4 +22,4 @@ newtype Compiler a = Compiler {
 
 runCompiler :: Compiler a -> IO (a, CompilerState)
 runCompiler c = runStateT (runC c) state
-  where state = CST Data.Map.empty Data.Map.empty (SourceId 0)
+  where state = CST Data.Map.empty Data.Map.empty Data.Map.empty (SourceId 0)

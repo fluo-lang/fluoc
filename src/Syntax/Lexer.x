@@ -91,14 +91,14 @@ tokens :-
 
 {
 
-makeTok :: TokenKind -> AlexPosn -> String -> Token
-makeTok kind (AlexPn c _ _) s =
-  MkToken (Span (SourceId 0) c $ c + (length s)) kind
+makeTok :: TokenKind -> AlexPosn -> String -> SourceId -> Token
+makeTok kind (AlexPn c _ _) s sid =
+  MkToken (Span sid c $ c + (length s)) kind
 
 makeTokCmplx
-  :: (a -> TokenKind) -> (String -> a) -> AlexPosn -> String -> Token
-makeTokCmplx cons f (AlexPn c _ _) s =
-  MkToken (Span (SourceId 0) c $ c + (length s)) (cons (f s))
+  :: (a -> TokenKind) -> (String -> a) -> AlexPosn -> String -> SourceId -> Token
+makeTokCmplx cons f (AlexPn c _ _) s sid =
+  MkToken (Span sid c $ c + (length s)) (cons (f s))
 
 data Token = MkToken Span TokenKind
   deriving (Eq, Show)
@@ -128,6 +128,6 @@ scanTokens sourceId str = go (alexStartPos, '\n', [], str) where
     AlexSkip inp' len      -> go inp'
     AlexToken inp' len act -> do
       res <- go inp'
-      let rest = act pos (take len str)
+      let rest = act pos (take len str) sourceId 
       return (rest : res)
 }

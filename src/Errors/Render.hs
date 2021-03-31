@@ -7,7 +7,9 @@ import           Sources
 import           Text.Printf
 import qualified Data.Map                      as D
 import           Data.Maybe                     ( fromJust )
-import           Data.List                      ( dropWhileEnd )
+import           Data.List                      ( dropWhileEnd
+                                                , intercalate
+                                                )
 import           Data.Char                      ( isSpace )
 import           Data.Sequence                  ( Seq )
 
@@ -157,19 +159,17 @@ renderSourcePos sid p = do
   tell $ printf " %s:%d:%d\n" filename (l + 1) (c + 1)
 
 renderNotes :: Int -> [String] -> RenderD ()
-renderNotes outerPadding msg =
-  ()
-    <$ mapM
-         (\line -> do
-           renderGutterOuterSpace outerPadding
-           renderColorSet bulletColor
-           renderCharSet noteBullet
-           spacingSpace
-           tell line
-           renderReset
-           emptyLine
-         )
-         msg
+renderNotes outerPadding msg = forM_
+  msg
+  (\line -> do
+    renderGutterOuterSpace outerPadding
+    renderColorSet bulletColor
+    renderCharSet noteBullet
+    spacingSpace
+    tell line
+    renderReset
+    emptyLine
+  )
 
 hangingLabels :: Maybe (Int, SingleLabel) -> [SingleLabel] -> [SingleLabel]
 hangingLabels trailingLabel ls =
@@ -315,7 +315,8 @@ last' [] = Nothing
 last' xs = Just $ last xs
 
 renderCarets :: Int -> [Int] -> [SingleLabel] -> RenderD ()
-renderCarets maxLabelEnd idxs labels = mapM_
+renderCarets maxLabelEnd idxs labels = forM_
+  idxs
   (\idx ->
     let currentStyle = currentStatus isOverlapping idx labels
     in  do
@@ -328,7 +329,6 @@ renderCarets maxLabelEnd idxs labels = mapM_
             Nothing                     -> do
               return ()
   )
-  (idxs ++ [maybe 0 (+ 1) (last' idxs)])
 
 renderSource :: Int -> String -> [SingleLabel] -> RenderD ()
 renderSource _   []       _      = return ()
@@ -343,22 +343,20 @@ renderSource idx (x : xs) labels = do
 
 renderHangingCarets
   :: Int -> [Int] -> [SingleLabel] -> Maybe (Int, SingleLabel) -> RenderD ()
-renderHangingCarets maxStart idxs labels trailingLabel =
-  ()
-    <$ mapM
-         (\idx ->
-           let labelStyle =
-                 currentStatus isIn idx $ hangingLabels trailingLabel labels
-           in  (do
-                 case labelStyle of
-                   Just style -> do
-                     renderDiagnosticC style
-                     renderLeftChar
-                     renderReset
-                   Nothing -> when (idx <= maxStart) (tell " ")
-               )
-         )
-         idxs
+renderHangingCarets maxStart idxs labels trailingLabel = forM_
+  idxs
+  (\idx ->
+    let labelStyle =
+          currentStatus isIn idx $ hangingLabels trailingLabel labels
+    in  (do
+          case labelStyle of
+            Just style -> do
+              renderDiagnosticC style
+              renderLeftChar
+              renderReset
+            Nothing -> when (idx <= maxStart) (tell " ")
+        )
+  )
 
 renderInnerGutterColumn :: Maybe Underline -> RenderD ()
 renderInnerGutterColumn Nothing                   = renderGutterSpace
@@ -454,12 +452,12 @@ labelMultiBottomCaret style start msg = do
   c <- asks $ multiTop . charSet . config
   tell $ replicate start c
   renderCarretDiagnostic style
-  mapM_
+  forM_
+    msg
     (\msg' -> do
       tell " "
       tell msg'
     )
-    msg
   renderReset
   emptyLine
 
@@ -471,7 +469,7 @@ renderSnippetSource
   -> Int            -- ^ Number of multi labels
   -> MultiLabels    -- ^ Multiple labels
   -> RenderD ()
-renderSnippetSource outerPadding lineNo source' singles numMultis multis = do
+renderSnippetSource outerPadding lineNo source' singles' numMultis multis = do
   -- `10`
   renderGutterNum lineNo outerPadding
   -- `10 |`
@@ -492,7 +490,7 @@ renderSnippetSource outerPadding lineNo source' singles numMultis multis = do
       renderGutter
       renderInnerGutter numMultis 0 multis
       spacingSpace
-      renderCarets maxEnd [0 .. length source - 1] singles
+      renderCarets maxEnd [0 .. length source] singles
       case trailingLabel of
         Just (_, SingleLabel style _ _ (Just msg)) -> do
           spacingSpace
@@ -514,7 +512,8 @@ renderSnippetSource outerPadding lineNo source' singles numMultis multis = do
                           singles
                           trailingLabel
       emptyLine
-      mapM_
+      forM_
+        (reverse $ hangingLabels trailingLabel singles)
         (\(SingleLabel labelStyle s _ (Just msg)) ->
           (do
             renderGutterOuterSpace outerPadding
@@ -528,9 +527,9 @@ renderSnippetSource outerPadding lineNo source' singles numMultis multis = do
             emptyLine
           )
         )
-        (reverse $ hangingLabels trailingLabel singles)
     )
-  mapM_
+  forM_
+    (zip [0 ..] multis)
     (\(multiLabelIndex, (_, style, label)) ->
       (do
         let labelValues =
@@ -540,7 +539,8 @@ renderSnippetSource outerPadding lineNo source' singles numMultis multis = do
                 TopMultiLabel r                      -> Just (r, Nothing)
                 BottomLabel r msg                    -> Just (r, Just msg)
               )
-        mapM_
+        forM_
+          labelValues
           (\(range, bottomMsg) -> do
             renderGutterOuterSpace outerPadding
             renderGutter
@@ -553,11 +553,14 @@ renderSnippetSource outerPadding lineNo source' singles numMultis multis = do
               Nothing  -> labelMultiTopCaret style range
               Just msg -> labelMultiBottomCaret style range msg
           )
-          labelValues
       )
     )
-    (zip [0 ..] multis)
  where
+  singles =
+    (\(SingleLabel dTy' s e msg) ->
+        let newE = if s == e then e + 1 else e in SingleLabel dTy' s newE msg
+      )
+      <$> singles'
   (numMsgs, maxStart, maxEnd, tl) = getSinglesInfo singles 0 (0, 0, 0, Nothing)
   trailingLabel                   = case tl of
     Just (idx, SingleLabel _ s e _)
@@ -581,6 +584,24 @@ renderLineBreak outerPadding numMultis multis = do
   renderGutterOuterSpace outerPadding
   renderCharSet borderBreakS
   renderInnerGutter numMultis 0 multis
+  emptyLine
+
+count :: Eq a => a -> [a] -> Int
+count x = length . filter (x ==)
+
+renderNumDiagnostics :: [DiagnosticType] -> RenderD ()
+renderNumDiagnostics dTys = do
+  let errs  = count Error dTys
+  let warns = count Warning dTys
+  let info  = count Info dTys
+  let msgs = filter ((/= 0) . snd)
+                    [("errors", errs), ("warnings", warns), ("infos", info)]
+  tell "Emitted "
+  tell $ intercalate ", " $ map
+    (\(a, b) ->
+      let txt = show b ++ " " ++ a in if b == 1 then init txt else txt
+    )
+    msgs
   emptyLine
 
 emptyLine :: RenderD ()

@@ -7,6 +7,8 @@ import           Data.Maybe                     ( fromJust )
 import           Data.Map                       ( insert )
 import           Options.Applicative
 import           System.IO
+import qualified Data.Sequence                 as S
+import           Data.List.Split                ( splitOn )
 import           Control.Monad                  ( when )
 import           Control.Monad.State            ( liftIO
                                                 , get
@@ -18,7 +20,15 @@ import           Text.Show.Pretty
 import           Syntax.Ast                     ( Statement )
 import           Syntax.Parser
 import           Sources
-import           Compiler
+import           Compiler                       ( Compiler
+                                                , CompilerState(..)
+                                                , runCompiler
+                                                )
+import           Errors.Views                   ( renderDiagnostics )
+import           Errors.Render                  ( runRender
+                                                , defaultConfig
+                                                , RenderEnv(..)
+                                                )
 import           Errors.Diagnostics             ( report
                                                 , Diagnostics(..)
                                                 , intoDiagnostics
@@ -62,8 +72,22 @@ insertFile :: String -> String -> Compiler SourceId
 insertFile f source = do
   old <- get
   let sid = (+ 1) `mapSid` currId old
-  put $ CST (insert sid source $ sourceMap old) (insert sid f $ fileMap old) sid
+  put $ CST
+    (insert sid source $ sourceMap old)
+    (insert sid f $ fileMap old)
+    (insert sid (S.fromList $ splitOn "\n" source) $ Compiler.sourceLines old)
+    sid
   return sid
+
+mkEnv :: Compiler RenderEnv
+mkEnv = do
+  (CST sMap fMap slMap _) <- get
+  return $ RS defaultConfig sMap fMap slMap
+
+showError' :: Diagnostics -> Compiler ()
+showError' ds = do
+  env <- mkEnv
+  liftIO . putStrLn . snd $ runRender (renderDiagnostics ds) env
 
 pipeline :: Compiler ()
 pipeline = do
@@ -72,8 +96,9 @@ pipeline = do
   contents <- liftIO $ hGetContents handle
   sid      <- insertFile (filename args) contents
   when (printAst args) $ pAst sid contents
-  let compiled = compileModule sid contents
-  liftIO $ print compiled
+  case compileModule sid contents of
+    Left  err -> showError' err
+    Right res -> liftIO $ print res
   liftIO $ hClose handle
  where
   opts = info
