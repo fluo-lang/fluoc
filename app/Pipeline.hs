@@ -87,7 +87,7 @@ mkEnv = do
 showError' :: Diagnostics -> Compiler ()
 showError' ds = do
   env <- mkEnv
-  liftIO . putStrLn . snd $ runRender (renderDiagnostics ds) env
+  liftIO . putStr . snd $ runRender (renderDiagnostics ds) env
 
 pipeline :: Compiler ()
 pipeline = do

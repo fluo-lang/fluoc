@@ -43,10 +43,10 @@ defaultCharSet :: CharSet
 defaultCharSet = CharSet "┌─" '│' '·' '=' '┌' '─' '│' '└' '─' getS
 
 defaultColorSet :: ColorSet
-defaultColorSet = ColorSet blue blue blue green bold getC
+defaultColorSet = ColorSet blue blue blue green bold blue getC
 
 defaultConfig :: Config
-defaultConfig = RenderC defaultCharSet defaultColorSet 4 3 1
+defaultConfig = RenderC defaultCharSet defaultColorSet 4 3 0
 
 countMaybe :: Maybe a -> Int
 countMaybe (Just _) = 1
@@ -70,6 +70,7 @@ data ColorSet = ColorSet
   , filenameColor :: String
   , bulletColor   :: String
   , errorStyle    :: String
+  , emittedError  :: String
   , color         :: DiagnosticType -> String
   }
 data Config = RenderC
@@ -596,12 +597,15 @@ renderNumDiagnostics dTys = do
   let info  = count Info dTys
   let msgs = filter ((/= 0) . snd)
                     [("errors", errs), ("warnings", warns), ("infos", info)]
+  emptyLine
+  renderColorSet emittedError
   tell "Emitted "
   tell $ intercalate ", " $ map
     (\(a, b) ->
       let txt = show b ++ " " ++ a in if b == 1 then init txt else txt
     )
     msgs
+  renderReset
   emptyLine
 
 emptyLine :: RenderD ()
