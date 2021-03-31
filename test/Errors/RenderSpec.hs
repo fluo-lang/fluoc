@@ -6,6 +6,8 @@ import           Test.Hspec                     ( it
                                                 , describe
                                                 )
 import qualified Data.Map                      as D
+import           Data.List.Split                ( splitOn )
+import qualified Data.Sequence                 as S
 
 import           Errors.Render
 import           Sources
@@ -15,8 +17,13 @@ sid :: SourceId
 sid = SourceId 0
 
 withFile :: String -> RenderD a -> (a, String)
-withFile s r =
-  runRender r (RS defaultConfig (D.singleton sid s) (D.singleton sid "test.fl"))
+withFile s r = runRender
+  r
+  (RS defaultConfig
+      (D.singleton sid s)
+      (D.singleton sid "test.fl")
+      (D.singleton sid (S.fromList $ splitOn "\n" s))
+  )
 
 spec :: Spec
 spec = do
@@ -36,17 +43,19 @@ spec = do
     it "set a file header"
       $ withFile "12345\n1230" (renderHeader Error "error" 1 "dummy message")
       `shouldBe` ( ()
-                 , (color defaultColorSet) Error
+                 , color defaultColorSet Error
+                 ++ bold
                  ++ "error[E001]: dummy message\n"
                  ++ reset
                  )
   describe "Errors.Render.renderSnippetState" $ do
     it "set a file state"
-      $          withFile "asdbc\n12ads\nasddawd" (renderSnippetState sid 9)
+      $          withFile "asdbc\n12ads\nasddawd" (renderSnippetState 0 sid 9)
       `shouldBe` ( ()
-                 , (gutterColor defaultColorSet)
+                 , " "
+                 ++ gutterColor defaultColorSet
                  ++ "┌─"
-                 ++ (filenameColor defaultColorSet)
+                 ++ filenameColor defaultColorSet
                  ++ " test.fl:2:4\n"
                  ++ reset
                  )

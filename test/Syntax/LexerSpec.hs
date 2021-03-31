@@ -30,7 +30,7 @@ lexErr c char = Diagnostic
                Error
   ]
   (fromPos sid c)
-  Nothing
+  []
 
 spec :: Spec
 spec = do
