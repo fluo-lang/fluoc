@@ -1,9 +1,13 @@
+{-# LANGUAGE DeriveDataTypeable #-}
 module Sources where
 
 import           Data.Map
 import           Data.Sequence                  ( Seq )
+import           Data.Data                      ( Data )
+import           Data.Typeable                  ( Typeable )
 
-data Span = Span SourceId Int Int | Eof SourceId deriving (Show, Eq)
+data Span = Span SourceId Int Int
+          | Eof SourceId deriving (Show, Eq, Data, Typeable)
 fromPos :: SourceId -> Int -> Span
 fromPos sid pos = Span sid pos (pos + 1)
 
@@ -27,7 +31,7 @@ bt t1 t2 = btwn (getSpan t1) (getSpan t2)
 class Spanned a where
   getSpan :: a -> Span
 
-newtype SourceId = SourceId Int deriving (Show, Eq, Ord)
+newtype SourceId = SourceId Int deriving (Show, Eq, Ord, Data, Typeable)
 mapSid :: (Int -> Int) -> SourceId -> SourceId
 mapSid f (SourceId x) = SourceId $ f x
 

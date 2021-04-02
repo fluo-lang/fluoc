@@ -1,4 +1,5 @@
 {
+{-# LANGUAGE FlexibleContexts #-}
 module Syntax.Parser where
 
 import           Syntax.Ast
@@ -53,7 +54,6 @@ import           Data.List                      ( intercalate )
     ']'                    { MkToken _ RBracketTok }
     '{'                    { MkToken _ LCurlyTok }
     '}'                    { MkToken _ RCurlyTok }
-    '_'                    { MkToken _ (IdentTok "_") }
     identifier             { MkToken _ (IdentTok _) }
     string                 { MkToken _ (StrTok _) }
     integer                { MkToken _ (IntegerTok _) }
@@ -72,7 +72,7 @@ import           Data.List                      ( intercalate )
 %right "in" "let" "if" "assign" "match" backslash "impl" "trait" "rec" "dec" "opdef"
 %nonassoc PREOP POSTOP
 %left '=>' TYPEOP
-%nonassoc string float integer '(' '_' identifier polymorphic_identifier "left" "right" "nonassoc" "prefix" "postfix" "binary"
+%nonassoc string float integer '(' identifier polymorphic_identifier "left" "right" "nonassoc" "prefix" "postfix" "binary"
 %nonassoc VARIANT
 %nonassoc OPPAT
 %left operator
@@ -97,7 +97,7 @@ Statement : DecStatement  { $1 }
 
 OpDef         : "opdef"'(' Operator ')' Associativity Fixity Integer
                   { let (prec, span) = $7
-                     in OpDefS (OpInfo $3 $5 $6 prec) $ btwn (getSpan $1) span }
+                     in OpDefS $3 (OpInfo $5 $6 prec) $ btwn (getSpan $1) span }
 Associativity : "left"     { LeftA }
               | "right"    { RightA }
               | "nonassoc" { Nonassoc }
@@ -130,53 +130,42 @@ LetStatement : "let" Bindings      { BindingS $2 $ bt $1 $ last $2 }
 DecStatement : Declaration         { DeclarationS $1 $ getSpan $1 }
 Declaration : "dec" Ident ':' Type { Declaration $2 $4 $ bt $1 $4 }
 
-Expr : Literal                                             { LiteralE $1 $ getSpan $1}
-     | Expr Operator Expr %prec OPEXPR                     { OperatorE (BinOp $2 $1 $3) $ bt $1 $3 }
-     | '(' Operator Expr ')' %prec PREOP                   { OperatorE (PreOp $2 $3) $ bt $1 $4 }
-     | '(' Expr Operator ')' %prec POSTOP                  { OperatorE (PostOp $3 $2) $ bt $1 $4 }
-     | Tuple                                               { $1 }
-     | Namespace                                           { VariableE $1 $ getSpan $1 }
-     | "assign" Bindings "in" '{' Expr '}'                 { LetInE $2 $5 $ bt $1 $6 }
-     | "match" Expr '{' MatchBranches '}'                  { MatchE $2 $4 $ bt $1 $5 }
-     | "if" Expr '{' Expr '}' "else" '{' Expr '}'          { CondE ($2, $4) [] $8 $ bt $1 $9 }
-     | "if" Expr '{' Expr '}' ElifCond "else" '{' Expr '}' { CondE ($2, $4) $6 $9 $ bt $1 $10 }
-     | backslash Patterns '=>' Expr                        { LambdaE $2 $4 $ bt $1 $4 }
-     | Expr Expr %prec FUNAPP                              { OperatorE (
-                                                                 BinOp
-                                                                 (Operator "application" $
-                                                                   gap (getSpan $1) (getSpan $2))
-                                                                 $1
-                                                                 $2
-                                                               )
-                                                               (bt $1 $2) }
+Expr      : ExprInner                                           { case $1 of
+                                                                        [OtherTok t] -> t
+                                                                        _ -> let reved = reverse $1 
+                                                                              in ExprList reved $ bt (head reved) (head $1)
+                                                                }
+ExprInner : ExprInner OpTok                                     { ($2:$1) }
+          | OpTok                                               { [$1] }
+OpTok     : ExprItem                                            { OtherTok $1 }
+          | Operator                                            { OpTok $1 }
+ExprItem  : Literal                                             { LiteralE $1 $ getSpan $1}
+          | Tuple                                               { $1 }
+          | Namespace                                           { VariableE $1 $ getSpan $1 }
+          | "assign" Bindings "in" '{' Expr '}'                 { LetInE $2 $5 $ bt $1 $6 }
+          | "match" Expr '{' MatchBranches '}'                  { MatchE $2 $4 $ bt $1 $5 }
+          | "if" Expr '{' Expr '}' "else" '{' Expr '}'          { CondE ($2, $4) [] $8 $ bt $1 $9 }
+          | "if" Expr '{' Expr '}' ElifCond "else" '{' Expr '}' { CondE ($2, $4) $6 $9 $ bt $1 $10 }
+          | backslash Patterns '=>' Expr                        { LambdaE $2 $4 $ bt $1 $4 }
+          | '(' Expr ')'                                        { $2 }
 
 MatchBranches      : MatchBranchesInner                 { reverse $1 }
 MatchBranchesInner : MatchBranchesInner ',' MatchBranch { ($3:$1) }
                    | MatchBranch                        { [$1] }
-MatchBranch        : Pattern '=>' Expr                  { MatchBranch $1 $3 $ bt $1 $3 }
+MatchBranch        : Expr '=>' Expr                     { MatchBranch $1 $3 $ bt $1 $3 }
 
 Bindings      : BindingsInner               { reverse $1 }
 BindingsInner : BindingsInner ',' Binding   { ($3:$1) }
               | Binding                     { [$1] }
 Binding       : Ident ':' Patterns '=' Expr { Binding (Just $1) $3 $5 $ bt $1 $5 }
-              | Pattern '=' Expr            { Binding Nothing [$1] $3 $ bt $1 $3 }
+              | Expr '=' Expr               { Binding Nothing [$1] $3 $ bt $1 $3 }
 
 Patterns      : PatternsInner                { reverse $1 }
 PatternsInner : PatternsInner PatternBinding { ($2:$1) }
               | PatternBinding               { [$1] }
 
-PatternBinding        : Ident                                 { BindP $1 $ getSpan $1 }
-                      | '(' Pattern ')'                       { OperatorP (Grouped $2) $ bt $1 $3 }
-Pattern               : Ident                                 { BindP $1 $ getSpan $1 }
-                      | Namespace Pattern %prec VARIANT       { OperatorP
-                                                                 (BinOp (Operator "application" $ gap (getSpan $1) $ getSpan $2)
-                                                                 (NamespaceP $1 $ getSpan $1) $2) $ bt $1 $2 }
-                      | Pattern Operator Pattern %prec OPPAT  { OperatorP (BinOp $2 $1 $3) $ bt $1 $3 }
-                      | '(' Operator Pattern ')' %prec PREOP  { OperatorP (PreOp $2 $3) $ bt $1 $4 }
-                      | '(' Pattern Operator ')' %prec POSTOP { OperatorP (PostOp $3 $2) $ bt $1 $4 }
-                      | '(' Pattern ')'                       { OperatorP (Grouped $2) $ bt $1 $3 }
-                      | Literal                               { LiteralP $1 $ getSpan $1 }
-                      | '_'                                   { DropP $ getSpan $1 }
+PatternBinding        : Namespace            { VariableE $1 $ getSpan $1 }
+                      | '(' Expr ')'         { $2 }
 
 ElifCond      : ElifCondInner          { reverse $1 }
 ElifCondInner : ElifCondInner Elif     { ($2:$1) }
@@ -188,7 +177,6 @@ Tuple     : '(' ')'               { TupleE [] (bt $1 $2) }
           | '(' Expr ',' ')'      { TupleE [$2] (bt $1 $4)}
           | '(' TupleExpr ',' ')' { let reved = reverse $2 in TupleE reved (bt $1 $4)}
           | '(' TupleExpr ')'     { let reved = reverse $2 in TupleE reved (bt $1 $3)}
-          | '(' Expr ')'          { GroupedE $2 (bt $1 $3) }
 TupleExpr : TupleExpr ',' Expr    { ($3:$1) }
           | Expr ',' Expr         { [$3, $1] }
 
@@ -202,20 +190,23 @@ Integer : integer  { case $1 of (MkToken span (IntegerTok i)) -> (i, span)}
 
 PolyIdent : polymorphic_identifier {case $1 of (MkToken span (PolyTok p)) -> PolyIdent p span}
 
-TypeLimited   : '_'                                { Infer $ getSpan $1 }
-              | Namespace                          { NamespaceType $1 $ getSpan $1 }
+TypeLimited   : Namespace                          { NamespaceType $1 $ getSpan $1 }
               | '(' TupleType ')'                  { let reved = reverse $2 in TupleType reved (bt $1 $3)}
               | '(' ')'                            { TupleType [] $ bt $1 $2}
               | '(' ',' ')'                        { TupleType [] $ bt $1 $3}
               | '(' Type ',' ')'                   { TupleType [$2] $ bt $1 $4}
               | '(' TupleType ',' ')'              { let reved = reverse $2 in TupleType reved (bt $1 $4)}
-              | '(' Type ')'                       { OperatorType (Grouped $2) $ bt $1 $3 }
+              | '(' Type ')'                       { $2 }
               | PolyIdent                          { PolyType $1 $ getSpan $1 }
-Type          : Type Type %prec TYPEAPP            { OperatorType (BinOp (Operator "application" $ gap (getSpan $1) $ getSpan $2) $1 $2) $ bt $1 $2 }
-              | TypeLimited                        { $1 }
-              | Type Operator Type %prec TYPEOP    { OperatorType (BinOp $2 $1 $3) $ bt $1 $3 }
-              | '(' Operator Type ')' %prec PREOP  { OperatorType (PreOp $2 $3) $ bt $1 $4 }
-              | '(' Type Operator ')' %prec POSTOP { OperatorType (PostOp $3 $2) $ bt $1 $4 }
+Type          : TypeInner                          { case $1 of
+                                                       [OtherTok t] -> t
+                                                       _ -> let reved = reverse $1 
+                                                             in TypeList reved $ bt (head reved) (head $1)
+                                                   }
+TypeInner     : TypeInner OpTokTy                  { ($2:$1) }
+              | OpTokTy                            { [$1] }
+OpTokTy       : Operator                           { OpTok $1 }
+              | TypeLimited                        { OtherTok $1 }
 
 TupleType     : TupleType ',' Type              { ($3:$1) }
               | Type ',' Type                   { [$3, $1] }

@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 4776c73a79e6503e3f6ddf6024040393022efd47328a60a65f34f8dfabcb4d30
+-- hash: 207d0d710f98099f13cc0dcd4c4636bd64fcbc22771ba2109c7dd1998ef3960f
 
 name:           fluoc
 version:        0.1.0.0
@@ -34,7 +34,12 @@ library
       Syntax.Ast
       Syntax.Lexer
       Syntax.Parser
+      Syntax.Rewrite
       Syntax.Token
+      Typecheck.Annotation
+      Typecheck.Constraints
+      Typecheck.TypedAst
+      Typecheck.Unification
   other-modules:
       Paths_fluoc
   hs-source-dirs:
