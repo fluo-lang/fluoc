@@ -21,6 +21,7 @@ dependencies:
 - pretty-show
 - break
 - split
+- uniplate
 
 library:
   source-dirs: src
