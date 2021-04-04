@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 136c163b2cc4deda343435f07e214b2666b789d08ab457b893ee757384de9c00
+-- hash: 716cb9501a66f5e1d1d81a2e79f995dc4aa8a037c7e27c623066ebb92741a83c
 
 name:           fluoc
 version:        0.1.0.0
@@ -57,6 +57,7 @@ library
     , pretty-show
     , split
     , text
+    , transformers
     , uniplate
   default-language: Haskell2010
 
@@ -79,6 +80,7 @@ executable fluoc-exe
     , pretty-show
     , split
     , text
+    , transformers
     , uniplate
   default-language: Haskell2010
 
@@ -109,5 +111,6 @@ test-suite fluoc-test
     , pretty-show
     , split
     , text
+    , transformers
     , uniplate
   default-language: Haskell2010

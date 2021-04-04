@@ -95,15 +95,15 @@ Statement : DecStatement  { $1 }
           | ImplStatement { $1 }
           | OpDef         { $1 }
 
-OpDef         : "opdef"'(' Operator ')' Associativity Fixity Integer
-                  { let (prec, span) = $7
-                     in OpDefS $3 (OpInfo $5 $6 prec) $ btwn (getSpan $1) span }
+OpDef         : "opdef" '(' Operator ')' "binary" Associativity Integer { let (prec, span) = $7
+                                                                           in OpDefS $3 (Binary prec $6) $ btwn (getSpan $1) span }
+              | "opdef" '(' Operator ')' "prefix" Integer               { let (prec, span) = $6
+                                                                           in OpDefS $3 (Prefix prec) $ btwn (getSpan $1) span }
+              | "opdef" '(' Operator ')' "postfix" Integer              { let (prec, span) = $6
+                                                                           in OpDefS $3 (Postfix prec) $ btwn (getSpan $1) span }
 Associativity : "left"     { LeftA }
               | "right"    { RightA }
               | "nonassoc" { Nonassoc }
-Fixity        : "prefix"   { Prefix }
-              | "postfix"  { Postfix }
-              | "binary"   { Binary }
 
 ImplStatement : "impl" Namespace ':' Type '{' Statements '}' { ImplS $2 $4 $6 $ bt $1 $7 }
 TraitDec      : "trait" Ident ':' PolyIdents '{' Statements '}' { TraitS $2 $4 $6 $ bt $1 $7 }

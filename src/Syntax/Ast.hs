@@ -26,21 +26,13 @@ data RecordItem = Product Ident [Type] Span
                 | NamedProduct Ident [Declaration] Span
                 deriving (Eq, Show, Data, Typeable)
 
-data Fixity = Binary
-            | Prefix
-            | Postfix
-            deriving (Eq, Show, Data, Typeable)
-
 data Associativity = LeftA
                    | RightA
                    | Nonassoc
                    deriving (Eq, Show, Data, Typeable)
 
-data OpInfo = OpInfo
-  { assoc :: Associativity
-  , fix   :: Fixity
-  , prec  :: Integer
-  }
+type Prec = Integer
+data OpInfo = Prefix Prec | Postfix Prec | Binary Prec Associativity
   deriving (Eq, Show, Data, Typeable)
 
 data Statement = BindingS [Binding] Span

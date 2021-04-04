@@ -24,23 +24,23 @@ spec = do
     it "should parse a opdef statement"
       $          parseBlock
                    sid
-                   "opdef (+) left binary 6\
-\opdef (-) right prefix 3\
-\opdef (--) left postfix 2\
-\opdef (/) left binary 5"
+                   "opdef (^) binary right 6\
+\opdef (-) prefix 3\
+\opdef (--) postfix 2\
+\opdef (/) binary left 5"
       `shouldBe` Right
-                   [ OpDefS (Operator "+" (sn 7 8))
-                            (OpInfo LeftA Binary 6)
-                            (sn 0 23)
-                   , OpDefS (Operator "-" (sn 30 31))
-                            (OpInfo RightA Prefix 3)
-                            (sn 23 47)
-                   , OpDefS (Operator "--" (sn 54 56))
-                            (OpInfo LeftA Postfix 2)
-                            (sn 47 72)
-                   , OpDefS (Operator "/" (sn 79 80))
-                            (OpInfo LeftA Binary 5)
-                            (sn 72 95)
+                   [ OpDefS (Operator "^" (Span (SourceId 0) 7 8))
+                            (Binary 6 RightA)
+                            (Span (SourceId 0) 0 24)
+                   , OpDefS (Operator "-" (Span (SourceId 0) 31 32))
+                            (Prefix 3)
+                            (Span (SourceId 0) 24 42)
+                   , OpDefS (Operator "--" (Span (SourceId 0) 49 51))
+                            (Postfix 2)
+                            (Span (SourceId 0) 42 62)
+                   , OpDefS (Operator "/" (Span (SourceId 0) 69 70))
+                            (Binary 5 LeftA)
+                            (Span (SourceId 0) 62 85)
                    ]
     it "should parse a record with multiple sums"
       $          parseBlock
