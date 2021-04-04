@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 716cb9501a66f5e1d1d81a2e79f995dc4aa8a037c7e27c623066ebb92741a83c
+-- hash: 3dfb47663dec9206ccc9368a8ae218ceeb02e52ed203e9f0ad203ebcf835d2c0
 
 name:           fluoc
 version:        0.1.0.0
@@ -30,10 +30,13 @@ library
       Errors.Diagnostics
       Errors.Render
       Errors.Views
+      Helpers
+      Pipeline
       Sources
       Syntax.Ast
       Syntax.Lexer
       Syntax.Parser
+      Syntax.PrettyPrint
       Syntax.Rewrite
       Syntax.Token
       Typecheck.Annotation
@@ -52,6 +55,7 @@ library
     , base >=4.7 && <5
     , break
     , containers
+    , mmorph
     , mtl
     , optparse-applicative
     , pretty-show
@@ -64,7 +68,6 @@ library
 executable fluoc-exe
   main-is: Main.hs
   other-modules:
-      Pipeline
       Paths_fluoc
   hs-source-dirs:
       app
@@ -75,6 +78,7 @@ executable fluoc-exe
     , break
     , containers
     , fluoc
+    , mmorph
     , mtl
     , optparse-applicative
     , pretty-show
@@ -106,6 +110,7 @@ test-suite fluoc-test
     , fluoc
     , hspec
     , hspec-discover
+    , mmorph
     , mtl
     , optparse-applicative
     , pretty-show

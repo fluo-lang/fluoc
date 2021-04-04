@@ -112,11 +112,11 @@ fstIdx [x    ] = [x]
 fstIdx (x : _) = [x]
 fstIdx _       = "EOF"
 
-scanTokens :: SourceId -> String -> Except Diagnostic [Token]
+scanTokens :: SourceId -> String -> Except Diagnostics [Token]
 scanTokens sourceId str = go (alexStartPos, '\n', [], str) where
   go inp@(pos, _, _bs, str) = case alexScan inp 0 of
     AlexEOF -> return [MkToken (Eof sourceId) EofTok]
-    AlexError ((AlexPn c _ _), _, _, stream) -> throwError $ Diagnostic
+    AlexError ((AlexPn c _ _), _, _, stream) -> throwError $ intoDiagnostics $ Diagnostic
       Error
       UnexpectedCharacterError
       [ Annotation (fromPos sourceId c)

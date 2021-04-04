@@ -1,8 +1,7 @@
 module Errors.Diagnostics where
 
 import           Sources                        ( Span )
-import           Control.Monad.State            ( liftIO )
-import           Compiler
+import           Control.Monad.Except           ( Except )
 
 getLineColStr :: String -> Int -> (Int, Int) -> (Int, Int)
 getLineColStr _        0 res    = res
@@ -56,7 +55,4 @@ newtype Diagnostics = Diagnostics [Diagnostic] deriving (Show, Eq)
 intoDiagnostics :: Diagnostic -> Diagnostics
 intoDiagnostics d = Diagnostics [d]
 
-type Failable a = Either Diagnostics a
-
-report :: Diagnostics -> Compiler ()
-report d = liftIO $ print d
+type Failable a = Except Diagnostics a

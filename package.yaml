@@ -23,6 +23,7 @@ dependencies:
 - split
 - uniplate
 - transformers
+- mmorph
 
 library:
   source-dirs: src

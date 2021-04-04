@@ -8,7 +8,9 @@ import           Data.Generics.Uniplate.Operations
 import           Control.Monad                  ( when
                                                 , forever
                                                 )
-import           Control.Monad.Except           ( throwError )
+import           Control.Monad.Except           ( throwError
+                                                , liftEither
+                                                )
 
 import           Control.Monad.State            ( StateT
                                                 , get
@@ -67,11 +69,11 @@ rewrite ss = do
 
 rewriteExpr :: Rules -> Expr -> Failable (Maybe Expr)
 rewriteExpr rs (ExprList es (Span sid _ _)) = Just <$> fixPrec sid rs es OpE
-rewriteExpr _  _                            = Right Nothing
+rewriteExpr _  _                            = return Nothing
 
 rewriteType :: Rules -> Type -> Failable (Maybe Type)
 rewriteType rs (TypeList ts (Span sid _ _)) = Just <$> fixPrec sid rs ts OpType
-rewriteType _  _                            = Right Nothing
+rewriteType _  _                            = return Nothing
 
 fixPrec
   :: Spanned a
@@ -80,7 +82,8 @@ fixPrec
   -> OpToks a              -- List of tokens
   -> (Oped a -> Span -> a) -- Construct an `a` from an operator and span
   -> Failable a            -- Produced `a`
-fixPrec sid rs toks cons = evalStateT (runReaderT (exprBp sid cons 0) rs) toks
+fixPrec sid rs toks cons =
+  liftEither $ evalStateT (runReaderT (exprBp sid cons 0) rs) toks
 
 unexpectedEof :: SourceId -> Diagnostics
 unexpectedEof sid = Diagnostics [Diagnostic Error SyntaxError [] (Eof sid) []]
@@ -134,6 +137,8 @@ loop m = do
     Left  r -> return r
     Right r -> return r
 
+-- NOTE: This is extremely messy.
+-- Is there a way to make it more functional? Right now is very "imperative"
 processMany
   :: Spanned a
   => SourceId
@@ -180,8 +185,8 @@ binaryBp (Operator op s) = do
     Just (bp, asc) ->
       let (d1, d2) =
             (case asc of
-              LeftA  -> (0, 1)
-              RightA -> (1, 0)
+              LeftA    -> (0, 1)
+              RightA   -> (1, 0)
               Nonassoc -> error "Non assoc not implemented yet"
             )
       in  return (bp + d1, bp + d2)

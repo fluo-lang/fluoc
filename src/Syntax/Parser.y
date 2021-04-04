@@ -22,7 +22,7 @@ import           Data.List                      ( intercalate )
 %tokentype { Token }
 
 -- Parser monad
-%monad { Except Diagnostic } { (>>=) } { return }
+%monad { Except Diagnostics } { (>>=) } { return }
 %errorhandlertype explist
 %error { parseError }
 
@@ -234,7 +234,7 @@ mkIdent tok = case tok of (MkToken span (IdentTok s)) -> Ident s span
 cs :: Token -> Token -> Span
 cs (MkToken s _) (MkToken e _) = btwn s e
 
-syntaxErr expects str span = Diagnostic
+syntaxErr expects str span = intoDiagnostics $ Diagnostic
   Error
   SyntaxError
   [Annotation span (Just $ "Unexpected " ++ str) Error]
@@ -244,26 +244,26 @@ syntaxErr expects str span = Diagnostic
     [x] -> ["expected " ++ x]
     _ -> ["expected " ++ (intercalate ", " (init expects)) ++ ", or " ++ (last expects)])
 
-parseError :: ([Token], [String]) -> Except Diagnostic a
+parseError :: ([Token], [String]) -> Except Diagnostics a
 parseError (((MkToken span t) : ts), expects) =
   throwError $ syntaxErr expects (display t) span
 parseError ([], expects) = error "there should be at least an eof token"
 
-parseBlock :: SourceId -> String -> Either Diagnostic [Statement]
-parseBlock sourceId input = runExcept $ do
+parseBlock :: SourceId -> String -> Except Diagnostics [Statement]
+parseBlock sourceId input = do
   tokenStream <- scanTokens sourceId input
   statements tokenStream
 
-parseExpr :: SourceId -> String -> Either Diagnostic Expr
-parseExpr sourceId input = runExcept $ do
+parseExpr :: SourceId -> String -> Except Diagnostics Expr
+parseExpr sourceId input = do
   tokenStream <- scanTokens sourceId input
   expr $ init tokenStream
 
-parseType :: SourceId -> String -> Either Diagnostic Type
-parseType sourceId input = runExcept $ do
+parseType :: SourceId -> String -> Except Diagnostics Type
+parseType sourceId input = do
   tokenStream <- scanTokens sourceId input
   ty $ init tokenStream
 
-parseTokens :: SourceId -> String -> Either Diagnostic [Token]
-parseTokens sourceId source = runExcept $ scanTokens sourceId source
+parseTokens :: SourceId -> String -> Except Diagnostics [Token]
+parseTokens sourceId source = scanTokens sourceId source
 }

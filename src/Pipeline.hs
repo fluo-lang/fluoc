@@ -1,36 +1,37 @@
+{-# LANGUAGE FlexibleContexts #-}
 module Pipeline
   ( runCompiler
   , pipeline
   ) where
 
-import           Data.Maybe                     ( fromJust )
 import           Data.Map                       ( insert )
 import           Options.Applicative
 import           System.IO
-import qualified Data.Sequence                 as S
-import           Data.List.Split                ( splitOn )
 import           Control.Monad                  ( when )
+import           Control.Monad.Except           ( ExceptT(..)
+                                                , mapExceptT
+                                                )
 import           Control.Monad.State            ( liftIO
                                                 , get
                                                 , put
+                                                , lift
+                                                , StateT
                                                 )
+import           Control.Monad.Identity         ( runIdentity )
 import           Control.Arrow                  ( left )
-import           Text.Show.Pretty
+import           Syntax.PrettyPrint             ( PP(pp) )
+import           Data.Tree                      ( drawTree )
 
 import           Syntax.Ast                     ( Statement )
+import           Syntax.Rewrite                 ( rewrite )
 import           Syntax.Parser
 import           Sources
-import           Compiler                       ( Compiler
+import           Compiler                       ( Compiler(..)
                                                 , CompilerState(..)
                                                 , runCompiler
+                                                , try
                                                 )
-import           Errors.Views                   ( renderDiagnostics )
-import           Errors.Render                  ( runRender
-                                                , defaultConfig
-                                                , RenderEnv(..)
-                                                )
-import           Errors.Diagnostics             ( report
-                                                , Diagnostics(..)
+import           Errors.Diagnostics             ( Diagnostics(..)
                                                 , intoDiagnostics
                                                 )
 
@@ -61,44 +62,32 @@ options =
           (long "print-ast" <> help "Print the abstract syntax tree of the file"
           )
 
+parseAndRewrite :: SourceId -> String -> Compiler [Statement]
+parseAndRewrite sid source = do
+  ast <- try $ parseBlock sid source
+  try $ rewrite ast
+
 pAst :: SourceId -> String -> Compiler ()
-pAst sid source = case parseBlock sid source of
-  Left e -> report $ intoDiagnostics e
-  Right ast ->
-    liftIO $ putStrLn $ valToStr $ hideCon True (== "Span") $ fromJust $ reify
-      ast
+pAst sid source = do
+  ast <- parseAndRewrite sid source
+  liftIO . putStrLn . drawTree . pp $ ast
 
 insertFile :: String -> String -> Compiler SourceId
 insertFile f source = do
   old <- get
   let sid = (+ 1) `mapSid` currId old
-  put $ CST
-    (insert sid source $ sourceMap old)
-    (insert sid f $ fileMap old)
-    (insert sid (S.fromList $ splitOn "\n" source) $ Compiler.sourceLines old)
-    sid
+  put $ CST (insert sid source $ sourceMap old) (insert sid f $ fileMap old) sid
   return sid
-
-mkEnv :: Compiler RenderEnv
-mkEnv = do
-  (CST sMap fMap slMap _) <- get
-  return $ RS defaultConfig sMap fMap slMap
-
-showError' :: Diagnostics -> Compiler ()
-showError' ds = do
-  env <- mkEnv
-  liftIO . putStr . snd $ runRender (renderDiagnostics ds) env
 
 pipeline :: Compiler ()
 pipeline = do
-  args     <- liftIO $ execParser opts
-  handle   <- liftIO $ openFile (filename args) ReadMode
-  contents <- liftIO $ hGetContents handle
-  sid      <- insertFile (filename args) contents
+  args <- liftIO $ execParser opts
+  let fname = filename args
+  handle   <- liftIO $ openFile fname ReadMode
+  contents <- liftIO $ readFile fname
+  sid      <- insertFile fname contents
   when (printAst args) $ pAst sid contents
-  case compileModule sid contents of
-    Left  err -> showError' err
-    Right res -> liftIO $ print res
+  res <- compileModule sid contents
   liftIO $ hClose handle
  where
   opts = info
@@ -109,6 +98,8 @@ pipeline = do
          "fluoc - the official fluo compiler <https://github.com/fluo-lang/fluoc>"
     )
 
-compileModule :: SourceId -> String -> Either Diagnostics [Statement]
-compileModule sid source = do
-  intoDiagnostics `left` parseBlock sid source
+compileModule
+  :: SourceId
+  -> String
+  -> Compiler [Statement]
+compileModule = parseAndRewrite
