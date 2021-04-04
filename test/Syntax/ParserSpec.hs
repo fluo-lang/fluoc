@@ -7,13 +7,22 @@ import           Test.Hspec                     ( describe
                                                 )
 
 import           Sources
+import           Errors.Diagnostics
 import           Syntax.Ast
-import           Syntax.Parser
+import qualified Syntax.Parser                 as P
+import           Control.Monad.Except           ( runExcept )
 
 sid :: SourceId
 sid = SourceId 0
 sn :: Int -> Int -> Span
 sn = Span sid
+
+parseBlock :: SourceId -> String -> Either Diagnostics [Statement]
+parseBlock s source = runExcept $ P.parseBlock s source
+parseType :: SourceId -> String -> Either Diagnostics Type
+parseType s source = runExcept $ P.parseType s source
+parseExpr :: SourceId -> String -> Either Diagnostics Expr
+parseExpr s source = runExcept $ P.parseExpr s source
 
 spec :: Spec
 spec = do

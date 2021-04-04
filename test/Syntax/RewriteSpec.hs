@@ -6,6 +6,7 @@ import           Test.Hspec                     ( describe
                                                 , Spec
                                                 )
 import qualified Data.Map                      as M
+import           Control.Monad.Except           ( runExcept )
 
 import           Sources
 import           Syntax.Ast
@@ -58,37 +59,39 @@ spec = do
                    , postfixOps = M.fromList [("$", 150)]
                    }
     it "should rewrite basic binary operators"
-      $          rewriteExpr
-                   Rules
-                     { prefixOps  = M.empty
-                     , binaryOps  = M.fromList
-                       [("+", (30, LeftA)), ("*", (40, LeftA)), ("<$>", (20, LeftA))]
-                     , postfixOps = M.empty
-                     }
-                   (ExprList
-                     [ OtherTok
-                       (LiteralE (IntegerL 1 (Span (SourceId 1) 8 9))
-                                 (Span (SourceId 1) 8 9)
-                       )
-                     , OpTok (Operator "+" (Span (SourceId 1) 9 10))
-                     , OtherTok
-                       (LiteralE (IntegerL 2 (Span (SourceId 1) 10 11))
-                                 (Span (SourceId 1) 10 11)
-                       )
-                     , OpTok (Operator "+" (Span (SourceId 1) 11 12))
-                     , OtherTok
-                       (LiteralE (IntegerL 3 (Span (SourceId 1) 12 13))
-                                 (Span (SourceId 1) 12 13)
-                       )
-                     , OpTok (Operator "*" (Span (SourceId 1) 13 14))
-                     , OtherTok
-                       (LiteralE (IntegerL 4 (Span (SourceId 1) 14 15))
-                                 (Span (SourceId 1) 14 15)
-                       )
-                     ]
-                     (Span (SourceId 1) 8 15)
+      $          runExcept
+                   (rewriteExpr
+                     Rules
+                       { prefixOps  = M.empty
+                       , binaryOps  = M.fromList
+                         [("+", (30, LeftA)), ("*", (40, LeftA)), ("<$>", (20, LeftA))]
+                       , postfixOps = M.empty
+                       }
+                     (ExprList
+                       [ OtherTok
+                         (LiteralE (IntegerL 1 (Span (SourceId 1) 8 9))
+                                   (Span (SourceId 1) 8 9)
+                         )
+                       , OpTok (Operator "+" (Span (SourceId 1) 9 10))
+                       , OtherTok
+                         (LiteralE (IntegerL 2 (Span (SourceId 1) 10 11))
+                                   (Span (SourceId 1) 10 11)
+                         )
+                       , OpTok (Operator "+" (Span (SourceId 1) 11 12))
+                       , OtherTok
+                         (LiteralE (IntegerL 3 (Span (SourceId 1) 12 13))
+                                   (Span (SourceId 1) 12 13)
+                         )
+                       , OpTok (Operator "*" (Span (SourceId 1) 13 14))
+                       , OtherTok
+                         (LiteralE (IntegerL 4 (Span (SourceId 1) 14 15))
+                                   (Span (SourceId 1) 14 15)
+                         )
+                       ]
+                       (Span (SourceId 1) 8 15)
+                     )
                    )
-      `shouldBe` (Right
+      `shouldBe` Right
                    (Just
                      (OpE
                        (BinOp
@@ -121,4 +124,3 @@ spec = do
                        (Span (SourceId 1) 8 15)
                      )
                    )
-                 )

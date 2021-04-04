@@ -127,4 +127,4 @@ spec = do
     `shouldBe` Right [MkToken (sn 0 4) $ StrTok "\"", eof]
   it "should fail on bad escape code"
     $          runExcept (scanTokens sid "\"\\^c\"")
-    `shouldBe` Left (lexErr 3 'c')
+    `shouldBe` Left (intoDiagnostics (lexErr 3 'c'))

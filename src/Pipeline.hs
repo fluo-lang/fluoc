@@ -8,20 +8,12 @@ import           Data.Map                       ( insert )
 import           Options.Applicative
 import           System.IO
 import           Control.Monad                  ( when )
-import           Control.Monad.Except           ( ExceptT(..)
-                                                , mapExceptT
-                                                )
 import           Control.Monad.State            ( liftIO
                                                 , get
                                                 , put
-                                                , lift
-                                                , StateT
                                                 )
-import           Control.Monad.Identity         ( runIdentity )
-import           Control.Arrow                  ( left )
 import           Syntax.PrettyPrint             ( PP(pp) )
 import           Data.Tree                      ( drawTree )
-
 import           Syntax.Ast                     ( Statement )
 import           Syntax.Rewrite                 ( rewrite )
 import           Syntax.Parser
@@ -30,9 +22,6 @@ import           Compiler                       ( Compiler(..)
                                                 , CompilerState(..)
                                                 , runCompiler
                                                 , try
-                                                )
-import           Errors.Diagnostics             ( Diagnostics(..)
-                                                , intoDiagnostics
                                                 )
 
 data Options = Options
@@ -88,6 +77,7 @@ pipeline = do
   sid      <- insertFile fname contents
   when (printAst args) $ pAst sid contents
   res <- compileModule sid contents
+  liftIO $ print res
   liftIO $ hClose handle
  where
   opts = info
@@ -98,8 +88,5 @@ pipeline = do
          "fluoc - the official fluo compiler <https://github.com/fluo-lang/fluoc>"
     )
 
-compileModule
-  :: SourceId
-  -> String
-  -> Compiler [Statement]
+compileModule :: SourceId -> String -> Compiler [Statement]
 compileModule = parseAndRewrite

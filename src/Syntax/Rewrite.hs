@@ -113,7 +113,6 @@ peek = do
 
 type NodeCons a = (Oped a -> Span -> a)
 
-
 newtype Break r m a = Break { unBreak :: ExceptT r m a }
     deriving
     ( Functor
@@ -167,9 +166,11 @@ exprBp sid cons minBp = do
     Just (OtherTok a ) -> return a
     Just (OpTok    op) -> do
       (_, preBp) <- prefixBp op
-      exprBp sid cons preBp
-    Nothing -> lift . lift . Left $ unexpectedEof sid
+      e          <- exprBp sid cons preBp
+      liftPratt . return $ cons (PreOp op e) $ bt op e
+    Nothing -> liftPratt . Left $ unexpectedEof sid
   execStateT (loop $ processMany sid cons minBp) lhs
+  where liftPratt = lift . lift
 
 prefixBp :: Operator -> PrattM a ((), Prec)
 prefixBp (Operator op s) = do
