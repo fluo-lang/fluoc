@@ -25,6 +25,9 @@ gap (Span sid _ e) (Span _ s _) = Span sid e s
 gap (Eof sid     ) _            = Eof sid
 gap _              (Eof sid)    = Eof sid
 
+gp :: (Spanned a, Spanned b) => a -> b -> Span
+gp t1 t2 = gap (getSpan t1) (getSpan t2)
+
 bt :: (Spanned a, Spanned b) => a -> b -> Span
 bt t1 t2 = btwn (getSpan t1) (getSpan t2)
 

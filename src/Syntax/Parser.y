@@ -65,6 +65,8 @@ import           Data.List                      ( intercalate )
     ':'                    { MkToken _ (OperatorTok ":") }
     '='                    { MkToken _ (OperatorTok "=") }
     '=>'                   { MkToken _ (OperatorTok "=>") }
+    '<'                    { MkToken _ (OperatorTok "<") }
+    '>'                    { MkToken _ (OperatorTok ">") }
     operator               { MkToken _ (OperatorTok _) }
     polymorphic_identifier { MkToken _ (PolyTok _) }
     end_of_file            { MkToken _ EofTok }
@@ -95,12 +97,16 @@ Statement : DecStatement  { $1 }
           | ImplStatement { $1 }
           | OpDef         { $1 }
 
-OpDef         : "opdef" '(' Operator ')' "binary" Associativity Integer { let (prec, span) = $7
-                                                                           in OpDefS $3 (Binary prec $6) $ btwn (getSpan $1) span }
-              | "opdef" '(' Operator ')' "prefix" Integer               { let (prec, span) = $6
-                                                                           in OpDefS $3 (Prefix prec) $ btwn (getSpan $1) span }
-              | "opdef" '(' Operator ')' "postfix" Integer              { let (prec, span) = $6
-                                                                           in OpDefS $3 (Postfix prec) $ btwn (getSpan $1) span }
+OpDef         : "opdef" OpDefOp "binary" Associativity Integer { let (prec, span) = $5
+                                                                  in OpDefS $2 (Binary prec $4) $ btwn (getSpan $1) span }
+              | "opdef" OpDefOp "prefix" Integer               { let (prec, span) = $4
+                                                                  in OpDefS $2 (Prefix prec) $ btwn (getSpan $1) span }
+              | "opdef" OpDefOp "postfix" Integer              { let (prec, span) = $4
+                                                                  in OpDefS $2 (Postfix prec) $ btwn (getSpan $1) span }
+
+OpDefOp       : '(' Operator ')'        { $2 }
+              | '(' '<' Ident '>' ')'   { case $3 of Ident i s -> Operator ("<" ++ i ++ ">") s }
+
 Associativity : "left"     { LeftA }
               | "right"    { RightA }
               | "nonassoc" { Nonassoc }
@@ -181,6 +187,8 @@ TupleExpr : TupleExpr ',' Expr    { ($3:$1) }
           | Expr ',' Expr         { [$3, $1] }
 
 Operator : operator {case $1 of (MkToken span (OperatorTok o)) -> Operator o span}
+         | '>'      {case $1 of (MkToken span (OperatorTok o)) -> Operator o span}
+         | '<'      {case $1 of (MkToken span (OperatorTok o)) -> Operator o span}
 
 Literal : string   { case $1 of (MkToken span (StrTok s)) -> StringL s span}
         | float    { case $1 of (MkToken span (FloatTok f)) -> FloatL f span}

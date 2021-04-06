@@ -25,10 +25,11 @@ import           Compiler                       ( Compiler(..)
                                                 )
 
 data Options = Options
-  { filename :: String
-  , output   :: String
-  , verbose  :: Bool
-  , printAst :: Bool
+  { filename           :: String
+  , output             :: String
+  , verbose            :: Bool
+  , printAst           :: Bool
+  , printBeforeRewrite :: Bool
   }
   deriving Show
 
@@ -50,16 +51,17 @@ options =
     <*> switch
           (long "print-ast" <> help "Print the abstract syntax tree of the file"
           )
+    <*> switch
+          (  long "no-rewrite"
+          <> help "Don't rewrite printed abstract syntax tree"
+          )
 
-parseAndRewrite :: SourceId -> String -> Compiler [Statement]
-parseAndRewrite sid source = do
+pAst :: Bool -> SourceId -> String -> Compiler ()
+pAst dontRewrite sid source = do
   ast <- try $ parseBlock sid source
-  try $ rewrite ast
-
-pAst :: SourceId -> String -> Compiler ()
-pAst sid source = do
-  ast <- parseAndRewrite sid source
-  liftIO . putStrLn . drawTree . pp $ ast
+  new <- if dontRewrite then return ast else try $ rewrite ast
+  liftIO . print $ new
+  liftIO . putStrLn . drawTree . pp $ new
 
 insertFile :: String -> String -> Compiler SourceId
 insertFile f source = do
@@ -75,7 +77,7 @@ pipeline = do
   handle   <- liftIO $ openFile fname ReadMode
   contents <- liftIO $ readFile fname
   sid      <- insertFile fname contents
-  when (printAst args) $ pAst sid contents
+  when (printAst args) $ pAst (printBeforeRewrite args) sid contents
   res <- compileModule sid contents
   liftIO $ print res
   liftIO $ hClose handle
@@ -89,4 +91,6 @@ pipeline = do
     )
 
 compileModule :: SourceId -> String -> Compiler [Statement]
-compileModule = parseAndRewrite
+compileModule sid source = do
+  ast <- try $ parseBlock sid source
+  try $ rewrite ast

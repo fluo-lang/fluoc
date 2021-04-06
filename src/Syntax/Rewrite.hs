@@ -10,10 +10,11 @@ import           Control.Monad                  ( when
                                                 )
 import           Control.Monad.Except           ( throwError
                                                 , liftEither
+                                                , catchError
                                                 )
-
 import           Control.Monad.State            ( StateT
                                                 , get
+                                                , gets
                                                 , put
                                                 , evalStateT
                                                 , execStateT
@@ -68,25 +69,22 @@ rewrite ss = do
   where rs = getOpRules ss
 
 rewriteExpr :: Rules -> Expr -> Failable (Maybe Expr)
-rewriteExpr rs (ExprList es (Span sid _ _)) = Just <$> fixPrec sid rs es OpE
-rewriteExpr _  _                            = return Nothing
+rewriteExpr rs (ExprList es _) = Just <$> fixPrec rs es OpE
+rewriteExpr _  _               = return Nothing
 
 rewriteType :: Rules -> Type -> Failable (Maybe Type)
-rewriteType rs (TypeList ts (Span sid _ _)) = Just <$> fixPrec sid rs ts OpType
-rewriteType _  _                            = return Nothing
+rewriteType rs (TypeList ts _) = Just <$> fixPrec rs ts OpType
+rewriteType _  _               = return Nothing
 
 fixPrec
   :: Spanned a
-  => SourceId
-  -> Rules                 -- Precedence Rules
+  => Rules                 -- Precedence Rules
   -> OpToks a              -- List of tokens
   -> (Oped a -> Span -> a) -- Construct an `a` from an operator and span
   -> Failable a            -- Produced `a`
-fixPrec sid rs toks cons =
-  liftEither $ evalStateT (runReaderT (exprBp sid cons 0) rs) toks
-
-unexpectedEof :: SourceId -> Diagnostics
-unexpectedEof sid = Diagnostics [Diagnostic Error SyntaxError [] (Eof sid) []]
+fixPrec rs toks cons = liftEither
+  $ evalStateT (runReaderT (exprBp s cons 0) rs) toks
+  where s = bt (head toks) (last toks)
 
 opInfoStr :: (a -> OpInfo) -> String
 opInfoStr cons = case cons undefined of
@@ -110,6 +108,9 @@ peek = do
     (t : _) -> do
       return $ Just t
     [] -> return Nothing
+
+sLen :: PrattM a Int
+sLen = gets length
 
 type NodeCons a = (Oped a -> Span -> a)
 
@@ -136,41 +137,67 @@ loop m = do
     Left  r -> return r
     Right r -> return r
 
+fnAppName :: String
+fnAppName = "<fnapp>"
+
+funcAppOp :: Span -> Operator
+funcAppOp = Operator fnAppName
+
 -- NOTE: This is extremely messy.
 -- Is there a way to make it more functional? Right now is very "imperative"
 processMany
   :: Spanned a
-  => SourceId
+  => Span
   -> NodeCons a
   -> Prec
   -> Break () (StateT a (PrattM a)) ()
-processMany sid cons minBp = do
-  t   <- lift . lift $ peek
-  lhs <- lift get
-  op  <- case t of
-    Nothing            -> quit ()
-    Just (OpTok    op) -> return op
-    Just (OtherTok a ) -> liftPratt . throwError $ unexpectedTok (getSpan a)
-  (lBp, rBp) <- liftPratt $ binaryBp op
-  when (lBp < minBp) $ quit ()
-  _   <- liftPratt next
-  rhs <- liftPratt $ exprBp sid cons rBp
-  lift . put $ cons (BinOp op lhs rhs) $ bt lhs rhs
-  return ()
+processMany s cons minBp = do
+  t              <- liftPratt peek
+  lhs            <- lift get
+  (breakOut, op) <- case t of
+    Nothing         -> quit ()
+    Just (OpTok op) -> do
+      return (True, op)
+    Just (OtherTok a) -> return (False, funcAppOp $ gp lhs a)
+  maybeLRBp <- liftPratt $ (Just <$> binaryBp op) `catchError` const
+    (return Nothing)
+  streamLen <- liftPratt sLen
+  case maybeLRBp of
+    Just (lBp, rBp) | (streamLen > 1) || (not breakOut && streamLen >= 1) -> do
+      when (lBp < minBp) $ quit ()
+      when breakOut $ () <$ liftPratt next
+      rhs <- liftPratt $ exprBp s cons rBp
+      lift . put $ cons (BinOp op lhs rhs) $ bt lhs rhs
+      return ()
+    _ -> do
+      (lBp, ()) <- liftPratt $ postfixBp op
+      when (lBp < minBp) $ quit ()
+      when breakOut $ () <$ liftPratt next
+      lift . put $ cons (PostOp op lhs) $ bt lhs op
   where liftPratt = lift . lift
 
-exprBp :: Spanned a => SourceId -> NodeCons a -> Prec -> PrattM a a
-exprBp sid cons minBp = do
+exprBp :: Spanned a => Span -> NodeCons a -> Prec -> PrattM a a
+exprBp s cons minBp = do
   t   <- next
   lhs <- case t of
     Just (OtherTok a ) -> return a
     Just (OpTok    op) -> do
       (_, preBp) <- prefixBp op
-      e          <- exprBp sid cons preBp
+      e          <- exprBp s cons preBp
       liftPratt . return $ cons (PreOp op e) $ bt op e
-    Nothing -> liftPratt . Left $ unexpectedEof sid
-  execStateT (loop $ processMany sid cons minBp) lhs
+    Nothing -> liftPratt . Left $ unexpectedEos s
+  execStateT (loop $ processMany s cons minBp) lhs
   where liftPratt = lift . lift
+
+postfixBp :: Operator -> PrattM a (Prec, ())
+postfixBp (Operator op s) = do
+  rs <- asks postfixOps
+  case M.lookup op rs of
+    Just bp -> return (bp, ())
+    Nothing -> throwError $ unknownOp
+      (opInfoStr Postfix ++ " or " ++ opInfoStr (Binary undefined))
+      s
+      op
 
 prefixBp :: Operator -> PrattM a ((), Prec)
 prefixBp (Operator op s) = do
@@ -205,3 +232,12 @@ unknownOp opTy s op = errorWithAnn
 unexpectedTok :: Span -> Diagnostics
 unexpectedTok s =
   errorWithAnn (Annotation s (Just $ printf "expected operator") Error) s
+
+unexpectedEos :: Span -> Diagnostics
+unexpectedEos s = errorWithAnn
+  (Annotation s' (Just "unexpected end of expression") Error)
+  s'
+ where
+  s' = case s of
+    Span sid _ e -> Span sid e (e + 1)
+    Eof _        -> s

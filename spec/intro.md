@@ -135,24 +135,26 @@ Custom Operators:
 ```haskell
 let (+) : a b = add a b;
 
--- Lower number means the operator binds tighter,
--- for example * is usually lower than +
-opdef (+) left binary 6
-opdef (-) left binary 6
+-- Lower number means the operator binds less tight,
+-- for example * is usually higher than +
+opdef (+) binary left 6
+opdef (-) binary left 6
 
--- These operators are right associative
-opdef (+) right prefix 3
-opdef (-) right prefix 3
+opdef (+) prefix 3
+opdef (-) prefix 3
 
 -- For example, a decrement operator
 -- Operators with one argument are always prefix
 -- Unless `postfix` is specified
 let (--) : a = sub a 1;
-opdef (--) left postfix 2
+opdef (--) postfix 2
 
-opdef (*) left binary 5
-opdef (/) left binary 5
+opdef (*) binary left 7
+opdef (/) binary left 7
 
 -- Concat operator
-opdef (~) left binary 4
+opdef (~) binary left 4
+
+-- Function application precedence
+opdef (<fnapp>) binary left 100   -- evil, destroy the world
 ```
