@@ -4,8 +4,8 @@ import           Data.Generics.Uniplate.Operations
 import           Syntax.Ast
 import           Errors.Diagnostics
 import           Sources
+import           Display
 import           Syntax.Rewrite                 ( fnAppName )
-import           Text.Printf                    ( printf )
 
 desugarBefore :: [Statement] -> Failable [Statement]
 desugarBefore ss = do
@@ -19,12 +19,9 @@ isRemove s = case s of
   OpDefS{} -> False
   _        -> True
 
-addFixivity :: String -> String -> String
-addFixivity = printf "`%s` (%s)"
-
 convertOperator :: Fixivity -> Operator -> Ident
 convertOperator fix (Operator op sp) = Ident converted sp
-  where converted = addFixivity op (show fix)
+  where converted = addFixivity op (display fix)
 
 rewriteStmt :: Statement -> Failable Statement
 rewriteStmt (DeclarationS (Declaration (OpId fix s) expr s') s'') =

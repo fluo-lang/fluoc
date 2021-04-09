@@ -1,5 +1,7 @@
 module Syntax.Token where
 
+import Display
+
 data TokenKind = IdentTok String
                | StrTok String
                | IntegerTok Integer
@@ -62,9 +64,6 @@ getStaticTok tok = case tok of
   OpDefTok       -> "opdef"
 
   _              -> error "Missing case, internal error. Token.hs: getStaticTok"
-
-class Display a where
-  display :: a -> String
 
 instance Display TokenKind where
   display tok = case tok of

@@ -7,16 +7,46 @@ import           Sources
 import           Data.Data                      ( Data
                                                 , Typeable
                                                 )
+import           Data.List                      ( intercalate )
 
 import           Data.Generics.Uniplate.Data    ( )
+import           Display
+import           Text.Printf                    ( printf )
+
+addFixivity :: String -> String -> String
+addFixivity = printf "`%s` (%s)"
 
 data Ident = Ident String Span
            | OpId Fixivity Operator
-           deriving (Eq, Show, Data, Typeable)
+           deriving (Show, Data, Typeable)
+instance Display Ident where
+  display (Ident i   _              ) = i
+  display (OpId  fix (Operator op _)) = addFixivity op $ display fix
+instance Eq Ident where
+  (Ident a _) == (Ident b  _) = a == b
+  (OpId  f a) == (OpId  f' b) = a == b && f == f'
+  _           == _            = False
+instance Ord Ident where
+  (Ident a _) `compare` (Ident b _) = a `compare` b
+  (OpId  f a) `compare` (OpId  g b) = (a, f) `compare` (b, g)
+  OpId{}      `compare` Ident{}     = GT
+  Ident{}     `compare` OpId{}      = LT
+
 data Operator = Operator String Span
-  deriving (Eq, Show, Data, Typeable)
+  deriving (Show, Data, Typeable)
+instance Eq Operator where
+  (Operator a _) == (Operator b _) = a == b
+instance Ord Operator where
+  (Operator a _) `compare` (Operator b _) = a `compare` b
+
 data Namespace = Namespace [Ident] Span
-  deriving (Eq, Show, Data, Typeable)
+  deriving (Show, Data, Typeable)
+instance Eq Namespace where
+  (Namespace a _) == (Namespace b _) = a == b
+instance Ord Namespace where
+  (Namespace a _) `compare` (Namespace b _) = a `compare` b
+instance Display Namespace where
+  display (Namespace a _) = intercalate "." $ display <$> a
 
 data Declaration = Declaration Ident Type Span
   deriving (Eq, Show, Data, Typeable)
@@ -34,12 +64,12 @@ data Associativity = LeftA
 data Fixivity = BinaryF
               | PrefixF
               | PostfixF
-              deriving (Eq, Data, Typeable)
+              deriving (Eq, Ord, Data, Typeable, Show)
 
-instance Show Fixivity where
-  show BinaryF  = "binary"
-  show PrefixF  = "prefix"
-  show PostfixF = "postfix"
+instance Display Fixivity where
+  display BinaryF  = "binary"
+  display PrefixF  = "prefix"
+  display PostfixF = "postfix"
 
 type Prec = Integer
 data OpInfo = Prefix Prec | Postfix Prec | Binary Prec Associativity

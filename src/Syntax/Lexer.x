@@ -11,6 +11,7 @@ import           Sources                        ( Span(..)
                                                 )
 import           Syntax.Token
 import           Errors.Diagnostics
+import           Display
 }
 
 %wrapper "posn"

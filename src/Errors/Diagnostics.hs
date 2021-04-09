@@ -21,18 +21,20 @@ dTyPriority Error   = 2
 dTyPriority Warning = 1
 dTyPriority Info    = 0
 
-data DiagnosticKind = UnexpectedCharacterError | SyntaxError
+data DiagnosticKind = UnexpectedCharacterError | SyntaxError | UnboundVariableError
   deriving (Eq)
 
 getId :: DiagnosticKind -> Int
 getId e = case e of
   UnexpectedCharacterError -> 0
   SyntaxError              -> 1
+  UnboundVariableError     -> 2
 
 instance Show DiagnosticKind where
   show e = case e of
-    UnexpectedCharacterError -> "unexpected character"
+    UnexpectedCharacterError -> "unexpected character error"
     SyntaxError              -> "syntax error"
+    UnboundVariableError     -> "unbound variable error"
 
 data Annotation = Annotation
   { aSpan    :: Span

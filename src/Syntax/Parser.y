@@ -8,6 +8,7 @@ import           Syntax.Lexer
 
 import           Errors.Diagnostics
 import           Sources
+import           Display
 
 import           Control.Monad.Except
 import           Data.List                      ( intercalate )
