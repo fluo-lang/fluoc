@@ -9,8 +9,8 @@ class SS a where
   ss :: a -> String
 
 instance SS Ident where
-  ss (Ident s _) = "ident: " ++ s
-  ss (OpId op  ) = ss op
+  ss (Ident s _ ) = "ident: " ++ s
+  ss (OpId  _ op) = ss op
 
 instance SS PolyIdent where
   ss (PolyIdent s _) = "polymorphic identifier: " ++ s
@@ -90,6 +90,7 @@ instance PP Expr where
   pp (VariableE ns _  ) = Node ("variable: " ++ ss ns) []
   pp (LambdaE ps e   _) = Node "lambda" $ (pp <$> ps) ++ [pp e]
   pp (MatchE  e  mbs _) = Node "match" $ pp e : (pp <$> mbs)
+  pp (FnAppE  a  b   _) = Node "fn app" [pp a, pp b]
 
 instance PP MatchBranch where
   pp (MatchBranch p e _) = Node "match branch" [pp p, pp e]

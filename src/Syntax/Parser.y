@@ -67,20 +67,17 @@ import           Data.List                      ( intercalate )
     '=>'                   { MkToken _ (OperatorTok "=>") }
     '<'                    { MkToken _ (OperatorTok "<") }
     '>'                    { MkToken _ (OperatorTok ">") }
+    '@'                    { MkToken _ (OperatorTok "@") }
+    '??'                    { MkToken _ (OperatorTok "??") }
     operator               { MkToken _ (OperatorTok _) }
     polymorphic_identifier { MkToken _ (PolyTok _) }
     end_of_file            { MkToken _ EofTok }
 
 %right "in" "let" "if" "assign" "match" backslash "impl" "trait" "rec" "dec" "opdef"
 %nonassoc PREOP POSTOP
-%left '=>' TYPEOP
-%nonassoc string float integer '(' identifier polymorphic_identifier "left" "right" "nonassoc" "prefix" "postfix" "binary"
-%nonassoc VARIANT
-%nonassoc OPPAT
+%left TYPEOP
+%nonassoc string float integer '(' identifier polymorphic_identifier "left" "right" "nonassoc" "prefix" "postfix" "binary" '??'
 %left operator
-%nonassoc OPEXPR
-%nonassoc FUNAPP
-%nonassoc TYPEAPP
 %nonassoc EOF
 
 %%
@@ -220,7 +217,9 @@ TupleType     : TupleType ',' Type              { ($3:$1) }
               | Type ',' Type                   { [$3, $1] }
 
 Ident          : identifier                { mkIdent $1 }
-               | '(' Operator ')'          { OpId $2 }
+               | '(' Operator ')'          { OpId BinaryF $2 }
+               | '??' '(' Operator ')'     { OpId PrefixF $3 }
+               | '(' Operator ')' '??'     { OpId PostfixF $2 }
                | "left"                    { mkIdent $1 }
                | "right"                   { mkIdent $1 }
                | "prefix"                  { mkIdent $1 }

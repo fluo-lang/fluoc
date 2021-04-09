@@ -11,7 +11,7 @@ import           Data.Data                      ( Data
 import           Data.Generics.Uniplate.Data    ( )
 
 data Ident = Ident String Span
-           | OpId Operator
+           | OpId Fixivity Operator
            deriving (Eq, Show, Data, Typeable)
 data Operator = Operator String Span
   deriving (Eq, Show, Data, Typeable)
@@ -30,6 +30,16 @@ data Associativity = LeftA
                    | RightA
                    | Nonassoc
                    deriving (Eq, Show, Data, Typeable)
+
+data Fixivity = BinaryF
+              | PrefixF
+              | PostfixF
+              deriving (Eq, Data, Typeable)
+
+instance Show Fixivity where
+  show BinaryF  = "binary"
+  show PrefixF  = "prefix"
+  show PostfixF = "postfix"
 
 type Prec = Integer
 data OpInfo = Prefix Prec | Postfix Prec | Binary Prec Associativity
@@ -80,7 +90,11 @@ data Expr = LiteralE Literal Span
           | VariableE Namespace Span
           | LambdaE [Pattern] Expr Span
           | MatchE Expr [MatchBranch] Span
+          | FnAppE Expr Expr Span
           deriving (Show, Eq, Data, Typeable)
+
+id2ns :: Ident -> Namespace
+id2ns i = Namespace [i] s where s = getSpan i
 
 data MatchBranch = MatchBranch Pattern Expr Span
   deriving (Eq, Show, Data, Typeable)
@@ -92,7 +106,7 @@ data Oped a = BinOp Operator a a
 
 instance Spanned Ident where
   getSpan (Ident _ s) = s
-  getSpan (OpId o   ) = getSpan o
+  getSpan (OpId  _ o) = getSpan o
 
 instance Spanned Operator where
   getSpan (Operator _ s) = s
@@ -151,3 +165,4 @@ instance Spanned Expr where
   getSpan (LambdaE _ _ s) = s
   getSpan (MatchE  _ _ s) = s
   getSpan (ExprList _ s ) = s
+  getSpan (FnAppE _ _ s ) = s

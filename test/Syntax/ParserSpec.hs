@@ -38,18 +38,12 @@ spec = do
 \opdef (--) postfix 2\
 \opdef (/) binary left 5"
       `shouldBe` Right
-                   [ OpDefS (Operator "^" (Span (SourceId 0) 7 8))
-                            (Binary 6 RightA)
-                            (Span (SourceId 0) 0 24)
-                   , OpDefS (Operator "-" (Span (SourceId 0) 31 32))
-                            (Prefix 3)
-                            (Span (SourceId 0) 24 42)
-                   , OpDefS (Operator "--" (Span (SourceId 0) 49 51))
-                            (Postfix 2)
-                            (Span (SourceId 0) 42 62)
-                   , OpDefS (Operator "/" (Span (SourceId 0) 69 70))
+                   [ OpDefS (Operator "^" (sn 7 8)) (Binary 6 RightA) (sn 0 24)
+                   , OpDefS (Operator "-" (sn 31 32)) (Prefix 3) (sn 24 42)
+                   , OpDefS (Operator "--" (sn 49 51)) (Postfix 2) (sn 42 62)
+                   , OpDefS (Operator "/" (sn 69 70))
                             (Binary 5 LeftA)
-                            (Span (SourceId 0) 62 85)
+                            (sn 62 85)
                    ]
     it "should parse a record with multiple sums"
       $          parseBlock
@@ -57,80 +51,62 @@ spec = do
                    "rec Point = Point2D Int Int | Point3D Int Int Int | PointN { dec dims : Int dec values : List Int } "
       `shouldBe` Right
                    [ RecordS
-                       (Ident "Point" (Span (SourceId 0) 4 9))
+                       (Ident "Point" (sn 4 9))
                        []
                        [ Product
-                         (Ident "Point2D" (Span (SourceId 0) 12 19))
+                         (Ident "Point2D" (sn 12 19))
                          [ NamespaceType
-                           (Namespace [Ident "Int" (Span (SourceId 0) 20 23)]
-                                      (Span (SourceId 0) 20 23)
-                           )
-                           (Span (SourceId 0) 20 23)
+                           (Namespace [Ident "Int" (sn 20 23)] (sn 20 23))
+                           (sn 20 23)
                          , NamespaceType
-                           (Namespace [Ident "Int" (Span (SourceId 0) 24 27)]
-                                      (Span (SourceId 0) 24 27)
-                           )
-                           (Span (SourceId 0) 24 27)
+                           (Namespace [Ident "Int" (sn 24 27)] (sn 24 27))
+                           (sn 24 27)
                          ]
-                         (Span (SourceId 0) 12 27)
+                         (sn 12 27)
                        , Product
-                         (Ident "Point3D" (Span (SourceId 0) 30 37))
+                         (Ident "Point3D" (sn 30 37))
                          [ NamespaceType
-                           (Namespace [Ident "Int" (Span (SourceId 0) 38 41)]
-                                      (Span (SourceId 0) 38 41)
-                           )
-                           (Span (SourceId 0) 38 41)
+                           (Namespace [Ident "Int" (sn 38 41)] (sn 38 41))
+                           (sn 38 41)
                          , NamespaceType
-                           (Namespace [Ident "Int" (Span (SourceId 0) 42 45)]
-                                      (Span (SourceId 0) 42 45)
-                           )
-                           (Span (SourceId 0) 42 45)
+                           (Namespace [Ident "Int" (sn 42 45)] (sn 42 45))
+                           (sn 42 45)
                          , NamespaceType
-                           (Namespace [Ident "Int" (Span (SourceId 0) 46 49)]
-                                      (Span (SourceId 0) 46 49)
-                           )
-                           (Span (SourceId 0) 46 49)
+                           (Namespace [Ident "Int" (sn 46 49)] (sn 46 49))
+                           (sn 46 49)
                          ]
-                         (Span (SourceId 0) 30 49)
+                         (sn 30 49)
                        , NamedProduct
-                         (Ident "PointN" (Span (SourceId 0) 52 58))
+                         (Ident "PointN" (sn 52 58))
                          [ Declaration
-                           (Ident "dims" (Span (SourceId 0) 65 69))
+                           (Ident "dims" (sn 65 69))
                            (NamespaceType
-                             (Namespace
-                               [Ident "Int" (Span (SourceId 0) 72 75)]
-                               (Span (SourceId 0) 72 75)
-                             )
-                             (Span (SourceId 0) 72 75)
+                             (Namespace [Ident "Int" (sn 72 75)] (sn 72 75))
+                             (sn 72 75)
                            )
-                           (Span (SourceId 0) 61 75)
+                           (sn 61 75)
                          , Declaration
-                           (Ident "values" (Span (SourceId 0) 80 86))
+                           (Ident "values" (sn 80 86))
                            (TypeList
                              [ OtherTok
                                (NamespaceType
-                                 (Namespace
-                                   [Ident "List" (Span (SourceId 0) 89 93)]
-                                   (Span (SourceId 0) 89 93)
+                                 (Namespace [Ident "List" (sn 89 93)] (sn 89 93)
                                  )
-                                 (Span (SourceId 0) 89 93)
+                                 (sn 89 93)
                                )
                              , OtherTok
                                (NamespaceType
-                                 (Namespace
-                                   [Ident "Int" (Span (SourceId 0) 94 97)]
-                                   (Span (SourceId 0) 94 97)
-                                 )
-                                 (Span (SourceId 0) 94 97)
+                                 (Namespace [Ident "Int" (sn 94 97)] (sn 94 97))
+                                 (sn 94 97)
                                )
                              ]
-                             (Span (SourceId 0) 89 97)
+                             (sn 89 97)
                            )
-                           (Span (SourceId 0) 76 97)
+                           (sn 76 97)
                          ]
-                         (Span (SourceId 0) 52 99)
+                         (sn 52 99)
                        ]
-                       (Span (SourceId 0) 0 99)
+                       (sn 0 99)
                    ]
     it "should parse a record with multiple fields"
       $          parseBlock sid "rec Point = Point Int Bool Int"
@@ -158,40 +134,31 @@ spec = do
       $          parseBlock sid "rec Point = Point (Int -> Int) Int"
       `shouldBe` Right
                    [ RecordS
-                       (Ident "Point" (Span (SourceId 0) 4 9))
+                       (Ident "Point" (sn 4 9))
                        []
                        [ Product
-                           (Ident "Point" (Span (SourceId 0) 12 17))
+                           (Ident "Point" (sn 12 17))
                            [ TypeList
                              [ OtherTok
                                (NamespaceType
-                                 (Namespace
-                                   [Ident "Int" (Span (SourceId 0) 19 22)]
-                                   (Span (SourceId 0) 19 22)
-                                 )
-                                 (Span (SourceId 0) 19 22)
+                                 (Namespace [Ident "Int" (sn 19 22)] (sn 19 22))
+                                 (sn 19 22)
                                )
-                             , OpTok (Operator "->" (Span (SourceId 0) 23 25))
+                             , OpTok (Operator "->" (sn 23 25))
                              , OtherTok
                                (NamespaceType
-                                 (Namespace
-                                   [Ident "Int" (Span (SourceId 0) 26 29)]
-                                   (Span (SourceId 0) 26 29)
-                                 )
-                                 (Span (SourceId 0) 26 29)
+                                 (Namespace [Ident "Int" (sn 26 29)] (sn 26 29))
+                                 (sn 26 29)
                                )
                              ]
-                             (Span (SourceId 0) 19 29)
+                             (sn 19 29)
                            , NamespaceType
-                             (Namespace
-                               [Ident "Int" (Span (SourceId 0) 31 34)]
-                               (Span (SourceId 0) 31 34)
-                             )
-                             (Span (SourceId 0) 31 34)
+                             (Namespace [Ident "Int" (sn 31 34)] (sn 31 34))
+                             (sn 31 34)
                            ]
-                           (Span (SourceId 0) 12 34)
+                           (sn 12 34)
                        ]
-                       (Span (SourceId 0) 0 34)
+                       (sn 0 34)
                    ]
     it "should parse multiple lets"
       $          parseBlock sid "let a = 10, b = 20 let c = 10"
@@ -199,92 +166,117 @@ spec = do
                    [ BindingS
                      [ Binding
                        Nothing
-                       [ VariableE
-                           (Namespace [Ident "a" (Span (SourceId 0) 4 5)]
-                                      (Span (SourceId 0) 4 5)
-                           )
-                           (Span (SourceId 0) 4 5)
+                       [ VariableE (Namespace [Ident "a" (sn 4 5)] (sn 4 5))
+                                   (sn 4 5)
                        ]
-                       (LiteralE (IntegerL 10 (Span (SourceId 0) 8 10))
-                                 (Span (SourceId 0) 8 10)
-                       )
-                       (Span (SourceId 0) 4 10)
+                       (LiteralE (IntegerL 10 (sn 8 10)) (sn 8 10))
+                       (sn 4 10)
                      , Binding
                        Nothing
                        [ VariableE
-                           (Namespace [Ident "b" (Span (SourceId 0) 12 13)]
-                                      (Span (SourceId 0) 12 13)
-                           )
-                           (Span (SourceId 0) 12 13)
+                           (Namespace [Ident "b" (sn 12 13)] (sn 12 13))
+                           (sn 12 13)
                        ]
-                       (LiteralE (IntegerL 20 (Span (SourceId 0) 16 18))
-                                 (Span (SourceId 0) 16 18)
-                       )
-                       (Span (SourceId 0) 12 18)
+                       (LiteralE (IntegerL 20 (sn 16 18)) (sn 16 18))
+                       (sn 12 18)
                      ]
-                     (Span (SourceId 0) 0 18)
+                     (sn 0 18)
                    , BindingS
                      [ Binding
                          Nothing
                          [ VariableE
-                             (Namespace [Ident "c" (Span (SourceId 0) 23 24)]
-                                        (Span (SourceId 0) 23 24)
-                             )
-                             (Span (SourceId 0) 23 24)
+                             (Namespace [Ident "c" (sn 23 24)] (sn 23 24))
+                             (sn 23 24)
                          ]
-                         (LiteralE (IntegerL 10 (Span (SourceId 0) 27 29))
-                                   (Span (SourceId 0) 27 29)
-                         )
-                         (Span (SourceId 0) 23 29)
+                         (LiteralE (IntegerL 10 (sn 27 29)) (sn 27 29))
+                         (sn 23 29)
                      ]
-                     (Span (SourceId 0) 19 29)
+                     (sn 19 29)
+                   ]
+    it "should parse a prefix and postfix operators"
+      $          parseBlock sid "dec ??(?) : Int -> Int\ndec (?)?? : Int -> Int"
+      `shouldBe` Right
+                   [ DeclarationS
+                     (Declaration
+                       (OpId PrefixF (Operator "?" (sn 7 8)))
+                       (TypeList
+                         [ OtherTok
+                           (NamespaceType
+                             (Namespace [Ident "Int" (sn 12 15)] (sn 12 15))
+                             (sn 12 15)
+                           )
+                         , OpTok (Operator "->" (sn 16 18))
+                         , OtherTok
+                           (NamespaceType
+                             (Namespace [Ident "Int" (sn 19 22)] (sn 19 22))
+                             (sn 19 22)
+                           )
+                         ]
+                         (sn 12 22)
+                       )
+                       (sn 0 22)
+                     )
+                     (sn 0 22)
+                   , DeclarationS
+                     (Declaration
+                       (OpId PostfixF (Operator "?" (sn 28 29)))
+                       (TypeList
+                         [ OtherTok
+                           (NamespaceType
+                             (Namespace [Ident "Int" (sn 35 38)] (sn 35 38))
+                             (sn 35 38)
+                           )
+                         , OpTok (Operator "->" (sn 39 41))
+                         , OtherTok
+                           (NamespaceType
+                             (Namespace [Ident "Int" (sn 42 45)] (sn 42 45))
+                             (sn 42 45)
+                           )
+                         ]
+                         (sn 35 45)
+                       )
+                       (sn 23 45)
+                     )
+                     (sn 23 45)
                    ]
     it "should parse a unary operator"
       $          parseBlock sid "dec (?) : Int -> Int"
       `shouldBe` Right
                    [ DeclarationS
                        (Declaration
-                         (OpId (Operator "?" (Span (SourceId 0) 5 6)))
+                         (OpId BinaryF (Operator "?" (sn 5 6)))
                          (TypeList
                            [ OtherTok
                              (NamespaceType
-                               (Namespace
-                                 [Ident "Int" (Span (SourceId 0) 10 13)]
-                                 (Span (SourceId 0) 10 13)
-                               )
-                               (Span (SourceId 0) 10 13)
+                               (Namespace [Ident "Int" (sn 10 13)] (sn 10 13))
+                               (sn 10 13)
                              )
-                           , OpTok (Operator "->" (Span (SourceId 0) 14 16))
+                           , OpTok (Operator "->" (sn 14 16))
                            , OtherTok
                              (NamespaceType
-                               (Namespace
-                                 [Ident "Int" (Span (SourceId 0) 17 20)]
-                                 (Span (SourceId 0) 17 20)
-                               )
-                               (Span (SourceId 0) 17 20)
+                               (Namespace [Ident "Int" (sn 17 20)] (sn 17 20))
+                               (sn 17 20)
                              )
                            ]
-                           (Span (SourceId 0) 10 20)
+                           (sn 10 20)
                          )
-                         (Span (SourceId 0) 0 20)
+                         (sn 0 20)
                        )
-                       (Span (SourceId 0) 0 20)
+                       (sn 0 20)
                    ]
     it "should parse a simple declaration"
       $          parseBlock sid "dec fold' : Int"
       `shouldBe` Right
                    [ DeclarationS
                        (Declaration
-                         (Ident "fold'" (Span (SourceId 0) 4 9))
+                         (Ident "fold'" (sn 4 9))
                          (NamespaceType
-                           (Namespace [Ident "Int" (Span (SourceId 0) 12 15)]
-                                      (Span (SourceId 0) 12 15)
-                           )
-                           (Span (SourceId 0) 12 15)
+                           (Namespace [Ident "Int" (sn 12 15)] (sn 12 15))
+                           (sn 12 15)
                          )
-                         (Span (SourceId 0) 0 15)
+                         (sn 0 15)
                        )
-                       (Span (SourceId 0) 0 15)
+                       (sn 0 15)
                    ]
     it "should parse a let with multiple clauses"
       $          parseBlock
@@ -294,111 +286,85 @@ spec = do
       `shouldBe` Right
                    [ BindingS
                        [ Binding
-                         (Just (Ident "map" (Span (SourceId 0) 4 7)))
+                         (Just (Ident "map" (sn 4 7)))
                          [ VariableE
-                           (Namespace [Ident "f" (Span (SourceId 0) 10 11)]
-                                      (Span (SourceId 0) 10 11)
-                           )
-                           (Span (SourceId 0) 10 11)
+                           (Namespace [Ident "f" (sn 10 11)] (sn 10 11))
+                           (sn 10 11)
                          , VariableE
-                           (Namespace [Ident "a" (Span (SourceId 0) 12 13)]
-                                      (Span (SourceId 0) 12 13)
-                           )
-                           (Span (SourceId 0) 12 13)
+                           (Namespace [Ident "a" (sn 12 13)] (sn 12 13))
+                           (sn 12 13)
                          ]
                          (VariableE
-                           (Namespace [Ident "a" (Span (SourceId 0) 16 17)]
-                                      (Span (SourceId 0) 16 17)
-                           )
-                           (Span (SourceId 0) 16 17)
+                           (Namespace [Ident "a" (sn 16 17)] (sn 16 17))
+                           (sn 16 17)
                          )
-                         (Span (SourceId 0) 4 17)
+                         (sn 4 17)
                        , Binding
-                         (Just (Ident "map" (Span (SourceId 0) 23 26)))
+                         (Just (Ident "map" (sn 23 26)))
                          [ VariableE
-                           (Namespace [Ident "f" (Span (SourceId 0) 29 30)]
-                                      (Span (SourceId 0) 29 30)
-                           )
-                           (Span (SourceId 0) 29 30)
+                           (Namespace [Ident "f" (sn 29 30)] (sn 29 30))
+                           (sn 29 30)
                          , ExprList
                            [ OtherTok
                              (VariableE
-                               (Namespace
-                                 [Ident "x" (Span (SourceId 0) 32 33)]
-                                 (Span (SourceId 0) 32 33)
-                               )
-                               (Span (SourceId 0) 32 33)
+                               (Namespace [Ident "x" (sn 32 33)] (sn 32 33))
+                               (sn 32 33)
                              )
-                           , OpTok (Operator "~" (Span (SourceId 0) 33 34))
+                           , OpTok (Operator "~" (sn 33 34))
                            , OtherTok
                              (VariableE
-                               (Namespace
-                                 [Ident "xs" (Span (SourceId 0) 34 36)]
-                                 (Span (SourceId 0) 34 36)
-                               )
-                               (Span (SourceId 0) 34 36)
+                               (Namespace [Ident "xs" (sn 34 36)] (sn 34 36))
+                               (sn 34 36)
                              )
                            ]
-                           (Span (SourceId 0) 32 36)
+                           (sn 32 36)
                          ]
                          (ExprList
                            [ OtherTok
                              (ExprList
                                [ OtherTok
                                  (VariableE
-                                   (Namespace
-                                     [Ident "f" (Span (SourceId 0) 41 42)]
-                                     (Span (SourceId 0) 41 42)
-                                   )
-                                   (Span (SourceId 0) 41 42)
+                                   (Namespace [Ident "f" (sn 41 42)] (sn 41 42))
+                                   (sn 41 42)
                                  )
                                , OtherTok
                                  (VariableE
-                                   (Namespace
-                                     [Ident "x" (Span (SourceId 0) 43 44)]
-                                     (Span (SourceId 0) 43 44)
-                                   )
-                                   (Span (SourceId 0) 43 44)
+                                   (Namespace [Ident "x" (sn 43 44)] (sn 43 44))
+                                   (sn 43 44)
                                  )
                                ]
-                               (Span (SourceId 0) 41 44)
+                               (sn 41 44)
                              )
-                           , OpTok (Operator "~" (Span (SourceId 0) 46 47))
+                           , OpTok (Operator "~" (sn 46 47))
                            , OtherTok
                              (ExprList
                                [ OtherTok
                                  (VariableE
-                                   (Namespace
-                                     [Ident "map" (Span (SourceId 0) 49 52)]
-                                     (Span (SourceId 0) 49 52)
+                                   (Namespace [Ident "map" (sn 49 52)]
+                                              (sn 49 52)
                                    )
-                                   (Span (SourceId 0) 49 52)
+                                   (sn 49 52)
                                  )
                                , OtherTok
                                  (VariableE
-                                   (Namespace
-                                     [Ident "f" (Span (SourceId 0) 53 54)]
-                                     (Span (SourceId 0) 53 54)
-                                   )
-                                   (Span (SourceId 0) 53 54)
+                                   (Namespace [Ident "f" (sn 53 54)] (sn 53 54))
+                                   (sn 53 54)
                                  )
                                , OtherTok
                                  (VariableE
-                                   (Namespace
-                                     [Ident "xs" (Span (SourceId 0) 55 57)]
-                                     (Span (SourceId 0) 55 57)
+                                   (Namespace [Ident "xs" (sn 55 57)] (sn 55 57)
                                    )
-                                   (Span (SourceId 0) 55 57)
+                                   (sn 55 57)
                                  )
                                ]
-                               (Span (SourceId 0) 49 57)
+                               (sn 49 57)
                              )
                            ]
-                           (Span (SourceId 0) 41 57)
+                           (sn 41 57)
                          )
-                         (Span (SourceId 0) 23 57)
+                         (sn 23 57)
                        ]
-                       (Span (SourceId 0) 0 57)
+                       (sn 0 57)
                    ]
   describe "Syntax.Parser.parseType" $ do
     it "should parse an empty tuple" $ parseType sid "()" `shouldBe` Right
@@ -457,29 +423,23 @@ spec = do
                    (TypeList
                      [ OtherTok
                        (NamespaceType
-                         (Namespace [Ident "String" (Span (SourceId 0) 0 6)]
-                                    (Span (SourceId 0) 0 6)
-                         )
-                         (Span (SourceId 0) 0 6)
+                         (Namespace [Ident "String" (sn 0 6)] (sn 0 6))
+                         (sn 0 6)
                        )
-                     , OpTok (Operator "->" (Span (SourceId 0) 7 9))
+                     , OpTok (Operator "->" (sn 7 9))
                      , OtherTok
                        (NamespaceType
-                         (Namespace [Ident "Int" (Span (SourceId 0) 10 13)]
-                                    (Span (SourceId 0) 10 13)
-                         )
-                         (Span (SourceId 0) 10 13)
+                         (Namespace [Ident "Int" (sn 10 13)] (sn 10 13))
+                         (sn 10 13)
                        )
-                     , OpTok (Operator "->" (Span (SourceId 0) 14 16))
+                     , OpTok (Operator "->" (sn 14 16))
                      , OtherTok
                        (NamespaceType
-                         (Namespace [Ident "Bool" (Span (SourceId 0) 17 21)]
-                                    (Span (SourceId 0) 17 21)
-                         )
-                         (Span (SourceId 0) 17 21)
+                         (Namespace [Ident "Bool" (sn 17 21)] (sn 17 21))
+                         (sn 17 21)
                        )
                      ]
-                     (Span (SourceId 0) 0 21)
+                     (sn 0 21)
                    )
     it "should parse a type application"
       $          parseType sid "Option Int Float"
@@ -487,27 +447,21 @@ spec = do
                    (TypeList
                      [ OtherTok
                        (NamespaceType
-                         (Namespace [Ident "Option" (Span (SourceId 0) 0 6)]
-                                    (Span (SourceId 0) 0 6)
-                         )
-                         (Span (SourceId 0) 0 6)
+                         (Namespace [Ident "Option" (sn 0 6)] (sn 0 6))
+                         (sn 0 6)
                        )
                      , OtherTok
                        (NamespaceType
-                         (Namespace [Ident "Int" (Span (SourceId 0) 7 10)]
-                                    (Span (SourceId 0) 7 10)
-                         )
-                         (Span (SourceId 0) 7 10)
+                         (Namespace [Ident "Int" (sn 7 10)] (sn 7 10))
+                         (sn 7 10)
                        )
                      , OtherTok
                        (NamespaceType
-                         (Namespace [Ident "Float" (Span (SourceId 0) 11 16)]
-                                    (Span (SourceId 0) 11 16)
-                         )
-                         (Span (SourceId 0) 11 16)
+                         (Namespace [Ident "Float" (sn 11 16)] (sn 11 16))
+                         (sn 11 16)
                        )
                      ]
-                     (Span (SourceId 0) 0 16)
+                     (sn 0 16)
                    )
     it "should parse a type application with parens"
       $          parseType sid "Option (Int Float)"
@@ -515,33 +469,26 @@ spec = do
                    (TypeList
                      [ OtherTok
                        (NamespaceType
-                         (Namespace [Ident "Option" (Span (SourceId 0) 0 6)]
-                                    (Span (SourceId 0) 0 6)
-                         )
-                         (Span (SourceId 0) 0 6)
+                         (Namespace [Ident "Option" (sn 0 6)] (sn 0 6))
+                         (sn 0 6)
                        )
                      , OtherTok
                        (TypeList
                          [ OtherTok
                            (NamespaceType
-                             (Namespace [Ident "Int" (Span (SourceId 0) 8 11)]
-                                        (Span (SourceId 0) 8 11)
-                             )
-                             (Span (SourceId 0) 8 11)
+                             (Namespace [Ident "Int" (sn 8 11)] (sn 8 11))
+                             (sn 8 11)
                            )
                          , OtherTok
                            (NamespaceType
-                             (Namespace
-                               [Ident "Float" (Span (SourceId 0) 12 17)]
-                               (Span (SourceId 0) 12 17)
-                             )
-                             (Span (SourceId 0) 12 17)
+                             (Namespace [Ident "Float" (sn 12 17)] (sn 12 17))
+                             (sn 12 17)
                            )
                          ]
-                         (Span (SourceId 0) 8 17)
+                         (sn 8 17)
                        )
                      ]
-                     (Span (SourceId 0) 0 17)
+                     (sn 0 17)
                    )
     it "should parse a function type with applications"
       $          parseType sid "Option Int -> Int"
@@ -549,28 +496,22 @@ spec = do
                    (TypeList
                      [ OtherTok
                        (NamespaceType
-                         (Namespace [Ident "Option" (Span (SourceId 0) 0 6)]
-                                    (Span (SourceId 0) 0 6)
-                         )
-                         (Span (SourceId 0) 0 6)
+                         (Namespace [Ident "Option" (sn 0 6)] (sn 0 6))
+                         (sn 0 6)
                        )
                      , OtherTok
                        (NamespaceType
-                         (Namespace [Ident "Int" (Span (SourceId 0) 7 10)]
-                                    (Span (SourceId 0) 7 10)
-                         )
-                         (Span (SourceId 0) 7 10)
+                         (Namespace [Ident "Int" (sn 7 10)] (sn 7 10))
+                         (sn 7 10)
                        )
-                     , OpTok (Operator "->" (Span (SourceId 0) 11 13))
+                     , OpTok (Operator "->" (sn 11 13))
                      , OtherTok
                        (NamespaceType
-                         (Namespace [Ident "Int" (Span (SourceId 0) 14 17)]
-                                    (Span (SourceId 0) 14 17)
-                         )
-                         (Span (SourceId 0) 14 17)
+                         (Namespace [Ident "Int" (sn 14 17)] (sn 14 17))
+                         (sn 14 17)
                        )
                      ]
-                     (Span (SourceId 0) 0 17)
+                     (sn 0 17)
                    )
     it "should parse a function type with parens"
       $          parseType sid "Option (Int -> Int)"
@@ -578,34 +519,27 @@ spec = do
                    (TypeList
                      [ OtherTok
                        (NamespaceType
-                         (Namespace [Ident "Option" (Span (SourceId 0) 0 6)]
-                                    (Span (SourceId 0) 0 6)
-                         )
-                         (Span (SourceId 0) 0 6)
+                         (Namespace [Ident "Option" (sn 0 6)] (sn 0 6))
+                         (sn 0 6)
                        )
                      , OtherTok
                        (TypeList
                          [ OtherTok
                            (NamespaceType
-                             (Namespace [Ident "Int" (Span (SourceId 0) 8 11)]
-                                        (Span (SourceId 0) 8 11)
-                             )
-                             (Span (SourceId 0) 8 11)
+                             (Namespace [Ident "Int" (sn 8 11)] (sn 8 11))
+                             (sn 8 11)
                            )
-                         , OpTok (Operator "->" (Span (SourceId 0) 12 14))
+                         , OpTok (Operator "->" (sn 12 14))
                          , OtherTok
                            (NamespaceType
-                             (Namespace
-                               [Ident "Int" (Span (SourceId 0) 15 18)]
-                               (Span (SourceId 0) 15 18)
-                             )
-                             (Span (SourceId 0) 15 18)
+                             (Namespace [Ident "Int" (sn 15 18)] (sn 15 18))
+                             (sn 15 18)
                            )
                          ]
-                         (Span (SourceId 0) 8 18)
+                         (sn 8 18)
                        )
                      ]
-                     (Span (SourceId 0) 0 18)
+                     (sn 0 18)
                    )
     it "should parse a more complex type"
       $ parseType sid "Option (Int -> Int) -> (Option Int -> Int) -> Int -> Int"
@@ -613,81 +547,61 @@ spec = do
                    (TypeList
                      [ OtherTok
                        (NamespaceType
-                         (Namespace [Ident "Option" (Span (SourceId 0) 0 6)]
-                                    (Span (SourceId 0) 0 6)
-                         )
-                         (Span (SourceId 0) 0 6)
+                         (Namespace [Ident "Option" (sn 0 6)] (sn 0 6))
+                         (sn 0 6)
                        )
                      , OtherTok
                        (TypeList
                          [ OtherTok
                            (NamespaceType
-                             (Namespace [Ident "Int" (Span (SourceId 0) 8 11)]
-                                        (Span (SourceId 0) 8 11)
-                             )
-                             (Span (SourceId 0) 8 11)
+                             (Namespace [Ident "Int" (sn 8 11)] (sn 8 11))
+                             (sn 8 11)
                            )
-                         , OpTok (Operator "->" (Span (SourceId 0) 12 14))
+                         , OpTok (Operator "->" (sn 12 14))
                          , OtherTok
                            (NamespaceType
-                             (Namespace
-                               [Ident "Int" (Span (SourceId 0) 15 18)]
-                               (Span (SourceId 0) 15 18)
-                             )
-                             (Span (SourceId 0) 15 18)
+                             (Namespace [Ident "Int" (sn 15 18)] (sn 15 18))
+                             (sn 15 18)
                            )
                          ]
-                         (Span (SourceId 0) 8 18)
+                         (sn 8 18)
                        )
-                     , OpTok (Operator "->" (Span (SourceId 0) 20 22))
+                     , OpTok (Operator "->" (sn 20 22))
                      , OtherTok
                        (TypeList
                          [ OtherTok
                            (NamespaceType
-                             (Namespace
-                               [Ident "Option" (Span (SourceId 0) 24 30)]
-                               (Span (SourceId 0) 24 30)
-                             )
-                             (Span (SourceId 0) 24 30)
+                             (Namespace [Ident "Option" (sn 24 30)] (sn 24 30))
+                             (sn 24 30)
                            )
                          , OtherTok
                            (NamespaceType
-                             (Namespace
-                               [Ident "Int" (Span (SourceId 0) 31 34)]
-                               (Span (SourceId 0) 31 34)
-                             )
-                             (Span (SourceId 0) 31 34)
+                             (Namespace [Ident "Int" (sn 31 34)] (sn 31 34))
+                             (sn 31 34)
                            )
-                         , OpTok (Operator "->" (Span (SourceId 0) 35 37))
+                         , OpTok (Operator "->" (sn 35 37))
                          , OtherTok
                            (NamespaceType
-                             (Namespace
-                               [Ident "Int" (Span (SourceId 0) 38 41)]
-                               (Span (SourceId 0) 38 41)
-                             )
-                             (Span (SourceId 0) 38 41)
+                             (Namespace [Ident "Int" (sn 38 41)] (sn 38 41))
+                             (sn 38 41)
                            )
                          ]
-                         (Span (SourceId 0) 24 41)
+                         (sn 24 41)
                        )
-                     , OpTok (Operator "->" (Span (SourceId 0) 43 45))
+                     , OpTok (Operator "->" (sn 43 45))
                      , OtherTok
                        (NamespaceType
-                         (Namespace [Ident "Int" (Span (SourceId 0) 46 49)]
-                                    (Span (SourceId 0) 46 49)
-                         )
-                         (Span (SourceId 0) 46 49)
+                         (Namespace [Ident "Int" (sn 46 49)] (sn 46 49))
+                         (sn 46 49)
                        )
-                     , OpTok (Operator "->" (Span (SourceId 0) 50 52))
+                     , OpTok (Operator "->" (sn 50 52))
                      , OtherTok
                        (NamespaceType
-                         (Namespace [Ident "Int" (Span (SourceId 0) 53 56)]
-                                    (Span (SourceId 0) 53 56)
-                         )
-                         (Span (SourceId 0) 53 56)
+                         (Namespace [Ident "Int" (sn 53 56)] (sn 53 56))
+                         (sn 53 56)
                        )
                      ]
-                     (Span (SourceId 0) 0 56)
+                     (sn 0 56)
                    )
   describe "Syntax.Parser.parseExpr" $ do
     it "should parse a literal" $ parseExpr sid "10" `shouldBe` Right
@@ -696,59 +610,35 @@ spec = do
       $          parseExpr sid "1 2"
       `shouldBe` Right
                    (ExprList
-                     [ OtherTok
-                       (LiteralE (IntegerL 1 (Span (SourceId 0) 0 1))
-                                 (Span (SourceId 0) 0 1)
-                       )
-                     , OtherTok
-                       (LiteralE (IntegerL 2 (Span (SourceId 0) 2 3))
-                                 (Span (SourceId 0) 2 3)
-                       )
+                     [ OtherTok (LiteralE (IntegerL 1 (sn 0 1)) (sn 0 1))
+                     , OtherTok (LiteralE (IntegerL 2 (sn 2 3)) (sn 2 3))
                      ]
-                     (Span (SourceId 0) 0 3)
+                     (sn 0 3)
                    )
     it "should parse a function application with multiple"
       $          parseExpr sid "1 2 3"
       `shouldBe` Right
                    (ExprList
-                     [ OtherTok
-                       (LiteralE (IntegerL 1 (Span (SourceId 0) 0 1))
-                                 (Span (SourceId 0) 0 1)
-                       )
-                     , OtherTok
-                       (LiteralE (IntegerL 2 (Span (SourceId 0) 2 3))
-                                 (Span (SourceId 0) 2 3)
-                       )
-                     , OtherTok
-                       (LiteralE (IntegerL 3 (Span (SourceId 0) 4 5))
-                                 (Span (SourceId 0) 4 5)
-                       )
+                     [ OtherTok (LiteralE (IntegerL 1 (sn 0 1)) (sn 0 1))
+                     , OtherTok (LiteralE (IntegerL 2 (sn 2 3)) (sn 2 3))
+                     , OtherTok (LiteralE (IntegerL 3 (sn 4 5)) (sn 4 5))
                      ]
-                     (Span (SourceId 0) 0 5)
+                     (sn 0 5)
                    )
     it "should parse a function application with multiple and grouping"
       $          parseExpr sid "1 (2 3)"
       `shouldBe` Right
                    (ExprList
-                     [ OtherTok
-                       (LiteralE (IntegerL 1 (Span (SourceId 0) 0 1))
-                                 (Span (SourceId 0) 0 1)
-                       )
+                     [ OtherTok (LiteralE (IntegerL 1 (sn 0 1)) (sn 0 1))
                      , OtherTok
                        (ExprList
-                         [ OtherTok
-                           (LiteralE (IntegerL 2 (Span (SourceId 0) 3 4))
-                                     (Span (SourceId 0) 3 4)
-                           )
-                         , OtherTok
-                           (LiteralE (IntegerL 3 (Span (SourceId 0) 5 6))
-                                     (Span (SourceId 0) 5 6)
-                           )
+                         [ OtherTok (LiteralE (IntegerL 2 (sn 3 4)) (sn 3 4))
+                         , OtherTok (LiteralE (IntegerL 3 (sn 5 6)) (sn 5 6))
                          ]
-                         (Span (SourceId 0) 3 6)
+                         (sn 3 6)
                        )
                      ]
-                     (Span (SourceId 0) 0 6)
+                     (sn 0 6)
                    )
     it "should parse an empty tuple" $ parseExpr sid "()" `shouldBe` Right
       (TupleE [] $ sn 0 2)
@@ -758,64 +648,44 @@ spec = do
     it "should parse a tuple with 1 item"
       $          parseExpr sid "(10,)"
       `shouldBe` Right
-                   (TupleE
-                     [ LiteralE (IntegerL 10 (Span (SourceId 0) 1 3))
-                                (Span (SourceId 0) 1 3)
-                     ]
-                     (Span (SourceId 0) 0 5)
-                   )
+                   (TupleE [LiteralE (IntegerL 10 (sn 1 3)) (sn 1 3)] (sn 0 5))
     it "should parse a tuple with trailing comma"
       $          parseExpr sid "(10,20,)"
       `shouldBe` Right
                    (TupleE
-                     [ LiteralE (IntegerL 10 (Span (SourceId 0) 1 3))
-                                (Span (SourceId 0) 1 3)
-                     , LiteralE (IntegerL 20 (Span (SourceId 0) 4 6))
-                                (Span (SourceId 0) 4 6)
+                     [ LiteralE (IntegerL 10 (sn 1 3)) (sn 1 3)
+                     , LiteralE (IntegerL 20 (sn 4 6)) (sn 4 6)
                      ]
-                     (Span (SourceId 0) 0 8)
+                     (sn 0 8)
                    )
     it "should parse a tuple without trailing comma"
       $          parseExpr sid "(10,20)"
       `shouldBe` Right
                    (TupleE
-                     [ LiteralE (IntegerL 10 (Span (SourceId 0) 1 3))
-                                (Span (SourceId 0) 1 3)
-                     , LiteralE (IntegerL 20 (Span (SourceId 0) 4 6))
-                                (Span (SourceId 0) 4 6)
+                     [ LiteralE (IntegerL 10 (sn 1 3)) (sn 1 3)
+                     , LiteralE (IntegerL 20 (sn 4 6)) (sn 4 6)
                      ]
-                     (Span (SourceId 0) 0 7)
+                     (sn 0 7)
                    )
     it "should parse a tuple with many items"
       $          parseExpr sid "(10,20,30,40,50)"
       `shouldBe` Right
                    (TupleE
-                     [ LiteralE (IntegerL 10 (Span (SourceId 0) 1 3))
-                                (Span (SourceId 0) 1 3)
-                     , LiteralE (IntegerL 20 (Span (SourceId 0) 4 6))
-                                (Span (SourceId 0) 4 6)
-                     , LiteralE (IntegerL 30 (Span (SourceId 0) 7 9))
-                                (Span (SourceId 0) 7 9)
-                     , LiteralE (IntegerL 40 (Span (SourceId 0) 10 12))
-                                (Span (SourceId 0) 10 12)
-                     , LiteralE (IntegerL 50 (Span (SourceId 0) 13 15))
-                                (Span (SourceId 0) 13 15)
+                     [ LiteralE (IntegerL 10 (sn 1 3))   (sn 1 3)
+                     , LiteralE (IntegerL 20 (sn 4 6))   (sn 4 6)
+                     , LiteralE (IntegerL 30 (sn 7 9))   (sn 7 9)
+                     , LiteralE (IntegerL 40 (sn 10 12)) (sn 10 12)
+                     , LiteralE (IntegerL 50 (sn 13 15)) (sn 13 15)
                      ]
-                     (Span (SourceId 0) 0 16)
+                     (sn 0 16)
                    )
     it "should parse an operator" $ parseExpr sid "10 + 20" `shouldBe` Right
       (ExprList
-        [ OtherTok
-          (LiteralE (IntegerL 10 (Span (SourceId 0) 0 2))
-                    (Span (SourceId 0) 0 2)
-          )
-        , OpTok (Operator "+" (Span (SourceId 0) 3 4))
-        , OtherTok
-          (LiteralE (IntegerL 20 (Span (SourceId 0) 5 7))
-                    (Span (SourceId 0) 5 7)
-          )
+        [ OtherTok (LiteralE (IntegerL 10 (sn 0 2)) (sn 0 2))
+        , OpTok (Operator "+" (sn 3 4))
+        , OtherTok (LiteralE (IntegerL 20 (sn 5 7)) (sn 5 7))
         ]
-        (Span (SourceId 0) 0 7)
+        (sn 0 7)
       )
     it "should parse infix and postfix operators"
       $          parseExpr sid "(+10) (5!)"
@@ -823,107 +693,74 @@ spec = do
                    (ExprList
                      [ OtherTok
                        (ExprList
-                         [ OpTok (Operator "+" (Span (SourceId 0) 1 2))
-                         , OtherTok
-                           (LiteralE (IntegerL 10 (Span (SourceId 0) 2 4))
-                                     (Span (SourceId 0) 2 4)
-                           )
+                         [ OpTok (Operator "+" (sn 1 2))
+                         , OtherTok (LiteralE (IntegerL 10 (sn 2 4)) (sn 2 4))
                          ]
-                         (Span (SourceId 0) 1 4)
+                         (sn 1 4)
                        )
                      , OtherTok
                        (ExprList
-                         [ OtherTok
-                           (LiteralE (IntegerL 5 (Span (SourceId 0) 7 8))
-                                     (Span (SourceId 0) 7 8)
-                           )
-                         , OpTok (Operator "!" (Span (SourceId 0) 8 9))
+                         [ OtherTok (LiteralE (IntegerL 5 (sn 7 8)) (sn 7 8))
+                         , OpTok (Operator "!" (sn 8 9))
                          ]
-                         (Span (SourceId 0) 7 9)
+                         (sn 7 9)
                        )
                      ]
-                     (Span (SourceId 0) 1 9)
+                     (sn 1 9)
                    )
     it "should parse multiple operators"
       $          parseExpr sid "10 + 20 ++ 30"
       `shouldBe` Right
                    (ExprList
-                     [ OtherTok
-                       (LiteralE (IntegerL 10 (Span (SourceId 0) 0 2))
-                                 (Span (SourceId 0) 0 2)
-                       )
-                     , OpTok (Operator "+" (Span (SourceId 0) 3 4))
-                     , OtherTok
-                       (LiteralE (IntegerL 20 (Span (SourceId 0) 5 7))
-                                 (Span (SourceId 0) 5 7)
-                       )
-                     , OpTok (Operator "++" (Span (SourceId 0) 8 10))
-                     , OtherTok
-                       (LiteralE (IntegerL 30 (Span (SourceId 0) 11 13))
-                                 (Span (SourceId 0) 11 13)
-                       )
+                     [ OtherTok (LiteralE (IntegerL 10 (sn 0 2)) (sn 0 2))
+                     , OpTok (Operator "+" (sn 3 4))
+                     , OtherTok (LiteralE (IntegerL 20 (sn 5 7)) (sn 5 7))
+                     , OpTok (Operator "++" (sn 8 10))
+                     , OtherTok (LiteralE (IntegerL 30 (sn 11 13)) (sn 11 13))
                      ]
-                     (Span (SourceId 0) 0 13)
+                     (sn 0 13)
                    )
     it "should parse an if statement"
       $          parseExpr sid "if 30 { 10 } else { 20 }"
       `shouldBe` Right
                    (CondE
-                     ( LiteralE (IntegerL 30 (Span (SourceId 0) 3 5))
-                                (Span (SourceId 0) 3 5)
-                     , LiteralE (IntegerL 10 (Span (SourceId 0) 8 10))
-                                (Span (SourceId 0) 8 10)
+                     ( LiteralE (IntegerL 30 (sn 3 5))  (sn 3 5)
+                     , LiteralE (IntegerL 10 (sn 8 10)) (sn 8 10)
                      )
                      []
-                     (LiteralE (IntegerL 20 (Span (SourceId 0) 20 22))
-                               (Span (SourceId 0) 20 22)
-                     )
-                     (Span (SourceId 0) 0 24)
+                     (LiteralE (IntegerL 20 (sn 20 22)) (sn 20 22))
+                     (sn 0 24)
                    )
     it "should parse an if statement with `elif` clause"
       $          parseExpr sid "if 30 { 10 } elif 40 { 50 } else { 20 }"
       `shouldBe` Right
                    (CondE
-                     ( LiteralE (IntegerL 30 (Span (SourceId 0) 3 5))
-                                (Span (SourceId 0) 3 5)
-                     , LiteralE (IntegerL 10 (Span (SourceId 0) 8 10))
-                                (Span (SourceId 0) 8 10)
+                     ( LiteralE (IntegerL 30 (sn 3 5))  (sn 3 5)
+                     , LiteralE (IntegerL 10 (sn 8 10)) (sn 8 10)
                      )
-                     [ ( LiteralE (IntegerL 40 (Span (SourceId 0) 18 20))
-                                  (Span (SourceId 0) 18 20)
-                       , LiteralE (IntegerL 50 (Span (SourceId 0) 23 25))
-                                  (Span (SourceId 0) 23 25)
+                     [ ( LiteralE (IntegerL 40 (sn 18 20)) (sn 18 20)
+                       , LiteralE (IntegerL 50 (sn 23 25)) (sn 23 25)
                        )
                      ]
-                     (LiteralE (IntegerL 20 (Span (SourceId 0) 35 37))
-                               (Span (SourceId 0) 35 37)
-                     )
-                     (Span (SourceId 0) 0 39)
+                     (LiteralE (IntegerL 20 (sn 35 37)) (sn 35 37))
+                     (sn 0 39)
                    )
     it "should parse an if statement with multiple `elif` clauses"
       $ parseExpr sid "if 30 { 10 } elif 40 { 50 } elif 60 { 70 } else { 20 }"
       `shouldBe` Right
                    (CondE
-                     ( LiteralE (IntegerL 30 (Span (SourceId 0) 3 5))
-                                (Span (SourceId 0) 3 5)
-                     , LiteralE (IntegerL 10 (Span (SourceId 0) 8 10))
-                                (Span (SourceId 0) 8 10)
+                     ( LiteralE (IntegerL 30 (sn 3 5))  (sn 3 5)
+                     , LiteralE (IntegerL 10 (sn 8 10)) (sn 8 10)
                      )
-                     [ ( LiteralE (IntegerL 40 (Span (SourceId 0) 18 20))
-                                  (Span (SourceId 0) 18 20)
-                       , LiteralE (IntegerL 50 (Span (SourceId 0) 23 25))
-                                  (Span (SourceId 0) 23 25)
+                     [ ( LiteralE (IntegerL 40 (sn 18 20)) (sn 18 20)
+                       , LiteralE (IntegerL 50 (sn 23 25)) (sn 23 25)
                        )
-                     , ( LiteralE (IntegerL 60 (Span (SourceId 0) 33 35))
-                                  (Span (SourceId 0) 33 35)
-                       , LiteralE (IntegerL 70 (Span (SourceId 0) 38 40))
-                                  (Span (SourceId 0) 38 40)
+                     , ( LiteralE (IntegerL 60 (sn 33 35)) (sn 33 35)
+                       , LiteralE (IntegerL 70 (sn 38 40)) (sn 38 40)
                        )
                      ]
-                     (LiteralE (IntegerL 20 (Span (SourceId 0) 50 52))
-                               (Span (SourceId 0) 50 52)
-                     )
-                     (Span (SourceId 0) 0 54)
+                     (LiteralE (IntegerL 20 (sn 50 52)) (sn 50 52))
+                     (sn 0 54)
                    )
     it "should parse a basic assign in binding"
       $          parseExpr sid "assign x = 10 in { 30 }"
@@ -931,21 +768,14 @@ spec = do
                    (LetInE
                      [ Binding
                          Nothing
-                         [ VariableE
-                             (Namespace [Ident "x" (Span (SourceId 0) 7 8)]
-                                        (Span (SourceId 0) 7 8)
-                             )
-                             (Span (SourceId 0) 7 8)
+                         [ VariableE (Namespace [Ident "x" (sn 7 8)] (sn 7 8))
+                                     (sn 7 8)
                          ]
-                         (LiteralE (IntegerL 10 (Span (SourceId 0) 11 13))
-                                   (Span (SourceId 0) 11 13)
-                         )
-                         (Span (SourceId 0) 7 13)
+                         (LiteralE (IntegerL 10 (sn 11 13)) (sn 11 13))
+                         (sn 7 13)
                      ]
-                     (LiteralE (IntegerL 30 (Span (SourceId 0) 19 21))
-                               (Span (SourceId 0) 19 21)
-                     )
-                     (Span (SourceId 0) 0 23)
+                     (LiteralE (IntegerL 30 (sn 19 21)) (sn 19 21))
+                     (sn 0 23)
                    )
     it "should parse a pattern destructure"
       $          parseExpr sid "assign x y = 10 in { 30 40 }"
@@ -956,41 +786,27 @@ spec = do
                          [ ExprList
                              [ OtherTok
                                (VariableE
-                                 (Namespace
-                                   [Ident "x" (Span (SourceId 0) 7 8)]
-                                   (Span (SourceId 0) 7 8)
-                                 )
-                                 (Span (SourceId 0) 7 8)
+                                 (Namespace [Ident "x" (sn 7 8)] (sn 7 8))
+                                 (sn 7 8)
                                )
                              , OtherTok
                                (VariableE
-                                 (Namespace
-                                   [Ident "y" (Span (SourceId 0) 9 10)]
-                                   (Span (SourceId 0) 9 10)
-                                 )
-                                 (Span (SourceId 0) 9 10)
+                                 (Namespace [Ident "y" (sn 9 10)] (sn 9 10))
+                                 (sn 9 10)
                                )
                              ]
-                             (Span (SourceId 0) 7 10)
+                             (sn 7 10)
                          ]
-                         (LiteralE (IntegerL 10 (Span (SourceId 0) 13 15))
-                                   (Span (SourceId 0) 13 15)
-                         )
-                         (Span (SourceId 0) 7 15)
+                         (LiteralE (IntegerL 10 (sn 13 15)) (sn 13 15))
+                         (sn 7 15)
                      ]
                      (ExprList
-                       [ OtherTok
-                         (LiteralE (IntegerL 30 (Span (SourceId 0) 21 23))
-                                   (Span (SourceId 0) 21 23)
-                         )
-                       , OtherTok
-                         (LiteralE (IntegerL 40 (Span (SourceId 0) 24 26))
-                                   (Span (SourceId 0) 24 26)
-                         )
+                       [ OtherTok (LiteralE (IntegerL 30 (sn 21 23)) (sn 21 23))
+                       , OtherTok (LiteralE (IntegerL 40 (sn 24 26)) (sn 24 26))
                        ]
-                       (Span (SourceId 0) 21 26)
+                       (sn 21 26)
                      )
-                     (Span (SourceId 0) 0 28)
+                     (sn 0 28)
                    )
     it "should parse a single pattern with parens"
       $          parseExpr sid "assign (x y) = 10 in { 30 }"
@@ -1001,32 +817,22 @@ spec = do
                          [ ExprList
                              [ OtherTok
                                (VariableE
-                                 (Namespace
-                                   [Ident "x" (Span (SourceId 0) 8 9)]
-                                   (Span (SourceId 0) 8 9)
-                                 )
-                                 (Span (SourceId 0) 8 9)
+                                 (Namespace [Ident "x" (sn 8 9)] (sn 8 9))
+                                 (sn 8 9)
                                )
                              , OtherTok
                                (VariableE
-                                 (Namespace
-                                   [Ident "y" (Span (SourceId 0) 10 11)]
-                                   (Span (SourceId 0) 10 11)
-                                 )
-                                 (Span (SourceId 0) 10 11)
+                                 (Namespace [Ident "y" (sn 10 11)] (sn 10 11))
+                                 (sn 10 11)
                                )
                              ]
-                             (Span (SourceId 0) 8 11)
+                             (sn 8 11)
                          ]
-                         (LiteralE (IntegerL 10 (Span (SourceId 0) 15 17))
-                                   (Span (SourceId 0) 15 17)
-                         )
-                         (Span (SourceId 0) 8 17)
+                         (LiteralE (IntegerL 10 (sn 15 17)) (sn 15 17))
+                         (sn 8 17)
                      ]
-                     (LiteralE (IntegerL 30 (Span (SourceId 0) 23 25))
-                               (Span (SourceId 0) 23 25)
-                     )
-                     (Span (SourceId 0) 0 27)
+                     (LiteralE (IntegerL 30 (sn 23 25)) (sn 23 25))
+                     (sn 0 27)
                    )
     it "should parse multiple values with operator"
       $          parseExpr sid "assign (Some x~xs) = 10 in { 30 }"
@@ -1037,273 +843,191 @@ spec = do
                          [ ExprList
                              [ OtherTok
                                (VariableE
-                                 (Namespace
-                                   [Ident "Some" (Span (SourceId 0) 8 12)]
-                                   (Span (SourceId 0) 8 12)
-                                 )
-                                 (Span (SourceId 0) 8 12)
+                                 (Namespace [Ident "Some" (sn 8 12)] (sn 8 12))
+                                 (sn 8 12)
                                )
                              , OtherTok
                                (VariableE
-                                 (Namespace
-                                   [Ident "x" (Span (SourceId 0) 13 14)]
-                                   (Span (SourceId 0) 13 14)
-                                 )
-                                 (Span (SourceId 0) 13 14)
+                                 (Namespace [Ident "x" (sn 13 14)] (sn 13 14))
+                                 (sn 13 14)
                                )
-                             , OpTok (Operator "~" (Span (SourceId 0) 14 15))
+                             , OpTok (Operator "~" (sn 14 15))
                              , OtherTok
                                (VariableE
-                                 (Namespace
-                                   [Ident "xs" (Span (SourceId 0) 15 17)]
-                                   (Span (SourceId 0) 15 17)
-                                 )
-                                 (Span (SourceId 0) 15 17)
+                                 (Namespace [Ident "xs" (sn 15 17)] (sn 15 17))
+                                 (sn 15 17)
                                )
                              ]
-                             (Span (SourceId 0) 8 17)
+                             (sn 8 17)
                          ]
-                         (LiteralE (IntegerL 10 (Span (SourceId 0) 21 23))
-                                   (Span (SourceId 0) 21 23)
-                         )
-                         (Span (SourceId 0) 8 23)
+                         (LiteralE (IntegerL 10 (sn 21 23)) (sn 21 23))
+                         (sn 8 23)
                      ]
-                     (LiteralE (IntegerL 30 (Span (SourceId 0) 29 31))
-                               (Span (SourceId 0) 29 31)
-                     )
-                     (Span (SourceId 0) 0 33)
+                     (LiteralE (IntegerL 30 (sn 29 31)) (sn 29 31))
+                     (sn 0 33)
                    )
     it "should parse a function"
       $          parseExpr sid "assign myfn : (Some x~xs) a = x+a in { 30 }"
       `shouldBe` Right
                    (LetInE
                      [ Binding
-                         (Just (Ident "myfn" (Span (SourceId 0) 7 11)))
+                         (Just (Ident "myfn" (sn 7 11)))
                          [ ExprList
                            [ OtherTok
                              (VariableE
-                               (Namespace
-                                 [Ident "Some" (Span (SourceId 0) 15 19)]
-                                 (Span (SourceId 0) 15 19)
-                               )
-                               (Span (SourceId 0) 15 19)
+                               (Namespace [Ident "Some" (sn 15 19)] (sn 15 19))
+                               (sn 15 19)
                              )
                            , OtherTok
                              (VariableE
-                               (Namespace
-                                 [Ident "x" (Span (SourceId 0) 20 21)]
-                                 (Span (SourceId 0) 20 21)
-                               )
-                               (Span (SourceId 0) 20 21)
+                               (Namespace [Ident "x" (sn 20 21)] (sn 20 21))
+                               (sn 20 21)
                              )
-                           , OpTok (Operator "~" (Span (SourceId 0) 21 22))
+                           , OpTok (Operator "~" (sn 21 22))
                            , OtherTok
                              (VariableE
-                               (Namespace
-                                 [Ident "xs" (Span (SourceId 0) 22 24)]
-                                 (Span (SourceId 0) 22 24)
-                               )
-                               (Span (SourceId 0) 22 24)
+                               (Namespace [Ident "xs" (sn 22 24)] (sn 22 24))
+                               (sn 22 24)
                              )
                            ]
-                           (Span (SourceId 0) 15 24)
+                           (sn 15 24)
                          , VariableE
-                           (Namespace [Ident "a" (Span (SourceId 0) 26 27)]
-                                      (Span (SourceId 0) 26 27)
-                           )
-                           (Span (SourceId 0) 26 27)
+                           (Namespace [Ident "a" (sn 26 27)] (sn 26 27))
+                           (sn 26 27)
                          ]
                          (ExprList
                            [ OtherTok
                              (VariableE
-                               (Namespace
-                                 [Ident "x" (Span (SourceId 0) 30 31)]
-                                 (Span (SourceId 0) 30 31)
-                               )
-                               (Span (SourceId 0) 30 31)
+                               (Namespace [Ident "x" (sn 30 31)] (sn 30 31))
+                               (sn 30 31)
                              )
-                           , OpTok (Operator "+" (Span (SourceId 0) 31 32))
+                           , OpTok (Operator "+" (sn 31 32))
                            , OtherTok
                              (VariableE
-                               (Namespace
-                                 [Ident "a" (Span (SourceId 0) 32 33)]
-                                 (Span (SourceId 0) 32 33)
-                               )
-                               (Span (SourceId 0) 32 33)
+                               (Namespace [Ident "a" (sn 32 33)] (sn 32 33))
+                               (sn 32 33)
                              )
                            ]
-                           (Span (SourceId 0) 30 33)
+                           (sn 30 33)
                          )
-                         (Span (SourceId 0) 7 33)
+                         (sn 7 33)
                      ]
-                     (LiteralE (IntegerL 30 (Span (SourceId 0) 39 41))
-                               (Span (SourceId 0) 39 41)
-                     )
-                     (Span (SourceId 0) 0 43)
+                     (LiteralE (IntegerL 30 (sn 39 41)) (sn 39 41))
+                     (sn 0 43)
                    )
     it "should parse match statement"
       $          parseExpr sid "match 10 { 10 => x }"
       `shouldBe` Right
                    (MatchE
-                     (LiteralE (IntegerL 10 (Span (SourceId 0) 6 8))
-                               (Span (SourceId 0) 6 8)
-                     )
+                     (LiteralE (IntegerL 10 (sn 6 8)) (sn 6 8))
                      [ MatchBranch
-                         (LiteralE (IntegerL 10 (Span (SourceId 0) 11 13))
-                                   (Span (SourceId 0) 11 13)
-                         )
+                         (LiteralE (IntegerL 10 (sn 11 13)) (sn 11 13))
                          (VariableE
-                           (Namespace [Ident "x" (Span (SourceId 0) 17 18)]
-                                      (Span (SourceId 0) 17 18)
-                           )
-                           (Span (SourceId 0) 17 18)
+                           (Namespace [Ident "x" (sn 17 18)] (sn 17 18))
+                           (sn 17 18)
                          )
-                         (Span (SourceId 0) 11 18)
+                         (sn 11 18)
                      ]
-                     (Span (SourceId 0) 0 20)
+                     (sn 0 20)
                    )
     it "should parse multiple clauses in match statement"
       $          parseExpr sid "match 10 { 10 => x, 20 => y, _ => 30 }"
       `shouldBe` Right
                    (MatchE
-                     (LiteralE (IntegerL 10 (Span (SourceId 0) 6 8))
-                               (Span (SourceId 0) 6 8)
-                     )
+                     (LiteralE (IntegerL 10 (sn 6 8)) (sn 6 8))
                      [ MatchBranch
-                       (LiteralE (IntegerL 10 (Span (SourceId 0) 11 13))
-                                 (Span (SourceId 0) 11 13)
-                       )
+                       (LiteralE (IntegerL 10 (sn 11 13)) (sn 11 13))
                        (VariableE
-                         (Namespace [Ident "x" (Span (SourceId 0) 17 18)]
-                                    (Span (SourceId 0) 17 18)
-                         )
-                         (Span (SourceId 0) 17 18)
+                         (Namespace [Ident "x" (sn 17 18)] (sn 17 18))
+                         (sn 17 18)
                        )
-                       (Span (SourceId 0) 11 18)
+                       (sn 11 18)
                      , MatchBranch
-                       (LiteralE (IntegerL 20 (Span (SourceId 0) 20 22))
-                                 (Span (SourceId 0) 20 22)
-                       )
+                       (LiteralE (IntegerL 20 (sn 20 22)) (sn 20 22))
                        (VariableE
-                         (Namespace [Ident "y" (Span (SourceId 0) 26 27)]
-                                    (Span (SourceId 0) 26 27)
-                         )
-                         (Span (SourceId 0) 26 27)
+                         (Namespace [Ident "y" (sn 26 27)] (sn 26 27))
+                         (sn 26 27)
                        )
-                       (Span (SourceId 0) 20 27)
+                       (sn 20 27)
                      , MatchBranch
                        (VariableE
-                         (Namespace [Ident "_" (Span (SourceId 0) 29 30)]
-                                    (Span (SourceId 0) 29 30)
-                         )
-                         (Span (SourceId 0) 29 30)
+                         (Namespace [Ident "_" (sn 29 30)] (sn 29 30))
+                         (sn 29 30)
                        )
-                       (LiteralE (IntegerL 30 (Span (SourceId 0) 34 36))
-                                 (Span (SourceId 0) 34 36)
-                       )
-                       (Span (SourceId 0) 29 36)
+                       (LiteralE (IntegerL 30 (sn 34 36)) (sn 34 36))
+                       (sn 29 36)
                      ]
-                     (Span (SourceId 0) 0 38)
+                     (sn 0 38)
                    )
     it "should parse lambda expressions"
       $          parseExpr sid "\\a b => a + b"
       `shouldBe` Right
                    (LambdaE
-                     [ VariableE
-                       (Namespace [Ident "a" (Span (SourceId 0) 1 2)]
-                                  (Span (SourceId 0) 1 2)
-                       )
-                       (Span (SourceId 0) 1 2)
-                     , VariableE
-                       (Namespace [Ident "b" (Span (SourceId 0) 3 4)]
-                                  (Span (SourceId 0) 3 4)
-                       )
-                       (Span (SourceId 0) 3 4)
+                     [ VariableE (Namespace [Ident "a" (sn 1 2)] (sn 1 2))
+                                 (sn 1 2)
+                     , VariableE (Namespace [Ident "b" (sn 3 4)] (sn 3 4))
+                                 (sn 3 4)
                      ]
                      (ExprList
                        [ OtherTok
-                         (VariableE
-                           (Namespace [Ident "a" (Span (SourceId 0) 8 9)]
-                                      (Span (SourceId 0) 8 9)
-                           )
-                           (Span (SourceId 0) 8 9)
+                         (VariableE (Namespace [Ident "a" (sn 8 9)] (sn 8 9))
+                                    (sn 8 9)
                          )
-                       , OpTok (Operator "+" (Span (SourceId 0) 10 11))
+                       , OpTok (Operator "+" (sn 10 11))
                        , OtherTok
                          (VariableE
-                           (Namespace [Ident "b" (Span (SourceId 0) 12 13)]
-                                      (Span (SourceId 0) 12 13)
-                           )
-                           (Span (SourceId 0) 12 13)
+                           (Namespace [Ident "b" (sn 12 13)] (sn 12 13))
+                           (sn 12 13)
                          )
                        ]
-                       (Span (SourceId 0) 8 13)
+                       (sn 8 13)
                      )
-                     (Span (SourceId 0) 0 13)
+                     (sn 0 13)
                    )
     it "should parse nested lambda expressions"
       $          parseExpr sid "\\a b c => \\d => a + b + c + d"
       `shouldBe` Right
                    (LambdaE
-                     [ VariableE
-                       (Namespace [Ident "a" (Span (SourceId 0) 1 2)]
-                                  (Span (SourceId 0) 1 2)
-                       )
-                       (Span (SourceId 0) 1 2)
-                     , VariableE
-                       (Namespace [Ident "b" (Span (SourceId 0) 3 4)]
-                                  (Span (SourceId 0) 3 4)
-                       )
-                       (Span (SourceId 0) 3 4)
-                     , VariableE
-                       (Namespace [Ident "c" (Span (SourceId 0) 5 6)]
-                                  (Span (SourceId 0) 5 6)
-                       )
-                       (Span (SourceId 0) 5 6)
+                     [ VariableE (Namespace [Ident "a" (sn 1 2)] (sn 1 2))
+                                 (sn 1 2)
+                     , VariableE (Namespace [Ident "b" (sn 3 4)] (sn 3 4))
+                                 (sn 3 4)
+                     , VariableE (Namespace [Ident "c" (sn 5 6)] (sn 5 6))
+                                 (sn 5 6)
                      ]
                      (LambdaE
                        [ VariableE
-                           (Namespace [Ident "d" (Span (SourceId 0) 11 12)]
-                                      (Span (SourceId 0) 11 12)
-                           )
-                           (Span (SourceId 0) 11 12)
+                           (Namespace [Ident "d" (sn 11 12)] (sn 11 12))
+                           (sn 11 12)
                        ]
                        (ExprList
                          [ OtherTok
                            (VariableE
-                             (Namespace [Ident "a" (Span (SourceId 0) 16 17)]
-                                        (Span (SourceId 0) 16 17)
-                             )
-                             (Span (SourceId 0) 16 17)
+                             (Namespace [Ident "a" (sn 16 17)] (sn 16 17))
+                             (sn 16 17)
                            )
-                         , OpTok (Operator "+" (Span (SourceId 0) 18 19))
+                         , OpTok (Operator "+" (sn 18 19))
                          , OtherTok
                            (VariableE
-                             (Namespace [Ident "b" (Span (SourceId 0) 20 21)]
-                                        (Span (SourceId 0) 20 21)
-                             )
-                             (Span (SourceId 0) 20 21)
+                             (Namespace [Ident "b" (sn 20 21)] (sn 20 21))
+                             (sn 20 21)
                            )
-                         , OpTok (Operator "+" (Span (SourceId 0) 22 23))
+                         , OpTok (Operator "+" (sn 22 23))
                          , OtherTok
                            (VariableE
-                             (Namespace [Ident "c" (Span (SourceId 0) 24 25)]
-                                        (Span (SourceId 0) 24 25)
-                             )
-                             (Span (SourceId 0) 24 25)
+                             (Namespace [Ident "c" (sn 24 25)] (sn 24 25))
+                             (sn 24 25)
                            )
-                         , OpTok (Operator "+" (Span (SourceId 0) 26 27))
+                         , OpTok (Operator "+" (sn 26 27))
                          , OtherTok
                            (VariableE
-                             (Namespace [Ident "d" (Span (SourceId 0) 28 29)]
-                                        (Span (SourceId 0) 28 29)
-                             )
-                             (Span (SourceId 0) 28 29)
+                             (Namespace [Ident "d" (sn 28 29)] (sn 28 29))
+                             (sn 28 29)
                            )
                          ]
-                         (Span (SourceId 0) 16 29)
+                         (sn 16 29)
                        )
-                       (Span (SourceId 0) 10 29)
+                       (sn 10 29)
                      )
-                     (Span (SourceId 0) 0 29)
+                     (sn 0 29)
                    )

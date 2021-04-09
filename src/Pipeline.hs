@@ -16,6 +16,7 @@ import           Syntax.PrettyPrint             ( PP(pp) )
 import           Data.Tree                      ( drawTree )
 import           Syntax.Ast                     ( Statement )
 import           Syntax.Rewrite                 ( rewrite )
+import           DesugarBefore                  ( desugarBefore )
 import           Syntax.Parser
 import           Sources
 import           Compiler                       ( Compiler(..)
@@ -92,5 +93,6 @@ pipeline = do
 
 compileModule :: SourceId -> String -> Compiler [Statement]
 compileModule sid source = do
-  ast <- try $ parseBlock sid source
-  try $ rewrite ast
+  ast        <- try $ parseBlock sid source
+  rewriteAst <- try $ rewrite ast
+  try $ desugarBefore rewriteAst

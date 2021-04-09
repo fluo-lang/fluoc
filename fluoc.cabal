@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 3dfb47663dec9206ccc9368a8ae218ceeb02e52ed203e9f0ad203ebcf835d2c0
+-- hash: 7f27798995d3602e76afa093c5036ca90377a5c1a805f0db55fed12ebe7a3d0f
 
 name:           fluoc
 version:        0.1.0.0
@@ -26,6 +26,7 @@ source-repository head
 library
   exposed-modules:
       Compiler
+      DesugarBefore
       Display
       Errors.Diagnostics
       Errors.Render
@@ -92,6 +93,7 @@ test-suite fluoc-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
+      DesugarBeforeSpec
       Errors.DiagnosticsSpec
       Errors.RenderSpec
       Syntax.LexerSpec
