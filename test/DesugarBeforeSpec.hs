@@ -26,6 +26,62 @@ spec = do
                  , OpDefS (Operator "<fnapp>" (sn 76 81)) (Binary 1 LeftA) (sn 68 97)
                  ]
     `shouldBe` return []
+  it "should refactor types references to type apps and change operator name"
+    $          desugarBefore
+                 [ OpDefS (Operator "!?" (sn 7 9)) (Postfix 4) (sn 0 20)
+                 , OpDefS (Operator "<tyapp>" (sn 29 34)) (Binary 2 LeftA) (sn 21 50)
+                 , OpDefS (Operator "->" (sn 58 60)) (Binary 1 LeftA) (sn 51 75)
+                 , DeclarationS
+                   (Declaration
+                     (Ident "unwrap" (sn 81 87))
+                     (OpType
+                       (BinOp
+                         (Operator "->" (sn 95 97))
+                         (OpType
+                           (PostOp (Operator "!?" (sn 92 94))
+                                   (PolyType (PolyIdent "'a" (sn 90 92)) (sn 90 92))
+                           )
+                           (sn 90 94)
+                         )
+                         (PolyType (PolyIdent "'a" (sn 98 100)) (sn 98 100))
+                       )
+                       (sn 90 100)
+                     )
+                     (sn 77 100)
+                   )
+                   (sn 77 100)
+                 ]
+    `shouldBe` return
+                 [ DeclarationS
+                     (Declaration
+                       (Ident "unwrap" (sn 81 87))
+                       (TyApp
+                         (TyApp
+                           (NamespaceType
+                             (Namespace [Ident "`->` (binary)" (sn 95 97)]
+                                        (sn 95 97)
+                             )
+                             (sn 95 97)
+                           )
+                           (TyApp
+                             (NamespaceType
+                               (Namespace [Ident "`!?` (postfix)" (sn 92 94)]
+                                          (sn 92 94)
+                               )
+                               (sn 92 94)
+                             )
+                             (PolyType (PolyIdent "'a" (sn 90 92)) (sn 90 92))
+                             (sn 90 94)
+                           )
+                           (sn 90 97)
+                         )
+                         (PolyType (PolyIdent "'a" (sn 98 100)) (sn 98 100))
+                         (sn 90 100)
+                       )
+                       (sn 77 100)
+                     )
+                     (sn 77 100)
+                 ]
   it
       "should refactor operator references to function apps and change operator name"
     $          desugarBefore

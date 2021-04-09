@@ -69,21 +69,22 @@ rewrite ss = do
   where rs = getOpRules ss
 
 rewriteExpr :: Rules -> Expr -> Failable (Maybe Expr)
-rewriteExpr rs (ExprList es _) = Just <$> fixPrec rs es OpE
+rewriteExpr rs (ExprList es _) = Just <$> fixPrec funcAppOp rs es OpE
 rewriteExpr _  _               = return Nothing
 
 rewriteType :: Rules -> Type -> Failable (Maybe Type)
-rewriteType rs (TypeList ts _) = Just <$> fixPrec rs ts OpType
+rewriteType rs (TypeList ts _) = Just <$> fixPrec tyAppOp rs ts OpType
 rewriteType _  _               = return Nothing
 
 fixPrec
   :: Spanned a
-  => Rules                 -- Precedence Rules
+  => OpCons
+  -> Rules                 -- Precedence Rules
   -> OpToks a              -- List of tokens
   -> (Oped a -> Span -> a) -- Construct an `a` from an operator and span
   -> Failable a            -- Produced `a`
-fixPrec rs toks cons = liftEither
-  $ evalStateT (runReaderT (exprBp s cons 0) rs) toks
+fixPrec opCons rs toks cons = liftEither
+  $ evalStateT (runReaderT (exprBp opCons s cons 0) rs) toks
   where s = bt (head toks) (last toks)
 
 opInfoStr :: (a -> OpInfo) -> String
@@ -139,26 +140,33 @@ loop m = do
 
 fnAppName :: String
 fnAppName = "<fnapp>"
-
 funcAppOp :: Span -> Operator
 funcAppOp = Operator fnAppName
+
+tyAppName :: String
+tyAppName = "<tyapp>"
+tyAppOp :: OpCons
+tyAppOp = Operator tyAppName
+
+type OpCons = Span -> Operator
 
 -- NOTE: This is extremely messy.
 -- Is there a way to make it more functional? Right now is very "imperative"
 processMany
   :: Spanned a
-  => Span
+  => OpCons
+  -> Span
   -> NodeCons a
   -> Prec
   -> Break () (StateT a (PrattM a)) ()
-processMany s cons minBp = do
+processMany opCons s cons minBp = do
   t              <- liftPratt peek
   lhs            <- lift get
   (breakOut, op) <- case t of
     Nothing         -> quit ()
     Just (OpTok op) -> do
       return (True, op)
-    Just (OtherTok a) -> return (False, funcAppOp $ gp lhs a)
+    Just (OtherTok a) -> return (False, opCons $ gp lhs a)
   maybeLRBp <- liftPratt $ (Just <$> binaryBp op) `catchError` const
     (return Nothing)
   streamLen <- liftPratt sLen
@@ -166,7 +174,7 @@ processMany s cons minBp = do
     Just (lBp, rBp) | (streamLen > 1) || (not breakOut && streamLen >= 1) -> do
       when (lBp < minBp) $ quit ()
       when breakOut $ () <$ liftPratt next
-      rhs <- liftPratt $ exprBp s cons rBp
+      rhs <- liftPratt $ exprBp opCons s cons rBp
       lift . put $ cons (BinOp op lhs rhs) $ bt lhs rhs
       return ()
     _ -> do
@@ -176,17 +184,17 @@ processMany s cons minBp = do
       lift . put $ cons (PostOp op lhs) $ bt lhs op
   where liftPratt = lift . lift
 
-exprBp :: Spanned a => Span -> NodeCons a -> Prec -> PrattM a a
-exprBp s cons minBp = do
+exprBp :: Spanned a => OpCons -> Span -> NodeCons a -> Prec -> PrattM a a
+exprBp opCons s cons minBp = do
   t   <- next
   lhs <- case t of
     Just (OtherTok a ) -> return a
     Just (OpTok    op) -> do
       (_, preBp) <- prefixBp op
-      e          <- exprBp s cons preBp
+      e          <- exprBp opCons s cons preBp
       liftPratt . return $ cons (PreOp op e) $ bt op e
     Nothing -> liftPratt . Left $ unexpectedEos s
-  execStateT (loop $ processMany s cons minBp) lhs
+  execStateT (loop $ processMany opCons s cons minBp) lhs
   where liftPratt = lift . lift
 
 postfixBp :: Operator -> PrattM a (Prec, ())

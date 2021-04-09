@@ -73,6 +73,7 @@ instance PP Type where
   pp (TupleType     tys _) = Node "tuple type" $ pp <$> tys
   pp (OpType        op  _) = pp op
   pp (PolyType      pid _) = Node ("polymorphic type: " ++ ss pid) []
+  pp (TyApp a b _    ) = Node "type application" [pp a, pp b]
 
 instance PP Binding where
   pp (Binding (Just b) ps e _) =

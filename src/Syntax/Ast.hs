@@ -67,6 +67,7 @@ data Type = Infer Span
           | TupleType [Type] Span
           | OpType (Oped Type) Span
           | PolyType PolyIdent Span
+          | TyApp Type Type Span
           deriving (Eq, Show, Data, Typeable)
 
 data PolyIdent = PolyIdent String Span
@@ -154,6 +155,7 @@ instance Spanned Type where
   getSpan (TypeList      _ s) = s
   getSpan (TupleType     _ s) = s
   getSpan (PolyType      _ s) = s
+  getSpan (TyApp _ _ s      ) = s
 
 instance Spanned Expr where
   getSpan (LiteralE _ s ) = s

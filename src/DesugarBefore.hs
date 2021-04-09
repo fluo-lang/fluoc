@@ -10,8 +10,9 @@ import           Text.Printf                    ( printf )
 desugarBefore :: [Statement] -> Failable [Statement]
 desugarBefore ss = do
   let filtered = filter isRemove ss
-  filtered' <- rewriteBiM rewriteOp filtered
-  transformBiM rewriteStmt filtered'
+  rewrittenExprs <- rewriteBiM rewriteExprsOp filtered
+  rewrittenTypes <- rewriteBiM rewriteTypesOp rewrittenExprs
+  transformBiM rewriteStmt rewrittenTypes
 
 isRemove :: Statement -> Bool
 isRemove s = case s of
@@ -35,20 +36,28 @@ rewriteStmt (BindingS bs span') = return $ BindingS (mapBinding <$> bs) span'
   mapBinding b = b
 rewriteStmt s = return s
 
-rewriteOp :: Expr -> Failable (Maybe Expr)
-rewriteOp (OpE oped s) = return . Just $ re oped
- where
-  re (BinOp (Operator op _) a b) | op == fnAppName = FnAppE a b s
-  re (BinOp o a b) = FnAppE
-    ( FnAppE (VariableE (id2ns $ convertOperator BinaryF o) $ getSpan o) a
-    $ bt a o
-    )
-    b
-    s
-  re (PreOp o a) =
-    FnAppE (VariableE (id2ns $ convertOperator PrefixF o) $ getSpan o) a
-      $ bt a o
-  re (PostOp o a) =
-    FnAppE (VariableE (id2ns $ convertOperator PostfixF o) $ getSpan o) a
-      $ bt a o
-rewriteOp _ = return Nothing
+rewriteExprsOp :: Expr -> Failable (Maybe Expr)
+rewriteExprsOp (OpE oped s) = Just <$> rewriteOp s oped FnAppE VariableE
+rewriteExprsOp _            = return Nothing
+
+rewriteTypesOp :: Type -> Failable (Maybe Type)
+rewriteTypesOp (OpType oped s) = Just <$> rewriteOp s oped TyApp NamespaceType
+rewriteTypesOp _               = return Nothing
+
+type AppCons a = (a -> a -> Span -> a)
+type NamespaceCons a = (Namespace -> Span -> a)
+
+rewriteOp
+  :: Spanned a => Span -> Oped a -> AppCons a -> NamespaceCons a -> Failable a
+rewriteOp s (BinOp (Operator op _) a b) appC _ | op == fnAppName =
+  return $ appC a b s
+rewriteOp s (BinOp o a b) appC nsC = return $ appC
+  (appC (nsC (id2ns $ convertOperator BinaryF o) $ getSpan o) a $ bt a o)
+  b
+  s
+rewriteOp _ (PreOp o a) appC nsC =
+  return $ appC (nsC (id2ns $ convertOperator PrefixF o) $ getSpan o) a $ bt a o
+rewriteOp _ (PostOp o a) appC nsC =
+  return $ appC (nsC (id2ns $ convertOperator PostfixF o) $ getSpan o) a $ bt
+    a
+    o
