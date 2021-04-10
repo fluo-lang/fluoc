@@ -78,8 +78,8 @@ data OpInfo = Prefix Prec | Postfix Prec | Binary Prec Associativity
 data Statement = BindingS [Binding] Span
                | DeclarationS Declaration Span
                | ImplS Namespace Type [Statement] Span
-               | TraitS Ident [PolyIdent] [Statement] Span
                | RecordS Ident [PolyIdent] [RecordItem] Span
+               | TraitS Ident [PolyIdent] [Statement] Span
                | ImportS Namespace (Maybe Ident) Span
                | FromImportS Namespace (Maybe [Ident]) Span
                | OpDefS Operator OpInfo Span
