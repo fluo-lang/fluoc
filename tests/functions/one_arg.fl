@@ -1,0 +1,6 @@
+# { "output": "3" }
+identity = fn(x): int
+    x
+end
+
+print(identity(3))

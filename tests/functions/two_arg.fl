@@ -1,0 +1,6 @@
+# { "output": "5" }
+add = fn(x: int, y: int): int
+    x + y
+end
+
+print(add(3, 2))

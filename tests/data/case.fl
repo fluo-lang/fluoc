@@ -1,0 +1,2 @@
+type Result[v, e] = (:ok, v) | (:err, e)
+type Maybe[v] = (:some, v) | :none

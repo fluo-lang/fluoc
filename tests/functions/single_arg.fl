@@ -1,0 +1,6 @@
+# { "output": "2" }
+two = fn(): int
+    2
+end
+
+print(two())

@@ -1,0 +1,10 @@
+type Result[t, e] = (:ok, t) | (:err, e)
+
+ok_val: Result[int, string] = (:ok, 1)
+err_val: Result[int, string]= (:err, "error!")
+
+(:err, error) = err_val
+print(error)
+
+(:ok, val) = ok_val
+print(val)
