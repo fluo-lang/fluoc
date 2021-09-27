@@ -1,4 +1,4 @@
-# { "output": "5" }
+# { "output": "5\n" }
 add = fn(x: int, y: int): int
     x + y
 end

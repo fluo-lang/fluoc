@@ -1,4 +1,4 @@
-# { "output": "2" }
+# { "output": "2\n" }
 two = fn(): int
     2
 end

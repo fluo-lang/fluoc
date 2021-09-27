@@ -1,4 +1,4 @@
-# { "output": "3" }
+# { "output": "3\n" }
 identity = fn(x): int
     x
 end

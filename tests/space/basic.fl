@@ -1,0 +1,21 @@
+# { "output": "123\nhello\n" }
+import space
+
+type NumOrStr = (:number, int) | (:string, str)
+
+add_value = fn(
+    s: space.Space<NumOrStr>,
+    value: NumOrStr,
+)
+    s.add(value)
+end
+
+test_space = space.Space.new<NumOrStr>()
+add_value(test_space, (:number, 123))
+add_value(test_space, (:string, "hello"))
+
+(:number, x) = test_space.take()
+(:string, str) = test_space.take()
+
+print(x)
+print(str)

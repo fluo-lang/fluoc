@@ -1,7 +1,8 @@
-type Result[t, e] = (:ok, t) | (:err, e)
+# { "output": "error!\n1\n" }
+type Result<t, e> = (:ok, t) | (:err, e)
 
-ok_val: Result[int, string] = (:ok, 1)
-err_val: Result[int, string]= (:err, "error!")
+ok_val: Result<int, string> = (:ok, 1)
+err_val: Result<int, string> = (:err, "error!")
 
 (:err, error) = err_val
 print(error)

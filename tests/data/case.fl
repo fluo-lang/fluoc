@@ -1,2 +1,14 @@
-type Result[v, e] = (:ok, v) | (:err, e)
-type Maybe[v] = (:some, v) | :none
+# { "output": "none\n123\n" }
+type Maybe<v> = (:some, v) | :none
+
+none_value = :none
+
+print_maybe = fn<v: print>(val: Maybe<v>)
+    case val do
+        :none -> print("none")
+        (:some, v) -> print(v)
+    end
+end
+
+print_maybe(:none)
+print_maybe((:some, 123))

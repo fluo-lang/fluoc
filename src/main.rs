@@ -1,3 +1,8 @@
+use std::fs::read_to_string;
+
+mod frontend;
+
 fn main() {
-    println!("Hello, world!");
+    let file = read_to_string("tests/io/print.fl").unwrap();
+    println!("{:?}", file);
 }
