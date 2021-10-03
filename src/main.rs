@@ -1,5 +1,6 @@
 use std::fs::read_to_string;
 
+mod common;
 mod frontend;
 
 fn main() {
