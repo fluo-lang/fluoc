@@ -1,12 +1,9 @@
-struct FileId(usize);
-struct Span {
-    s: usize,
-    e: usize,
-    fid: FileId,
-}
-struct Spanned<T>(T, Span);
-enum Statement {
+use crate::common::diagnostic::Spanned;
+
+#[derive(Debug)]
+pub enum Statement {
     Expression(Spanned<Expr>),
 }
 
-enum Expr {}
+#[derive(Debug)]
+pub enum Expr {}
