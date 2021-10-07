@@ -1,6 +1,6 @@
-# { "output": "5\n" }
+# { "output": "127\n" }
 fn add(x: int, y: int): int
     x + y
 end
 
-print(add(3, 2))
+print(123 `add` 4)

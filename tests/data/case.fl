@@ -3,7 +3,7 @@ type Maybe<v> = (:some, v) | :none
 
 none_value = :none
 
-print_maybe = fn<v: print>(val: Maybe<v>)
+fn<v: print>print_maybe(val: Maybe<v>)
     case val do
         :none -> print("none")
         (:some, v) -> print(v)

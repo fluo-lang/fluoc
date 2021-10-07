@@ -1,5 +1,5 @@
 # { "output": "3\n" }
-identity = fn(x): int
+fn identity(x): int
     x
 end
 

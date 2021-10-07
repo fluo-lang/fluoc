@@ -1,0 +1,7 @@
+# { "output": "false\nfalse\n" }
+fn <*>(l: int, r: int): bool
+    false
+end
+
+print(3 <*> 3)
+print(2 <*> 3)

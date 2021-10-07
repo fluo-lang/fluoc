@@ -1,0 +1,4 @@
+# { "output": "5\n" }
+extern fn add(x: int, y: int): int
+
+print(add(2, 3))

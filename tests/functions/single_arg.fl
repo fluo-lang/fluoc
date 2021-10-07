@@ -1,5 +1,5 @@
 # { "output": "2\n" }
-two = fn(): int
+fn two(): int
     2
 end
 

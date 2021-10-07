@@ -1,0 +1,11 @@
+# { "output": "6\nfalse\n" }
+fn <^>(l: int, r: int): int
+    l + r
+end
+
+fn <^>(l: int, r: bool): bool
+    r
+end
+
+print(3 <^> 3)
+print(2 <^> false)
