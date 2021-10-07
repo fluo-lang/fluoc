@@ -18,10 +18,8 @@ pub enum Token {
     LAngle,
     RAngle,
 
-    Pipe,
     Equals,
     Colon,
-    Dot,
 
     Fn,
     End,
@@ -31,6 +29,7 @@ pub enum Token {
     Import,
 
     String(StrId),
+    Operator(StrId),
     Atom(StrId),
     Ident(StrId),
 
@@ -58,13 +57,8 @@ impl<'a> Lexer<'a> {
     pub fn next_token(&mut self) -> Failable<Spanned<Token>> {
         let start_pos = self.position;
         let token = match self.eat() {
-            '.' => Token::Dot,
             '(' => Token::LParen,
             ')' => Token::RParen,
-            '<' => Token::LAngle,
-            '>' => Token::RAngle,
-            '|' => Token::Pipe,
-            '=' => Token::Equals,
             '\0' => Token::Eof,
             _ => {
                 let span = Span::new(start_pos, start_pos + 1, self.file_id);
@@ -77,6 +71,13 @@ impl<'a> Lexer<'a> {
         };
         let end_pos = self.position;
         Ok(Spanned(token, Span::new(start_pos, end_pos, self.file_id)))
+    }
+
+    fn is_operator(c: char) -> bool {
+        match c {
+            '!' | '@' | '$' | '%' | '^' | '&' | '*' | '-' | '+' | '=' | '>' | '<' | '.' | '?' | '/' => true,
+            _ => false
+        }
     }
 
     #[inline]
@@ -149,5 +150,4 @@ mod test_lexer {
     }
 
     assert_tokens!("", [], empty);
-    assert_tokens!(".=<>", [Token::Dot, Token::Equals, Token::LAngle, Token::RAngle], symbols);
 }
