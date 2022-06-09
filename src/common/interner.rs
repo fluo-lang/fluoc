@@ -5,7 +5,7 @@ use hashbrown::HashMap;
 
 #[derive(Default, Clone, Debug, Copy, PartialEq, Eq, Hash)]
 #[repr(transparent)]
-pub struct StrId(usize);
+pub struct StrId(pub usize);
 
 impl StrId {
     pub fn inner(self) -> usize {

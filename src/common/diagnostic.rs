@@ -17,7 +17,8 @@ pub struct Span {
 }
 
 #[derive(Debug)]
-pub struct Spanned<T: Debug>(pub T, pub Span);
+pub struct Tagged<V: Debug, T: Debug>(pub V, pub T);
+pub type Spanned<T> = Tagged<T, Span>;
 
 pub type Failable<T> = Result<T, Diagnostic>;
 
@@ -114,10 +115,7 @@ impl Annotation {
     }
 
     pub fn new_msgless(span: Span) -> Self {
-        Self {
-            msg: None,
-            span
-        }
+        Self { msg: None, span }
     }
 
     pub fn new(msg: &'static str, span: Span) -> Self {
